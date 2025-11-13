@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('ci_suggestions', function (Blueprint $table) {
+            $table->integer('suggestion_id', true);
+            $table->integer('company_id');
+            $table->string('title', 255);
+            $table->longText('description');
+            $table->string('attachment', 255)->nullable();
+            $table->integer('added_by');
+            $table->string('created_at', 255);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('ci_suggestions');
+    }
+};

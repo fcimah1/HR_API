@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار API طلبات الإجازة</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, textarea, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 4px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🧪 اختبار API طلبات الإجازة</h1>
+    
+    <div class="form-group">
+        <label>Token المستخدم:</label>
+        <input type="text" id="token" value="21|XHRMWoJw1xKvsFOkrCG4frB9oqPmRyI07TEJeCem066da532" />
+    </div>
+
+    <h2>📋 عرض طلبات الإجازة</h2>
+    <button onclick="getApplications()">جلب الطلبات</button>
+
+    <h2>➕ إضافة طلب إجازة جديد</h2>
+    <form id="leaveForm">
+        <div class="form-group">
+            <label>نوع الإجازة:</label>
+            <select id="leave_type_id" required>
+                <option value="">اختر نوع الإجازة</option>
+                <option value="311">إجازة سنوية</option>
+                <option value="312">إجازة مرضية</option>
+                <option value="313">إجازة طارئة</option>
+                <option value="314">إجازة أمومة</option>
+                <option value="315">إجازة أبوة</option>
+                <option value="316">إجازة دراسية</option>
+                <option value="194">اضطراريه</option>
+                <option value="195">المرض</option>
+                <option value="199">مستحقه</option>
+                <option value="320">إجازة سنوية (عامة)</option>
+                <option value="321">إجازة مرضية (عامة)</option>
+                <option value="322">إجازة طارئة (عامة)</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>تاريخ البداية:</label>
+            <input type="date" id="from_date" required />
+        </div>
+        
+        <div class="form-group">
+            <label>تاريخ النهاية:</label>
+            <input type="date" id="to_date" required />
+        </div>
+        
+        <div class="form-group">
+            <label>سبب الإجازة:</label>
+            <textarea id="reason" required placeholder="اكتب سبب الإجازة (على الأقل 10 أحرف)"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label>ملاحظات (اختياري):</label>
+            <textarea id="remarks" placeholder="ملاحظات إضافية"></textarea>
+        </div>
+        
+        <button type="submit">إنشاء طلب الإجازة</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000/api';
+        
+        function getHeaders() {
+            const token = document.getElementById('token').value;
+            return {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            };
+        }
+        
+        function showResult(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<div class="result ${type}">${message}</div>`;
+        }
+        
+        async function getApplications() {
+            try {
+                showResult('جاري جلب الطلبات...', 'info');
+                
+                const response = await fetch(`${API_BASE}/leaves/applications`, {
+                    method: 'GET',
+                    headers: getHeaders()
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(`
+                        <h3>✅ تم جلب الطلبات بنجاح</h3>
+                        <p><strong>عدد الطلبات:</strong> ${data.data.length}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `, 'success');
+                } else {
+                    showResult(`
+                        <h3>❌ خطأ في جلب الطلبات</h3>
+                        <p>${data.message || 'خطأ غير معروف'}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `, 'error');
+                }
+            } catch (error) {
+                showResult(`
+                    <h3>❌ خطأ في الاتصال</h3>
+                    <p>${error.message}</p>
+                `, 'error');
+            }
+        }
+        
+        document.getElementById('leaveForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                leave_type_id: parseInt(document.getElementById('leave_type_id').value),
+                from_date: document.getElementById('from_date').value,
+                to_date: document.getElementById('to_date').value,
+                reason: document.getElementById('reason').value,
+                remarks: document.getElementById('remarks').value || null
+            };
+            
+            try {
+                showResult('جاري إنشاء طلب الإجازة...', 'info');
+                
+                const response = await fetch(`${API_BASE}/leaves/applications`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(`
+                        <h3>✅ تم إنشاء طلب الإجازة بنجاح!</h3>
+                        <p><strong>رقم الطلب:</strong> ${data.data.leave_id}</p>
+                        <p><strong>المدة:</strong> ${data.data.duration_days} أيام</p>
+                        <p><strong>الحالة:</strong> ${data.data.status_text}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `, 'success');
+                    
+                    // إعادة تعيين النموذج
+                    document.getElementById('leaveForm').reset();
+                } else {
+                    showResult(`
+                        <h3>❌ فشل في إنشاء طلب الإجازة</h3>
+                        <p>${data.message || 'خطأ غير معروف'}</p>
+                        ${data.errors ? `<p><strong>الأخطاء:</strong></p><pre>${JSON.stringify(data.errors, null, 2)}</pre>` : ''}
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `, 'error');
+                }
+            } catch (error) {
+                showResult(`
+                    <h3>❌ خطأ في الاتصال</h3>
+                    <p>${error.message}</p>
+                `, 'error');
+            }
+        });
+        
+        // تعيين التواريخ الافتراضية
+        const today = new Date();
+        const endDate = new Date(today);
+        endDate.setDate(endDate.getDate() + 2);
+        
+        document.getElementById('from_date').value = today.toISOString().split('T')[0];
+        document.getElementById('to_date').value = endDate.toISOString().split('T')[0];
+    </script>
+</body>
+</html>

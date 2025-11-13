@@ -1,0 +1,2089 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "HR Management API",
+        "description": "API for HR Management System with Employee and Leave Management",
+        "contact": {
+            "email": "admin@hrapi.com"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://127.0.0.1:8000",
+            "description": "Local Development Server"
+        }
+    ],
+    "paths": {
+        "/api/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "User login",
+                "operationId": "222b2625838e3c57e017987f73598fda",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "username",
+                                    "password",
+                                    "company_name"
+                                ],
+                                "properties": {
+                                    "username": {
+                                        "type": "string",
+                                        "example": "company"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "12345678"
+                                    },
+                                    "company_name": {
+                                        "type": "string",
+                                        "example": "Demo Company"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Login successful"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "1|abc123..."
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invalid credentials"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/logout": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "User logout",
+                "operationId": "ad65cbbd4e9f201619eae184a5961a98",
+                "responses": {
+                    "200": {
+                        "description": "Logout successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Logout successful"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/user": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Get authenticated user",
+                "operationId": "961ad57987905b44ae2e2f40b82e76de",
+                "responses": {
+                    "200": {
+                        "description": "User data retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/refresh": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Refresh token",
+                "operationId": "f6409cd8d794404a6410b0767432b0f4",
+                "responses": {
+                    "200": {
+                        "description": "Token refreshed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Token refreshed"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "2|xyz789..."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/companies": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Get list of companies",
+                "operationId": "6c3679fb2ed69b5696ffa0929dc0a076",
+                "responses": {
+                    "200": {
+                        "description": "Companies retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "companies": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/employees": {
+            "get": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Get all employees in user's company",
+                "operationId": "b9b73e1873c5fe36b951f014f711e4fa",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by name or email",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "john"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Employees retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Create new employee",
+                "operationId": "781d9d682a574c5e2c1dab17f782b5cd",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "first_name",
+                                    "last_name",
+                                    "email",
+                                    "username",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "John"
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "Doe"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "example": "john.doe@company.com"
+                                    },
+                                    "username": {
+                                        "type": "string",
+                                        "example": "john.doe"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "password123"
+                                    },
+                                    "user_type": {
+                                        "type": "string",
+                                        "example": "company"
+                                    },
+                                    "contact_number": {
+                                        "type": "string",
+                                        "example": "1234567890"
+                                    },
+                                    "gender": {
+                                        "type": "string",
+                                        "example": "male"
+                                    },
+                                    "employee_id": {
+                                        "type": "string",
+                                        "example": "EMP001"
+                                    },
+                                    "department_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "designation_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "basic_salary": {
+                                        "type": "number",
+                                        "example": 50000
+                                    },
+                                    "date_of_joining": {
+                                        "type": "string",
+                                        "example": "2024-01-01"
+                                    },
+                                    "date_of_birth": {
+                                        "type": "string",
+                                        "example": "1990-01-01"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Employee created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Employee created successfully"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}": {
+            "get": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Get specific employee details",
+                "operationId": "de09c8d9afb3f7114d227ad0645940ac",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Employee ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Employee retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Employee not found"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Update employee",
+                "operationId": "55e1ceec679a0d1436c869735e984a83",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Employee ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "John"
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "Doe"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "example": "john.doe@company.com"
+                                    },
+                                    "contact_number": {
+                                        "type": "string",
+                                        "example": "1234567890"
+                                    },
+                                    "basic_salary": {
+                                        "type": "number",
+                                        "example": 55000
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Employee updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Employee updated successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Employee not found"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Delete employee",
+                "operationId": "dc1326c2f6b4bed0201d62396ddfd970",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Employee ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Employee deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Employee deleted successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Employee not found"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/stats": {
+            "get": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Get employee statistics for the company",
+                "operationId": "f365577f76a317d723e5397431bcb7bb",
+                "responses": {
+                    "200": {
+                        "description": "Statistics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_employees": {
+                                                    "type": "integer",
+                                                    "example": 50
+                                                },
+                                                "active_employees": {
+                                                    "type": "integer",
+                                                    "example": 45
+                                                },
+                                                "inactive_employees": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "by_user_type": {
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/search": {
+            "get": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Search employees",
+                "operationId": "db1c96380066d4929196688963410fec",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Search term",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "john"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Search results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/by-type/{type}": {
+            "get": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Get employees by type",
+                "operationId": "42573513053655bd4bc93e5f0c4f8fa6",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "description": "User type",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "employee"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Employees by type",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/active": {
+            "get": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Get active employees",
+                "operationId": "4c6480e8c2eed89673171a65b06a2f87",
+                "responses": {
+                    "200": {
+                        "description": "Active employees",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/inactive": {
+            "get": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Get inactive employees",
+                "operationId": "baf87e572704c221e35dd542fea72668",
+                "responses": {
+                    "200": {
+                        "description": "Inactive employees",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/export/pdf": {
+            "get": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Export employees to PDF",
+                "operationId": "1740a03a16e20920d24870ac51cce4ee",
+                "responses": {
+                    "200": {
+                        "description": "PDF file download",
+                        "content": {
+                            "application/pdf": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/export/pdf/detailed": {
+            "get": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Export employees to detailed PDF",
+                "operationId": "1ded9dc7d83ce1e1930607916927a41a",
+                "responses": {
+                    "200": {
+                        "description": "Detailed PDF file download",
+                        "content": {
+                            "application/pdf": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/export/pdf/arabic": {
+            "get": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Export employees to Arabic PDF (RTL)",
+                "operationId": "f135ca125119451a744cf4539f300b5f",
+                "responses": {
+                    "200": {
+                        "description": "Arabic PDF file download",
+                        "content": {
+                            "application/pdf": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/export/pdf/arabic-full": {
+            "get": {
+                "tags": [
+                    "Employees"
+                ],
+                "summary": "Export employees to full Arabic PDF using mPDF",
+                "operationId": "8f267ce85abd94eab8c40aab9845b6cc",
+                "responses": {
+                    "200": {
+                        "description": "Full Arabic PDF file download",
+                        "content": {
+                            "application/pdf": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/applications": {
+            "get": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Get leave applications",
+                "operationId": "108fd1c88016a0fd948c4c5e6805ca55",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by employee ID (managers/HR only)",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by status (true=approved, false=pending)",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "leave_type_id",
+                        "in": "query",
+                        "description": "Filter by leave type ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave applications retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "leave_id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "employee_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "leave_type_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "from_date": {
+                                                        "type": "string",
+                                                        "format": "date"
+                                                    },
+                                                    "to_date": {
+                                                        "type": "string",
+                                                        "format": "date"
+                                                    },
+                                                    "duration_days": {
+                                                        "type": "integer"
+                                                    },
+                                                    "reason": {
+                                                        "type": "string"
+                                                    },
+                                                    "status_text": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Create a new leave application",
+                "operationId": "dacdbb5df9d12a9eceec2d178c2f8ec3",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "leave_type_id",
+                                    "from_date",
+                                    "to_date",
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "leave_type_id": {
+                                        "description": "معرف نوع الإجازة - استخدم 311-316 أو 194,195,199,320-323",
+                                        "type": "integer",
+                                        "example": 323
+                                    },
+                                    "from_date": {
+                                        "description": "تاريخ بداية الإجازة",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-12-01"
+                                    },
+                                    "to_date": {
+                                        "description": "تاريخ نهاية الإجازة",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-12-07"
+                                    },
+                                    "reason": {
+                                        "description": "سبب الإجازة (10 أحرف على الأقل)",
+                                        "type": "string",
+                                        "example": "إجازة سنوية للراحة والاستجمام"
+                                    },
+                                    "duty_employee_id": {
+                                        "description": "معرف الموظف البديل (اختياري) - يجب أن يكون من نفس الشركة: 36,37,118,702,703,725,726,744",
+                                        "type": "integer",
+                                        "example": 37
+                                    },
+                                    "is_half_day": {
+                                        "description": "هل الإجازة نصف يوم؟",
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "leave_hours": {
+                                        "description": "عدد ساعات الإجازة",
+                                        "type": "string",
+                                        "example": "8"
+                                    },
+                                    "remarks": {
+                                        "description": "ملاحظات (اختياري)",
+                                        "type": "string",
+                                        "example": "ملاحظات إضافية"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Leave application created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء طلب الإجازة بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The given data was invalid."
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "leave_type_id": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "نوع الإجازة غير متاح لشركتك"
+                                                    }
+                                                },
+                                                "duty_employee_id": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "الموظف البديل يجب أن يكون من نفس الشركة ونشط"
+                                                    }
+                                                },
+                                                "reason": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "سبب الإجازة يجب أن يكون 10 أحرف على الأقل"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/applications/{id}": {
+            "get": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Get a specific leave application",
+                "operationId": "d39da257002a19f24c103461def2cd2c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave application retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Leave application not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Update a leave application",
+                "operationId": "cd9fe0964115a647127feb4fc88f250e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "from_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "to_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "reason": {
+                                        "type": "string"
+                                    },
+                                    "remarks": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Leave application updated successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Delete a leave application permanently",
+                "description": "Permanently deletes a leave application from the database. This action cannot be undone. Only pending applications can be deleted.",
+                "operationId": "b477371ebcef57cb00a4d4f25960f0ed",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Leave application ID to delete permanently",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 123
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave application deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف طلب الإجازة نهائياً"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Leave application not found or cannot be deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "طلب الإجازة غير موجود أو لا يمكن حذفه"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Cannot delete processed application",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "لا يمكن حذف الطلب بعد الموافقة عليه"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing token"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/applications/{id}/cancel": {
+            "delete": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Cancel a leave application (mark as rejected)",
+                "description": "Cancels a leave application by marking it as rejected. The application remains in the database for audit purposes with status 'rejected' and remarks indicating it was cancelled by the employee.",
+                "operationId": "450c456171a07ac8bfe08acd3564ddec",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Leave application ID to cancel",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 123
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave application cancelled successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إلغاء طلب الإجازة بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Leave application not found or cannot be cancelled",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "طلب الإجازة غير موجود أو لا يمكن إلغاؤه"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Cannot cancel processed application",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "لا يمكن إلغاء طلب تم الموافقة عليه مسبقاً"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing token"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/adjustments": {
+            "get": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Get leave adjustments",
+                "operationId": "03647f1cbcfef68c9db1de554b5fe82a",
+                "responses": {
+                    "200": {
+                        "description": "Leave adjustments retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Create a new leave adjustment",
+                "operationId": "81d82690b8dc39f596ff5699e7fe0a59",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "leave_type_id",
+                                    "adjust_hours",
+                                    "reason_adjustment"
+                                ],
+                                "properties": {
+                                    "leave_type_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "adjust_hours": {
+                                        "type": "string",
+                                        "example": "8"
+                                    },
+                                    "reason_adjustment": {
+                                        "type": "string",
+                                        "example": "تسوية إجازة متراكمة"
+                                    },
+                                    "adjustment_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-11-15"
+                                    },
+                                    "duty_employee_id": {
+                                        "type": "integer",
+                                        "example": 25
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Leave adjustment created successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/types": {
+            "get": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Get available leave types",
+                "operationId": "217df4e4d7536b0fedbd5dae76fa4d3c",
+                "responses": {
+                    "200": {
+                        "description": "Leave types retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "leave_type_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "leave_type_name": {
+                                                        "type": "string",
+                                                        "example": "إجازة سنوية"
+                                                    },
+                                                    "leave_type_short_name": {
+                                                        "type": "string",
+                                                        "example": "سنوية"
+                                                    },
+                                                    "leave_days": {
+                                                        "type": "integer",
+                                                        "example": 30
+                                                    },
+                                                    "leave_type_status": {
+                                                        "type": "boolean",
+                                                        "example": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Create a new leave type (HR/Admin only)",
+                "operationId": "caca705283dfc334573931ee8d011689",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "leave_type_name",
+                                    "leave_days"
+                                ],
+                                "properties": {
+                                    "leave_type_name": {
+                                        "type": "string",
+                                        "example": "إجازة دراسية"
+                                    },
+                                    "leave_type_short_name": {
+                                        "type": "string",
+                                        "example": "دراسية"
+                                    },
+                                    "leave_days": {
+                                        "type": "integer",
+                                        "example": 10
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Leave type created successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/applications/{id}/approve": {
+            "post": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Approve leave application (Managers/HR only)",
+                "operationId": "3c3347fc6d30e9059e0a25c361397164",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "remarks": {
+                                        "type": "string",
+                                        "example": "موافق على الطلب"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Leave application approved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/adjustments/{id}/approve": {
+            "post": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Approve leave adjustment (Managers/HR only)",
+                "operationId": "72997bed27c1637092673f3f56b26e06",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave adjustment approved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/stats": {
+            "get": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Get leave statistics (Managers/HR only)",
+                "operationId": "a5317e9bdcb5843a614ed8a01d389771",
+                "responses": {
+                    "200": {
+                        "description": "Leave statistics retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/adjustments/{id}": {
+            "put": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Update a leave adjustment",
+                "description": "Updates a leave adjustment. Only pending adjustments can be updated.",
+                "operationId": "c767f845f31c676d1293bbd0156ef143",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Leave adjustment ID to update",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 123
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "leave_type_id": {
+                                        "type": "integer",
+                                        "example": 323
+                                    },
+                                    "adjust_hours": {
+                                        "type": "string",
+                                        "example": "8"
+                                    },
+                                    "reason_adjustment": {
+                                        "type": "string",
+                                        "example": "تحديث سبب التسوية"
+                                    },
+                                    "adjustment_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-12-01"
+                                    },
+                                    "duty_employee_id": {
+                                        "type": "integer",
+                                        "example": 37
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Leave adjustment updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث تسوية الإجازة بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Leave adjustment not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تسوية الإجازة غير موجودة أو غير مصرح لك بتعديلها"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Cannot update processed adjustment",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "لا يمكن تعديل التسوية بعد المراجعة"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Delete a leave adjustment permanently",
+                "description": "Permanently deletes a leave adjustment from the database. This action cannot be undone. Only pending adjustments can be deleted.",
+                "operationId": "bc0b48ac1b36802d77b411c7cf29eb46",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Leave adjustment ID to delete permanently",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 123
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave adjustment deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف تسوية الإجازة نهائياً"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Leave adjustment not found or cannot be deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تسوية الإجازة غير موجودة أو لا يمكن حذفها"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Cannot delete processed adjustment",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "لا يمكن حذف التسوية بعد الموافقة عليها"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/adjustments/{id}/cancel": {
+            "delete": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Cancel a leave adjustment (mark as rejected)",
+                "description": "Cancels a leave adjustment by marking it as rejected. The adjustment remains in the database for audit purposes.",
+                "operationId": "7453760c3510df816917312e1b62f4a5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Leave adjustment ID to cancel",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 123
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave adjustment cancelled successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إلغاء تسوية الإجازة بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Leave adjustment not found or cannot be cancelled",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تسوية الإجازة غير موجودة أو لا يمكن إلغاؤها"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "sanctum": {
+                "type": "http",
+                "description": "Laravel Sanctum Token Authentication",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Authentication",
+            "description": "User authentication endpoints"
+        },
+        {
+            "name": "Leave Management",
+            "description": "Leave applications and adjustments management"
+        },
+        {
+            "name": "Employees",
+            "description": "Employees"
+        }
+    ]
+}
