@@ -121,6 +121,70 @@ class LeaveService
      */
     public function updateApplication(int $id, UpdateLeaveApplicationDTO $dto, User $user): ?LeaveApplicationResponseDTO
     {
+        \DB::beginTransaction();
+        try {
+            \Log::info('LeaveService::updateApplication started', [
+                'application_id' => $id,
+                'user_id' => $user->user_id,
+                'updates' => array_keys(array_filter($dto->toArray()))
+            ]);
+            
+            // Get effective company ID first
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            
+            // Find application without loading relationships first
+            $application = $this->leaveRepository->findApplicationInCompany($id, $effectiveCompanyId);
+            
+            if (!$application) {
+                \Log::warning('Application not found', ['application_id' => $id, 'company_id' => $effectiveCompanyId]);
+                \DB::rollBack();
+                return null;
+            }
+
+            // Check permissions
+            if ($application->employee_id !== $user->user_id) {
+                \Log::warning('Permission denied - not owner', [
+                    'application_employee_id' => $application->employee_id,
+                    'current_user_id' => $user->user_id
+                ]);
+                \DB::rollBack();
+                throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+            }
+
+            // Check if application can be updated
+            if ($application->status !== false) {
+                \Log::warning('Cannot update - not pending', ['status' => $application->status]);
+                \DB::rollBack();
+                throw new \Exception('لا يمكن تعديل الطلب بعد المراجعة');
+            }
+
+            // Update application
+            $updatedApplication = $this->leaveRepository->updateApplication($application, $dto);
+            
+            \DB::commit();
+            
+            \Log::info('Application updated successfully', [
+                'application_id' => $updatedApplication->leave_id,
+                'updates' => array_keys(array_filter($dto->toArray()))
+            ]);
+            
+            return LeaveApplicationResponseDTO::fromModel($updatedApplication);
+            
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Error in LeaveService::updateApplication', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Cancel leave application (mark as rejected)
+     */
+    public function cancelApplication(int $id, User $user): bool
+    {
         // الحصول على معرف الشركة الفعلي
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
         
@@ -128,41 +192,27 @@ class LeaveService
         $application = $this->leaveRepository->findApplicationInCompany($id, $effectiveCompanyId);
         
         if (!$application) {
-            return null;
-        }
-
-        // التحقق من صلاحية التعديل - يجب أن يكون الموظف صاحب الطلب
-        if ($application->employee_id !== $user->user_id) {
-            throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
-        }
-
-        // Check if application can be updated (only pending applications)
-        if ($application->status !== false) {
-            throw new \Exception('لا يمكن تعديل الطلب بعد المراجعة');
-        }
-
-        $updatedApplication = $this->leaveRepository->updateApplication($application, $dto);
-        return LeaveApplicationResponseDTO::fromModel($updatedApplication);
-    }
-
-    /**
-     * Cancel leave application (mark as rejected)
-     */
-    public function cancelApplication(int $id, int $employeeId): bool
-    {
-        $application = $this->leaveRepository->findApplicationForEmployee($id, $employeeId);
-        
-        if (!$application) {
             return false;
         }
 
-        // Check if application can be cancelled (only pending applications)
-        if ($application->status !== false) {
-            throw new \Exception('لا يمكن إلغاء الطلب بعد الموافقة عليه');
+        // التحقق من الصلاحيات:
+        // 1. الموظف صاحب الطلب يمكنه إلغاء طلباته المعلقة فقط
+        // 2. المدير/الشركة يمكنهم إلغاء أي طلب (معلق أو موافق عليه)
+        $isOwner = $application->employee_id === $user->user_id;
+        $isManager = in_array($user->user_type, ['company', 'admin', 'hr', 'manager']);
+        
+        if (!$isOwner && !$isManager) {
+            throw new \Exception('ليس لديك صلاحية لإلغاء هذا الطلب');
+        }
+        
+        // الموظف العادي يمكنه إلغاء الطلبات المعلقة فقط
+        if ($isOwner && !$isManager && $application->status !== false) {
+            throw new \Exception('لا يمكن إلغاء الطلب بعد المراجعة');
         }
 
         // Mark as rejected (keeps record in database)
-        $this->leaveRepository->rejectApplication($application, $employeeId, 'تم إلغاء الطلب من قبل الموظف');
+        $cancelReason = $isManager ? 'تم إلغاء الطلب من قبل الإدارة' : 'تم إلغاء الطلب من قبل الموظف';
+        $this->leaveRepository->rejectApplication($application, $user->user_id, $cancelReason);
         
         return true;
     }
@@ -170,16 +220,30 @@ class LeaveService
     /**
      * Delete leave application completely from database
      */
-    public function deleteApplication(int $id, int $employeeId): bool
+    public function deleteApplication(int $id, User $user): bool
     {
-        $application = $this->leaveRepository->findApplicationForEmployee($id, $employeeId);
+        // الحصول على معرف الشركة الفعلي
+        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+        
+        // البحث عن الطلب في نفس الشركة
+        $application = $this->leaveRepository->findApplicationInCompany($id, $effectiveCompanyId);
         
         if (!$application) {
             return false;
         }
 
-        // Check if application can be deleted (only pending applications)
-        if ($application->status !== false) {
+        // التحقق من الصلاحيات:
+        // 1. الموظف صاحب الطلب يمكنه حذف طلباته المعلقة فقط
+        // 2. المدير/الشركة يمكنهم حذف أي طلب (معلق أو موافق عليه)
+        $isOwner = $application->employee_id === $user->user_id;
+        $isManager = in_array($user->user_type, ['company', 'admin', 'hr', 'manager']);
+        
+        if (!$isOwner && !$isManager) {
+            throw new \Exception('ليس لديك صلاحية لحذف هذا الطلب');
+        }
+        
+        // الموظف العادي يمكنه حذف الطلبات المعلقة فقط
+        if ($isOwner && !$isManager && $application->status !== false) {
             throw new \Exception('لا يمكن حذف الطلب بعد الموافقة عليه');
         }
 

@@ -103,13 +103,50 @@ class LeaveRepository implements LeaveRepositoryInterface
      */
     public function updateApplication(LeaveApplication $application, UpdateLeaveApplicationDTO $dto): LeaveApplication
     {
-        if ($dto->hasUpdates()) {
-            $application->update($dto->toArray());
-            $application->refresh();
-            $application->load(['employee', 'dutyEmployee', 'leaveType']);
-        }
+        \Log::debug('LeaveRepository::updateApplication - Starting update', [
+            'application_id' => $application->leave_id,
+            'updates' => $dto->toArray()
+        ]);
 
-        return $application;
+        try {
+            // Temporarily disable model events
+            $dispatcher = $application->getEventDispatcher();
+            $application->unsetEventDispatcher();
+
+            if ($dto->hasUpdates()) {
+                $updates = $dto->toArray();
+                \Log::debug('Applying updates', ['updates' => $updates]);
+                
+                // Update the model directly without events
+                \DB::table('leave_applications')
+                    ->where('leave_id', $application->leave_id)
+                    ->update($updates);
+                    
+                // Refresh the model
+                $application = $application->fresh();
+                
+                // Reload relationships if needed
+                if ($application) {
+                    $application->load(['employee', 'dutyEmployee', 'leaveType']);
+                }
+            }
+
+            // Re-enable events
+            $application->setEventDispatcher($dispatcher);
+
+            \Log::debug('LeaveRepository::updateApplication - Update completed', [
+                'application_id' => $application->leave_id
+            ]);
+
+            return $application;
+
+        } catch (\Exception $e) {
+            \Log::error('LeaveRepository::updateApplication - Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 
     /**
