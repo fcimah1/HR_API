@@ -22,7 +22,7 @@ class EmployeeController extends Controller
      *     path="/api/employees",
      *     summary="Get all employees in user's company",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="page",
      *         in="query",
@@ -95,7 +95,7 @@ class EmployeeController extends Controller
      *     path="/api/employees/{id}",
      *     summary="Get specific employee details",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -152,7 +152,7 @@ class EmployeeController extends Controller
      *     path="/api/employees/stats",
      *     summary="Get employee statistics for the company",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Statistics retrieved successfully",
@@ -192,7 +192,7 @@ class EmployeeController extends Controller
      *     path="/api/employees/search",
      *     summary="Search employees",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="q",
      *         in="query",
@@ -242,7 +242,7 @@ class EmployeeController extends Controller
      *     path="/api/employees/by-type/{type}",
      *     summary="Get employees by type",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="type",
      *         in="path",
@@ -285,7 +285,7 @@ class EmployeeController extends Controller
      *     path="/api/employees/active",
      *     summary="Get active employees",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Active employees",
@@ -326,7 +326,7 @@ class EmployeeController extends Controller
      *     path="/api/employees/inactive",
      *     summary="Get inactive employees",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Inactive employees",
@@ -367,7 +367,7 @@ class EmployeeController extends Controller
      *     path="/api/employees/export/pdf",
      *     summary="Export employees to PDF",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="PDF file download",
@@ -575,7 +575,7 @@ class EmployeeController extends Controller
      *     path="/api/employees/export/pdf/detailed",
      *     summary="Export employees to detailed PDF",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Detailed PDF file download",
@@ -736,7 +736,7 @@ class EmployeeController extends Controller
      *     path="/api/employees",
      *     summary="Create new employee",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -817,7 +817,7 @@ class EmployeeController extends Controller
      *     path="/api/employees/{id}",
      *     summary="Update employee",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -906,7 +906,7 @@ class EmployeeController extends Controller
      *     path="/api/employees/{id}",
      *     summary="Delete employee",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -980,7 +980,7 @@ class EmployeeController extends Controller
      *     path="/api/employees/export/pdf/arabic",
      *     summary="Export employees to Arabic PDF (RTL)",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Arabic PDF file download",
@@ -1229,7 +1229,7 @@ class EmployeeController extends Controller
      *     path="/api/employees/export/pdf/arabic-full",
      *     summary="Export employees to full Arabic PDF using mPDF",
      *     tags={"Employees"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Full Arabic PDF file download",

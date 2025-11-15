@@ -84,8 +84,8 @@ class AuthController extends Controller
         // Delete old tokens
         $user->tokens()->delete();
 
-        // Create new token
-        $token = $user->createToken('auth-token')->plainTextToken;
+        // Create new token with Passport
+        $token = $user->createToken('HR-API-Token')->accessToken;
 
         return response()->json([
             'success' => true,
@@ -102,7 +102,7 @@ class AuthController extends Controller
      *     path="/api/logout",
      *     summary="User logout",
      *     tags={"Authentication"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Logout successful",
@@ -119,7 +119,7 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $request->user()->token()->revoke();
 
         return response()->json([
             'success' => true,
@@ -132,7 +132,7 @@ class AuthController extends Controller
      *     path="/api/user",
      *     summary="Get authenticated user",
      *     tags={"Authentication"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="User data retrieved successfully",
@@ -160,7 +160,7 @@ class AuthController extends Controller
      *     path="/api/refresh",
      *     summary="Refresh token",
      *     tags={"Authentication"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Token refreshed successfully",
@@ -180,11 +180,11 @@ class AuthController extends Controller
     {
         $user = $request->user();
         
-        // Delete current token
-        $request->user()->currentAccessToken()->delete();
+        // Revoke current token
+        $request->user()->token()->revoke();
         
-        // Create new token
-        $token = $user->createToken('auth-token')->plainTextToken;
+        // Create new token with Passport
+        $token = $user->createToken('HR-API-Token')->accessToken;
 
         return response()->json([
             'success' => true,

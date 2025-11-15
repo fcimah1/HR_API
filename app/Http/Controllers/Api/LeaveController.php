@@ -34,7 +34,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/applications",
      *     summary="Get leave applications",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="employee_id",
      *         in="query",
@@ -105,7 +105,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/applications",
      *     summary="Create a new leave application",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -188,7 +188,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/applications/{id}",
      *     summary="Get a specific leave application",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -243,9 +243,10 @@ class LeaveController extends Controller
     /**
      * @OA\Put(
      *     path="/api/leaves/applications/{id}",
-     *     summary="Update a leave application",
+     *     summary="Update a leave application (Employee owner only)",
+     *     description="Updates a leave application. Only the employee who created the application can update it. Managers and company owners cannot update employee applications.",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -271,6 +272,12 @@ class LeaveController extends Controller
         $user = Auth::user();
 
         try {
+            \Log::info('Update Application Request', [
+                'user_id' => $user->user_id,
+                'application_id' => $id,
+                'request_data' => $request->validated()
+            ]);
+            
             $dto = UpdateLeaveApplicationDTO::fromRequest($request->validated());
             $application = $this->leaveService->updateApplication($id, $dto, $user);
 
@@ -288,6 +295,13 @@ class LeaveController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Update Application Error', [
+                'user_id' => $user->user_id,
+                'application_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -301,7 +315,7 @@ class LeaveController extends Controller
      *     summary="Cancel a leave application (mark as rejected)",
      *     description="Cancels a leave application by marking it as rejected. The application remains in the database for audit purposes with status 'rejected' and remarks indicating it was cancelled by the employee.",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -344,7 +358,7 @@ class LeaveController extends Controller
         $user = Auth::user();
 
         try {
-            $success = $this->leaveService->cancelApplication($id, $user->user_id);
+            $success = $this->leaveService->cancelApplication($id, $user);
 
             if (!$success) {
                 return response()->json([
@@ -369,10 +383,10 @@ class LeaveController extends Controller
     /**
      * @OA\Delete(
      *     path="/api/leaves/applications/{id}",
-     *     summary="Delete a leave application permanently",
-     *     description="Permanently deletes a leave application from the database. This action cannot be undone. Only pending applications can be deleted.",
+     *     summary="Delete a leave application permanently (Employee owner only)",
+     *     description="Permanently deletes a leave application from the database. Only the employee who created the application can delete it. Managers and company owners cannot delete employee applications. Only pending applications can be deleted.",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -415,7 +429,7 @@ class LeaveController extends Controller
         $user = Auth::user();
 
         try {
-            $success = $this->leaveService->deleteApplication($id, $user->user_id);
+            $success = $this->leaveService->deleteApplication($id, $user);
 
             if (!$success) {
                 return response()->json([
@@ -442,7 +456,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/adjustments",
      *     summary="Get leave adjustments",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Leave adjustments retrieved successfully"
@@ -478,7 +492,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/adjustments",
      *     summary="Create a new leave adjustment",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -532,7 +546,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/types",
      *     summary="Get available leave types",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Leave types retrieved successfully",
@@ -580,7 +594,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/types",
      *     summary="Create a new leave type (HR/Admin only)",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -633,7 +647,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/applications/{id}/approve",
      *     summary="Approve leave application (Managers/HR only)",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -694,7 +708,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/adjustments/{id}/approve",
      *     summary="Approve leave adjustment (Managers/HR only)",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -745,7 +759,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/stats",
      *     summary="Get leave statistics (Managers/HR only)",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Leave statistics retrieved successfully"
@@ -790,7 +804,7 @@ class LeaveController extends Controller
      *     summary="Update a leave adjustment",
      *     description="Updates a leave adjustment. Only pending adjustments can be updated.",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -868,7 +882,7 @@ class LeaveController extends Controller
      *     summary="Cancel a leave adjustment (mark as rejected)",
      *     description="Cancels a leave adjustment by marking it as rejected. The adjustment remains in the database for audit purposes.",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -927,7 +941,7 @@ class LeaveController extends Controller
      *     summary="Delete a leave adjustment permanently",
      *     description="Permanently deletes a leave adjustment from the database. This action cannot be undone. Only pending adjustments can be deleted.",
      *     tags={"Leave Management"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -987,4 +1001,6 @@ class LeaveController extends Controller
             ], 422);
         }
     }
+
+
 }

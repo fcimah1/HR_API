@@ -19,12 +19,18 @@ use Illuminate\Support\Facades\Route;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/companies', [AuthController::class, 'getCompanies']);
+
+// Test endpoint
+Route::get('/test', function() {
+    return response()->json(['message' => 'API is working', 'time' => now()]);
+});
 
 // Test route for Swagger
 Route::post('/test-leave', [LeaveController::class, 'createApplication']);
 
 // Protected routes with simple company isolation
-Route::middleware(['auth:sanctum', 'simple.company'])->group(function () {
+Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
@@ -62,8 +68,8 @@ Route::middleware(['auth:sanctum', 'simple.company'])->group(function () {
         ->middleware('simple.permission:leave.create');
     // Note: More specific routes must come before general ones
     Route::delete('/leaves/applications/{id}/cancel', [LeaveController::class, 'cancelApplication']);
-    Route::get('/leaves/applications/{id}', [LeaveController::class, 'showApplication']);
     Route::put('/leaves/applications/{id}', [LeaveController::class, 'updateApplication']);
+    Route::get('/leaves/applications/{id}', [LeaveController::class, 'showApplication']);
     Route::delete('/leaves/applications/{id}', [LeaveController::class, 'deleteApplication']);
     
     Route::get('/leaves/adjustments', [LeaveController::class, 'getAdjustments']);

@@ -18,11 +18,24 @@ namespace App\Http\Controllers;
  * )
  * 
  * @OA\SecurityScheme(
- *     securityScheme="sanctum",
+ *     securityScheme="passport",
+ *     type="oauth2",
+ *     flows={
+ *         @OA\Flow(
+ *             flow="password",
+ *             tokenUrl="/api/login",
+ *             scopes={}
+ *         )
+ *     },
+ *     description="OAuth2 Password Grant Authentication"
+ * )
+ * 
+ * @OA\SecurityScheme(
+ *     securityScheme="bearerAuth",
  *     type="http",
  *     scheme="bearer",
  *     bearerFormat="JWT",
- *     description="Laravel Sanctum Token Authentication"
+ *     description="Bearer Token Authentication"
  * )
  */
 abstract class Controller

@@ -20,7 +20,7 @@ class UpdateLeaveApplicationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'from_date' => 'sometimes|date|after_or_equal:today',
+            'from_date' => 'sometimes|date',
             'to_date' => 'sometimes|date|after_or_equal:from_date',
             'reason' => 'sometimes|string|max:1000|min:10',
             'duty_employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
@@ -53,8 +53,15 @@ class UpdateLeaveApplicationRequest extends FormRequest
             // Check if duty employee belongs to same company
             if ($this->filled('duty_employee_id')) {
                 $user = $this->user();
+                
+                // Get effective company ID
+                $effectiveCompanyId = $user->company_id > 0 ? $user->company_id : $user->user_id;
+                
                 $dutyEmployee = \App\Models\User::where('user_id', $this->duty_employee_id)
-                    ->where('company_id', $user->company_id)
+                    ->where(function($query) use ($effectiveCompanyId) {
+                        $query->where('company_id', $effectiveCompanyId)
+                              ->orWhere('user_id', $effectiveCompanyId);
+                    })
                     ->where('is_active', true)
                     ->exists();
 
