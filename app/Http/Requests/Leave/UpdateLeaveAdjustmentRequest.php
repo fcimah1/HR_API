@@ -3,6 +3,10 @@
 namespace App\Http\Requests\Leave;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class UpdateLeaveAdjustmentRequest extends FormRequest
 {
@@ -11,7 +15,7 @@ class UpdateLeaveAdjustmentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true; // Authorization handled by middleware and controller
+        return Auth::check();
     }
 
     /**
@@ -73,5 +77,19 @@ class UpdateLeaveAdjustmentRequest extends FormRequest
                 }
             }
         });
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        Log::warning('فشل تحديث تسوية إجازة', [
+            'errors' => $validator->errors()->toArray(),
+            'input' => $this->all()
+        ]);
+
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => 'فشل تحديث تسوية إجازة',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }

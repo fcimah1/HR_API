@@ -2,17 +2,20 @@
 
 namespace App\Repository;
 
+use App\DTOs\Leave\UpdateLeaveAdjustmentDTO;
 use App\Repository\Interface\LeaveRepositoryInterface;
 use App\DTOs\Leave\LeaveApplicationFilterDTO;
 use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
 use App\DTOs\Leave\LeaveAdjustmentFilterDTO;
 use App\DTOs\Leave\CreateLeaveAdjustmentDTO;
+use App\DTOs\Leave\CreateLeaveTypeDTO;
 use App\Models\LeaveApplication;
 use App\Models\LeaveAdjustment;
 use App\Models\ErpConstant;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use function Illuminate\Log\log;
 
 class LeaveRepository implements LeaveRepositoryInterface
 {
@@ -101,50 +104,31 @@ class LeaveRepository implements LeaveRepositoryInterface
     /**
      * Update leave application
      */
-    public function updateApplication(LeaveApplication $application, UpdateLeaveApplicationDTO $dto): LeaveApplication
+    public function update_Application(LeaveApplication $application, UpdateLeaveApplicationDTO $dto): object
     {
-        \Log::debug('LeaveRepository::updateApplication - Starting update', [
-            'application_id' => $application->leave_id,
-            'updates' => $dto->toArray()
-        ]);
-
         try {
-            // Temporarily disable model events
-            $dispatcher = $application->getEventDispatcher();
-            $application->unsetEventDispatcher();
-
             if ($dto->hasUpdates()) {
                 $updates = $dto->toArray();
-                \Log::debug('Applying updates', ['updates' => $updates]);
                 
-                // Update the model directly without events
-                \DB::table('leave_applications')
-                    ->where('leave_id', $application->leave_id)
-                    ->update($updates);
-                    
-                // Refresh the model
-                $application = $application->fresh();
-                
-                // Reload relationships if needed
-                if ($application) {
-                    $application->load(['employee', 'dutyEmployee', 'leaveType']);
+                // Update model attributes
+                foreach ($updates as $key => $value) {
+                    $application->$key = $value;
                 }
+                
+                // Save the model
+                $application->save();
+                
+                // Reload relationships
+                $application->load(['employee', 'dutyEmployee', 'leaveType']);
+            } else {
+                // Even if no updates, reload relationships
+                $application->load(['employee', 'dutyEmployee', 'leaveType']);
             }
-
-            // Re-enable events
-            $application->setEventDispatcher($dispatcher);
-
-            \Log::debug('LeaveRepository::updateApplication - Update completed', [
-                'application_id' => $application->leave_id
-            ]);
 
             return $application;
 
         } catch (\Exception $e) {
-            \Log::error('LeaveRepository::updateApplication - Error', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            error_log("LeaveRepository::updateApplication - Error: " . $e->getMessage());
             throw $e;
         }
     }
@@ -224,7 +208,7 @@ class LeaveRepository implements LeaveRepositoryInterface
     /**
      * Create a new leave adjustment
      */
-    public function createAdjustment(CreateLeaveAdjustmentDTO $dto): LeaveAdjustment
+    public function createAdjust(CreateLeaveAdjustmentDTO $dto): object
     {
         $adjustment = LeaveAdjustment::create($dto->toArray());
         $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
@@ -316,9 +300,19 @@ class LeaveRepository implements LeaveRepositoryInterface
     /**
      * Create leave type
      */
-    public function createLeaveType(int $companyId, string $name, ?string $shortName, int $days): ErpConstant
+    public function createLeaveType(CreateLeaveTypeDTO $dto): object
     {
-        return ErpConstant::createLeaveType($companyId, $name, $shortName, $days);
+        // Check if leave type already exists for this company
+        $existingLeaveType = ErpConstant::where('company_id', $dto->companyId)
+            ->where('type', ErpConstant::TYPE_LEAVE_TYPE)
+            ->where('category_name', $dto->name)
+            ->first();
+        
+        if ($existingLeaveType) {
+            throw new \Exception('نوع الإجازة "' . $dto->name . '" موجود بالفعل لهذه الشركة');
+        }
+        
+        return ErpConstant::create($dto->toArray());
     }
 
     /**

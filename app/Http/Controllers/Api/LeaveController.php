@@ -10,13 +10,19 @@ use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
 use App\DTOs\Leave\LeaveAdjustmentFilterDTO;
 use App\DTOs\Leave\CreateLeaveAdjustmentDTO;
+use App\DTOs\Leave\CreateLeaveTypeDTO;
 use App\DTOs\Leave\UpdateLeaveAdjustmentDTO;
+use App\Http\Requests\Leave\ApproveLeaveApplicationRequest;
 use App\Http\Requests\Leave\CreateLeaveApplicationRequest;
 use App\Http\Requests\Leave\UpdateLeaveApplicationRequest;
 use App\Http\Requests\Leave\CreateLeaveAdjustmentRequest;
+use App\Http\Requests\Leave\CreateLeaveTypeRequest;
 use App\Http\Requests\Leave\UpdateLeaveAdjustmentRequest;
+use App\Models\LeaveAdjustment;
+use App\Services\SimplePermissionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @OA\Tag(
@@ -27,14 +33,15 @@ use Illuminate\Support\Facades\Auth;
 class LeaveController extends Controller
 {
     public function __construct(
-        private readonly LeaveService $leaveService
+        private readonly LeaveService $leaveService,
+        private readonly SimplePermissionService $permissionService
     ) {}
     /**
      * @OA\Get(
      *     path="/api/leaves/applications",
      *     summary="Get leave applications",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Parameter(
      *         name="employee_id",
      *         in="query",
@@ -90,9 +97,14 @@ class LeaveController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'تم جلب طلبات الإجازات بنجاح',
+                'created by' => $user->full_name,
                 ...$result
             ]);
         } catch (\Exception $e) {
+            Log::error('LeaveController::getApplications failed', [
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -105,7 +117,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/applications",
      *     summary="Create a new leave application",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -168,13 +180,22 @@ class LeaveController extends Controller
 
             $application = $this->leaveService->createApplication($dto);
 
+            Log::info('LeaveController::createApplication', [
+                'success' => true,
+                'created by' => $user->full_name
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم إنشاء طلب الإجازة بنجاح',
-                'data' => $application->toArray()
+                'data' => $application
             ], 201);
 
         } catch (\Exception $e) {
+            Log::error('LeaveController::createApplication failed', [
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'فشل في إنشاء طلب الإجازة',
@@ -188,7 +209,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/applications/{id}",
      *     summary="Get a specific leave application",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -220,18 +241,31 @@ class LeaveController extends Controller
             }
 
             if (!$application) {
+                Log::info('LeaveController::showApplication', [
+                    'success' => false,
+                    'created by' => $user->full_name
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'طلب الإجازة غير موجود'
                 ], 404);
             }
 
+            Log::info('LeaveController::showApplication', [
+                'success' => true,
+                'created by' => $user->full_name
+            ]);
+
             return response()->json([
                 'success' => true,
-                'data' => $application->toArray()
+                'data' => $application
             ]);
 
         } catch (\Exception $e) {
+            Log::error('LeaveController::showApplication failed', [
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'خطأ في جلب طلب الإجازة',
@@ -243,10 +277,9 @@ class LeaveController extends Controller
     /**
      * @OA\Put(
      *     path="/api/leaves/applications/{id}",
-     *     summary="Update a leave application (Employee owner only)",
-     *     description="Updates a leave application. Only the employee who created the application can update it. Managers and company owners cannot update employee applications.",
+     *     summary="Update a leave application",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -269,39 +302,46 @@ class LeaveController extends Controller
      */
     public function updateApplication(UpdateLeaveApplicationRequest $request, int $id)
     {
-        $user = Auth::user();
-
+        
         try {
-            \Log::info('Update Application Request', [
-                'user_id' => $user->user_id,
-                'application_id' => $id,
-                'request_data' => $request->validated()
-            ]);
-            
+            $user = Auth::user();
             $dto = UpdateLeaveApplicationDTO::fromRequest($request->validated());
-            $application = $this->leaveService->updateApplication($id, $dto, $user);
+            Log::info('LeaveController::updateApplication', [
+                'success' => true,
+                'dto' => $dto,
+                'created by' => $user->full_name
+            ]);
+            $application = $this->leaveService->update_Application($id, $dto, $user);
 
             if (!$application) {
+                Log::info('LeaveController::updateApplication', [
+                    'success' => false,
+                    'message' => 'طلب الإجازة غير موجود أو غير مصرح لك بتعديله',
+
+                    'created by' => $user->full_name
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'طلب الإجازة غير موجود أو غير مصرح لك بتعديله'
                 ], 404);
             }
 
+            Log::info('LeaveController::updateApplication', [
+                'success' => true,
+                'created by' => $user->full_name
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم تحديث طلب الإجازة بنجاح',
-                'data' => $application->toArray()
+                'data' => $application
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Update Application Error', [
-                'user_id' => $user->user_id,
-                'application_id' => $id,
+            Log::error('LeaveController::updateApplication failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'created by' => $user->full_name
             ]);
-            
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -315,7 +355,7 @@ class LeaveController extends Controller
      *     summary="Cancel a leave application (mark as rejected)",
      *     description="Cancels a leave application by marking it as rejected. The application remains in the database for audit purposes with status 'rejected' and remarks indicating it was cancelled by the employee.",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -361,18 +401,34 @@ class LeaveController extends Controller
             $success = $this->leaveService->cancelApplication($id, $user);
 
             if (!$success) {
+                Log::info('LeaveController::cancelApplication', [
+                    'success' => false,
+                    'message' => 'طلب الإجازة غير موجود أو لا يمكن إلغاؤه',
+                    'create_by' => $user->full_name
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'طلب الإجازة غير موجود أو لا يمكن إلغاؤه'
                 ], 404);
             }
 
+            Log::info('LeaveController::cancelApplication', [
+                'success' => true,
+                'message' => 'تم إلغاء طلب الإجازة بنجاح',
+                'create_by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => true,
-                'message' => 'تم إلغاء طلب الإجازة بنجاح'
+                'message' => 'تم إلغاء طلب الإجازة بنجاح',
+                'create_by' => $user->full_name
             ]);
 
         } catch (\Exception $e) {
+            Log::info('LeaveController::cancelApplication', [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'create_by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -383,10 +439,10 @@ class LeaveController extends Controller
     /**
      * @OA\Delete(
      *     path="/api/leaves/applications/{id}",
-     *     summary="Delete a leave application permanently (Employee owner only)",
-     *     description="Permanently deletes a leave application from the database. Only the employee who created the application can delete it. Managers and company owners cannot delete employee applications. Only pending applications can be deleted.",
+     *     summary="Delete a leave application permanently",
+     *     description="Permanently deletes a leave application from the database. This action cannot be undone. Only pending applications can be deleted.",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -429,7 +485,7 @@ class LeaveController extends Controller
         $user = Auth::user();
 
         try {
-            $success = $this->leaveService->deleteApplication($id, $user);
+            $success = $this->leaveService->deleteApplication($id, $user->user_id);
 
             if (!$success) {
                 return response()->json([
@@ -444,6 +500,11 @@ class LeaveController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::info('LeaveController::deleteApplication', [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'create_by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -456,7 +517,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/adjustments",
      *     summary="Get leave adjustments",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Leave adjustments retrieved successfully"
@@ -465,26 +526,38 @@ class LeaveController extends Controller
      */
     public function getAdjustments(Request $request)
     {
+        try {
         $user = Auth::user();
-        
-        // Build filter DTO
-        $filterData = $request->all();
-        
-        // Role-based filtering
-        if (in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
-            $filterData['company_name'] = $user->company_name;
-        } else {
-            $filterData['employee_id'] = $user->user_id;
-        }
-
-        $filters = LeaveAdjustmentFilterDTO::fromRequest($filterData);
+        $filters = LeaveAdjustmentFilterDTO::fromRequest($request->all(), $user);
+        Log::info('LeaveController::getAdjustments filters', [
+            'filters' => $filters,
+            'user' => $user
+        ]);
         $result = $this->leaveService->getPaginatedAdjustments($filters);
+        Log::info('LeaveController::getAdjustments result', [
+            'success' => true,
+            'message' => 'تم جلب تسويات الإجازات بنجاح',
+            'result' => $result,
+            'create_by' => $user->full_name 
+        ]);
 
         return response()->json([
             'success' => true,
             'message' => 'تم جلب تسويات الإجازات بنجاح',
+            'create_by' => $user->full_name,
             ...$result
         ]);
+        } catch (\Exception $e) {
+            Log::info('LeaveController::getAdjustments', [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'create_by' => $user->full_name
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 
     /**
@@ -492,7 +565,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/adjustments",
      *     summary="Create a new leave adjustment",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -512,11 +585,16 @@ class LeaveController extends Controller
      */
     public function createAdjustment(CreateLeaveAdjustmentRequest $request)
     {
-        $user = Auth::user();
-
         try {
+            $user = Auth::user();
             // For company users, use 0 as company_id, for others use their actual company_id
-            $companyId = $user->user_type === 'company' ? 0 : $user->company_id;
+            //ckeck request inputs if it found or not
+            if ($request->has('company_id')) {
+                $companyId = $request->company_id;
+            } else {
+                $companyId = $user->user_type === 'company' ? 0 : $user->company_id;
+            }
+            
             
             $dto = CreateLeaveAdjustmentDTO::fromRequest(
                 $request->validated(),
@@ -524,15 +602,34 @@ class LeaveController extends Controller
                 $user->user_id
             );
 
-            $adjustment = $this->leaveService->createAdjustment($dto);
+            Log::info('LeaveService::createAdjustment started', [
+                'dto' => $dto->toArray(),
+                'user_id' => $user->user_id,
+                'company_id' => $companyId
+            ]);
 
+            $adjustment = $this->leaveService->createAdjust($dto);
+
+            Log::info('LeaveService::createAdjustment success', [
+                'adjustment' => $adjustment->toArray(),
+                'user_id' => $user->user_id,
+                'company_id' => $companyId,
+                'created_by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم إنشاء طلب التسوية بنجاح',
+                'created by' => $user->full_name,
                 'data' => $adjustment
             ], 201);
 
         } catch (\Exception $e) {
+            Log::error('LeaveController::createAdjustment failed', [
+                'error' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'company_id' => $companyId,
+                'created_by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'فشل في إنشاء طلب التسوية',
@@ -546,7 +643,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/types",
      *     summary="Get available leave types",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Leave types retrieved successfully",
@@ -565,28 +662,34 @@ class LeaveController extends Controller
      */
     public function getLeaveTypes()
     {
-        $user = Auth::user();
-        
-        // Get leave types for the user's company and general types
-        $leaveTypes = ErpConstant::getActiveLeaveTypesByCompanyName($user->company_name);
-        
-        // Transform data to match expected format
-        $formattedTypes = $leaveTypes->map(function($constant) {
-            return [
-                'leave_type_id' => $constant->constants_id,
-                'leave_type_name' => $constant->leave_type_name,
-                'leave_type_short_name' => $constant->leave_type_short_name,
-                'leave_days' => $constant->leave_days,
-                'leave_type_status' => $constant->leave_type_status,
-                'company_id' => $constant->company_id,
-            ];
-        });
+        try {
+            $user = Auth::user();
+            // Get leave types for the user's company and general types
+            $leaveTypes = $this->leaveService->getActiveLeaveTypes($user->company_id);
+            Log::info('LeaveController::getLeaveTypes', [
+                'success' => true,
+                'leaveTypes' => $leaveTypes,
+                'created_by' => $user->full_name
+            ]);
+            // Transform data to match expected format
 
-        return response()->json([
-            'success' => true,
-            'data' => $formattedTypes,
-            'message' => 'تم جلب أنواع الإجازات بنجاح'
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $leaveTypes,
+                'message' => 'تم جلب أنواع الإجازات بنجاح',
+                'created_by' => $user->full_name,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('LeaveController::getLeaveTypes failed', [
+                'error' => $e->getMessage(),
+                'created_by' => $user->full_name
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل في جلب أنواع الإجازات',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -594,7 +697,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/types",
      *     summary="Create a new leave type (HR/Admin only)",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -610,10 +713,10 @@ class LeaveController extends Controller
      *     )
      * )
      */
-    public function createLeaveType(Request $request)
+    public function createLeaveType(CreateLeaveTypeRequest $request)
     {
-        $user = Auth::user();
-
+        try {
+            $user = Auth::user();
         // Only HR and Admin can create leave types
         if (!in_array($user->user_type, ['company', 'admin', 'hr'])) {
             return response()->json([
@@ -622,32 +725,50 @@ class LeaveController extends Controller
             ], 403);
         }
 
-        $request->validate([
-            'leave_type_name' => 'required|string|max:255',
-            'leave_type_short_name' => 'nullable|string|max:100',
-            'leave_days' => 'required|integer|min:0|max:365',
+        $dto = CreateLeaveTypeDTO::fromRequest(
+            $request->validated(),
+            $user->user_id
+        );
+
+        Log::info('LeaveService::createType started', [
+            'dto' => $dto->toArray(),
+            'created by' => $user->full_name
         ]);
 
-        $leaveType = ErpConstant::createLeaveType(
-            $user->company_id,
-            $request->leave_type_name,
-            $request->leave_type_short_name,
-            $request->leave_days
-        );
+        $leaveType = $this->leaveService->createLeaveType($dto);
+
+        Log::info('LeaveService::createType completed', [
+            'dto' => $dto->toArray(),
+            'leave_type' => $leaveType,
+            'created by' => $user->full_name,
+        ]);
 
         return response()->json([
             'success' => true,
             'message' => 'تم إنشاء نوع الإجازة بنجاح',
-            'data' => $leaveType
+            'data' => $leaveType,
+            'created by' => $user->full_name
         ], 201);
+    } catch (\Exception $e) {
+        Log::error('LeaveController::createLeaveType failed', [
+            'error' => $e->getMessage(),
+            'created by' => $user->full_name
+        ]);
+        return response()->json([
+            'success' => false,
+            'message' => 'فشل في إنشاء نوع الإجازة',
+            'error' => $e->getMessage(),
+            'created by' => $user->full_name
+        ], 500);
     }
+}
 
     /**
      * @OA\Post(
      *     path="/api/leaves/applications/{id}/approve",
      *     summary="Approve leave application (Managers/HR only)",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -665,9 +786,10 @@ class LeaveController extends Controller
      *     )
      * )
      */
-    public function approveApplication(Request $request, int $id)
+    public function approveApplication(ApproveLeaveApplicationRequest $request, int $id)
     {
         $user = Auth::user();
+        try {
 
         if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
             return response()->json([
@@ -675,32 +797,50 @@ class LeaveController extends Controller
                 'message' => 'غير مصرح لك بالموافقة على الطلبات'
             ], 403);
         }
+        Log::info('LeaveController::Request received', [
+            'request' => $request->all(),
+            'application_id' => $id,
+            'created by' => $user->full_name
+        ]);
+        // Pass the request object directly to the service
+        $application = $this->leaveService->approveApplication($id, $request);
 
-        $application = LeaveApplication::forCompany($user->company_id)->findOrFail($id);
-
-        if ($application->status) {
+        if (isset($application['success']) && $application['success'] === false ) {
+            Log::info('LeaveController::Already Approved', [
+                'success' => false,
+                'application' => $application,
+                'created by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'تم الموافقة على هذا الطلب مسبقاً'
             ], 422);
         }
 
-        $request->validate([
-            'remarks' => 'nullable|string|max:1000'
+        Log::info('LeaveController::Approved', [
+            'success' => true,
+            'application' => $application,
+            'created by' => $user->full_name
         ]);
-
-        $application->update([
-            'status' => true,
-            'remarks' => $request->remarks,
-        ]);
-
-        $application->load(['employee', 'dutyEmployee', 'leaveType']);
 
         return response()->json([
             'success' => true,
             'message' => 'تم الموافقة على طلب الإجازة بنجاح',
             'data' => $application
         ]);
+        } catch (\Exception $e) {
+            Log::error('LeaveController::approveApplication failed', [
+                'message' => 'فشل في الموافقة على طلب الإجازة',
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل في الموافقة على طلب الإجازة',
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ], 500);
+        }
     }
 
     /**
@@ -708,7 +848,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/adjustments/{id}/approve",
      *     summary="Approve leave adjustment (Managers/HR only)",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -723,6 +863,7 @@ class LeaveController extends Controller
      */
     public function approveAdjustment(int $id)
     {
+        try {
         $user = Auth::user();
 
         if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
@@ -732,26 +873,44 @@ class LeaveController extends Controller
             ], 403);
         }
 
-        $adjustment = LeaveAdjustment::forCompany($user->company_id)->findOrFail($id);
+        $adjustment = $this->leaveService->approveAdjustment(
+            $id,
+            $user->company_id,
+            $user->user_id
+        );
 
         if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
             return response()->json([
                 'success' => false,
-                'message' => 'لا يمكن الموافقة على هذا الطلب'
+                'message' => 'لا يمكن الموافقة على هذا الطلب',
+                'created by' => $user->full_name
             ], 422);
         }
-
-        $adjustment->update([
-            'status' => LeaveAdjustment::STATUS_APPROVED,
+        
+        Log::info('LeaveController::approveAdjustment', [
+            'success' => true,
+            'adjustment' => $adjustment,
+            'created by' => $user->full_name
         ]);
-
-        $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
 
         return response()->json([
             'success' => true,
             'message' => 'تم الموافقة على طلب التسوية بنجاح',
-            'data' => $adjustment
+            'data' => $adjustment,
+            'created by' => $user->full_name
         ]);
+        } catch (\Exception $e) {
+            Log::error('LeaveController::approveAdjustment failed', [
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل في الموافقة على طلب التسوية',
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ], 500);
+        }
     }
 
     /**
@@ -759,7 +918,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/stats",
      *     summary="Get leave statistics (Managers/HR only)",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Leave statistics retrieved successfully"
@@ -768,34 +927,36 @@ class LeaveController extends Controller
      */
     public function getStats()
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
+            if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بعرض الإحصائيات',
+                    'created by' => $user->full_name
+                ], 403);
+            }
+
+            $stats = $this->leaveService->getLeaveStatistics($user->company_id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats,
+                'created by' => $user->full_name
+            ]);
+        } catch (\Exception $e) {
+            Log::error('LeaveController::getStats failed', [
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'غير مصرح لك بعرض الإحصائيات'
-            ], 403);
+                'message' => 'فشل في عرض الإحصائيات',
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ], 500);
         }
-
-        $applicationStats = [
-            'total_applications' => LeaveApplication::forCompany($user->company_id)->count(),
-            'pending_applications' => LeaveApplication::forCompany($user->company_id)->withStatus(false)->count(),
-            'approved_applications' => LeaveApplication::forCompany($user->company_id)->withStatus(true)->count(),
-        ];
-
-        $adjustmentStats = [
-            'total_adjustments' => LeaveAdjustment::forCompany($user->company_id)->count(),
-            'pending_adjustments' => LeaveAdjustment::forCompany($user->company_id)->withStatus(LeaveAdjustment::STATUS_PENDING)->count(),
-            'approved_adjustments' => LeaveAdjustment::forCompany($user->company_id)->withStatus(LeaveAdjustment::STATUS_APPROVED)->count(),
-        ];
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'applications' => $applicationStats,
-                'adjustments' => $adjustmentStats,
-            ]
-        ]);
     }
 
     /**
@@ -804,7 +965,7 @@ class LeaveController extends Controller
      *     summary="Update a leave adjustment",
      *     description="Updates a leave adjustment. Only pending adjustments can be updated.",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -858,9 +1019,16 @@ class LeaveController extends Controller
             if (!$adjustment) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'تسوية الإجازة غير موجودة أو غير مصرح لك بتعديلها'
+                    'message' => 'تسوية الإجازة غير موجودة أو غير مصرح لك بتعديلها',
+                    'created by' => $user->full_name
                 ], 404);
             }
+
+            Log::info('LeaveController::updateAdjustment', [
+                'success' => true,
+                'adjustment' => $adjustment,
+                'created by' => $user->full_name
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -869,9 +1037,14 @@ class LeaveController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('LeaveController::updateAdjustment failed', [
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
+                'created by' => $user->full_name
             ], 422);
         }
     }
@@ -882,7 +1055,7 @@ class LeaveController extends Controller
      *     summary="Cancel a leave adjustment (mark as rejected)",
      *     description="Cancels a leave adjustment by marking it as rejected. The adjustment remains in the database for audit purposes.",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -918,9 +1091,16 @@ class LeaveController extends Controller
             if (!$success) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'تسوية الإجازة غير موجودة أو لا يمكن إلغاؤها'
+                    'message' => 'تسوية الإجازة غير موجودة أو لا يمكن إلغاؤها',
+                    'created by' => $user->full_name
                 ], 404);
             }
+
+            Log::info('LeaveController::cancelAdjustment', [
+                'success' => true,
+                'message' => 'تم إلغاء تسوية الإجازة بنجاح',
+                'created by' => $user->full_name
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -928,9 +1108,14 @@ class LeaveController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('LeaveController::cancelAdjustment failed', [
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
+                'created by' => $user->full_name
             ], 422);
         }
     }
@@ -941,7 +1126,7 @@ class LeaveController extends Controller
      *     summary="Delete a leave adjustment permanently",
      *     description="Permanently deletes a leave adjustment from the database. This action cannot be undone. Only pending adjustments can be deleted.",
      *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
+     *     security={{"sanctum":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -980,14 +1165,20 @@ class LeaveController extends Controller
         $user = Auth::user();
 
         try {
-            $success = $this->leaveService->deleteAdjustment($id, $user->user_id);
+            $adjustment = $this->leaveService->deleteAdjustment($id, $user->user_id);
 
-            if (!$success) {
+            if (!$adjustment) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'تسوية الإجازة غير موجودة أو لا يمكن حذفها'
+                    'message' => 'تسوية الإجازة غير موجودة أو لا يمكن حذفها',
+                    'created by' => $user->full_name
                 ], 404);
             }
+
+            Log::info('LeaveController::deleteAdjustment', [
+                'success' => true,
+                'created by' => $user->full_name
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -995,12 +1186,14 @@ class LeaveController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('LeaveController::deleteAdjustment failed', [
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
             ], 422);
         }
     }
-
-
 }

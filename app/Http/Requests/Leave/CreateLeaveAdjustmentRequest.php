@@ -3,6 +3,10 @@
 namespace App\Http\Requests\Leave;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class CreateLeaveAdjustmentRequest extends FormRequest
 {
@@ -11,100 +15,91 @@ class CreateLeaveAdjustmentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true; // Authorization handled by middleware
+        return Auth::check();
     }
 
     /**
      * Get the validation rules that apply to the request.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
-    public function rules(): array
+   public function rules(): array
     {
+        $user = Auth::user();
         return [
-            'leave_type_id' => 'required|integer|exists:ci_erp_constants,constants_id',
-            'adjust_hours' => 'required|string|max:200',
-            'reason_adjustment' => 'required|string|max:1000|min:10',
-            'adjustment_date' => 'nullable|date',
-            'duty_employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
+            'leave_type_id' => 'required|exists:ci_erp_constants,constants_id',
+            'adjustment_date' => [
+                'required',
+                'date',
+                'after_or_equal:today' // يمنع التواريخ الماضية
+            ],
+            'duty_employee_id' => [
+                'nullable',
+                'exists:ci_erp_users,user_id',
+                'different:employee_id' // يمنع أن يكون الموظف البديل هو نفس الموظف
+            ],
+            'adjust_hours' => [
+                'required',
+                'numeric',
+                'min:0.5', // على الأقل نصف ساعة
+                'max:24'   // كحد أقصى 24 ساعة
+            ],
+            'reason_adjustment' => 'required|string|max:500',
         ];
     }
 
-    /**
-     * Get custom messages for validator errors.
-     */
+    // public function withValidator($validator)
+    // {
+    //     $validator->after(function ($validator) {
+    //         if ($validator->errors()->any()) {
+                
+    //             Log::warning('فشل التحقق من صحة طلب إنشاء تسوية إجازة', [
+    //                 'errors' => $validator->errors()->toArray(),
+    //                 'input' => $this->all()
+    //             ]);
+    //             throw new HttpResponseException(response()->json([
+    //                 'success' => false,
+    //                 'message' => 'فشل التحقق من صحة طلب إنشاء تسوية إجازة',
+    //                 'errors' => $validator->errors(),
+    //             ], 422));
+    //         }
+    //     });
+    // }
+
+
+    
+    protected function failedValidation(Validator $validator)
+    {
+        Log::warning('فشل التحقق من صحة طلب إنشاء تسوية إجازة', [
+            'errors' => $validator->errors()->toArray(),
+            'input' => $this->all()
+        ]);
+
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => 'فشل التحقق من صحة طلب إنشاء تسوية إجازة',
+            'errors' => $validator->errors(),
+        ], 422));
+    }
+
     public function messages(): array
     {
         return [
-            'leave_type_id.required' => 'نوع الإجازة مطلوب',
-            'leave_type_id.exists' => 'نوع الإجازة المحدد غير صحيح',
-            'adjust_hours.required' => 'ساعات التسوية مطلوبة',
-            'adjust_hours.max' => 'ساعات التسوية لا يجب أن تتجاوز 200 حرف',
-            'reason_adjustment.required' => 'سبب التسوية مطلوب',
-            'reason_adjustment.min' => 'سبب التسوية يجب أن يكون على الأقل 10 أحرف',
-            'reason_adjustment.max' => 'سبب التسوية لا يجب أن يتجاوز 1000 حرف',
-            'duty_employee_id.exists' => 'الموظف البديل المحدد غير صحيح',
+            'leave_type_id.required' => 'يجب تحديد نوع الإجازة',
+            'leave_type_id.exists' => 'نوع الإجازة غير صالح',
+            'adjustment_date.required' => 'يجب تحديد تاريخ التعديل',
+            'adjustment_date.date' => 'يجب إدخال تاريخ صحيح',
+            'adjustment_date.after_or_equal' => 'لا يمكن تحديد تاريخ ماضي',
+            'duty_employee_id.exists' => 'الموظف البديل غير موجود',
+            'duty_employee_id.different' => 'لا يمكن اختيار الموظف نفسه كبديل',
+            'adjust_hours.required' => 'يجب تحديد عدد ساعات التعديل',
+            'adjust_hours.numeric' => 'يجب إدخال رقم صحيح أو عشري',
+            'adjust_hours.min' => 'يجب أن لا يقل عدد الساعات عن 0.5',
+            'adjust_hours.max' => 'يجب أن لا يزيد عدد الساعات عن 24 ساعة',
+            'reason_adjustment.required' => 'يجب إدخال سبب التعديل',
+            'reason_adjustment.string' => 'يجب إدخال نص صالح',
+            'reason_adjustment.max' => 'يجب أن لا يتجاوز سبب التعديل 500 حرف'
         ];
     }
 
-    /**
-     * Get custom attributes for validator errors.
-     */
-    public function attributes(): array
-    {
-        return [
-            'leave_type_id' => 'نوع الإجازة',
-            'adjust_hours' => 'ساعات التسوية',
-            'reason_adjustment' => 'سبب التسوية',
-            'adjustment_date' => 'تاريخ التسوية',
-            'duty_employee_id' => 'الموظف البديل',
-        ];
-    }
-
-    /**
-     * Configure the validator instance.
-     */
-    public function withValidator($validator): void
-    {
-        $validator->after(function ($validator) {
-            // Check if leave type belongs to user's company
-            if ($this->filled('leave_type_id')) {
-                $user = $this->user();
-                $leaveType = \App\Models\ErpConstant::where('constants_id', $this->leave_type_id)
-                    ->where('type', \App\Models\ErpConstant::TYPE_LEAVE_TYPE)
-                    ->where(function($query) use ($user) {
-                        $query->where('company_id', $user->company_id)
-                              ->orWhere('company_id', 0); // General types
-                    })
-                    ->where('field_three', '1') // Active
-                    ->exists();
-
-                if (!$leaveType) {
-                    $validator->errors()->add('leave_type_id', 'نوع الإجازة غير متاح لشركتك');
-                }
-            }
-
-            // Check if duty employee belongs to same company
-            if ($this->filled('duty_employee_id')) {
-                $user = $this->user();
-                $dutyEmployee = \App\Models\User::where('user_id', $this->duty_employee_id)
-                    ->where('company_id', $user->company_id)
-                    ->where('is_active', true)
-                    ->exists();
-
-                if (!$dutyEmployee) {
-                    $validator->errors()->add('duty_employee_id', 'الموظف البديل يجب أن يكون من نفس الشركة ونشط');
-                }
-            }
-
-            // Validate adjust_hours format (should be numeric)
-            if ($this->filled('adjust_hours')) {
-                if (!is_numeric($this->adjust_hours)) {
-                    $validator->errors()->add('adjust_hours', 'ساعات التسوية يجب أن تكون رقماً');
-                } elseif ((float) $this->adjust_hours < 0) {
-                    $validator->errors()->add('adjust_hours', 'ساعات التسوية يجب أن تكون أكبر من أو تساوي صفر');
-                } elseif ((float) $this->adjust_hours > 1000) {
-                    $validator->errors()->add('adjust_hours', 'ساعات التسوية لا يجب أن تتجاوز 1000 ساعة');
-                }
-            }
-        });
-    }
 }

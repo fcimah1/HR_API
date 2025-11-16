@@ -3,6 +3,10 @@
 namespace App\Http\Requests\Employee;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Base Employee Request with common validation rules and messages
@@ -136,5 +140,19 @@ abstract class BaseEmployeeRequest extends FormRequest
             'branch_id' => 'branch',
             'employee_idnum' => 'employee ID number',
         ];
+    }
+
+        protected function failedValidation(Validator $validator)
+    {
+            Log::warning('فشل تحديث بيانات الموظف', [
+            'errors' => $validator->errors()->toArray(),
+            'input' => $this->all()
+        ]);
+
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => 'فشل تحديث بيانات الموظف',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }

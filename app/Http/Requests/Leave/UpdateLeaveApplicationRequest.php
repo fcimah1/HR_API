@@ -3,6 +3,10 @@
 namespace App\Http\Requests\Leave;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class UpdateLeaveApplicationRequest extends FormRequest
 {
@@ -11,7 +15,7 @@ class UpdateLeaveApplicationRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true; // Authorization handled by middleware and controller
+        return auth('api')->check(); // تأكد من وجود مستخدم مصادق
     }
 
     /**
@@ -20,9 +24,9 @@ class UpdateLeaveApplicationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'from_date' => 'sometimes|date',
-            'to_date' => 'sometimes|date|after_or_equal:from_date',
-            'reason' => 'sometimes|string|max:1000|min:10',
+            'from_date' => 'sometimes|date|date_format:Y-m-d',
+            'to_date' => 'sometimes|date|date_format:Y-m-d|after_or_equal:from_date',
+            'reason' => 'sometimes|string',
             'duty_employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
             'is_half_day' => 'sometimes|boolean',
             'leave_hours' => 'sometimes|nullable|string|max:100',
@@ -50,36 +54,60 @@ class UpdateLeaveApplicationRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            // Check if reason is provided but less than 10 characters
+            if ($this->filled('reason')) {
+                $reasonLength = mb_strlen(trim($this->reason));
+                if ($reasonLength < 10) {
+                    $validator->errors()->add('reason', 'سبب الإجازة يجب أن يكون على الأقل 10 أحرف');
+                } elseif ($reasonLength > 1000) {
+                    $validator->errors()->add('reason', 'سبب الإجازة لا يجب أن يتجاوز 1000 حرف');
+                }
+            }
+
             // Check if duty employee belongs to same company
             if ($this->filled('duty_employee_id')) {
-                $user = $this->user();
-                
-                // Get effective company ID
-                $effectiveCompanyId = $user->company_id > 0 ? $user->company_id : $user->user_id;
-                
-                $dutyEmployee = \App\Models\User::where('user_id', $this->duty_employee_id)
-                    ->where(function($query) use ($effectiveCompanyId) {
-                        $query->where('company_id', $effectiveCompanyId)
-                              ->orWhere('user_id', $effectiveCompanyId);
-                    })
-                    ->where('is_active', true)
-                    ->exists();
-
-                if (!$dutyEmployee) {
-                    $validator->errors()->add('duty_employee_id', 'الموظف البديل يجب أن يكون من نفس الشركة ونشط');
+                try {
+                    $dutyEmployee = \App\Models\User::select('user_id')
+                        ->where('user_id', $this->duty_employee_id)
+                        ->where('is_active', true)
+                        ->first();
+                    
+                    if (!$dutyEmployee) {
+                        $validator->errors()->add('duty_employee_id', 'الموظف البديل يجب أن يكون من نفس الشركة ونشط');
+                    }
+                } catch (\Exception $e) {
+                    $validator->errors()->add('duty_employee_id', 'خطأ في التحقق من الموظف البديل');
                 }
             }
 
             // Check maximum leave duration if both dates are provided
             if ($this->filled(['from_date', 'to_date'])) {
-                $fromDate = new \DateTime($this->from_date);
-                $toDate = new \DateTime($this->to_date);
-                $duration = $toDate->diff($fromDate)->days + 1;
+                try {
+                    $fromDate = new \DateTime($this->from_date);
+                    $toDate = new \DateTime($this->to_date);
+                    $duration = $toDate->diff($fromDate)->days + 1;
 
-                if ($duration > 30) {
-                    $validator->errors()->add('to_date', 'مدة الإجازة لا يجب أن تتجاوز 30 يوماً');
+                    if ($duration > 30) {
+                        $validator->errors()->add('to_date', 'مدة الإجازة لا يجب أن تتجاوز 30 يوماً');
+                    }
+                } catch (\Exception $e) {
+                    $validator->errors()->add('to_date', 'التواريخ غير صحيحة');
                 }
             }
         });
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        Log::warning('فشل تحديث طلب إجازة', [
+            'errors' => $validator->errors()->toArray(),
+            'input' => $this->all()
+        ]);
+
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => 'فشل تحديث طلب إجازة',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }
