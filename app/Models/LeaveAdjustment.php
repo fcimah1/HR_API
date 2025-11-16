@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Builder;
 
 class LeaveAdjustment extends Model
 {
@@ -82,5 +83,45 @@ class LeaveAdjustment extends Model
     public function leaveType(): BelongsTo
     {
         return $this->belongsTo(ErpConstant::class, 'leave_type_id', 'constants_id');
+    }
+
+    /**
+     * Filter by company ID
+     */
+    public function scopeForCompany(Builder $query, int $companyId): Builder
+    {
+        return $query->where('company_id', $companyId);
+    }
+
+    /**
+     * Filter by employee ID
+     */
+    public function scopeForEmployee(Builder $query, int $employeeId): Builder
+    {
+        return $query->where('employee_id', $employeeId);
+    }
+
+    /**
+     * Filter by status
+     */
+    public function scopeWithStatus(Builder $query, int $status): Builder
+    {
+        return $query->where('status', $status);
+    }
+
+    /**
+     * Filter pending adjustments only
+     */
+    public function scopePending(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_PENDING);
+    }
+
+    /**
+     * Filter approved adjustments only
+     */
+    public function scopeApproved(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_APPROVED);
     }
 }

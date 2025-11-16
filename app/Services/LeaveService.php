@@ -11,21 +11,62 @@ use App\DTOs\Leave\LeaveAdjustmentFilterDTO;
 use App\DTOs\Leave\CreateLeaveAdjustmentDTO;
 use App\DTOs\Leave\UpdateLeaveAdjustmentDTO;
 use App\DTOs\Leave\LeaveAdjustmentResponseDTO;
+use App\DTOs\Leave\CreateLeaveTypeDTO;
+use App\Http\Requests\Leave\ApproveLeaveApplicationRequest;
 use App\Models\LeaveApplication;
 use App\Models\LeaveAdjustment;
 use App\Models\User;
 use App\Services\SimplePermissionService;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class LeaveService
 {
+    protected $leaveRepository;
+    protected $permissionService;   
+
     public function __construct(
-        private readonly LeaveRepositoryInterface $leaveRepository,
-        private readonly SimplePermissionService $permissionService
-    ) {}
+        LeaveRepositoryInterface $leaveRepository,
+        SimplePermissionService $permissionService
+    ) {
+        $this->leaveRepository = $leaveRepository;
+        $this->permissionService = $permissionService;
+    }
 
     /**
      * Get paginated leave applications with filters and permission check
      */
+    /**
+     * Get paginated leave adjustments with permission check
+     */
+    public function getAdjustments(int $userId): array
+    {
+        $user = User::findOrFail($userId);
+        
+        // Create filter array instead of DTO directly
+        $filterData = [];
+        
+        // Apply company filter based on user permissions
+        if ($this->permissionService->isCompanyOwner($user)) {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $filterData['company_id'] = $effectiveCompanyId;
+        }
+        // Create DTO from filter data
+        $filters = LeaveAdjustmentFilterDTO::fromRequest($filterData);
+        
+        $adjustments = $this->leaveRepository->getPaginatedAdjustments($filters);
+        
+        return [
+            'data' => $adjustments->items(),
+            'pagination' => [
+                'total' => $adjustments->total(),
+                'per_page' => $adjustments->perPage(),
+                'current_page' => $adjustments->currentPage(),
+                'last_page' => $adjustments->lastPage(),
+            ]
+        ];
+    }
+
     public function getPaginatedApplications(LeaveApplicationFilterDTO $filters, User $user): array
     {
         // إنشاء filters جديد بناءً على صلاحيات المستخدم
@@ -51,7 +92,7 @@ class LeaveService
 
         $applications = $this->leaveRepository->getPaginatedApplications($updatedFilters);
         
-        $applicationDTOs = $applications->getCollection()->map(function ($application) {
+        $applicationDTOs = collect($applications->items())->map(function ($application) {
             return LeaveApplicationResponseDTO::fromModel($application);
         });
 
@@ -72,10 +113,10 @@ class LeaveService
     /**
      * Create a new leave application with permission check
      */
-    public function createApplication(CreateLeaveApplicationDTO $dto): LeaveApplicationResponseDTO
+    public function createApplication(CreateLeaveApplicationDTO $dto): array
     {
         $application = $this->leaveRepository->createApplication($dto);
-        return LeaveApplicationResponseDTO::fromModel($application);
+        return LeaveApplicationResponseDTO::fromModel($application)->toArray();
     }
 
     /**
@@ -84,12 +125,12 @@ class LeaveService
      * @param int $id Application ID
      * @param int|null $companyId Company ID (for company users/admins)
      * @param int|null $userId User ID (for regular employees)
-     * @return LeaveApplicationResponseDTO|null
+     * @return array|null
      * @throws \Exception
      */
-    public function getApplicationById(int $id, ?int $companyId = null, ?int $userId = null): ?LeaveApplicationResponseDTO
+    public function getApplicationById(int $id, ?int $companyId = null, ?int $userId = null, ?User $user = null): ?array
     {
-        $user = auth()->user();
+        $user = $user ?? Auth::user();
         
         if (is_null($companyId) && is_null($userId)) {
             throw new \InvalidArgumentException('يجب توفير معرف الشركة أو معرف المستخدم');
@@ -100,7 +141,7 @@ class LeaveService
             $application = $this->leaveRepository->findApplicationInCompany($id, $companyId);
             
             if ($application) {
-                return LeaveApplicationResponseDTO::fromModel($application);
+                return LeaveApplicationResponseDTO::fromModel($application)->toArray();
             }
         }
         
@@ -109,7 +150,7 @@ class LeaveService
             $application = $this->leaveRepository->findApplicationForEmployee($id, $userId);
             
             if ($application) {
-                return LeaveApplicationResponseDTO::fromModel($application);
+                return LeaveApplicationResponseDTO::fromModel($application)->toArray();
             }
         }
 
@@ -119,63 +160,106 @@ class LeaveService
     /**
      * Update leave application with permission check
      */
-    public function updateApplication(int $id, UpdateLeaveApplicationDTO $dto, User $user): ?LeaveApplicationResponseDTO
+    // public function updateApplication(int $id, UpdateLeaveApplicationDTO $dto, User $user): ?LeaveApplicationResponseDTO
+    // {
+    //     \DB::beginTransaction();
+    //     try {
+    //         \Log::info('LeaveService::updateApplication started', [
+    //             'application_id' => $id,
+    //             'user_id' => $user->user_id,
+    //             'updates' => array_keys(array_filter($dto->toArray()))
+    //         ]);
+            
+    //         // Get effective company ID first
+    //         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            
+    //         // Find application without loading relationships first
+    //         $application = $this->leaveRepository->findApplicationInCompany($id, $effectiveCompanyId);
+            
+    //         if (!$application) {
+    //             \Log::warning('Application not found', ['application_id' => $id, 'company_id' => $effectiveCompanyId]);
+    //             \DB::rollBack();
+    //             return null;
+    //         }
+
+    //         // Check permissions
+    //         if ($application->employee_id !== $user->user_id) {
+    //             \Log::warning('Permission denied - not owner', [
+    //                 'application_employee_id' => $application->employee_id,
+    //                 'current_user_id' => $user->user_id
+    //             ]);
+    //             \DB::rollBack();
+    //             throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+    //         }
+
+    //         // Check if application can be updated
+    //         if ($application->status !== false) {
+    //             \Log::warning('Cannot update - not pending', ['status' => $application->status]);
+    //             \DB::rollBack();
+    //             throw new \Exception('لا يمكن تعديل الطلب بعد المراجعة');
+    //         }
+
+    //         // Update application
+    //         $updatedApplication = $this->leaveRepository->updateApplication($application, $dto);
+            
+    //         \DB::commit();
+            
+    //         \Log::info('Application updated successfully', [
+    //             'application_id' => $updatedApplication->leave_id,
+    //             'updates' => array_keys(array_filter($dto->toArray()))
+    //         ]);
+            
+    //         return LeaveApplicationResponseDTO::fromModel($updatedApplication);
+            
+    //     } catch (\Exception $e) {
+    //         \DB::rollBack();
+    //         \Log::error('Error in LeaveService::updateApplication', [
+    //             'error' => $e->getMessage(),
+    //             'trace' => $e->getTraceAsString()
+    //         ]);
+    //         throw $e;
+    //     }
+    // }   
+
+
+
+    
+    /**
+     * Update leave application with permission check
+     */
+    public function update_Application(int $id, UpdateLeaveApplicationDTO $dto, User $user): ?array
     {
-        \DB::beginTransaction();
         try {
-            \Log::info('LeaveService::updateApplication started', [
-                'application_id' => $id,
-                'user_id' => $user->user_id,
-                'updates' => array_keys(array_filter($dto->toArray()))
-            ]);
-            
-            // Get effective company ID first
+            // الحصول على معرف الشركة الفعلي
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-            
-            // Find application without loading relationships first
+    
+            // البحث عن الطلب في نفس الشركة
             $application = $this->leaveRepository->findApplicationInCompany($id, $effectiveCompanyId);
             
             if (!$application) {
-                \Log::warning('Application not found', ['application_id' => $id, 'company_id' => $effectiveCompanyId]);
-                \DB::rollBack();
                 return null;
             }
 
-            // Check permissions
-            if ($application->employee_id !== $user->user_id) {
-                \Log::warning('Permission denied - not owner', [
-                    'application_employee_id' => $application->employee_id,
-                    'current_user_id' => $user->user_id
-                ]);
-                \DB::rollBack();
+            // التحقق من صلاحية التعديل
+            // الموظف يمكنه تعديل طلباته الخاصة فقط
+            // المدير/الشركة يمكنهم تعديل أي طلب
+            $isOwner = $application->employee_id === $user->user_id;
+            $isManager = in_array($user->user_type, ['company', 'admin', 'hr', 'manager']);
+     
+            
+            if (!$isOwner && !$isManager) {
                 throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
             }
 
-            // Check if application can be updated
+            // Check if application can be updated (only pending applications)
             if ($application->status !== false) {
-                \Log::warning('Cannot update - not pending', ['status' => $application->status]);
-                \DB::rollBack();
                 throw new \Exception('لا يمكن تعديل الطلب بعد المراجعة');
             }
 
-            // Update application
-            $updatedApplication = $this->leaveRepository->updateApplication($application, $dto);
+            $updatedApplication = $this->leaveRepository->update_Application($application, $dto);
             
-            \DB::commit();
-            
-            \Log::info('Application updated successfully', [
-                'application_id' => $updatedApplication->leave_id,
-                'updates' => array_keys(array_filter($dto->toArray()))
-            ]);
-            
-            return LeaveApplicationResponseDTO::fromModel($updatedApplication);
-            
+            return LeaveApplicationResponseDTO::fromModel($updatedApplication)->toArray();
         } catch (\Exception $e) {
-            \DB::rollBack();
-            \Log::error('Error in LeaveService::updateApplication', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             throw $e;
         }
     }
@@ -252,27 +336,56 @@ class LeaveService
 
     /**
      * Approve leave application
+     * 
+     * @param int $id Leave application ID
+     * @param ApproveLeaveApplicationRequest $request The request containing approval details
+     * @return array|null
+     * @throws \Exception
      */
-    public function approveApplication(int $id, int $companyId, int $approvedBy, ?string $remarks = null): ?LeaveApplicationResponseDTO
+    public function approveApplication(int $id, ApproveLeaveApplicationRequest $request): ?array
     {
+        // Get the authenticated user from the request
+        $user = $request->user();
+        
+        // Get the effective company ID for the user
+        $companyId = $this->permissionService->getEffectiveCompanyId($user);
+        
+        // Find the application in the company
         $application = $this->leaveRepository->findApplicationInCompany($id, $companyId);
         
         if (!$application) {
-            return null;
+            return response()->json([
+                'success' => false,
+                'message' => 'الطلب غير موجود'
+            ], 404);
         }
 
+        // Check if the application is already processed
         if ($application->status !== false) {
-            throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
+            return response()->json([
+                'success' => false,
+                'message' => 'تم الموافقة على هذا الطلب مسبقاً أو تم رفضه'
+            ], 422);
         }
 
-        $approvedApplication = $this->leaveRepository->approveApplication($application, $approvedBy, $remarks);
-        return LeaveApplicationResponseDTO::fromModel($approvedApplication);
+        // Get the remarks from the validated request
+        $validated = $request->validated();
+        $remarks = $validated['remarks'] ?? null;
+
+        // Approve the application
+        $approvedApplication = $this->leaveRepository->approveApplication(
+            $application, 
+            $user->user_id, // approvedBy
+            $remarks
+        );
+        
+        return LeaveApplicationResponseDTO::fromModel($approvedApplication)->toArray();
     }
 
     /**
      * Reject leave application
      */
-    public function rejectApplication(int $id, int $companyId, int $rejectedBy, string $reason): ?LeaveApplicationResponseDTO
+    public function rejectApplication(int $id, int $companyId, int $rejectedBy, string $reason): ?array
     {
         $application = $this->leaveRepository->findApplicationInCompany($id, $companyId);
         
@@ -285,7 +398,7 @@ class LeaveService
         }
 
         $rejectedApplication = $this->leaveRepository->rejectApplication($application, $rejectedBy, $reason);
-        return LeaveApplicationResponseDTO::fromModel($rejectedApplication);
+        return LeaveApplicationResponseDTO::fromModel($rejectedApplication)->toArray();
     }
 
     /**
@@ -296,7 +409,7 @@ class LeaveService
         $adjustments = $this->leaveRepository->getPaginatedAdjustments($filters);
 
         return [
-            'data' => $adjustments->items(),
+            'data' => $adjustments,
             'pagination' => [
                 'current_page' => $adjustments->currentPage(),
                 'last_page' => $adjustments->lastPage(),
@@ -312,27 +425,37 @@ class LeaveService
     /**
      * Create leave adjustment
      */
-    public function createAdjustment(CreateLeaveAdjustmentDTO $dto): LeaveAdjustment
+    public function createAdjust(CreateLeaveAdjustmentDTO $data)
     {
-        return $this->leaveRepository->createAdjustment($dto);
+        try {
+            $adjustment = $this->leaveRepository->createAdjust($data);
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إنشاء طلب التسوية بنجاح',
+                'data' => $adjustment
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('Create Adjustment Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل في إنشاء طلب التسوية',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
      * Approve leave adjustment
      */
-    public function approveAdjustment(int $id, int $companyId, int $approvedBy): ?LeaveAdjustment
+    public function approveAdjustment(int $id, int $companyId, int $approvedBy): LeaveAdjustment
     {
         $adjustment = $this->leaveRepository->findAdjustmentInCompany($id, $companyId);
-        
-        if (!$adjustment) {
-            return null;
-        }
 
-        if ($adjustment->status !== \App\Models\LeaveAdjustment::STATUS_PENDING) {
-            throw new \Exception('لا يمكن الموافقة على هذا الطلب');
-        }
-
-        return $this->leaveRepository->approveAdjustment($adjustment, $approvedBy);
+        $approvedAdjustment = $this->leaveRepository->approveAdjustment($adjustment, $approvedBy);
+        return $approvedAdjustment;
     }
 
     /**
@@ -365,9 +488,9 @@ class LeaveService
     /**
      * Create leave type
      */
-    public function createLeaveType(int $companyId, string $name, ?string $shortName, int $days): array
+    public function createLeaveType(CreateLeaveTypeDTO $dto): array
     {
-        $leaveType = $this->leaveRepository->createLeaveType($companyId, $name, $shortName, $days);
+        $leaveType = $this->leaveRepository->createLeaveType($dto);
         
         return [
             'leave_type_id' => $leaveType->constants_id,
@@ -382,21 +505,11 @@ class LeaveService
     /**
      * Update leave adjustment
      */
-    public function updateAdjustment(int $id, UpdateLeaveAdjustmentDTO $dto, int $employeeId): ?LeaveAdjustmentResponseDTO
+    public function updateAdjustment(int $id, UpdateLeaveAdjustmentDTO $dto, int $employeeId)
     {
         $adjustment = $this->leaveRepository->findAdjustmentForEmployee($id, $employeeId);
-        
-        if (!$adjustment) {
-            return null;
-        }
-
-        // Check if adjustment can be updated (only pending adjustments)
-        if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
-            throw new \Exception('لا يمكن تعديل التسوية بعد المراجعة');
-        }
 
         $updatedAdjustment = $this->leaveRepository->updateAdjustment($adjustment, $dto);
-        return LeaveAdjustmentResponseDTO::fromModel($updatedAdjustment);
     }
 
     /**

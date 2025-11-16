@@ -12,6 +12,7 @@
         "laravel/passport": "^12.0",
         "laravel/tinker": "^2.10.1",
         "mpdf/mpdf": "^8.2",
+        "spatie/laravel-data": "^4.18",
         "tecnickcom/tcpdf": "^6.10"
     },
     "require-dev": {

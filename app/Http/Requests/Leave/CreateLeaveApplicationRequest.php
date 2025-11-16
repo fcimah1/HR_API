@@ -1,8 +1,11 @@
 <?php
 
 namespace App\Http\Requests\Leave;
-
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class CreateLeaveApplicationRequest extends FormRequest
 {
@@ -11,7 +14,7 @@ class CreateLeaveApplicationRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true; // Authorization handled by middleware
+        return Auth::check();
     }
 
 
@@ -20,7 +23,7 @@ class CreateLeaveApplicationRequest extends FormRequest
      */
     public function rules(): array
     {
-        $user = auth()->user();
+        $user = Auth::user();
         
         return [
             'leave_type_id' => [
@@ -125,5 +128,19 @@ class CreateLeaveApplicationRequest extends FormRequest
                 }
             }
         });
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        Log::warning('فشل إنشاء طلب إجازة', [
+            'errors' => $validator->errors()->toArray(),
+            'input' => $this->all()
+        ]);
+
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => 'فشل إنشاء طلب إجازة',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }

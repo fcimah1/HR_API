@@ -26,6 +26,8 @@ class ErpConstant extends Model
         'created_at',
     ];
 
+    
+
     /**
      * The attributes that should be cast.
      */
