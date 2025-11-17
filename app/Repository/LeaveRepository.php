@@ -15,7 +15,7 @@ use App\Models\LeaveAdjustment;
 use App\Models\ErpConstant;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
-use function Illuminate\Log\log;
+use Illuminate\Support\Facades\Log;
 
 class LeaveRepository implements LeaveRepositoryInterface
 {
@@ -120,7 +120,7 @@ class LeaveRepository implements LeaveRepositoryInterface
                 $application->load(['employee', 'dutyEmployee', 'leaveType']);
             }
 
-            \Log::debug('LeaveRepository::updateApplication - Update completed', [
+            Log::debug('LeaveRepository::updateApplication - Update completed', [
                 'application_id' => $application->leave_id
             ]);
 
