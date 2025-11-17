@@ -9,6 +9,8 @@ use App\DTOs\Leave\LeaveAdjustmentFilterDTO;
 use App\DTOs\Leave\CreateLeaveAdjustmentDTO;
 use App\Models\LeaveApplication;
 use App\Models\LeaveAdjustment;
+use App\DTOs\Leave\CreateLeaveTypeDTO;
+use App\DTOs\Leave\UpdateLeaveAdjustmentDTO;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -42,8 +44,9 @@ interface LeaveRepositoryInterface
     /**
      * Update leave application
      */
-    public function updateApplication(LeaveApplication $application, UpdateLeaveApplicationDTO $dto): LeaveApplication;
+    public function update_Application(LeaveApplication $application, UpdateLeaveApplicationDTO $dto): object;
 
+    public function deleteApplication(LeaveApplication $application): bool;
     /**
      * Approve leave application
      */
@@ -62,7 +65,7 @@ interface LeaveRepositoryInterface
     /**
      * Create a new leave adjustment
      */
-    public function createAdjustment(CreateLeaveAdjustmentDTO $dto): LeaveAdjustment;
+    public function createAdjust(CreateLeaveAdjustmentDTO $dto): object;
 
     /**
      * Find leave adjustment by ID
@@ -97,5 +100,10 @@ interface LeaveRepositoryInterface
     /**
      * Create leave type
      */
-    public function createLeaveType(int $companyId, string $name, ?string $shortName, int $days): \App\Models\ErpConstant;
+    public function createLeaveType(CreateLeaveTypeDTO $dto) :object;
+
+    public function deleteAdjustment(LeaveAdjustment $adjustment): bool;
+    public function updateAdjustment(LeaveAdjustment $adjustment, UpdateLeaveAdjustmentDTO $dto): LeaveAdjustment;
+    public function cancelAdjustment(LeaveAdjustment $adjustment, int $cancelledBy, string $reason): LeaveAdjustment;
+    public function findAdjustmentForEmployee(int $id, int $employeeId): ?LeaveAdjustment;
 }

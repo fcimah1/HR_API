@@ -5,37 +5,50 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Http\Response;
 
 class CheckRole
 {
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     * @param  string  ...$roles  List of allowed roles (e.g., 'company', 'admin', 'hr', 'manager')
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @param  string  ...$roles
+     * @return mixed
      */
-    public function handle(Request $request, Closure $next, string ...$roles): Response
+    public function handle(Request $request, Closure $next, ...$roles)
     {
-        $user = $request->user();
+        $user = auth()->user();
         
         if (!$user) {
             return response()->json([
-                'success' => false,
-                'message' => 'غير مصرح بالدخول - يجب تسجيل الدخول'
+                'message' => 'غير مصرح',
+                'status' => 'error'
             ], 401);
         }
-
-        // Check if user's user_type is in the allowed roles
-        if (!in_array($user->user_type, $roles)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'ليس لديك صلاحية للوصول لهذا المورد',
-                'required_roles' => $roles,
-                'your_role' => $user->user_type
-            ], 403);
+        
+        // إذا لم يتم تحديد أدوار، اسمح بالمرور
+        if (empty($roles)) {
+            return $next($request);
         }
-
-        return $next($request);
+        
+        // التحقق من الأدوار - تشمل أيضاً user_type للـ company و admin
+        foreach ($roles as $role) {
+            // للـ company و admin و hr - يمكنهم الوصول بناءً على user_type
+            if ($user->user_type === $role) {
+                return $next($request);
+            }
+            
+            // للـ staff - يتم التحقق من staffRole
+            if ($user->hasRole($role)) {
+                return $next($request);
+            }
+        }
+        
+        return response()->json([
+            'message' => 'ليس لديك الصلاحيات الكافية للوصول لهذا المورد',
+            'status' => 'error'
+        ], 403);
     }
 }
-

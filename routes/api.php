@@ -74,7 +74,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::delete('/leaves/applications/{id}', [LeaveController::class, 'deleteApplication']);
     
     Route::get('/leaves/adjustments', [LeaveController::class, 'getAdjustments']);
-    Route::post('/leaves/adjustments', [LeaveController::class, 'createAdjustment']);
+    Route::post('/leaves/adjustments',[LeaveController::class, 'createAdjustment']);
     // Note: More specific routes must come before general ones
     Route::delete('/leaves/adjustments/{id}/cancel', [LeaveController::class, 'cancelAdjustment']);
     Route::put('/leaves/adjustments/{id}', [LeaveController::class, 'updateAdjustment']);
