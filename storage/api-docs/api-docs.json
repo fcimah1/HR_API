@@ -1766,8 +1766,7 @@
                 "tags": [
                     "Leave Management"
                 ],
-                "summary": "Update a leave application (Employee owner only)",
-                "description": "Updates a leave application. Only the employee who created the application can update it. Managers and company owners cannot update employee applications.",
+                "summary": "Update a leave application",
                 "operationId": "cd9fe0964115a647127feb4fc88f250e",
                 "parameters": [
                     {
@@ -1807,96 +1806,6 @@
                 "responses": {
                     "200": {
                         "description": "Leave application updated successfully"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            },
-            "delete": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Delete a leave application permanently (Employee owner only)",
-                "description": "Permanently deletes a leave application from the database. Only the employee who created the application can delete it. Managers and company owners cannot delete employee applications. Only pending applications can be deleted.",
-                "operationId": "b477371ebcef57cb00a4d4f25960f0ed",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Leave application ID to delete permanently",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 123
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Leave application deleted successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تم حذف طلب الإجازة نهائياً"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Leave application not found or cannot be deleted",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "طلب الإجازة غير موجود أو لا يمكن حذفه"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Cannot delete processed application",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "لا يمكن حذف الطلب بعد الموافقة عليه"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid or missing token"
                     }
                 },
                 "security": [
@@ -2388,93 +2297,6 @@
                         "bearerAuth": []
                     }
                 ]
-            },
-            "delete": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Delete a leave adjustment permanently",
-                "description": "Permanently deletes a leave adjustment from the database. This action cannot be undone. Only pending adjustments can be deleted.",
-                "operationId": "bc0b48ac1b36802d77b411c7cf29eb46",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Leave adjustment ID to delete permanently",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 123
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Leave adjustment deleted successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تم حذف تسوية الإجازة نهائياً"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Leave adjustment not found or cannot be deleted",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تسوية الإجازة غير موجودة أو لا يمكن حذفها"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Cannot delete processed adjustment",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "لا يمكن حذف التسوية بعد الموافقة عليها"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
             }
         },
         "/api/leaves/adjustments/{id}/cancel": {
@@ -2531,6 +2353,249 @@
                                         "message": {
                                             "type": "string",
                                             "example": "تسوية الإجازة غير موجودة أو لا يمكن إلغاؤها"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/leaves/check-balance": {
+            "get": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Check leave balance for an employee",
+                "description": "Check if an employee has sufficient leave balance for the requested dates",
+                "operationId": "3b5a50512dd2eb1fd768ba8154acab99",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "ID of the employee",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "leave_type_id",
+                        "in": "query",
+                        "description": "ID of the leave type",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Start date of the leave (Y-m-d)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "End date of the leave (Y-m-d)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "has_sufficient_balance": {
+                                                    "type": "boolean"
+                                                },
+                                                "available_balance": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "requested_days": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/settlement": {
+            "post": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Settle employee's accrued leave balance (Encashment or Take Leave)",
+                "operationId": "866cd4bef433032bdb11b03ac1f75e33",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "leave_type_id",
+                                    "hours_to_settle",
+                                    "settlement_type"
+                                ],
+                                "properties": {
+                                    "leave_type_id": {
+                                        "description": "معرف نوع الإجازة المراد تسويتها",
+                                        "type": "integer",
+                                        "example": 323
+                                    },
+                                    "hours_to_settle": {
+                                        "description": "عدد الساعات المراد تسويتها",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 40.5
+                                    },
+                                    "settlement_type": {
+                                        "description": "نوع التسوية: صرف نقدي (encashment) أو أخذ إجازة (take_leave)",
+                                        "type": "string",
+                                        "enum": [
+                                            "encashment",
+                                            "take_leave"
+                                        ],
+                                        "example": "encashment"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Leave settlement processed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تمت تسوية 40.5 ساعة بنجاح كصرف نقدي. تم تحديث رصيد الإجازات."
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "settlement_type": {
+                                                    "type": "string"
+                                                },
+                                                "hours_settled": {
+                                                    "type": "number"
+                                                },
+                                                "old_balance": {
+                                                    "type": "number"
+                                                },
+                                                "new_balance": {
+                                                    "type": "number"
+                                                },
+                                                "record": {
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation or insufficient balance error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "الرصيد المتاح (20.0 ساعة) غير كافٍ لتسوية 40.5 ساعة."
                                         }
                                     },
                                     "type": "object"

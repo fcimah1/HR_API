@@ -4,8 +4,10 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\AdvanceSalaryController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Laravel\Passport\Http\Controllers\AccessTokenController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 /*
 |--------------------------------------------------------------------------
@@ -22,13 +24,6 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/companies', [AuthController::class, 'getCompanies']);
 
-// Test endpoint
-Route::get('/test', function() {
-    return response()->json(['message' => 'API is working', 'time' => now()]);
-});
-
-// Test route for Swagger
-Route::post('/test-leave', [LeaveController::class, 'createApplication']);
 
 // Protected routes with simple company isolation
 Route::middleware(['auth:api', 'simple.company'])->group(function () {
@@ -71,14 +66,12 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::delete('/leaves/applications/{id}/cancel', [LeaveController::class, 'cancelApplication']);
     Route::put('/leaves/applications/{id}', [LeaveController::class, 'updateApplication']);
     Route::get('/leaves/applications/{id}', [LeaveController::class, 'showApplication']);
-    Route::delete('/leaves/applications/{id}', [LeaveController::class, 'deleteApplication']);
     
     Route::get('/leaves/adjustments', [LeaveController::class, 'getAdjustments']);
     Route::post('/leaves/adjustments',[LeaveController::class, 'createAdjustment']);
     // Note: More specific routes must come before general ones
     Route::delete('/leaves/adjustments/{id}/cancel', [LeaveController::class, 'cancelAdjustment']);
     Route::put('/leaves/adjustments/{id}', [LeaveController::class, 'updateAdjustment']);
-    Route::delete('/leaves/adjustments/{id}', [LeaveController::class, 'deleteAdjustment']);
     
     Route::get('/leaves/types', [LeaveController::class, 'getLeaveTypes']);
     Route::post('/leaves/types', [LeaveController::class, 'createLeaveType'])->middleware('role:company,admin,hr,manager');

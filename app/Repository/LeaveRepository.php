@@ -13,6 +13,7 @@ use App\DTOs\Leave\CreateLeaveTypeDTO;
 use App\Models\LeaveApplication;
 use App\Models\LeaveAdjustment;
 use App\Models\ErpConstant;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
@@ -24,7 +25,8 @@ class LeaveRepository implements LeaveRepositoryInterface
      */
     public function getPaginatedApplications(LeaveApplicationFilterDTO $filters): LengthAwarePaginator
     {
-        $query = LeaveApplication::with(['employee', 'dutyEmployee', 'leaveType']);
+    $companyId = $filters->companyId ;
+        $query = LeaveApplication::where('company_id', $companyId)->with(['employee', 'dutyEmployee', 'leaveType']);
 
         // Apply filters
         if ($filters->companyName !== null) {
@@ -165,19 +167,12 @@ class LeaveRepository implements LeaveRepositoryInterface
     }
 
     /**
-     * Delete leave application completely
-     */
-    public function deleteApplication(LeaveApplication $application): bool
-    {
-        return $application->delete();
-    }
-
-    /**
      * Get paginated leave adjustments with filters
      */
     public function getPaginatedAdjustments(LeaveAdjustmentFilterDTO $filters): LengthAwarePaginator
     {
-        $query = LeaveAdjustment::with(['employee', 'dutyEmployee', 'leaveType']);
+        $companyId = $filters->companyId ;
+        $query = LeaveAdjustment::where('company_id', $companyId)->with(['employee', 'dutyEmployee', 'leaveType']);
 
         // Apply filters
         if ($filters->companyName !== null) {
@@ -270,13 +265,16 @@ class LeaveRepository implements LeaveRepositoryInterface
      */
     public function getLeaveStatistics(int $companyId): array
     {
+        
         $applicationStats = [
             'total_applications' => LeaveApplication::where('company_id', $companyId)->count(),
+            'effective_company_id' => $companyId,
             'pending_applications' => LeaveApplication::where('company_id', $companyId)->where('status', false)->count(),
             'approved_applications' => LeaveApplication::where('company_id', $companyId)->where('status', true)->count(),
         ];
 
         $adjustmentStats = [
+            'effective_company_id' => $companyId,
             'total_adjustments' => LeaveAdjustment::where('company_id', $companyId)->count(),
             'pending_adjustments' => LeaveAdjustment::where('company_id', $companyId)->where('status', LeaveAdjustment::STATUS_PENDING)->count(),
             'approved_adjustments' => LeaveAdjustment::where('company_id', $companyId)->where('status', LeaveAdjustment::STATUS_APPROVED)->count(),
@@ -340,14 +338,6 @@ class LeaveRepository implements LeaveRepositoryInterface
     }
 
     /**
-     * Delete leave adjustment completely
-     */
-    public function deleteAdjustment(LeaveAdjustment $adjustment): bool
-    {
-        return $adjustment->delete();
-    }
-
-    /**
      * Cancel leave adjustment (mark as rejected)
      */
     public function cancelAdjustment(LeaveAdjustment $adjustment, int $cancelledBy, string $reason): LeaveAdjustment
@@ -362,4 +352,30 @@ class LeaveRepository implements LeaveRepositoryInterface
 
         return $adjustment;
     }
+
+    /**
+ * Get total granted leave for an employee
+ */
+public function getTotalGrantedLeave(int $employeeId, int $leaveTypeId, int $companyId): float
+{
+    // use model ErpConstant
+    return (float) ErpConstant::where('employee_id', $employeeId)
+        ->where('leave_type_id', $leaveTypeId)
+        ->where('company_id', $companyId)
+        ->where('status', 'approved')
+        ->sum('days_granted');
+}
+
+/**
+ * Get total used leave for an employee
+ */
+public function getTotalUsedLeave(int $employeeId, int $leaveTypeId, int $companyId): float
+{
+    // use model LeaveApplication
+    return (float) LeaveApplication::where('employee_id', $employeeId)
+        ->where('leave_type_id', $leaveTypeId)
+        ->where('company_id', $companyId)
+        ->whereIn('status', ['approved', 'pending'])
+        ->sum('days_requested');
+}
 }
