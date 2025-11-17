@@ -109,30 +109,19 @@ class LeaveRepository implements LeaveRepositoryInterface
         ]);
 
         try {
-            // Temporarily disable model events
-            $dispatcher = $application->getEventDispatcher();
-            $application->unsetEventDispatcher();
-
             if ($dto->hasUpdates()) {
                 $updates = $dto->toArray();
                 \Log::debug('Applying updates', ['updates' => $updates]);
                 
-                // Update the model directly without events
-                \DB::table('leave_applications')
-                    ->where('leave_id', $application->leave_id)
-                    ->update($updates);
-                    
-                // Refresh the model
-                $application = $application->fresh();
+                // Update using Eloquent's update method (simpler and more reliable)
+                $application->update($updates);
                 
-                // Reload relationships if needed
-                if ($application) {
-                    $application->load(['employee', 'dutyEmployee', 'leaveType']);
-                }
+                // Refresh to get latest data
+                $application->refresh();
+                
+                // Load relationships
+                $application->load(['employee', 'dutyEmployee', 'leaveType']);
             }
-
-            // Re-enable events
-            $application->setEventDispatcher($dispatcher);
 
             \Log::debug('LeaveRepository::updateApplication - Update completed', [
                 'application_id' => $application->leave_id

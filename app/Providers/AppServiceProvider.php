@@ -7,6 +7,8 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use App\Repository\Interface\LeaveRepositoryInterface;
 use App\Repository\LeaveRepository;
+use App\Repository\Interface\AdvanceSalaryRepositoryInterface;
+use App\Repository\AdvanceSalaryRepository;
 use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
@@ -18,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(EmployeeRepositoryInterface::class, EmployeeRepository::class);
         $this->app->singleton(LeaveRepositoryInterface::class, LeaveRepository::class);
+        $this->app->singleton(AdvanceSalaryRepositoryInterface::class, AdvanceSalaryRepository::class);
     }
 
     /**
