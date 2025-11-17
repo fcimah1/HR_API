@@ -13,13 +13,13 @@ class CreateLeaveAdjustmentDTO
         public readonly float $adjustHours,  // تغيير من string إلى float
         public readonly string $reasonAdjustment,
         public readonly string $adjustmentDate, // إزالة القيمة الافتراضية
-        public readonly ?int $dutyEmployeeId = null
+        public readonly ?int $dutyEmployeeId = null,
+        public readonly ?int $status = null
     ) {}
 
 
     public static function fromRequest(array $data, int $companyId, int $employeeId): self
     {
-
         return new self(
             companyId: $companyId,
             employeeId: $employeeId,
@@ -27,7 +27,7 @@ class CreateLeaveAdjustmentDTO
             adjustHours: (float)$data['adjust_hours'],
             reasonAdjustment: $data['reason_adjustment'],
             adjustmentDate: $data['adjustment_date'],
-            dutyEmployeeId: $data['duty_employee_id'] ?? null
+            dutyEmployeeId: $data['duty_employee_id'] ?? null,
         );
     }
     public function toArray(): array
@@ -40,7 +40,7 @@ class CreateLeaveAdjustmentDTO
             'reason_adjustment' => $this->reasonAdjustment,
             'adjustment_date' => $this->adjustmentDate,
             'duty_employee_id' => $this->dutyEmployeeId,
-            'status' => \App\Models\LeaveAdjustment::STATUS_PENDING,
+            'status' => $this->status ?? \App\Models\LeaveAdjustment::STATUS_PENDING,
             'created_at' => now(),
         ];
 

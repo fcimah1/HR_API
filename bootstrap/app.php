@@ -1,8 +1,10 @@
 <?php
 
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
         ->withProviders([
@@ -22,5 +24,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // إرجاع JSON عند عدم التوثيق بدلاً من محاولة التحويل إلى Route login
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح - يجب تسجيل الدخول',
+            ], 401);
+        });
     })->create();

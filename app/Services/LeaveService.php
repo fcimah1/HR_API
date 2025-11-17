@@ -10,14 +10,14 @@ use App\DTOs\Leave\LeaveApplicationResponseDTO;
 use App\DTOs\Leave\LeaveAdjustmentFilterDTO;
 use App\DTOs\Leave\CreateLeaveAdjustmentDTO;
 use App\DTOs\Leave\UpdateLeaveAdjustmentDTO;
-use App\DTOs\Leave\LeaveAdjustmentResponseDTO;
+use App\DTOs\Leave\CreateLeaveSettlementDTO;
 use App\DTOs\Leave\CreateLeaveTypeDTO;
 use App\Http\Requests\Leave\ApproveLeaveApplicationRequest;
-use App\Models\LeaveApplication;
 use App\Models\LeaveAdjustment;
 use App\Models\User;
 use App\Services\SimplePermissionService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class LeaveService
@@ -52,11 +52,13 @@ class LeaveService
             $filterData['company_id'] = $effectiveCompanyId;
         }
         // Create DTO from filter data
-        $filters = LeaveAdjustmentFilterDTO::fromRequest($filterData);
+        $filters = LeaveAdjustmentFilterDTO::fromRequest($filterData,$user);
         
-        $adjustments = $this->leaveRepository->getPaginatedAdjustments($filters);
+        $adjustments = $this->leaveRepository->getPaginatedAdjustments($filters,$user);
         
         return [
+            'created_by' => $user->full_name,
+            'company_id' => $user->company_id,
             'data' => $adjustments->items(),
             'pagination' => [
                 'total' => $adjustments->total(),
@@ -91,13 +93,9 @@ class LeaveService
         $updatedFilters = LeaveApplicationFilterDTO::fromRequest($filterData);
 
         $applications = $this->leaveRepository->getPaginatedApplications($updatedFilters);
-        
-        $applicationDTOs = collect($applications->items())->map(function ($application) {
-            return LeaveApplicationResponseDTO::fromModel($application);
-        });
-
+    
         return [
-            'data' => $applicationDTOs->map(fn($dto) => $dto->toArray())->toArray(),
+            'data' => $applications->items(),
             'pagination' => [
                 'current_page' => $applications->currentPage(),
                 'last_page' => $applications->lastPage(),
@@ -302,39 +300,6 @@ class LeaveService
     }
 
     /**
-     * Delete leave application completely from database
-     */
-    public function deleteApplication(int $id, User $user): bool
-    {
-        // الحصول على معرف الشركة الفعلي
-        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-        
-        // البحث عن الطلب في نفس الشركة
-        $application = $this->leaveRepository->findApplicationInCompany($id, $effectiveCompanyId);
-        
-        if (!$application) {
-            return false;
-        }
-
-        // التحقق من الصلاحيات:
-        // 1. الموظف صاحب الطلب يمكنه حذف طلباته المعلقة فقط
-        // 2. المدير/الشركة يمكنهم حذف أي طلب (معلق أو موافق عليه)
-        $isOwner = $application->employee_id === $user->user_id;
-        $isManager = in_array($user->user_type, ['company', 'admin', 'hr', 'manager']);
-        
-        if (!$isOwner && !$isManager) {
-            throw new \Exception('ليس لديك صلاحية لحذف هذا الطلب');
-        }
-        
-        // الموظف العادي يمكنه حذف الطلبات المعلقة فقط
-        if ($isOwner && !$isManager && $application->status !== false) {
-            throw new \Exception('لا يمكن حذف الطلب بعد الموافقة عليه');
-        }
-
-        return $this->leaveRepository->deleteApplication($application);
-    }
-
-    /**
      * Approve leave application
      * 
      * @param int $id Leave application ID
@@ -342,7 +307,7 @@ class LeaveService
      * @return array|null
      * @throws \Exception
      */
-    public function approveApplication(int $id, ApproveLeaveApplicationRequest $request): ?array
+    public function approveApplication(int $id, ApproveLeaveApplicationRequest $request): object
     {
         // Get the authenticated user from the request
         $user = $request->user();
@@ -379,7 +344,7 @@ class LeaveService
             $remarks
         );
         
-        return LeaveApplicationResponseDTO::fromModel($approvedApplication)->toArray();
+        return LeaveApplicationResponseDTO::fromModel($approvedApplication);
     }
 
     /**
@@ -404,12 +369,33 @@ class LeaveService
     /**
      * Get paginated leave adjustments
      */
-    public function getPaginatedAdjustments(LeaveAdjustmentFilterDTO $filters): array
+    public function getPaginatedAdjustments(LeaveAdjustmentFilterDTO $filters, User $user): array
     {
-        $adjustments = $this->leaveRepository->getPaginatedAdjustments($filters);
+        // إنشاء filters جديد بناءً على صلاحيات المستخدم
+        $filterData = $filters->toArray();
+        
+        // إذا كان صاحب الشركة، يمكنه رؤية جميع طلبات شركته
+        if ($this->permissionService->isCompanyOwner($user)) {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $filterData['company_id'] = $effectiveCompanyId;
+        } 
+        // إذا كان موظف لديه صلاحية عرض جميع الطلبات
+        elseif ($this->permissionService->checkPermission($user, 'leave.view.all')) {
+            $filterData['company_id'] = $user->company_id;
+        }
+        // إذا كان موظف عادي، يرى طلباته الشخصية فقط
+        else {
+            $filterData['employee_id'] = $user->user_id;
+            $filterData['company_id'] = $user->company_id;
+        }
+
+        $updatedFilters = LeaveAdjustmentFilterDTO::fromRequest($filterData, $user);
+
+        $adjustments = $this->leaveRepository->getPaginatedAdjustments($updatedFilters);
 
         return [
             'data' => $adjustments,
+            'created by' => $user->full_name,
             'pagination' => [
                 'current_page' => $adjustments->currentPage(),
                 'last_page' => $adjustments->lastPage(),
@@ -421,29 +407,36 @@ class LeaveService
             ]
         ];
     }
+    /**
+     * Create a new leave application with permission check
+     */
+        // public function createApplication(CreateLeaveApplicationDTO $dto): array
+        // {
+        //     $application = $this->leaveRepository->createApplication($dto);
+        //     return LeaveApplicationResponseDTO::fromModel($application)->toArray();
+        // }
 
     /**
      * Create leave adjustment
      */
-    public function createAdjust(CreateLeaveAdjustmentDTO $data)
+    public function createAdjust(CreateLeaveAdjustmentDTO $data): array
     {
         try {
             $adjustment = $this->leaveRepository->createAdjust($data);
-            return response()->json([
-                'success' => true,
-                'message' => 'تم إنشاء طلب التسوية بنجاح',
-                'data' => $adjustment
-            ], 201);
+            Log::info('LeaveService::createAdjustment success', [
+                'adjustment' => $adjustment,
+                'user_id' => $adjustment->employee_id,
+                'company_id' => $adjustment->company_id,
+                'created_by' => $adjustment->full_name
+            ]);
+            return $adjustment->toArray();
+         
         } catch (\Exception $e) {
             Log::error('Create Adjustment Error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'فشل في إنشاء طلب التسوية',
-                'error' => $e->getMessage()
-            ], 500);
+           return throw $e;
         }
     }
 
@@ -454,6 +447,14 @@ class LeaveService
     {
         $adjustment = $this->leaveRepository->findAdjustmentInCompany($id, $companyId);
 
+        if (!$adjustment) {
+            throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
+        }
+
+        if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
+            throw new \Exception('لا يمكن الموافقة على هذا الطلب لأنه تم معالجته مسبقاً');
+        }
+
         $approvedAdjustment = $this->leaveRepository->approveAdjustment($adjustment, $approvedBy);
         return $approvedAdjustment;
     }
@@ -463,7 +464,7 @@ class LeaveService
      */
     public function getLeaveStatistics(int $companyId): array
     {
-        return $this->leaveRepository->getLeaveStatistics($companyId);
+        return $this->leaveRepository->getLeaveStatistics($companyId,);
     }
 
     /**
@@ -505,11 +506,20 @@ class LeaveService
     /**
      * Update leave adjustment
      */
-    public function updateAdjustment(int $id, UpdateLeaveAdjustmentDTO $dto, int $employeeId)
+    public function updateAdjustment(int $id, UpdateLeaveAdjustmentDTO $dto, int $employeeId): ?LeaveAdjustment
     {
         $adjustment = $this->leaveRepository->findAdjustmentForEmployee($id, $employeeId);
 
+        if (!$adjustment) {
+            return null;
+        }
+
+        if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
+            throw new \Exception('لا يمكن تعديل التسوية بعد المراجعة');
+        }
+
         $updatedAdjustment = $this->leaveRepository->updateAdjustment($adjustment, $dto);
+        return $updatedAdjustment;
     }
 
     /**
@@ -523,6 +533,10 @@ class LeaveService
             return false;
         }
 
+        if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
+            throw new \Exception('لا يمكن إلغاء التسوية بعد المراجعة');
+        }
+
         // Mark as rejected (keeps record in database)
         $this->leaveRepository->cancelAdjustment($adjustment, $employeeId, 'تم إلغاء التسوية من قبل الموظف');
         
@@ -530,21 +544,138 @@ class LeaveService
     }
 
     /**
-     * Delete leave adjustment completely from database
+     * Get available leave balance for an employee
+     *
+     * @param int $employeeId
+     * @param int $leaveTypeId
+     * @param int $companyId
+     * @return float
      */
-    public function deleteAdjustment(int $id, int $employeeId): bool
+    public function handleLeaveSettlement(CreateLeaveSettlementDTO $dto): array
     {
-        $adjustment = $this->leaveRepository->findAdjustmentForEmployee($id, $employeeId);
-        
-        if (!$adjustment) {
-            return false;
-        }
+        DB::beginTransaction();
+        try {
+            // 1. Check available balance
+            $availableBalance = $this->getAvailableLeaveBalance(
+                $dto->employeeId,
+                $dto->leaveTypeId,
+                $dto->companyId
+            );
 
-        // Check if adjustment can be deleted (only pending adjustments)
-        if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
-            throw new \Exception('لا يمكن حذف التسوية بعد الموافقة عليها');
-        }
+            if ($availableBalance < $dto->hoursToSettle) {
+                throw new \Exception('الرصيد المتاح (' . $availableBalance . ' ساعة) غير كافٍ لتسوية ' . $dto->hoursToSettle . ' ساعة.');
+            }
 
-        return $this->leaveRepository->deleteAdjustment($adjustment);
+            // 2. Perform the settlement based on type
+            if ($dto->settlementType === 'encashment') {
+                // Logic for Encashment (Cash out)
+                // This typically involves:
+                // a) Creating a Leave Adjustment to deduct the settled hours.
+                // b) Creating a record in a payroll/finance system for payment (Not implemented here, only the HR side).
+                
+                $adjustmentData = new CreateLeaveAdjustmentDTO(
+                    employeeId: $dto->employeeId,
+                    leaveTypeId: $dto->leaveTypeId,
+                    adjustHours: -$dto->hoursToSettle, // Negative value to deduct from balance
+                    reasonAdjustment: 'تسوية إجازات مستحقة (صرف نقدي) - ' . $dto->hoursToSettle . ' ساعة',
+                    adjustmentDate: now()->toDateString(),
+                    dutyEmployeeId: null,
+                    companyId: $dto->companyId,
+                );
+
+                $adjustment = $this->leaveRepository->createAdjust($adjustmentData);
+                
+                $message = 'تمت تسوية ' . $dto->hoursToSettle . ' ساعة بنجاح كصرف نقدي. تم تحديث رصيد الإجازات.';
+                $settlementRecord = $adjustment->toArray();
+
+            } elseif ($dto->settlementType === 'take_leave') {
+                // Logic for Taking Leave (Converting to a leave application)
+                // This is essentially creating a new leave application with the settled hours.
+                
+                // Note: This assumes 'hoursToSettle' is the total duration of the leave application.
+                // If the user meant converting the *remaining balance* into a single application, 
+                // the logic should be adjusted to use the full available balance.
+                
+                // For simplicity, we will create a Leave Adjustment to deduct the hours, 
+                // and the system should handle the actual leave application separately.
+                // However, based on the user's request "تسوية اجازاته المستحقه", 
+                // we will treat 'take_leave' as a final deduction/settlement.
+                
+                $adjustmentData = new CreateLeaveAdjustmentDTO(
+                    companyId: $dto->companyId,
+                    employeeId: $dto->employeeId,
+                    leaveTypeId: $dto->leaveTypeId,
+                    adjustHours: -$dto->hoursToSettle, // Negative value to deduct from balance
+                    reasonAdjustment: 'تسوية إجازات مستحقة (أخذ إجازة) - ' . $dto->hoursToSettle . ' ساعة',
+                    adjustmentDate: now()->toDateString(),
+                    dutyEmployeeId: null,
+                    status: 1 // Approved immediately for settlement
+                );
+
+                $adjustment = $this->leaveRepository->createAdjust($adjustmentData);
+                
+                $message = 'تمت تسوية ' . $dto->hoursToSettle . ' ساعة بنجاح كإجازة مأخوذة. تم تحديث رصيد الإجازات.';
+                $settlementRecord = $adjustment->toArray();
+            } else {
+                throw new \InvalidArgumentException('نوع التسوية غير صالح.');
+            }
+
+            // 3. Recalculate new balance
+            $newAvailableBalance = $this->getAvailableLeaveBalance(
+                $dto->employeeId,
+                $dto->leaveTypeId,
+                $dto->companyId
+            );
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'message' => $message,
+                'settlement_type' => $dto->settlementType,
+                'hours_settled' => $dto->hoursToSettle,
+                'old_balance' => $availableBalance,
+                'new_balance' => $newAvailableBalance,
+                'record' => $settlementRecord
+            ];
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('LeaveService::handleLeaveSettlement failed', [
+                'error' => $e->getMessage(),
+                'employee_id' => $dto->employeeId
+            ]);
+            throw $e;
+        }
     }
+
+    /**
+     * Get available leave balance for an employee
+     *
+     * @param int $employeeId
+     * @param int $leaveTypeId
+     * @param int $companyId
+     * @return float
+     */
+    public function getAvailableLeaveBalance(int $employeeId, int $leaveTypeId, int $companyId): float
+    {
+    // 1. Get total granted leave
+    $totalGranted = $this->leaveRepository->getTotalGrantedLeave(
+        $employeeId,
+        $leaveTypeId,
+        $companyId
+    );
+
+    // 2. Get total used leave
+    $totalUsed = $this->leaveRepository->getTotalUsedLeave(
+        $employeeId,
+        $leaveTypeId,
+        $companyId
+    );
+
+    // 3. Calculate available balance
+    return max(0, $totalGranted - $totalUsed);
+}
+
+
 }

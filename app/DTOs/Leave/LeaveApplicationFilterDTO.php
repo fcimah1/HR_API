@@ -2,6 +2,8 @@
 
 namespace App\DTOs\Leave;
 
+use App\Models\User;
+
 class LeaveApplicationFilterDTO
 {
     public function __construct(

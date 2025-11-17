@@ -11,6 +11,7 @@ use App\Models\LeaveApplication;
 use App\Models\LeaveAdjustment;
 use App\DTOs\Leave\CreateLeaveTypeDTO;
 use App\DTOs\Leave\UpdateLeaveAdjustmentDTO;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -46,7 +47,6 @@ interface LeaveRepositoryInterface
      */
     public function update_Application(LeaveApplication $application, UpdateLeaveApplicationDTO $dto): object;
 
-    public function deleteApplication(LeaveApplication $application): bool;
     /**
      * Approve leave application
      */
@@ -102,8 +102,17 @@ interface LeaveRepositoryInterface
      */
     public function createLeaveType(CreateLeaveTypeDTO $dto) :object;
 
-    public function deleteAdjustment(LeaveAdjustment $adjustment): bool;
     public function updateAdjustment(LeaveAdjustment $adjustment, UpdateLeaveAdjustmentDTO $dto): LeaveAdjustment;
     public function cancelAdjustment(LeaveAdjustment $adjustment, int $cancelledBy, string $reason): LeaveAdjustment;
     public function findAdjustmentForEmployee(int $id, int $employeeId): ?LeaveAdjustment;
+
+    /**
+     * Get total granted leave for an employee
+     */
+    public function getTotalGrantedLeave(int $employeeId, int $leaveTypeId, int $companyId): float;
+
+    /**
+     * Get total used leave for an employee
+     */
+    public function getTotalUsedLeave(int $employeeId, int $leaveTypeId, int $companyId): float;
 }

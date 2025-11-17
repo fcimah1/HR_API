@@ -2,10 +2,13 @@
 
 namespace App\DTOs\Leave;
 
+use App\Models\User;
+
 class LeaveAdjustmentFilterDTO
 {
     public function __construct(
         public readonly ?string $companyName = null,
+        public readonly ?int $companyId = null,
         public readonly ?int $employeeId = null,
         public readonly ?int $status = null,
         public readonly ?int $leaveTypeId = null,
@@ -15,10 +18,11 @@ class LeaveAdjustmentFilterDTO
         public readonly string $sortDirection = 'desc'
     ) {}
 
-    public static function fromRequest(array $data): self
+    public static function fromRequest(array $data, User $user): self
     {
         return new self(
             companyName: $data['company_name'] ?? null,
+            companyId: $data['company_id'] ?? null,
             employeeId: $data['employee_id'] ?? null,
             status: isset($data['status']) ? (int) $data['status'] : null,
             leaveTypeId: $data['leave_type_id'] ?? null,
@@ -33,6 +37,7 @@ class LeaveAdjustmentFilterDTO
     {
         return [
             'company_name' => $this->companyName,
+            'company_id' => $this->companyId,
             'employee_id' => $this->employeeId,
             'status' => $this->status,
             'leave_type_id' => $this->leaveTypeId,
