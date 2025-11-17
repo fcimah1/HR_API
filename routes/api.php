@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\LeaveController;
+use App\Http\Controllers\Api\AdvanceSalaryController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Passport\Http\Controllers\AccessTokenController;
 use Illuminate\Http\Request;
@@ -81,4 +82,19 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/leaves/adjustments/{id}/approve', [LeaveController::class, 'approveAdjustment']);
         Route::get('/leaves/stats', [LeaveController::class, 'getStats']);
     });
+
+    // Advance Salary & Loan Management
+    Route::get('/advances', [AdvanceSalaryController::class, 'index']);
+    Route::post('/advances', [AdvanceSalaryController::class, 'store']);
+    
+    // Manager/HR only endpoints for advance salary/loan management (must come before {id} routes)
+    Route::middleware('role:company,admin,hr,manager')->group(function () {
+        Route::get('/advances/stats', [AdvanceSalaryController::class, 'stats']);
+        Route::post('/advances/{id}/approve', [AdvanceSalaryController::class, 'approve']);
+    });
+    
+    // Note: More specific routes must come before general ones
+    Route::delete('/advances/{id}/cancel', [AdvanceSalaryController::class, 'cancel']);
+    Route::get('/advances/{id}', [AdvanceSalaryController::class, 'show']);
+    Route::put('/advances/{id}', [AdvanceSalaryController::class, 'update']);
 });

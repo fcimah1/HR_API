@@ -4,7 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\Response;
 
 class CheckRole
 {
@@ -18,7 +18,7 @@ class CheckRole
      */
     public function handle(Request $request, Closure $next, ...$roles)
     {
-        $user = auth()->user();
+        $user = $request->user();
         
         if (!$user) {
             return response()->json([

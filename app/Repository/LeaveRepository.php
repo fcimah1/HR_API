@@ -16,7 +16,7 @@ use App\Models\ErpConstant;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
-use function Illuminate\Log\log;
+use Illuminate\Support\Facades\Log;
 
 class LeaveRepository implements LeaveRepositoryInterface
 {
@@ -112,20 +112,19 @@ class LeaveRepository implements LeaveRepositoryInterface
             if ($dto->hasUpdates()) {
                 $updates = $dto->toArray();
                 
-                // Update model attributes
-                foreach ($updates as $key => $value) {
-                    $application->$key = $value;
-                }
+                // Update using Eloquent's update method (simpler and more reliable)
+                $application->update($updates);
                 
-                // Save the model
-                $application->save();
+                // Refresh to get latest data
+                $application->refresh();
                 
-                // Reload relationships
-                $application->load(['employee', 'dutyEmployee', 'leaveType']);
-            } else {
-                // Even if no updates, reload relationships
+                // Load relationships
                 $application->load(['employee', 'dutyEmployee', 'leaveType']);
             }
+
+            Log::debug('LeaveRepository::updateApplication - Update completed', [
+                'application_id' => $application->leave_id
+            ]);
 
             return $application;
 

@@ -15,6 +15,490 @@
         }
     ],
     "paths": {
+        "/api/advances": {
+            "get": {
+                "tags": [
+                    "Advance Salary & Loan Management"
+                ],
+                "summary": "Get advance salary/loan requests",
+                "operationId": "ba7f3439a7a137d774cebeec3264cab1",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Filter by type (loan or advance)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "loan",
+                                "advance"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by employee ID (managers/HR only)",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by status (0=pending, 1=approved, 2=rejected)",
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1,
+                                2
+                            ]
+                        }
+                    },
+                    {
+                        "name": "month_year",
+                        "in": "query",
+                        "description": "Filter by month and year (format: YYYY-MM)",
+                        "schema": {
+                            "type": "string",
+                            "example": "2025-11"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Requests retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الطلبات بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "advance_salary_id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "employee_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "salary_type": {
+                                                        "type": "string"
+                                                    },
+                                                    "salary_type_text": {
+                                                        "type": "string"
+                                                    },
+                                                    "month_year": {
+                                                        "type": "string"
+                                                    },
+                                                    "advance_amount": {
+                                                        "type": "number"
+                                                    },
+                                                    "monthly_installment": {
+                                                        "type": "number"
+                                                    },
+                                                    "remaining_amount": {
+                                                        "type": "number"
+                                                    },
+                                                    "status_text": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Advance Salary & Loan Management"
+                ],
+                "summary": "Create a new advance salary/loan request",
+                "operationId": "c1828abfdb90adaf874fcad3a91b2321",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "salary_type",
+                                    "month_year",
+                                    "advance_amount",
+                                    "one_time_deduct",
+                                    "monthly_installment",
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "salary_type": {
+                                        "description": "نوع الطلب: قرض أو سلفة",
+                                        "type": "string",
+                                        "enum": [
+                                            "loan",
+                                            "advance"
+                                        ],
+                                        "example": "loan"
+                                    },
+                                    "month_year": {
+                                        "description": "الشهر والسنة (YYYY-MM)",
+                                        "type": "string",
+                                        "example": "2025-12"
+                                    },
+                                    "advance_amount": {
+                                        "description": "المبلغ الإجمالي",
+                                        "type": "number",
+                                        "example": 5000
+                                    },
+                                    "one_time_deduct": {
+                                        "description": "خصم لمرة واحدة (0=لا، 1=نعم)",
+                                        "type": "string",
+                                        "enum": [
+                                            "0",
+                                            "1"
+                                        ],
+                                        "example": "0"
+                                    },
+                                    "monthly_installment": {
+                                        "description": "القسط الشهري",
+                                        "type": "number",
+                                        "example": 500
+                                    },
+                                    "reason": {
+                                        "description": "سبب الطلب (10 أحرف على الأقل)",
+                                        "type": "string",
+                                        "example": "احتياج شخصي عاجل"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Request created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء الطلب بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/advances/{id}": {
+            "get": {
+                "tags": [
+                    "Advance Salary & Loan Management"
+                ],
+                "summary": "Get a specific advance salary/loan request",
+                "operationId": "c625647013a593ed05031d1277bdd9a3",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Request retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Request not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Advance Salary & Loan Management"
+                ],
+                "summary": "Update an advance salary/loan request (pending only)",
+                "operationId": "b80ed88ab998cab468680e8e79ae610c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "month_year": {
+                                        "type": "string",
+                                        "example": "2025-12"
+                                    },
+                                    "advance_amount": {
+                                        "type": "number",
+                                        "example": 6000
+                                    },
+                                    "one_time_deduct": {
+                                        "type": "string",
+                                        "enum": [
+                                            "0",
+                                            "1"
+                                        ],
+                                        "example": "0"
+                                    },
+                                    "monthly_installment": {
+                                        "type": "number",
+                                        "example": 600
+                                    },
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "تحديث السبب"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Request updated successfully"
+                    },
+                    "403": {
+                        "description": "Cannot update approved/rejected request"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/advances/{id}/cancel": {
+            "delete": {
+                "tags": [
+                    "Advance Salary & Loan Management"
+                ],
+                "summary": "Cancel an advance salary/loan request (marks as rejected, keeps record)",
+                "operationId": "dd8e46dcbae594d99d086880afa6ceb2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID of the advance/loan request",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Request cancelled successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إلغاء الطلب بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied or cannot cancel approved request"
+                    },
+                    "404": {
+                        "description": "Request not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/advances/{id}/approve": {
+            "post": {
+                "tags": [
+                    "Advance Salary & Loan Management"
+                ],
+                "summary": "Approve an advance salary/loan request (HR/Manager only)",
+                "operationId": "230dba3ab0005f515ec509dbb794b808",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "remarks": {
+                                        "type": "string",
+                                        "example": "موافق على الطلب"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Request approved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/advances/stats": {
+            "get": {
+                "tags": [
+                    "Advance Salary & Loan Management"
+                ],
+                "summary": "Get advance salary/loan statistics (HR/Manager only)",
+                "operationId": "133256bf99a86bf76e862fe168ab4743",
+                "responses": {
+                    "200": {
+                        "description": "Statistics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_requests": {
+                                                    "type": "integer"
+                                                },
+                                                "total_loans": {
+                                                    "type": "integer"
+                                                },
+                                                "total_advances": {
+                                                    "type": "integer"
+                                                },
+                                                "pending_count": {
+                                                    "type": "integer"
+                                                },
+                                                "approved_count": {
+                                                    "type": "integer"
+                                                },
+                                                "rejected_count": {
+                                                    "type": "integer"
+                                                },
+                                                "total_amount": {
+                                                    "type": "number"
+                                                },
+                                                "total_paid": {
+                                                    "type": "number"
+                                                },
+                                                "total_remaining": {
+                                                    "type": "number"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/login": {
             "post": {
                 "tags": [
@@ -2149,6 +2633,10 @@
         }
     },
     "tags": [
+        {
+            "name": "Advance Salary & Loan Management",
+            "description": "Employee advance salary and loan requests management"
+        },
         {
             "name": "Authentication",
             "description": "User authentication endpoints"
