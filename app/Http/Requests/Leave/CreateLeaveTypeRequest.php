@@ -2,7 +2,8 @@
 
 namespace App\Http\Requests\Leave;
 
-    use Illuminate\Foundation\Http\FormRequest;
+use App\Services\SimplePermissionService;
+use Illuminate\Foundation\Http\FormRequest;
     use Illuminate\Support\Facades\Auth;
     use Illuminate\Contracts\Validation\Validator;
     use Illuminate\Http\Exceptions\HttpResponseException;
@@ -10,15 +11,20 @@ namespace App\Http\Requests\Leave;
 
 class CreateLeaveTypeRequest extends FormRequest
 {
+    public $simplePermissionService;
+    public function __construct(
+        private readonly SimplePermissionService $permissionService
+    ) {
+        $this->simplePermissionService = $permissionService;
+    }
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        $user = Auth::user();
-        
-        // Only HR, Admin, and Company can create leave types
-        return in_array($user->user_type, ['company', 'admin', 'hr']);
+        return Auth::check();
+
+        // return $this->simplePermissionService->checkPermission($user, 'leave_type2');
     }
 
     /**

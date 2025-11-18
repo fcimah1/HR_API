@@ -42,7 +42,7 @@ class CreateLeaveAdjustmentRequest extends FormRequest
                 'required',
                 'numeric',
                 'min:0.5', // على الأقل نصف ساعة
-                'max:24'   // كحد أقصى 24 ساعة
+                // 'max:24'   // كحد أقصى 24 ساعة
             ],
             'reason_adjustment' => 'required|string|max:500',
         ];

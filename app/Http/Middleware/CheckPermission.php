@@ -6,11 +6,12 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Services\PermissionService;
+use App\Services\SimplePermissionService;
 
 class CheckPermission
 {
     public function __construct(
-        private readonly PermissionService $permissionService
+        private readonly SimplePermissionService $permissionService
     ) {}
 
     /**
@@ -25,6 +26,13 @@ class CheckPermission
                 'success' => false,
                 'message' => 'غير مصرح بالدخول'
             ], 401);
+        }
+
+        $userType = strtolower(trim($user->user_type ?? ''));
+
+        // مستخدم الشركة له صلاحيات كاملة ولا يحتاج للتحقق من الأدوار
+        if ($userType === 'company') {
+            return $next($request);
         }
 
         // التحقق من وجود الدور
@@ -53,10 +61,22 @@ class CheckPermission
 
         if ($logic === 'AND') {
             // يجب أن يملك جميع الصلاحيات
-            $hasPermission = $this->permissionService->checkAllPermissions($user, $permissions);
+            $hasPermission = true;
+            foreach ($permissions as $permission) {
+                if (!$this->permissionService->checkPermission($user, $permission)) {
+                    $hasPermission = false;
+                    break;
+                }
+            }
         } else {
             // يكفي أن يملك إحدى الصلاحيات
-            $hasPermission = $this->permissionService->checkAnyPermission($user, $permissions);
+            $hasPermission = false;
+            foreach ($permissions as $permission) {
+                if ($this->permissionService->checkPermission($user, $permission)) {
+                    $hasPermission = true;
+                    break;
+                }
+            }
         }
 
         if (!$hasPermission) {

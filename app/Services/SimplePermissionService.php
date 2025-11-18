@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\StaffRole;
+use Illuminate\Support\Facades\Log;
 
 class SimplePermissionService
 {
@@ -12,27 +13,39 @@ class SimplePermissionService
      */
     public function checkPermission(User $user, string $permission): bool
     {
-        // إذا كان user_role_id = 0 فله صلاحيات كاملة (شركة)
-        if ($user->user_role_id == 0) {
+        $userType = strtolower(trim($user->user_type ?? ''));
+        Log::info('SimplePermissionService::checkPermission', [
+            'user' => $user,
+            'permission' => $permission,
+            'created by' => $user->full_name
+        ]);
+        // مستخدم الشركة له صلاحيات كاملة ولا يعتمد على جدول الأدوار
+        if ($userType === 'company') {
             return true;
         }
 
-        // إذا كان موظف، التحقق من صلاحيات دوره
-        if ($user->user_role_id > 0) {
-            $role = StaffRole::where('role_id', $user->user_role_id)
-                ->where('company_id', $user->company_id)
-                ->first();
-
-            if (!$role) {
-                return false;
-            }
-
-            // التحقق من وجود الصلاحية في role_resources
-            $permissions = array_filter(explode(',', $role->role_resources ?? ''));
-            return in_array($permission, $permissions);
+        // إذا لم يكن مرتبطًا بدور صالح، فلا صلاحيات
+        if ($user->user_role_id <= 0) {
+            return false;
         }
 
-        return false;
+        $role = StaffRole::where('role_id', $user->user_role_id)
+            ->where('company_id', $user->company_id)
+            ->first();
+
+        if (!$role) {
+            return false;
+        }
+
+        // التحقق من وجود الصلاحية في role_resources
+        $permissions = array_filter(explode(',', $role->role_resources ?? ''));
+        Log::info('SimplePermissionService::checkPermission', [
+            'user' => $user,
+            'permission' => $permission,
+            'permissions' => $permissions,
+            'created by' => $user->full_name
+        ]);
+        return in_array($permission, $permissions);
     }
 
     /**
@@ -60,7 +73,8 @@ class SimplePermissionService
         }
 
         // إذا كان صاحب الشركة، يمكنه الوصول لجميع موظفيه
-        if ($user->user_role_id == 0) {
+        $userType = strtolower(trim($user->user_type ?? ''));
+        if ($userType === 'company' || $user->user_role_id == 0) {
             return true;
         }
 
@@ -78,20 +92,23 @@ class SimplePermissionService
      */
     public function getUserPermissions(User $user): array
     {
-        // إذا كان صاحب الشركة، له جميع الصلاحيات
-        if ($user->user_role_id == 0) {
-            return ['*']; // رمز للصلاحيات الكاملة
+        $userType = strtolower(trim($user->user_type ?? ''));
+
+        // مستخدم الشركة له جميع الصلاحيات
+        if ($userType === 'company') {
+            return ['*'];
         }
 
-        // إذا كان موظف، الحصول على صلاحيات دوره
-        if ($user->user_role_id > 0) {
-            $role = StaffRole::where('role_id', $user->user_role_id)
-                ->where('company_id', $user->company_id)
-                ->first();
+        if ($user->user_role_id <= 0) {
+            return [];
+        }
 
-            if ($role) {
-                return array_filter(explode(',', $role->role_resources ?? ''));
-            }
+        $role = StaffRole::where('role_id', $user->user_role_id)
+            ->where('company_id', $user->company_id)
+            ->first();
+
+        if ($role) {
+            return array_filter(explode(',', $role->role_resources ?? ''));
         }
 
         return [];

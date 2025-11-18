@@ -57,3 +57,24 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+
+
+Rules for Uploading to GitHub:
+1- git add .   
+2- git commit -m "Your commit message"
+3-  git checkout -b <branch_name>
+4- git push -u origin <branch_name>
+5- git fetch origin     
+6- git merge origin/main
+7- solve conflicts if any
+8- git add .
+9- git commit -m "Your commit message"
+10- git push
+11- in github create pull request
+12- wait for approval
+13- after approval git checkout main
+14- git pull origin main
+15- git checkout <branch_name>
+16- git merge main
+17- git push

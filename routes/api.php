@@ -60,8 +60,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
 
     // Leave Management with Simple Permission Checks
     Route::get('/leaves/applications', [LeaveController::class, 'getApplications']);
-    Route::post('/leaves/applications', [LeaveController::class, 'createApplication'])
-        ->middleware('simple.permission:leave.create');
+    Route::post('/leaves/applications', [LeaveController::class, 'createApplication']);
     // Note: More specific routes must come before general ones
     Route::delete('/leaves/applications/{id}/cancel', [LeaveController::class, 'cancelApplication']);
     Route::put('/leaves/applications/{id}', [LeaveController::class, 'updateApplication']);
@@ -74,7 +73,11 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::put('/leaves/adjustments/{id}', [LeaveController::class, 'updateAdjustment']);
     
     Route::get('/leaves/types', [LeaveController::class, 'getLeaveTypes']);
-    Route::post('/leaves/types', [LeaveController::class, 'createLeaveType'])->middleware('role:company,admin,hr,manager');
+    Route::post('/leaves/types', [LeaveController::class, 'createLeaveType']);
+
+    // Leave balance check & settlement
+    Route::get('/leaves/check-balance', [LeaveController::class, 'checkLeaveBalance']);
+    Route::post('/leaves/settlement', [LeaveController::class, 'settleLeave']);
     
     // Manager/HR only endpoints for leave management
     Route::middleware('role:company,admin,hr,manager')->group(function () {

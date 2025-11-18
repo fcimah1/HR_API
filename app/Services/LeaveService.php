@@ -51,6 +51,7 @@ class LeaveService
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
         }
+        
         // Create DTO from filter data
         $filters = LeaveAdjustmentFilterDTO::fromRequest($filterData,$user);
         
@@ -79,6 +80,10 @@ class LeaveService
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
         } 
+        // إذا كان مدير/إداري (admin/hr/manager) في الشركة، يمكنه رؤية جميع طلبات الشركة
+        elseif (in_array(strtolower($user->user_type), ['admin', 'hr', 'manager'])) {
+            $filterData['company_id'] = $user->company_id;
+        }
         // إذا كان موظف لديه صلاحية عرض جميع الطلبات
         elseif ($this->permissionService->checkPermission($user, 'leave.view.all')) {
             $filterData['company_id'] = $user->company_id;
@@ -239,13 +244,9 @@ class LeaveService
             }
 
             // التحقق من صلاحية التعديل
-            // الموظف يمكنه تعديل طلباته الخاصة فقط
-            // المدير/الشركة يمكنهم تعديل أي طلب
             $isOwner = $application->employee_id === $user->user_id;
-            $isManager = in_array($user->user_type, ['company', 'admin', 'hr', 'manager']);
-     
-            
-            if (!$isOwner && !$isManager) {
+
+            if (!$isOwner) {
                 throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
             }
 
@@ -281,19 +282,18 @@ class LeaveService
         // 1. الموظف صاحب الطلب يمكنه إلغاء طلباته المعلقة فقط
         // 2. المدير/الشركة يمكنهم إلغاء أي طلب (معلق أو موافق عليه)
         $isOwner = $application->employee_id === $user->user_id;
-        $isManager = in_array($user->user_type, ['company', 'admin', 'hr', 'manager']);
         
-        if (!$isOwner && !$isManager) {
+        if (!$isOwner) {
             throw new \Exception('ليس لديك صلاحية لإلغاء هذا الطلب');
         }
         
         // الموظف العادي يمكنه إلغاء الطلبات المعلقة فقط
-        if ($isOwner && !$isManager && $application->status !== false) {
+        if ($isOwner && $application->status !== false) {
             throw new \Exception('لا يمكن إلغاء الطلب بعد المراجعة');
         }
 
         // Mark as rejected (keeps record in database)
-        $cancelReason = $isManager ? 'تم إلغاء الطلب من قبل الإدارة' : 'تم إلغاء الطلب من قبل الموظف';
+        $cancelReason = 'تم إلغاء الطلب من قبل الموظف';
         $this->leaveRepository->rejectApplication($application, $user->user_id, $cancelReason);
         
         return true;
@@ -379,6 +379,10 @@ class LeaveService
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
         } 
+        // إذا كان مدير/إداري (admin/hr/manager) في الشركة، يمكنه رؤية جميع طلبات الشركة
+        elseif (in_array(strtolower($user->user_type), ['admin', 'hr', 'manager'])) {
+            $filterData['company_id'] = $user->company_id;
+        }
         // إذا كان موظف لديه صلاحية عرض جميع الطلبات
         elseif ($this->permissionService->checkPermission($user, 'leave.view.all')) {
             $filterData['company_id'] = $user->company_id;
@@ -422,6 +426,23 @@ class LeaveService
     public function createAdjust(CreateLeaveAdjustmentDTO $data): array
     {
         try {
+            // إذا كانت التسوية خصم من رصيد الإجازات (ساعات سالبة)، تحقق من أن الرصيد يكفي
+            if ($data->adjustHours < 0) {
+                $availableBalance = $this->getAvailableLeaveBalance(
+                    $data->employeeId,
+                    $data->leaveTypeId,
+                    $data->companyId
+                );
+
+                $hoursToDeduct = abs($data->adjustHours);
+
+                if ($availableBalance < $hoursToDeduct) {
+                    throw new \Exception(
+                        'الرصيد المتاح (' . $availableBalance . ' ساعة) غير كافٍ لتسوية ' . $hoursToDeduct . ' ساعة.'
+                    );
+                }
+            }
+
             $adjustment = $this->leaveRepository->createAdjust($data);
             Log::info('LeaveService::createAdjustment success', [
                 'adjustment' => $adjustment,
@@ -450,6 +471,7 @@ class LeaveService
         if (!$adjustment) {
             throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
         }
+
 
         if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
             throw new \Exception('لا يمكن الموافقة على هذا الطلب لأنه تم معالجته مسبقاً');
@@ -492,7 +514,6 @@ class LeaveService
     public function createLeaveType(CreateLeaveTypeDTO $dto): array
     {
         $leaveType = $this->leaveRepository->createLeaveType($dto);
-        
         return [
             'leave_type_id' => $leaveType->constants_id,
             'leave_type_name' => $leaveType->leave_type_name,

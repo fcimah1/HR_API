@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use App\Services\SimplePermissionService;
+use Illuminate\Support\Facades\Log;
 
 class SimplePermissionCheck
 {
@@ -22,7 +23,7 @@ class SimplePermissionCheck
         if (!$user) {
             return response()->json(['error' => 'غير مصرح - يجب تسجيل الدخول'], 401);
         }
-
+        // Log::info('User: ' . json_encode($user),['permission' => $permission]);
         // إذا لم يتم تحديد صلاحية، السماح بالمرور
         if (!$permission) {
             return $next($request);
@@ -30,6 +31,7 @@ class SimplePermissionCheck
 
         // التحقق من الصلاحية
         if (!$this->permissionService->checkPermission($user, $permission)) {
+            Log::info('User: ' . json_encode($user),['permission' => $permission]);
             $userPermissions = $this->permissionService->getUserPermissions($user);
             return response()->json([
                 'error' => 'غير مصرح - ليس لديك صلاحية للوصول لهذا المورد',
