@@ -21,7 +21,7 @@ use App\Http\Requests\Leave\UpdateLeaveApplicationRequest;
 use App\Http\Requests\Leave\CreateLeaveAdjustmentRequest;
 use App\Http\Requests\Leave\CreateLeaveTypeRequest;
 use App\Http\Requests\Leave\UpdateLeaveAdjustmentRequest;
-use App\Models\LeaveAdjustment;
+
 use App\Services\SimplePermissionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,10 +35,13 @@ use Illuminate\Support\Facades\Log;
  */
 class LeaveController extends Controller
 {
+    public $simplePermissionService;
     public function __construct(
         private readonly LeaveService $leaveService,
         private readonly SimplePermissionService $permissionService
-    ) {}
+    ) {
+        $this->simplePermissionService = $permissionService;
+    }
     /**
      * @OA\Get(
      *     path="/api/leaves/applications",
@@ -91,9 +94,15 @@ class LeaveController extends Controller
      */
     public function getApplications(Request $request)
     {
-        $user = Auth::user();
-        
         try {
+            $user = Auth::user();
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave1');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بعرض طلبات الإجازات'
+                ], 403);
+            }
             $filters = LeaveApplicationFilterDTO::fromRequest($request->all());
             $result = $this->leaveService->getPaginatedApplications($filters,$user);
 
@@ -169,9 +178,15 @@ class LeaveController extends Controller
      */
     public function createApplication(CreateLeaveApplicationRequest $request)
     {
-        $user = Auth::user();
-
         try {
+            $user = Auth::user();
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave3');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بإنشاء طلبات الإجازات'
+                ], 403);
+            }
             // الحصول على معرف الشركة الفعلي من attributes
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
             
@@ -231,9 +246,8 @@ class LeaveController extends Controller
      */
     public function showApplication(int $id, Request $request)
     {
-        $user = Auth::user();
-
         try {
+            $user = Auth::user();
             // الحصول على معرف الشركة الفعلي من attributes
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
             
@@ -282,7 +296,7 @@ class LeaveController extends Controller
      *     path="/api/leaves/applications/{id}",
      *     summary="Update a leave application",
      *     tags={"Leave Management"},
- *     security={{"bearerAuth":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -308,6 +322,13 @@ class LeaveController extends Controller
         
         try {
             $user = Auth::user();
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave4');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بتعديل طلبات الإجازات'
+                ], 403);
+            }
             $dto = UpdateLeaveApplicationDTO::fromRequest($request->validated());
             Log::info('LeaveController::updateApplication', [
                 'success' => true,
@@ -398,9 +419,15 @@ class LeaveController extends Controller
      */
     public function cancelApplication(int $id)
     {
-        $user = Auth::user();
-
         try {
+            $user = Auth::user();
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave6');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بإلغاء طلبات الإجازات'
+                ], 403);
+            }
             $success = $this->leaveService->cancelApplication($id, $user);
 
             if (!$success) {
@@ -454,6 +481,13 @@ class LeaveController extends Controller
     {
         try {
         $user = Auth::user();
+        $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment');
+        if (!$isUserHasThisPermission) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بعرض تسويات الإجازات'
+            ], 403);
+        }
         $filters = LeaveAdjustmentFilterDTO::fromRequest($request->all(), $user);
         
         Log::info('LeaveController::getAdjustments filters', [
@@ -513,9 +547,16 @@ class LeaveController extends Controller
      */
     public function createAdjustment(CreateLeaveAdjustmentRequest $request)
     {
-         $user = Auth::user();
-
+        
         try {
+            $user = Auth::user();
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment1');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بإنشاء تسويات الإجازات'
+                ], 403);
+            }
             // الحصول على معرف الشركة الفعلي من attributes
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
 
@@ -587,6 +628,14 @@ class LeaveController extends Controller
     {
         try {
             $user = Auth::user();
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_type1');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بعرض أنواع الإجازات'
+                ], 403);
+            }
+        
             // Get leave types for the user's company and general types
             $leaveTypes = $this->leaveService->getActiveLeaveTypes($user->company_id);
             Log::info('LeaveController::getLeaveTypes', [
@@ -640,58 +689,61 @@ class LeaveController extends Controller
     {
         try {
             $user = Auth::user();
-        // Only HR and Admin can create leave types
-        if (!in_array($user->user_type, ['company', 'admin', 'hr'])) {
+    
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_type2');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بإنشاء أنواع إجازات جديدة'
+                ], 403);
+            }
+        
+            $effectiveCompanyId = $request->attributes->get('effective_company_id');
+
+            $dto = CreateLeaveTypeDTO::fromRequest(
+                $request->validated(),
+                $effectiveCompanyId,
+            );
+
+            Log::info('LeaveService::createType started', [
+                'dto' => $dto->toArray(),
+                'created by' => $user->full_name
+            ]);
+
+            $leaveType = $this->leaveService->createLeaveType($dto);
+
+            Log::info('LeaveService::createType completed', [
+                'dto' => $dto->toArray(),
+                'leave_type' => $leaveType,
+                'created by' => $user->full_name,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إنشاء نوع الإجازة بنجاح',
+                'data' => $leaveType,
+                'created by' => $user->full_name
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('LeaveController::createLeaveType failed', [
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'غير مصرح لك بإنشاء أنواع إجازات جديدة'
-            ], 403);
+                'message' => 'فشل في إنشاء نوع الإجازة',
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ], 500);
         }
-
-        $dto = CreateLeaveTypeDTO::fromRequest(
-            $request->validated(),
-            $user->user_id
-        );
-
-        Log::info('LeaveService::createType started', [
-            'dto' => $dto->toArray(),
-            'created by' => $user->full_name
-        ]);
-
-        $leaveType = $this->leaveService->createLeaveType($dto);
-
-        Log::info('LeaveService::createType completed', [
-            'dto' => $dto->toArray(),
-            'leave_type' => $leaveType,
-            'created by' => $user->full_name,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'تم إنشاء نوع الإجازة بنجاح',
-            'data' => $leaveType,
-            'created by' => $user->full_name
-        ], 201);
-    } catch (\Exception $e) {
-        Log::error('LeaveController::createLeaveType failed', [
-            'error' => $e->getMessage(),
-            'created by' => $user->full_name
-        ]);
-        return response()->json([
-            'success' => false,
-            'message' => 'فشل في إنشاء نوع الإجازة',
-            'error' => $e->getMessage(),
-            'created by' => $user->full_name
-        ], 500);
     }
-}
 
     /**
      * @OA\Post(
      *     path="/api/leaves/applications/{id}/approve",
      *     summary="Approve leave application (Managers/HR only)",
      *     tags={"Leave Management"},
- *     security={{"bearerAuth":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -713,8 +765,8 @@ class LeaveController extends Controller
     {
         $user = Auth::user();
         try {
-
-        if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave7');
+        if (!$isUserHasThisPermission) {
             return response()->json([
                 'success' => false,
                 'message' => 'غير مصرح لك بالموافقة على الطلبات'
@@ -725,21 +777,15 @@ class LeaveController extends Controller
             'application_id' => $id,
             'created by' => $user->full_name
         ]);
-        // Pass the request object directly to the service
+        // استدعاء خدمة الموافقة على الطلب
         $application = $this->leaveService->approveApplication($id, $request);
 
-        if (isset($application['success']) && $application['success'] === false ) {
-            Log::info('LeaveController::Already Approved', [
-                'success' => false,
-                'application' => $application,
-                'created by' => $user->full_name
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'تم الموافقة على هذا الطلب مسبقاً'
-            ], 422);
+        // إذا رجع السيرفس Response جاهز (حالة خطأ)، نعيده كما هو
+        if ($application instanceof \Illuminate\Http\JsonResponse) {
+            return $application;
         }
 
+        // في حالة النجاح، يكون $application عبارة عن LeaveApplicationResponseDTO
         Log::info('LeaveController::Approved', [
             'success' => true,
             'application' => $application,
@@ -787,39 +833,39 @@ class LeaveController extends Controller
     public function approveAdjustment(int $id)
     {
         try {
-        $user = Auth::user();
+            $user = Auth::user();
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment4');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بالموافقة على الطلبات'
+                ], 403);
+            }
 
-        if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
+            // استخدام المعرف الفعلي للشركة لدعم مالك الشركة
+            $companyId = $this->permissionService->getEffectiveCompanyId($user);
+            Log::info('LeaveController::start', [
+                'companyId' => $companyId,
+                'created by' => $user->full_name
+            ]);
+            $adjustment = $this->leaveService->approveAdjustment(
+                $id,
+                $companyId,
+                $user->user_id
+            );
+
+            Log::info('LeaveController::approveAdjustment', [
+                'success' => true,
+                'adjustment' => $adjustment,
+                'created by' => $user->full_name
+            ]);
+
             return response()->json([
-                'success' => false,
-                'message' => 'غير مصرح لك بالموافقة على الطلبات'
-            ], 403);
-        }
-
-        // استخدام المعرف الفعلي للشركة لدعم مالك الشركة
-        $companyId = $this->permissionService->getEffectiveCompanyId($user);
-        Log::info('LeaveController::start', [
-            'companyId' => $companyId,
-            'created by' => $user->full_name
-        ]);
-        $adjustment = $this->leaveService->approveAdjustment(
-            $id,
-            $companyId,
-            $user->user_id
-        );
-
-        Log::info('LeaveController::approveAdjustment', [
-            'success' => true,
-            'adjustment' => $adjustment,
-            'created by' => $user->full_name
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'تم الموافقة على طلب التسوية بنجاح',
-            'data' => $adjustment,
-            'created by' => $user->full_name
-        ]);
+                'success' => true,
+                'message' => 'تم الموافقة على طلب التسوية بنجاح',
+                'data' => $adjustment,
+                'created by' => $user->full_name
+            ]);
         } catch (\Exception $e) {
             Log::error('LeaveController::approveAdjustment failed', [
                 'error' => $e->getMessage(),
@@ -934,9 +980,16 @@ class LeaveController extends Controller
      */
     public function updateAdjustment(UpdateLeaveAdjustmentRequest $request, int $id)
     {
-        $user = Auth::user();
-
+        
         try {
+            $user = Auth::user();
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment2');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بتعديل تسويات الإجازات'
+                ], 403);
+            }
             $dto = UpdateLeaveAdjustmentDTO::fromRequest($request->validated());
             $adjustment = $this->leaveService->updateAdjustment($id, $dto, $user->user_id);
 
@@ -1007,9 +1060,16 @@ class LeaveController extends Controller
      */
     public function cancelAdjustment(int $id)
     {
-        $user = Auth::user();
-
+        
         try {
+            $user = Auth::user();
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment3');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بإلغاء تسويات الإجازات'
+                ], 403);
+            }
             $success = $this->leaveService->cancelAdjustment($id, $user->user_id);
 
             if (!$success) {

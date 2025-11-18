@@ -354,28 +354,27 @@ class LeaveRepository implements LeaveRepositoryInterface
     }
 
     /**
- * Get total granted leave for an employee
- */
-public function getTotalGrantedLeave(int $employeeId, int $leaveTypeId, int $companyId): float
-{
-    // use model ErpConstant
-    return (float) ErpConstant::where('employee_id', $employeeId)
-        ->where('leave_type_id', $leaveTypeId)
-        ->where('company_id', $companyId)
-        ->where('status', 'approved')
-        ->sum('days_granted');
-}
+    * Get total granted leave for an employee*/
+    public function getTotalGrantedLeave(int $employeeId, int $leaveTypeId, int $companyId): float
+    {
+        // use model ErpConstant
+        return (float) ErpConstant::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('status', 'approved')
+            ->sum('days_granted');
+    }
 
-/**
- * Get total used leave for an employee
- */
-public function getTotalUsedLeave(int $employeeId, int $leaveTypeId, int $companyId): float
-{
-    // use model LeaveApplication
-    return (float) LeaveApplication::where('employee_id', $employeeId)
-        ->where('leave_type_id', $leaveTypeId)
-        ->where('company_id', $companyId)
-        ->whereIn('status', ['approved', 'pending'])
-        ->sum('days_requested');
-}
-}
+    /**
+     * Get total used leave for an employee
+     */
+    public function getTotalUsedLeave(int $employeeId, int $leaveTypeId, int $companyId): float
+    {
+        // use model LeaveApplication
+        return (float) LeaveApplication::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->whereIn('status', ['approved', 'pending'])
+            ->sum('days_requested');
+    }
+    }

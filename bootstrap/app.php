@@ -17,6 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // هذا نظام API فقط، لا نريد إعادة توجيه الضيوف إلى Route login
+        // نعيد null من الـ closure حتى لا يحدث أي redirect، ونعتمد على معالج الاستثناءات لإرجاع JSON 401
+        $middleware->redirectGuestsTo(fn (Request $request) => null);
+
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
             'simple.permission' => \App\Http\Middleware\SimplePermissionCheck::class,

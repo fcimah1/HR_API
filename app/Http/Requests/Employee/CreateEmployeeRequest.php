@@ -50,7 +50,16 @@ class CreateEmployeeRequest extends FormRequest
             
             // Optional basic info
             'user_type' => 'sometimes|string|in:admin,hr,manager,employee',
-            'user_role_id' => 'sometimes|integer|min:1',
+            'user_role_id' => [
+                'sometimes',
+                'integer',
+                'min:1',
+                Rule::exists('ci_staff_roles', 'role_id')->where(function ($query) {
+                    $user = $this->user();
+                    $companyId = $user->company_id == 0 ? $user->user_id : $user->company_id;
+                    return $query->where('company_id', $companyId);
+                }),
+            ],
             'contact_number' => 'sometimes|string|max:20|regex:/^[0-9+\-\s()]+$/',
             'gender' => 'sometimes|string|in:male,female',
             'address_1' => 'sometimes|string|max:500',
@@ -59,7 +68,7 @@ class CreateEmployeeRequest extends FormRequest
             'state' => 'sometimes|string|max:255',
             'zipcode' => 'sometimes|string|max:20',
             'country' => 'sometimes|string|max:255',
-            'profile_photo' => 'sometimes|string|max:500',
+            'profile_picture' => 'sometimes|string|max:500',
             
             // Employee details
             'employee_id' => [
@@ -74,7 +83,7 @@ class CreateEmployeeRequest extends FormRequest
             'reporting_manager' => 'sometimes|integer|exists:ci_erp_users,user_id',
             'department_id' => 'sometimes|integer|exists:ci_departments,department_id',
             'designation_id' => 'sometimes|integer|exists:ci_designations,designation_id',
-            'office_shift_id' => 'sometimes|integer',
+            'office_shift_id' => 'required|integer|exists:ci_office_shifts,office_shift_id',
             'basic_salary' => 'sometimes|numeric|min:0|max:9999999.99',
             'hourly_rate' => 'sometimes|numeric|min:0|max:9999.99',
             'salary_type' => 'sometimes|integer|in:1,2,3', // 1=monthly, 2=hourly, 3=daily

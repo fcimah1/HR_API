@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Employee\CreateEmployeeRequest;
 use App\Http\Requests\Employee\UpdateEmployeeRequest;
 use App\Services\EmployeeService;
+use Carbon\Exceptions\Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -790,10 +791,13 @@ class EmployeeController extends Controller
         // Validation is now handled in the Form Request
 
         try {
+            // فى حالة صاحب الشركة company_id = 0 نستخدم user_id كمعرف الشركة الفعلي
+            $effectiveCompanyId = $user->company_id == 0 ? $user->user_id : $user->company_id;
+
             $employeeData = CreateEmployeeDTO::fromRequest([
                 ...$request->all(),
-                'company_id' => $user->company_id,
-                'company_name' => $user->company_name
+                'company_id' => $effectiveCompanyId,
+                'company_name' => $user->company_name,
             ]);
 
             $employee = $this->employeeService->createEmployee($employeeData);

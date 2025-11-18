@@ -22,8 +22,8 @@ class CheckRole
         
         if (!$user) {
             return response()->json([
+                'status' => 'error',
                 'message' => 'غير مصرح',
-                'status' => 'error'
             ], 401);
         }
         
@@ -46,8 +46,8 @@ class CheckRole
         }
         
         return response()->json([
-            'message' => 'ليس لديك الصلاحيات الكافية للوصول لهذا المورد',
-            'status' => 'error'
+            'status' => 'error',
+            'message' => 'ليس لديك الصلاحيات الكافية للوصول لهذا المورد'
         ], 403);
     }
 }
