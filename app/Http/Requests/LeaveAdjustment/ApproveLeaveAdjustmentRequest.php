@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests\Leave;
+namespace App\Http\Requests\LeaveAdjustment;
 
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;

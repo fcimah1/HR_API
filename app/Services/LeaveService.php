@@ -36,39 +36,7 @@ class LeaveService
     /**
      * Get paginated leave applications with filters and permission check
      */
-    /**
-     * Get paginated leave adjustments with permission check
-     */
-    public function getAdjustments(int $userId): array
-    {
-        $user = User::findOrFail($userId);
-        
-        // Create filter array instead of DTO directly
-        $filterData = [];
-        
-        // Apply company filter based on user permissions
-        if ($this->permissionService->isCompanyOwner($user)) {
-            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-            $filterData['company_id'] = $effectiveCompanyId;
-        }
-        
-        // Create DTO from filter data
-        $filters = LeaveAdjustmentFilterDTO::fromRequest($filterData,$user);
-        
-        $adjustments = $this->leaveRepository->getPaginatedAdjustments($filters,$user);
-        
-        return [
-            'created_by' => $user->full_name,
-            'company_id' => $user->company_id,
-            'data' => $adjustments->items(),
-            'pagination' => [
-                'total' => $adjustments->total(),
-                'per_page' => $adjustments->perPage(),
-                'current_page' => $adjustments->currentPage(),
-                'last_page' => $adjustments->lastPage(),
-            ]
-        ];
-    }
+
 
     public function getPaginatedApplications(LeaveApplicationFilterDTO $filters, User $user): array
     {
@@ -118,6 +86,31 @@ class LeaveService
      */
     public function createApplication(CreateLeaveApplicationDTO $dto): array
     {
+        // حساب الساعات المطلوبة للإجازة
+        if (!is_null($dto->leaveHours) && $dto->leaveHours !== '') {
+            $requestedHours = (float) $dto->leaveHours * $dto->getDurationInDays();
+        } else {
+            $days = $dto->getDurationInDays();
+            $requestedHours = $days * 8.0; // 8 ساعات لليوم الواحد
+        }
+
+        // جلب الرصيد المتاح لنوع الإجازة
+        $availableBalance = $this->getAvailableLeaveBalance(
+            $dto->employeeId,
+            $dto->leaveTypeId,
+            $dto->companyId
+        );
+        Log::info('LeaveService::createApplication:availableBalance', [
+            'availableBalance' => $availableBalance,
+            'requestedHours' => $requestedHours,
+        ]);
+        // إذا كانت الإجازة المطلوبة أكبر من الرصيد المتاح نرفض الطلب
+        if ($requestedHours > $availableBalance) {
+            throw new \Exception(
+                'ساعات الإجازة المطلوبة (' . $requestedHours . ' ساعة) أكبر من الرصيد المتاح (' . $availableBalance . ' ساعة) لهذا النوع.'
+            );
+        }
+
         $application = $this->leaveRepository->createApplication($dto);
         return LeaveApplicationResponseDTO::fromModel($application)->toArray();
     }
@@ -367,121 +360,6 @@ class LeaveService
     }
 
     /**
-     * Get paginated leave adjustments
-     */
-    public function getPaginatedAdjustments(LeaveAdjustmentFilterDTO $filters, User $user): array
-    {
-        // إنشاء filters جديد بناءً على صلاحيات المستخدم
-        $filterData = $filters->toArray();
-        
-        // إذا كان صاحب الشركة، يمكنه رؤية جميع طلبات شركته
-        if ($this->permissionService->isCompanyOwner($user)) {
-            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-            $filterData['company_id'] = $effectiveCompanyId;
-        } 
-        // إذا كان مدير/إداري (admin/hr/manager) في الشركة، يمكنه رؤية جميع طلبات الشركة
-        elseif (in_array(strtolower($user->user_type), ['admin', 'hr', 'manager'])) {
-            $filterData['company_id'] = $user->company_id;
-        }
-        // إذا كان موظف لديه صلاحية عرض جميع الطلبات
-        elseif ($this->permissionService->checkPermission($user, 'leave.view.all')) {
-            $filterData['company_id'] = $user->company_id;
-        }
-        // إذا كان موظف عادي، يرى طلباته الشخصية فقط
-        else {
-            $filterData['employee_id'] = $user->user_id;
-            $filterData['company_id'] = $user->company_id;
-        }
-
-        $updatedFilters = LeaveAdjustmentFilterDTO::fromRequest($filterData, $user);
-
-        $adjustments = $this->leaveRepository->getPaginatedAdjustments($updatedFilters);
-
-        return [
-            'data' => $adjustments,
-            'created by' => $user->full_name,
-            'pagination' => [
-                'current_page' => $adjustments->currentPage(),
-                'last_page' => $adjustments->lastPage(),
-                'per_page' => $adjustments->perPage(),
-                'total' => $adjustments->total(),
-                'from' => $adjustments->firstItem(),
-                'to' => $adjustments->lastItem(),
-                'has_more_pages' => $adjustments->hasMorePages(),
-            ]
-        ];
-    }
-    /**
-     * Create a new leave application with permission check
-     */
-        // public function createApplication(CreateLeaveApplicationDTO $dto): array
-        // {
-        //     $application = $this->leaveRepository->createApplication($dto);
-        //     return LeaveApplicationResponseDTO::fromModel($application)->toArray();
-        // }
-
-    /**
-     * Create leave adjustment
-     */
-    public function createAdjust(CreateLeaveAdjustmentDTO $data): array
-    {
-        try {
-            // إذا كانت التسوية خصم من رصيد الإجازات (ساعات سالبة)، تحقق من أن الرصيد يكفي
-            if ($data->adjustHours < 0) {
-                $availableBalance = $this->getAvailableLeaveBalance(
-                    $data->employeeId,
-                    $data->leaveTypeId,
-                    $data->companyId
-                );
-
-                $hoursToDeduct = abs($data->adjustHours);
-
-                if ($availableBalance < $hoursToDeduct) {
-                    throw new \Exception(
-                        'الرصيد المتاح (' . $availableBalance . ' ساعة) غير كافٍ لتسوية ' . $hoursToDeduct . ' ساعة.'
-                    );
-                }
-            }
-
-            $adjustment = $this->leaveRepository->createAdjust($data);
-            Log::info('LeaveService::createAdjustment success', [
-                'adjustment' => $adjustment,
-                'user_id' => $adjustment->employee_id,
-                'company_id' => $adjustment->company_id,
-                'created_by' => $adjustment->full_name
-            ]);
-            return $adjustment->toArray();
-         
-        } catch (\Exception $e) {
-            Log::error('Create Adjustment Error', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-           return throw $e;
-        }
-    }
-
-    /**
-     * Approve leave adjustment
-     */
-    public function approveAdjustment(int $id, int $companyId, int $approvedBy): LeaveAdjustment
-    {
-        $adjustment = $this->leaveRepository->findAdjustmentInCompany($id, $companyId);
-
-        if (!$adjustment) {
-            throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
-        }
-
-
-        if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
-            throw new \Exception('لا يمكن الموافقة على هذا الطلب لأنه تم معالجته مسبقاً');
-        }
-
-        $approvedAdjustment = $this->leaveRepository->approveAdjustment($adjustment, $approvedBy);
-        return $approvedAdjustment;
-    }
-
-    /**
      * Get leave statistics
      */
     public function getLeaveStatistics(int $companyId): array
@@ -525,152 +403,6 @@ class LeaveService
     }
 
     /**
-     * Update leave adjustment
-     */
-    public function updateAdjustment(int $id, UpdateLeaveAdjustmentDTO $dto, int $employeeId): ?LeaveAdjustment
-    {
-        $adjustment = $this->leaveRepository->findAdjustmentForEmployee($id, $employeeId);
-
-        if (!$adjustment) {
-            return null;
-        }
-
-        if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
-            throw new \Exception('لا يمكن تعديل التسوية بعد المراجعة');
-        }
-
-        $updatedAdjustment = $this->leaveRepository->updateAdjustment($adjustment, $dto);
-        return $updatedAdjustment;
-    }
-
-    /**
-     * Cancel leave adjustment (mark as rejected)
-     */
-    public function cancelAdjustment(int $id, int $employeeId): bool
-    {
-        $adjustment = $this->leaveRepository->findAdjustmentForEmployee($id, $employeeId);
-        
-        if (!$adjustment) {
-            return false;
-        }
-
-        if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
-            throw new \Exception('لا يمكن إلغاء التسوية بعد المراجعة');
-        }
-
-        // Mark as rejected (keeps record in database)
-        $this->leaveRepository->cancelAdjustment($adjustment, $employeeId, 'تم إلغاء التسوية من قبل الموظف');
-        
-        return true;
-    }
-
-    /**
-     * Get available leave balance for an employee
-     *
-     * @param int $employeeId
-     * @param int $leaveTypeId
-     * @param int $companyId
-     * @return float
-     */
-    public function handleLeaveSettlement(CreateLeaveSettlementDTO $dto): array
-    {
-        DB::beginTransaction();
-        try {
-            // 1. Check available balance
-            $availableBalance = $this->getAvailableLeaveBalance(
-                $dto->employeeId,
-                $dto->leaveTypeId,
-                $dto->companyId
-            );
-
-            if ($availableBalance < $dto->hoursToSettle) {
-                throw new \Exception('الرصيد المتاح (' . $availableBalance . ' ساعة) غير كافٍ لتسوية ' . $dto->hoursToSettle . ' ساعة.');
-            }
-
-            // 2. Perform the settlement based on type
-            if ($dto->settlementType === 'encashment') {
-                // Logic for Encashment (Cash out)
-                // This typically involves:
-                // a) Creating a Leave Adjustment to deduct the settled hours.
-                // b) Creating a record in a payroll/finance system for payment (Not implemented here, only the HR side).
-                
-                $adjustmentData = new CreateLeaveAdjustmentDTO(
-                    employeeId: $dto->employeeId,
-                    leaveTypeId: $dto->leaveTypeId,
-                    adjustHours: -$dto->hoursToSettle, // Negative value to deduct from balance
-                    reasonAdjustment: 'تسوية إجازات مستحقة (صرف نقدي) - ' . $dto->hoursToSettle . ' ساعة',
-                    adjustmentDate: now()->toDateString(),
-                    dutyEmployeeId: null,
-                    companyId: $dto->companyId,
-                );
-
-                $adjustment = $this->leaveRepository->createAdjust($adjustmentData);
-                
-                $message = 'تمت تسوية ' . $dto->hoursToSettle . ' ساعة بنجاح كصرف نقدي. تم تحديث رصيد الإجازات.';
-                $settlementRecord = $adjustment->toArray();
-
-            } elseif ($dto->settlementType === 'take_leave') {
-                // Logic for Taking Leave (Converting to a leave application)
-                // This is essentially creating a new leave application with the settled hours.
-                
-                // Note: This assumes 'hoursToSettle' is the total duration of the leave application.
-                // If the user meant converting the *remaining balance* into a single application, 
-                // the logic should be adjusted to use the full available balance.
-                
-                // For simplicity, we will create a Leave Adjustment to deduct the hours, 
-                // and the system should handle the actual leave application separately.
-                // However, based on the user's request "تسوية اجازاته المستحقه", 
-                // we will treat 'take_leave' as a final deduction/settlement.
-                
-                $adjustmentData = new CreateLeaveAdjustmentDTO(
-                    companyId: $dto->companyId,
-                    employeeId: $dto->employeeId,
-                    leaveTypeId: $dto->leaveTypeId,
-                    adjustHours: -$dto->hoursToSettle, // Negative value to deduct from balance
-                    reasonAdjustment: 'تسوية إجازات مستحقة (أخذ إجازة) - ' . $dto->hoursToSettle . ' ساعة',
-                    adjustmentDate: now()->toDateString(),
-                    dutyEmployeeId: null,
-                    status: 1 // Approved immediately for settlement
-                );
-
-                $adjustment = $this->leaveRepository->createAdjust($adjustmentData);
-                
-                $message = 'تمت تسوية ' . $dto->hoursToSettle . ' ساعة بنجاح كإجازة مأخوذة. تم تحديث رصيد الإجازات.';
-                $settlementRecord = $adjustment->toArray();
-            } else {
-                throw new \InvalidArgumentException('نوع التسوية غير صالح.');
-            }
-
-            // 3. Recalculate new balance
-            $newAvailableBalance = $this->getAvailableLeaveBalance(
-                $dto->employeeId,
-                $dto->leaveTypeId,
-                $dto->companyId
-            );
-
-            DB::commit();
-
-            return [
-                'success' => true,
-                'message' => $message,
-                'settlement_type' => $dto->settlementType,
-                'hours_settled' => $dto->hoursToSettle,
-                'old_balance' => $availableBalance,
-                'new_balance' => $newAvailableBalance,
-                'record' => $settlementRecord
-            ];
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('LeaveService::handleLeaveSettlement failed', [
-                'error' => $e->getMessage(),
-                'employee_id' => $dto->employeeId
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
      * Get available leave balance for an employee
      *
      * @param int $employeeId
@@ -698,5 +430,106 @@ class LeaveService
     return max(0, $totalGranted - $totalUsed);
 }
 
+    /**
+     * Get detailed leave summary (hours & days) for an employee
+     */
+    public function getDetailedLeaveSummary(int $employeeId, int $companyId, ?int $leaveTypeId = null): array
+    {
+        $hoursPerDay = 8.0;
+
+        // Get active leave types for the company
+        $leaveTypes = $this->getActiveLeaveTypes($companyId);
+
+        if ($leaveTypeId !== null) {
+            $leaveTypes = array_values(array_filter($leaveTypes, function (array $type) use ($leaveTypeId) {
+                return (int) ($type['leave_type_id'] ?? 0) === $leaveTypeId;
+            }));
+        }
+
+        $items = [];
+
+        $totals = [
+            'granted_hours' => 0.0,
+            'used_hours' => 0.0,
+            'pending_hours' => 0.0,
+            'adjustment_hours' => 0.0,
+            'balance_hours' => 0.0,
+            'remaining_hours' => 0.0,
+        ];
+
+        $currentYear = (int) date('Y');
+
+        foreach ($leaveTypes as $type) {
+            $typeId = (int) ($type['leave_type_id'] ?? 0);
+            if (! $typeId) {
+                continue;
+            }
+
+            $granted = $this->leaveRepository->getTotalGrantedLeave($employeeId, $typeId, $companyId);
+            $used = $this->leaveRepository->getTotalUsedLeave($employeeId, $typeId, $companyId);
+            $pending = $this->leaveRepository->getPendingLeaveHours($employeeId, $typeId, $companyId);
+            $adjustments = $this->leaveRepository->getTotalAdjustmentHours($employeeId, $typeId, $companyId);
+
+            $entitled = $granted + $adjustments;
+            $balance = $entitled - $used;
+            $remaining = $balance - $pending;
+
+            $items[] = [
+                'leave_type_id' => $typeId,
+                'leave_type_name' => $type['leave_type_name'] ?? null,
+                'leave_type_short_name' => $type['leave_type_short_name'] ?? null,
+                'year' => $currentYear,
+
+                // بالساعات
+                'granted_hours' => (float) $granted,
+                'used_hours' => (float) $used,
+                'pending_hours' => (float) $pending,
+                'adjustment_hours' => (float) $adjustments,
+                'entitled_hours' => (float) $entitled,
+                'balance_hours' => (float) $balance,
+                'remaining_hours' => (float) $remaining,
+
+                // بالأيام
+                'granted_days' => (float) round($granted / $hoursPerDay, 2),
+                'used_days' => (float) round($used / $hoursPerDay, 2),
+                'pending_days' => (float) round($pending / $hoursPerDay, 2),
+                'adjustment_days' => (float) round($adjustments / $hoursPerDay, 2),
+                'entitled_days' => (float) round($entitled / $hoursPerDay, 2),
+                'balance_days' => (float) round($balance / $hoursPerDay, 2),
+                'remaining_days' => (float) round($remaining / $hoursPerDay, 2),
+            ];
+
+            $totals['granted_hours'] += $granted;
+            $totals['used_hours'] += $used;
+            $totals['pending_hours'] += $pending;
+            $totals['adjustment_hours'] += $adjustments;
+            $totals['balance_hours'] += $balance;
+            $totals['remaining_hours'] += $remaining;
+        }
+
+        $totalsWithDays = [
+            'granted_hours' => (float) $totals['granted_hours'],
+            'used_hours' => (float) $totals['used_hours'],
+            'pending_hours' => (float) $totals['pending_hours'],
+            'adjustment_hours' => (float) $totals['adjustment_hours'],
+            'balance_hours' => (float) $totals['balance_hours'],
+            'remaining_hours' => (float) $totals['remaining_hours'],
+
+            'granted_days' => (float) round($totals['granted_hours'] / $hoursPerDay, 2),
+            'used_days' => (float) round($totals['used_hours'] / $hoursPerDay, 2),
+            'pending_days' => (float) round($totals['pending_hours'] / $hoursPerDay, 2),
+            'adjustment_days' => (float) round($totals['adjustment_hours'] / $hoursPerDay, 2),
+            'balance_days' => (float) round($totals['balance_hours'] / $hoursPerDay, 2),
+            'remaining_days' => (float) round($totals['remaining_hours'] / $hoursPerDay, 2),
+        ];
+
+        return [
+            'employee_id' => $employeeId,
+            'company_id' => $companyId,
+            'hours_per_day' => $hoursPerDay,
+            'total' => $totalsWithDays,
+            'items' => $items,
+        ];
+    }
 
 }

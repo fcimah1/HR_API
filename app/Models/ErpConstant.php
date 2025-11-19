@@ -81,7 +81,23 @@ class ErpConstant extends Model
      */
     public function getLeaveTypeShortNameAttribute(): ?string
     {
-        return $this->field_one;
+        $value = $this->field_one;
+
+        if (is_null($value) || $value === '') {
+            return null;
+        }
+
+        $options = @unserialize($value);
+
+        if (is_array($options)) {
+            if (array_key_exists('short_name', $options) && $options['short_name'] !== '') {
+                return $options['short_name'];
+            }
+
+            return $this->category_name;
+        }
+
+        return $value;
     }
 
     /**

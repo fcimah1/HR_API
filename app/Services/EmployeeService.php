@@ -23,7 +23,7 @@ class EmployeeService
     {
         $employees = $this->employeeRepository->getPaginatedEmployees($filters);
         
-        $employeeDTOs = $employees->getCollection()->map(function ($employee) {
+        $employeeDTOs = collect($employees->items())->map(function ($employee) {
             return EmployeeResponseDTO::fromModel($employee);
         });
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\DTOs\Leave;
+namespace App\DTOs\LeaveAdjustment;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;

@@ -34,8 +34,8 @@ class CreateLeaveTypeRequest extends FormRequest
     {
         return [
             'leave_type_name' => 'required|string|max:255|unique:ci_erp_constants,category_name',
-            'leave_type_short_name' => 'nullable|string|max:100',
-            'leave_days' => 'required|integer|min:0|max:365',
+            'requires_approval' => 'nullable|boolean',
+
         ];
     }
 
@@ -49,12 +49,8 @@ class CreateLeaveTypeRequest extends FormRequest
             'leave_type_name.unique' => 'اسم نوع الإجازة موجود بالفعل',
             'leave_type_name.string' => 'اسم نوع الإجازة يجب أن يكون نص',
             'leave_type_name.max' => 'اسم نوع الإجازة لا يجب أن يتجاوز 255 حرف',
-            'leave_type_short_name.string' => 'الاسم المختصر يجب أن يكون نص',
-            'leave_type_short_name.max' => 'الاسم المختصر لا يجب أن يتجاوز 100 حرف',
-            'leave_days.required' => 'عدد أيام الإجازة مطلوب',
-            'leave_days.integer' => 'عدد أيام الإجازة يجب أن يكون رقماً صحيحاً',
-            'leave_days.min' => 'عدد أيام الإجازة يجب أن يكون 0 أو أكثر',
-            'leave_days.max' => 'عدد أيام الإجازة لا يجب أن يتجاوز 365 يوماً',
+            'requires_approval.boolean' => 'حقل يتطلب موافقة يجب أن يكون قيمة منطقية (0 أو 1)',
+            'is_paid_leave.boolean' => 'حقل إجازة مدفوعة يجب أن يكون قيمة منطقية (0 أو 1)',
         ];
     }
 
@@ -65,8 +61,7 @@ class CreateLeaveTypeRequest extends FormRequest
     {
         return [
             'leave_type_name' => 'اسم نوع الإجازة',
-            'leave_type_short_name' => 'الاسم المختصر',
-            'leave_days' => 'عدد أيام الإجازة',
+            'requires_approval' => 'يتطلب موافقة',
         ];
     }
 

@@ -123,8 +123,33 @@ class CreateLeaveApplicationRequest extends FormRequest
                 $toDate = new \DateTime($this->to_date);
                 $duration = $toDate->diff($fromDate)->days + 1;
 
-                if ($duration > 30) {
-                    $validator->errors()->add('to_date', 'مدة الإجازة لا يجب أن تتجاوز 30 يوماً');
+                // if ($duration > 30) {
+                //     $validator->errors()->add('to_date', 'مدة الإجازة لا يجب أن تتجاوز 30 يوماً');
+                // }
+
+                $user = $this->user();
+                $permissionService = app(\App\Services\SimplePermissionService::class);
+                $effectiveCompanyId = $permissionService->getEffectiveCompanyId($user);
+
+                $from = $fromDate->format('Y-m-d');
+                $to = $toDate->format('Y-m-d');
+
+                $hasOverlap = \App\Models\LeaveApplication::where('employee_id', $user->user_id)
+                    ->where('company_id', $effectiveCompanyId)
+                    ->where(function ($query) use ($from, $to) {
+                        $query->where(function ($q) use ($from, $to) {
+                            $q->where('from_date', '<=', $to)
+                              ->where('to_date', '>=', $from);
+                        })
+                        ->orWhere(function ($q) use ($from, $to) {
+                            $q->whereNotNull('particular_date')
+                              ->whereBetween('particular_date', [$from, $to]);
+                        });
+                    })
+                    ->exists();
+
+                if ($hasOverlap) {
+                    $validator->errors()->add('from_date', $from. ' لقد قدمت طلب إجازة في هذه الفترة');
                 }
             }
         });

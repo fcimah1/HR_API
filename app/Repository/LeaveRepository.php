@@ -2,17 +2,14 @@
 
 namespace App\Repository;
 
-use App\DTOs\Leave\UpdateLeaveAdjustmentDTO;
 use App\Repository\Interface\LeaveRepositoryInterface;
 use App\DTOs\Leave\LeaveApplicationFilterDTO;
 use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
-use App\DTOs\Leave\LeaveAdjustmentFilterDTO;
-use App\DTOs\Leave\CreateLeaveAdjustmentDTO;
 use App\DTOs\Leave\CreateLeaveTypeDTO;
 use App\Models\LeaveApplication;
-use App\Models\LeaveAdjustment;
 use App\Models\ErpConstant;
+use App\Models\LeaveAdjustment;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -167,100 +164,6 @@ class LeaveRepository implements LeaveRepositoryInterface
     }
 
     /**
-     * Get paginated leave adjustments with filters
-     */
-    public function getPaginatedAdjustments(LeaveAdjustmentFilterDTO $filters): LengthAwarePaginator
-    {
-        $companyId = $filters->companyId ;
-        $query = LeaveAdjustment::where('company_id', $companyId)->with(['employee', 'dutyEmployee', 'leaveType']);
-
-        // Apply filters
-        if ($filters->companyName !== null) {
-            $query->whereHas('employee', function ($q) use ($filters) {
-                $q->where('company_name', $filters->companyName);
-            });
-        }
-
-        if ($filters->employeeId !== null) {
-            $query->where('employee_id', $filters->employeeId);
-        }
-
-        if ($filters->status !== null) {
-            $query->where('status', $filters->status);
-        }
-
-        if ($filters->leaveTypeId !== null) {
-            $query->where('leave_type_id', $filters->leaveTypeId);
-        }
-
-        // Apply sorting
-        $query->orderBy($filters->sortBy, $filters->sortDirection);
-
-        return $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
-    }
-
-    /**
-     * Create a new leave adjustment
-     */
-    public function createAdjust(CreateLeaveAdjustmentDTO $dto): object
-    {
-        $adjustment = LeaveAdjustment::create($dto->toArray());
-        $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
-        
-        return $adjustment;
-    }
-
-    /**
-     * Find leave adjustment by ID
-     */
-    public function findAdjustment(int $id): ?LeaveAdjustment
-    {
-        return LeaveAdjustment::with(['employee', 'dutyEmployee', 'leaveType'])
-            ->find($id);
-    }
-
-    /**
-     * Find leave adjustment by ID for specific company
-     */
-    public function findAdjustmentInCompany(int $id, int $companyId): ?LeaveAdjustment
-    {
-        return LeaveAdjustment::with(['employee', 'dutyEmployee', 'leaveType'])
-            ->where('adjustment_id', $id)
-            ->where('company_id', $companyId)
-            ->first();
-    }
-
-    /**
-     * Approve leave adjustment
-     */
-    public function approveAdjustment(LeaveAdjustment $adjustment, int $approvedBy): LeaveAdjustment
-    {
-        $adjustment->update([
-            'status' => LeaveAdjustment::STATUS_APPROVED,
-        ]);
-
-        $adjustment->refresh();
-        $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
-
-        return $adjustment;
-    }
-
-    /**
-     * Reject leave adjustment
-     */
-    public function rejectAdjustment(LeaveAdjustment $adjustment, int $rejectedBy, string $reason): LeaveAdjustment
-    {
-        $adjustment->update([
-            'status' => LeaveAdjustment::STATUS_REJECTED,
-        ]);
-
-        $adjustment->refresh();
-        $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
-
-        return $adjustment;
-    }
-
-    /**
      * Get leave statistics for company
      */
     public function getLeaveStatistics(int $companyId): array
@@ -313,68 +216,177 @@ class LeaveRepository implements LeaveRepositoryInterface
     }
 
     /**
-     * Find leave adjustment for specific employee
-     */
-    public function findAdjustmentForEmployee(int $id, int $employeeId): ?LeaveAdjustment
-    {
-        return LeaveAdjustment::with(['employee', 'dutyEmployee', 'leaveType'])
-            ->where('adjustment_id', $id)
-            ->where('employee_id', $employeeId)
-            ->first();
-    }
-
-    /**
-     * Update leave adjustment
-     */
-    public function updateAdjustment(LeaveAdjustment $adjustment, UpdateLeaveAdjustmentDTO $dto): LeaveAdjustment
-    {
-        if ($dto->hasUpdates()) {
-            $adjustment->update($dto->toArray());
-            $adjustment->refresh();
-            $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
-        }
-
-        return $adjustment;
-    }
-
-    /**
-     * Cancel leave adjustment (mark as rejected)
-     */
-    public function cancelAdjustment(LeaveAdjustment $adjustment, int $cancelledBy, string $reason): LeaveAdjustment
-    {
-        $adjustment->update([
-            'status' => LeaveAdjustment::STATUS_REJECTED,
-            'reason_adjustment' => $reason,
-        ]);
-
-        $adjustment->refresh();
-        $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
-
-        return $adjustment;
-    }
-
-    /**
-    * Get total granted leave for an employee*/
+    * Get total granted leave for an employee (in hours)
+    */
     public function getTotalGrantedLeave(int $employeeId, int $leaveTypeId, int $companyId): float
     {
-        // use model ErpConstant
-        return (float) ErpConstant::where('employee_id', $employeeId)
-            ->where('leave_type_id', $leaveTypeId)
-            ->where('company_id', $companyId)
-            ->where('status', 'approved')
-            ->sum('days_granted');
+        // جلب نوع الإجازة (من الشركة أو من الأنواع العامة)
+        $leaveType = ErpConstant::where('constants_id', $leaveTypeId)
+            ->whereIn('company_id', [$companyId, 0])
+            ->orderBy('company_id', 'desc')
+            ->first();
+
+        if (!$leaveType) {
+            return 0.0;
+        }
+
+        // محاولة قراءة إعدادات الإجازة من field_one (مخزن كـ serialize)
+        $options = $leaveType->field_one ? @unserialize($leaveType->field_one) : null;
+
+        // إذا لم تكن البيانات مُسلسَلة بشكل صحيح أو لا تحتوي على quota_assign، نرجع للمنطق البسيط (أيام ثابتة)
+        if (!is_array($options) || !isset($options['quota_assign']) || ($options['is_quota'] ?? '0') != '1') {
+            $days = (float) $leaveType->leave_days;
+            return $days * 8.0;
+        }
+
+        // جلب بيانات الموظف والشركة لحساب سنوات الخدمة (fyear_quota)
+        $employee = User::find($employeeId);
+        $company  = User::find($companyId);
+
+        if (!$employee || !$company) {
+            // في حال عدم توفر بيانات كافية نستخدم أول قيمة من quota_assign (المخزنة بالساعات) إن وجدت أو نعود للمنطق البسيط
+            $quotaAssign = $options['quota_assign'] ?? [];
+            if (is_array($quotaAssign) && isset($quotaAssign[0])) {
+                return (float) $quotaAssign[0];
+            }
+
+            $days = (float) $leaveType->leave_days;
+            return $days * 8.0;
+        }
+
+        $details = $employee->details()->first();
+
+        // إذا لم يوجد تاريخ تعيين واضح نستخدم أول شريحة كافتراضي
+        if (!$details || empty($details->date_of_joining)) {
+            $quotaAssign = $options['quota_assign'] ?? [];
+            if (is_array($quotaAssign) && isset($quotaAssign[0])) {
+                return (float) $quotaAssign[0];
+            }
+
+            $days = (float) $leaveType->leave_days;
+            return $days * 8.0;
+        }
+
+        // حساب سنة الملخّص (نفس منطق كود الويب: السنة الحالية)
+        $summaryYear = (int) date('Y');
+
+        // تاريخ بداية السنة المالية للشركة (مثلاً 2025-10-31 من fiscal_date = 10-31)
+        $fiscalDate = $company->fiscal_date ?: '12-31';
+
+        try {
+            $joiningDate = new \DateTime($details->date_of_joining);
+            $fiscalStart = new \DateTime($summaryYear . '-' . $fiscalDate);
+        } catch (\Exception $e) {
+            // في حال وجود خطأ في التواريخ نستخدم أول شريحة
+            $quotaAssign = $options['quota_assign'] ?? [];
+            if (is_array($quotaAssign) && isset($quotaAssign[0])) {
+                return (float) $quotaAssign[0] * 8.0;
+            }
+
+            $days = (float) $leaveType->leave_days;
+            return $days * 8.0;
+        }
+
+        // فرق السنوات بين تاريخ التعيين وبداية السنة المالية الحالية
+        $diff = $joiningDate->diff($fiscalStart);
+        $fyearQuota = $diff->y;
+
+        // حصر القيمة ضمن حدود مصفوفة quota_assign (عادة 0..49)
+        if ($fyearQuota < 0) {
+            $fyearQuota = 0;
+        }
+        if ($fyearQuota > 49) {
+            $fyearQuota = 49;
+        }
+
+        $quotaAssign = $options['quota_assign'] ?? [];
+
+        if (is_array($quotaAssign) && isset($quotaAssign[$fyearQuota])) {
+            // quota_assign مخزنة بالساعات مباشرة
+            return (float) $quotaAssign[$fyearQuota];
+        }
+
+        // في حال عدم وجود قيمة لهذه السنة، نحاول استخدام الشريحة الأولى، وإلا نرجع للمنطق القديم
+        if (is_array($quotaAssign) && isset($quotaAssign[0])) {
+            return (float) $quotaAssign[0];
+        }
+
+        $days = (float) $leaveType->leave_days;
+        return $days * 8.0;
     }
 
     /**
-     * Get total used leave for an employee
+     * Get total used leave for an employee (in hours)
      */
     public function getTotalUsedLeave(int $employeeId, int $leaveTypeId, int $companyId): float
     {
-        // use model LeaveApplication
-        return (float) LeaveApplication::where('employee_id', $employeeId)
+        $applications = LeaveApplication::where('employee_id', $employeeId)
             ->where('leave_type_id', $leaveTypeId)
             ->where('company_id', $companyId)
-            ->whereIn('status', ['approved', 'pending'])
-            ->sum('days_requested');
+            ->where('status', true)
+            ->get();
+
+        $totalHours = 0.0;
+
+        foreach ($applications as $application) {
+            if (!is_null($application->leave_hours)) {
+                $totalHours += (float) $application->leave_hours;
+            } elseif ($application->from_date && $application->to_date) {
+                try {
+                    $from = new \DateTime($application->from_date);
+                    $to = new \DateTime($application->to_date);
+                    $days = $to->diff($from)->days + 1;
+                    $totalHours += $days * 8.0;
+                } catch (\Exception $e) {
+                    continue;
+                }
+            }
+        }
+
+        return (float) $totalHours;
     }
+
+    /**
+     * Get total pending leave hours for an employee (in hours)
+     */
+    public function getPendingLeaveHours(int $employeeId, int $leaveTypeId, int $companyId): float
+    {
+        $applications = LeaveApplication::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('status', false)
+            ->get();
+
+        $totalHours = 0.0;
+
+        foreach ($applications as $application) {
+            if (!is_null($application->leave_hours)) {
+                $totalHours += (float) $application->leave_hours;
+            } elseif ($application->from_date && $application->to_date) {
+                try {
+                    $from = new \DateTime($application->from_date);
+                    $to = new \DateTime($application->to_date);
+                    $days = $to->diff($from)->days + 1;
+                    $totalHours += $days * 8.0;
+                } catch (\Exception $e) {
+                    continue;
+                }
+            }
+        }
+
+        return (float) $totalHours;
     }
+
+    
+    /**
+     * Get total approved adjustment hours for an employee (in hours)
+     */
+    public function getTotalAdjustmentHours(int $employeeId, int $leaveTypeId, int $companyId): float
+    {
+        return (float) LeaveAdjustment::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('status', LeaveAdjustment::STATUS_APPROVED)
+            ->sum('adjust_hours');
+    }
+}
