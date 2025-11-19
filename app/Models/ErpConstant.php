@@ -37,12 +37,14 @@ class ErpConstant extends Model
     ];
 
     /**
-     * Constants for leave types
+     * Constants for entity types
      */
     const TYPE_LEAVE_TYPE = 'leave_type';
     const TYPE_DEPARTMENT = 'department';
     const TYPE_DESIGNATION = 'designation';
     const TYPE_GENERAL = 'general';
+    const TYPE_ASSETS_CATEGORY = 'assets_category';
+    const TYPE_ASSETS_BRAND = 'assets_brand';
 
     /**
      * Scope for filtering by company
@@ -160,6 +162,42 @@ class ErpConstant extends Model
         return self::whereIn('company_id', $companyIds)
             ->leaveTypes()
             ->where('field_three', '1') // active only
+            ->orderBy('category_name')
+            ->get();
+    }
+
+    /**
+     * Get asset categories scoped by company name (plus global)
+     */
+    public static function getAssetCategoriesByCompanyName(string $companyName): \Illuminate\Database\Eloquent\Collection
+    {
+        $companyIds = \App\Models\User::where('company_name', $companyName)
+            ->distinct()
+            ->pluck('company_id')
+            ->toArray();
+
+        $companyIds[] = 0;
+
+        return self::whereIn('company_id', $companyIds)
+            ->ofType(self::TYPE_ASSETS_CATEGORY)
+            ->orderBy('category_name')
+            ->get();
+    }
+
+    /**
+     * Get asset brands scoped by company name (plus global)
+     */
+    public static function getAssetBrandsByCompanyName(string $companyName): \Illuminate\Database\Eloquent\Collection
+    {
+        $companyIds = \App\Models\User::where('company_name', $companyName)
+            ->distinct()
+            ->pluck('company_id')
+            ->toArray();
+
+        $companyIds[] = 0;
+
+        return self::whereIn('company_id', $companyIds)
+            ->ofType(self::TYPE_ASSETS_BRAND)
             ->orderBy('category_name')
             ->get();
     }

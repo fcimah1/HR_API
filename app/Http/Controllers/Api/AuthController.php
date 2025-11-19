@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -52,11 +53,22 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
+        // Log incoming login attempt
+        Log::info('Login attempt started', [
+            'username' => $request->username,
+            'company_name' => $request->company_name,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
+
         $request->validate([
             'username' => 'required|string',
             'password' => 'required|string',
             'company_name' => 'required|string',
         ]);
+
+        // Log after validation
+        Log::info('Login validation passed');
 
         // Try to find user by username or email
         $user = User::where(function($query) use ($request) {
@@ -66,6 +78,30 @@ class AuthController extends Controller
                    ->where('company_name', $request->company_name)
                    ->first();
 
+        // Log user lookup result
+        if (!$user) {
+            Log::warning('Login failed: User not found', [
+                'username' => $request->username,
+                'company_name' => $request->company_name,
+            ]);
+        } else {
+            Log::info('User found', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'email' => $user->email,
+                'company_name' => $user->company_name,
+                'is_active' => $user->is_active
+            ]);
+        }
+
+        // Check password
+        if ($user && !Hash::check($request->password, $user->password)) {
+            Log::warning('Login failed: Invalid password', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+            ]);
+        }
+
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'username' => ['The provided credentials are incorrect.'],
@@ -74,6 +110,11 @@ class AuthController extends Controller
 
         // Check if user is active
         if (!$user->is_active) {
+            Log::warning('Login failed: User account inactive', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+            ]);
+            
             throw ValidationException::withMessages([
                 'username' => ['Your account is inactive. Please contact administrator.'],
             ]);
@@ -81,9 +122,17 @@ class AuthController extends Controller
 
         // Delete old tokens
         $user->tokens()->delete();
+        
+        Log::info('Old tokens deleted for user', ['user_id' => $user->id]);
 
         // Create new token with Passport
         $token = $user->createToken('HR-API-Token')->accessToken;
+        
+        Log::info('Login successful', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'company_name' => $user->company_name
+        ]);
 
         return response()->json([
             'success' => true,

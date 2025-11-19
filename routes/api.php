@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\AdvanceSalaryController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AssetController;
 use Laravel\Passport\Http\Controllers\AccessTokenController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -97,4 +98,45 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::delete('/advances/{id}/cancel', [AdvanceSalaryController::class, 'cancel']);
     Route::get('/advances/{id}', [AdvanceSalaryController::class, 'show']);
     Route::put('/advances/{id}', [AdvanceSalaryController::class, 'update']);
+
+     // ========================================
+    // Asset Management Routes
+    // ========================================
+    
+    // Routes accessible to all authenticated employees
+    Route::get('/assets/my-assets', [AssetController::class, 'myAssets']);
+    Route::get('/assets/categories', [AssetController::class, 'categories']);
+    Route::get('/assets/brands', [AssetController::class, 'brands']);
+    
+    // Report asset issue - all employees can report their assigned assets
+    Route::post('/assets/{id}/report-fixing', [AssetController::class, 'reportFixing']);
+    
+    // Asset viewing (service handles role-based filtering)
+    Route::get('/assets', [AssetController::class, 'index']);
+    Route::get('/assets/{id}', [AssetController::class, 'show']);
+    
+    // HR/Manager only endpoints
+    Route::middleware('role:company,admin,hr,manager')->group(function () {
+        // Stats MUST be before general routes to avoid conflicts
+        Route::get('/assets/stats', [AssetController::class, 'stats']);
+        
+        // Asset CRUD operations (NO DELETE per requirements)
+        Route::post('/assets', [AssetController::class, 'store']);
+        Route::put('/assets/{id}', [AssetController::class, 'update']);
+        
+        // Assignment operations
+        Route::post('/assets/{id}/assign', [AssetController::class, 'assign']);
+        Route::post('/assets/{id}/unassign', [AssetController::class, 'unassign']);
+        
+        // Get assets by employee
+        Route::get('/assets/employee/{employeeId}', [AssetController::class, 'getByEmployee']);
+        
+        // Asset history
+        Route::get('/assets/{id}/history', [AssetController::class, 'history']);
+        
+        // Bulk operations
+        Route::post('/assets/bulk-assign', [AssetController::class, 'bulkAssign']);
+        Route::post('/assets/bulk-unassign', [AssetController::class, 'bulkUnassign']);
+        Route::post('/assets/bulk-status', [AssetController::class, 'bulkStatus']);
+    });
 });

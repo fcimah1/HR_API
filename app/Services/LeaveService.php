@@ -436,7 +436,7 @@ class LeaveService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-           return throw $e;
+            throw $e;
         }
     }
 

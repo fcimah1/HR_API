@@ -499,6 +499,715 @@
                 ]
             }
         },
+        "/api/assets": {
+            "get": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "List assets with filters",
+                "operationId": "50c726a8d4ee77df00ce287ce38f08e7",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by name, code, or serial number",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by employee ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "description": "Filter by category ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "brand_id",
+                        "in": "query",
+                        "description": "Filter by brand ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "is_working",
+                        "in": "query",
+                        "description": "Filter by working status",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 10
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Assets retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Create new asset",
+                "operationId": "5f044bcc586b0942143ae0541308a29f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "assets_category_id",
+                                    "brand_id",
+                                    "name"
+                                ],
+                                "properties": {
+                                    "assets_category_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "brand_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Dell Laptop"
+                                    },
+                                    "company_asset_code": {
+                                        "type": "string",
+                                        "example": "LAP001"
+                                    },
+                                    "purchase_date": {
+                                        "type": "string",
+                                        "example": "2024-01-15"
+                                    },
+                                    "invoice_number": {
+                                        "type": "string",
+                                        "example": "INV-2024-001"
+                                    },
+                                    "manufacturer": {
+                                        "type": "string",
+                                        "example": "Dell"
+                                    },
+                                    "serial_number": {
+                                        "type": "string",
+                                        "example": "DL2024001"
+                                    },
+                                    "warranty_end_date": {
+                                        "type": "string",
+                                        "example": "2025-12-31"
+                                    },
+                                    "asset_note": {
+                                        "type": "string",
+                                        "example": "Office laptop"
+                                    },
+                                    "is_working": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "employee_id": {
+                                        "type": "integer",
+                                        "example": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Asset created successfully"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/{id}": {
+            "get": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Get asset details",
+                "operationId": "bd8cd9b5700d93a32b257b93822796d1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Asset ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Asset retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Asset not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Update asset",
+                "operationId": "81068ba0301674e5aa27e56201f6912e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "is_working": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Asset updated successfully"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/{id}/assign": {
+            "post": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Assign asset to employee",
+                "operationId": "7b6e0cf9b6037f30e6e24af9d902a0c9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "employee_id"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "type": "integer",
+                                        "example": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Asset assigned successfully"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/{id}/unassign": {
+            "post": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Unassign asset from employee",
+                "operationId": "0d95c7525000db446cccdfbd9479b199",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Asset unassigned successfully"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/{id}/report-fixing": {
+            "post": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Report asset for fixing",
+                "operationId": "3e76c6680bff0ec30aeb939378c45116",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "notes": {
+                                        "type": "string",
+                                        "example": "Screen is broken"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Asset reported successfully"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/employee/{employeeId}": {
+            "get": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Get assets assigned to specific employee",
+                "operationId": "353e2190308339972adef2eaf7d9608a",
+                "parameters": [
+                    {
+                        "name": "employeeId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Assets retrieved successfully"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/my-assets": {
+            "get": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Get current user's assigned assets",
+                "operationId": "c0f4e14bdf9cb42ac5a6170b5c29777d",
+                "responses": {
+                    "200": {
+                        "description": "Assets retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/{id}/history": {
+            "get": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Get asset history/audit log",
+                "operationId": "e22e567def5b4888380a5b6bea21c888",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "History retrieved successfully"
+                    },
+                    "403": {
+                        "description": "Forbidden - Manager only"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/categories": {
+            "get": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Get asset categories for company",
+                "operationId": "c4cb1e13a0caaf4045f4da38896924da",
+                "responses": {
+                    "200": {
+                        "description": "Categories retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/brands": {
+            "get": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Get asset brands for company",
+                "operationId": "beef13e5792622f8a9cd386ed2f8c560",
+                "responses": {
+                    "200": {
+                        "description": "Brands retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/stats": {
+            "get": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Get asset statistics",
+                "operationId": "c62220559dbe8148756a82fdbed48263",
+                "responses": {
+                    "200": {
+                        "description": "Statistics retrieved successfully"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/bulk-assign": {
+            "post": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Bulk assign assets to employee",
+                "operationId": "e48435e3393e3273648b99b576484c7c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "asset_ids",
+                                    "employee_id"
+                                ],
+                                "properties": {
+                                    "asset_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            1,
+                                            2,
+                                            3
+                                        ]
+                                    },
+                                    "employee_id": {
+                                        "type": "integer",
+                                        "example": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Bulk assignment completed"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/bulk-unassign": {
+            "post": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Bulk unassign assets",
+                "operationId": "40ccc52eb9c590da014611a414677769",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "asset_ids"
+                                ],
+                                "properties": {
+                                    "asset_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            1,
+                                            2,
+                                            3
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Bulk unassignment completed"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/bulk-status": {
+            "post": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "Bulk update asset status",
+                "operationId": "44ab3db119afc41522e4e219cea8b3d1",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "asset_ids",
+                                    "is_working"
+                                ],
+                                "properties": {
+                                    "asset_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            1,
+                                            2,
+                                            3
+                                        ]
+                                    },
+                                    "is_working": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Bulk status update completed"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/login": {
             "post": {
                 "tags": [
@@ -2636,6 +3345,10 @@
         {
             "name": "Advance Salary & Loan Management",
             "description": "Employee advance salary and loan requests management"
+        },
+        {
+            "name": "Asset Management",
+            "description": "Employee assets management endpoints"
         },
         {
             "name": "Authentication",
