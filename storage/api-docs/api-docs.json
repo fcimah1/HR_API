@@ -1466,6 +1466,299 @@
                 ]
             }
         },
+        "/api/leaves/adjustments": {
+            "get": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Get leave adjustments",
+                "operationId": "a5878c3ae38a3b67c87c90127ed908b1",
+                "responses": {
+                    "200": {
+                        "description": "Leave adjustments retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Create a new leave adjustment",
+                "operationId": "4cf661832803d2f1c9291d4b5c2e5cf8",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "leave_type_id",
+                                    "adjust_hours",
+                                    "reason_adjustment"
+                                ],
+                                "properties": {
+                                    "leave_type_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "adjust_hours": {
+                                        "type": "string",
+                                        "example": "8"
+                                    },
+                                    "reason_adjustment": {
+                                        "type": "string",
+                                        "example": "تسوية إجازة متراكمة"
+                                    },
+                                    "adjustment_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-11-15"
+                                    },
+                                    "duty_employee_id": {
+                                        "type": "integer",
+                                        "example": 25
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Leave adjustment created successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/adjustments/{id}/approve": {
+            "post": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Approve leave adjustment (Managers/HR only)",
+                "operationId": "ed1296ddd39a8f0025b04aae167b094e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave adjustment approved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/adjustments/{id}": {
+            "put": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Update a leave adjustment",
+                "description": "Updates a leave adjustment. Only pending adjustments can be updated.",
+                "operationId": "ef87ff7cb1e667ffd80c392e15d47dc2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Leave adjustment ID to update",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 123
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "leave_type_id": {
+                                        "type": "integer",
+                                        "example": 323
+                                    },
+                                    "adjust_hours": {
+                                        "type": "string",
+                                        "example": "8"
+                                    },
+                                    "reason_adjustment": {
+                                        "type": "string",
+                                        "example": "تحديث سبب التسوية"
+                                    },
+                                    "adjustment_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-12-01"
+                                    },
+                                    "duty_employee_id": {
+                                        "type": "integer",
+                                        "example": 37
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Leave adjustment updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث تسوية الإجازة بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Leave adjustment not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تسوية الإجازة غير موجودة أو غير مصرح لك بتعديلها"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Cannot update processed adjustment",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "لا يمكن تعديل التسوية بعد المراجعة"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/adjustments/{id}/cancel": {
+            "delete": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Cancel a leave adjustment (mark as rejected)",
+                "description": "Cancels a leave adjustment by marking it as rejected. The adjustment remains in the database for audit purposes.",
+                "operationId": "5903f4a4e39ef0d57beb2cba04c47173",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Leave adjustment ID to cancel",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 123
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave adjustment cancelled successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إلغاء تسوية الإجازة بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Leave adjustment not found or cannot be cancelled",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تسوية الإجازة غير موجودة أو لا يمكن إلغاؤها"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/leaves/applications": {
             "get": {
                 "tags": [
@@ -1907,80 +2200,6 @@
                 ]
             }
         },
-        "/api/leaves/adjustments": {
-            "get": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Get leave adjustments",
-                "operationId": "03647f1cbcfef68c9db1de554b5fe82a",
-                "responses": {
-                    "200": {
-                        "description": "Leave adjustments retrieved successfully"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            },
-            "post": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Create a new leave adjustment",
-                "operationId": "81d82690b8dc39f596ff5699e7fe0a59",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "leave_type_id",
-                                    "adjust_hours",
-                                    "reason_adjustment"
-                                ],
-                                "properties": {
-                                    "leave_type_id": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "adjust_hours": {
-                                        "type": "string",
-                                        "example": "8"
-                                    },
-                                    "reason_adjustment": {
-                                        "type": "string",
-                                        "example": "تسوية إجازة متراكمة"
-                                    },
-                                    "adjustment_date": {
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2025-11-15"
-                                    },
-                                    "duty_employee_id": {
-                                        "type": "integer",
-                                        "example": 25
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Leave adjustment created successfully"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
         "/api/leaves/types": {
             "get": {
                 "tags": [
@@ -2059,14 +2278,6 @@
                                     "leave_type_name": {
                                         "type": "string",
                                         "example": "إجازة دراسية"
-                                    },
-                                    "leave_type_short_name": {
-                                        "type": "string",
-                                        "example": "دراسية"
-                                    },
-                                    "leave_days": {
-                                        "type": "integer",
-                                        "example": 10
                                     }
                                 },
                                 "type": "object"
@@ -2130,35 +2341,6 @@
                 ]
             }
         },
-        "/api/leaves/adjustments/{id}/approve": {
-            "post": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Approve leave adjustment (Managers/HR only)",
-                "operationId": "72997bed27c1637092673f3f56b26e06",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Leave adjustment approved successfully"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
         "/api/leaves/stats": {
             "get": {
                 "tags": [
@@ -2178,241 +2360,31 @@
                 ]
             }
         },
-        "/api/leaves/adjustments/{id}": {
-            "put": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Update a leave adjustment",
-                "description": "Updates a leave adjustment. Only pending adjustments can be updated.",
-                "operationId": "c767f845f31c676d1293bbd0156ef143",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Leave adjustment ID to update",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 123
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "leave_type_id": {
-                                        "type": "integer",
-                                        "example": 323
-                                    },
-                                    "adjust_hours": {
-                                        "type": "string",
-                                        "example": "8"
-                                    },
-                                    "reason_adjustment": {
-                                        "type": "string",
-                                        "example": "تحديث سبب التسوية"
-                                    },
-                                    "adjustment_date": {
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2025-12-01"
-                                    },
-                                    "duty_employee_id": {
-                                        "type": "integer",
-                                        "example": 37
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Leave adjustment updated successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تم تحديث تسوية الإجازة بنجاح"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Leave adjustment not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تسوية الإجازة غير موجودة أو غير مصرح لك بتعديلها"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Cannot update processed adjustment",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "لا يمكن تعديل التسوية بعد المراجعة"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/leaves/adjustments/{id}/cancel": {
-            "delete": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Cancel a leave adjustment (mark as rejected)",
-                "description": "Cancels a leave adjustment by marking it as rejected. The adjustment remains in the database for audit purposes.",
-                "operationId": "7453760c3510df816917312e1b62f4a5",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Leave adjustment ID to cancel",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 123
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Leave adjustment cancelled successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تم إلغاء تسوية الإجازة بنجاح"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Leave adjustment not found or cannot be cancelled",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تسوية الإجازة غير موجودة أو لا يمكن إلغاؤها"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/leaves/check-balance": {
+        "/api/leaves/check-balance": {
             "get": {
                 "tags": [
                     "Leave Management"
                 ],
                 "summary": "Check leave balance for an employee",
                 "description": "Check if an employee has sufficient leave balance for the requested dates",
-                "operationId": "3b5a50512dd2eb1fd768ba8154acab99",
+                "operationId": "e73bc14bc71f1b69d7119f69e7458ea6",
                 "parameters": [
-                    {
-                        "name": "employee_id",
-                        "in": "query",
-                        "description": "ID of the employee",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
                     {
                         "name": "leave_type_id",
                         "in": "query",
                         "description": "ID of the leave type",
-                        "required": true,
+                        "required": false,
                         "schema": {
                             "type": "integer"
                         }
                     },
                     {
-                        "name": "start_date",
+                        "name": "employee_id",
                         "in": "query",
-                        "description": "Start date of the leave (Y-m-d)",
-                        "required": true,
+                        "description": "معرف الموظف المستهدف (للشركة/المدير لعرض رصيد موظف آخر)",
+                        "required": false,
                         "schema": {
-                            "type": "string",
-                            "format": "date"
-                        }
-                    },
-                    {
-                        "name": "end_date",
-                        "in": "query",
-                        "description": "End date of the leave (Y-m-d)",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "date"
+                            "type": "integer"
                         }
                     }
                 ],
@@ -2497,119 +2469,6 @@
                     }
                 ]
             }
-        },
-        "/api/leaves/settlement": {
-            "post": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Settle employee's accrued leave balance (Encashment or Take Leave)",
-                "operationId": "866cd4bef433032bdb11b03ac1f75e33",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "leave_type_id",
-                                    "hours_to_settle",
-                                    "settlement_type"
-                                ],
-                                "properties": {
-                                    "leave_type_id": {
-                                        "description": "معرف نوع الإجازة المراد تسويتها",
-                                        "type": "integer",
-                                        "example": 323
-                                    },
-                                    "hours_to_settle": {
-                                        "description": "عدد الساعات المراد تسويتها",
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 40.5
-                                    },
-                                    "settlement_type": {
-                                        "description": "نوع التسوية: صرف نقدي (encashment) أو أخذ إجازة (take_leave)",
-                                        "type": "string",
-                                        "enum": [
-                                            "encashment",
-                                            "take_leave"
-                                        ],
-                                        "example": "encashment"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Leave settlement processed successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تمت تسوية 40.5 ساعة بنجاح كصرف نقدي. تم تحديث رصيد الإجازات."
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "settlement_type": {
-                                                    "type": "string"
-                                                },
-                                                "hours_settled": {
-                                                    "type": "number"
-                                                },
-                                                "old_balance": {
-                                                    "type": "number"
-                                                },
-                                                "new_balance": {
-                                                    "type": "number"
-                                                },
-                                                "record": {
-                                                    "type": "object"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation or insufficient balance error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "الرصيد المتاح (20.0 ساعة) غير كافٍ لتسوية 40.5 ساعة."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
         }
     },
     "components": {
@@ -2643,7 +2502,7 @@
         },
         {
             "name": "Leave Management",
-            "description": "Leave applications and adjustments management"
+            "description": "Leave applications management"
         },
         {
             "name": "Employees",

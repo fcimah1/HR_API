@@ -4,10 +4,9 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\AdvanceSalaryController;
+use App\Http\Controllers\Api\LeaveAdjustmentController;
 use Illuminate\Support\Facades\Route;
-use Laravel\Passport\Http\Controllers\AccessTokenController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -56,7 +55,6 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::delete('/employees/{id}', [EmployeeController::class, 'destroy']);
     });
 
-    // Employee Request routes will be added later when EmployeeRequestController is created
 
     // Leave Management with Simple Permission Checks
     Route::get('/leaves/applications', [LeaveController::class, 'getApplications']);
@@ -66,25 +64,22 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::put('/leaves/applications/{id}', [LeaveController::class, 'updateApplication']);
     Route::get('/leaves/applications/{id}', [LeaveController::class, 'showApplication']);
     
-    Route::get('/leaves/adjustments', [LeaveController::class, 'getAdjustments']);
-    Route::post('/leaves/adjustments',[LeaveController::class, 'createAdjustment']);
+    Route::get('/leaves/adjustments', [LeaveAdjustmentController::class, 'getAdjustments']);
+    Route::post('/leaves/adjustments',[LeaveAdjustmentController::class, 'createAdjustment']);
     // Note: More specific routes must come before general ones
-    Route::delete('/leaves/adjustments/{id}/cancel', [LeaveController::class, 'cancelAdjustment']);
-    Route::put('/leaves/adjustments/{id}', [LeaveController::class, 'updateAdjustment']);
+    Route::delete('/leaves/adjustments/{id}/cancel', [LeaveAdjustmentController::class, 'cancelAdjustment']);
+    Route::put('/leaves/adjustments/{id}', [LeaveAdjustmentController::class, 'updateAdjustment']);
     
     Route::get('/leaves/types', [LeaveController::class, 'getLeaveTypes']);
     Route::post('/leaves/types', [LeaveController::class, 'createLeaveType']);
 
     // Leave balance check & settlement
     Route::get('/leaves/check-balance', [LeaveController::class, 'checkLeaveBalance']);
-    Route::post('/leaves/settlement', [LeaveController::class, 'settleLeave']);
+    // Route::post('/leaves/settlement', [LeaveController::class, 'settleLeave']);
+    Route::get('/leaves/stats', [LeaveController::class, 'getStats']);
+    Route::post('/leaves/applications/{id}/approve', [LeaveController::class, 'approveApplication']);
+    Route::post('/leaves/adjustments/{id}/approve', [LeaveAdjustmentController::class, 'approveAdjustment']);
     
-    // Manager/HR only endpoints for leave management
-    Route::middleware('role:company,admin,hr,manager')->group(function () {
-        Route::post('/leaves/applications/{id}/approve', [LeaveController::class, 'approveApplication']);
-        Route::post('/leaves/adjustments/{id}/approve', [LeaveController::class, 'approveAdjustment']);
-        Route::get('/leaves/stats', [LeaveController::class, 'getStats']);
-    });
 
     // Advance Salary & Loan Management
     Route::get('/advances', [AdvanceSalaryController::class, 'index']);

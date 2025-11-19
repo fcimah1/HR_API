@@ -25,10 +25,10 @@ class CheckLeaveBalanceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => 'required|integer|exists:employees,id',
-            'leave_type_id' => 'required|integer|exists:leave_types,id',
-            'start_date' => 'required|date|date_format:Y-m-d',
-            'end_date' => 'required|date|date_format:Y-m-d|after_or_equal:start_date'
+            // نوع الإجازة اختياري؛ إذا لم يُرسل سنحسب رصيد جميع أنواع الإجازات
+            'leave_type_id' => 'nullable|integer|exists:ci_erp_constants,constants_id',
+            // يمكن للمدير/الشركة تمرير employee_id لعرض ملخص رصيد موظف آخر
+            'employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
         ];
     }
 
@@ -44,8 +44,19 @@ class CheckLeaveBalanceRequest extends FormRequest
     {
         throw new HttpResponseException(response()->json([
             'success' => false,
-            'message' => 'Validation errors',
-            'errors' => $validator->errors()
+            'message' => 'فشل التحقق من صحة بيانات طلب فحص رصيد الإجازة',
+            'errors' => $validator->errors(),
         ], 422));
+    }
+
+    public function messages(): array
+    {
+        return [
+            'leave_type_id.required' => 'يجب تحديد نوع الإجازة',
+            'leave_type_id.integer' => 'معرف نوع الإجازة يجب أن يكون رقمًا صحيحًا',
+            'leave_type_id.exists' => 'نوع الإجازة غير صالح',
+            'employee_id.integer' => 'معرف الموظف يجب أن يكون رقمًا صحيحًا',
+            'employee_id.exists' => 'الموظف المطلوب غير موجود',
+        ];
     }
 }
