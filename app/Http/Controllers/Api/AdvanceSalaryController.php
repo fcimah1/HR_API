@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\AdvanceSalaryService;
+use App\Services\SimplePermissionService;
 use App\DTOs\AdvanceSalary\AdvanceSalaryFilterDTO;
 use App\DTOs\AdvanceSalary\CreateAdvanceSalaryDTO;
 use App\DTOs\AdvanceSalary\UpdateAdvanceSalaryDTO;
@@ -21,7 +22,8 @@ use Illuminate\Support\Facades\Auth;
 class AdvanceSalaryController extends Controller
 {
     public function __construct(
-        private readonly AdvanceSalaryService $advanceSalaryService
+        private readonly AdvanceSalaryService $advanceSalaryService,
+        private readonly SimplePermissionService $permissionService
     ) {}
 
     /**
@@ -150,7 +152,7 @@ class AdvanceSalaryController extends Controller
                 $user->user_id
             );
 
-            $advance = $this->advanceSalaryService->createAdvance($dto);
+            $advance = $this->advanceSalaryService->createAdvance($dto, $user);
 
             return response()->json([
                 'success' => true,
@@ -197,11 +199,35 @@ class AdvanceSalaryController extends Controller
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
             
             // Check if user can view all company requests or just their own
-            $canViewAll = in_array($user->user_type, ['company', 'admin', 'hr', 'manager']);
+            // This determines query scope - permission check is done in service
+            $canViewAll = $this->permissionService->isCompanyOwner($user) || 
+                         $this->permissionService->checkPermissionWithFallback($user, 'hradvance_salary', 'advance_salary1') ||
+                         $this->permissionService->checkPermissionWithFallback($user, 'hrloan', 'loan1');
             
-            $advance = $canViewAll 
-                ? $this->advanceSalaryService->getAdvanceById($id, $effectiveCompanyId, null)
-                : $this->advanceSalaryService->getAdvanceById($id, null, $user->user_id);
+            // Try to get the record - first by company (if user can view all), then by user_id
+            // Service method now handles permission checks internally
+            try {
+                $advance = $canViewAll 
+                    ? $this->advanceSalaryService->getAdvanceById($id, $user, $effectiveCompanyId, null)
+                    : null;
+                
+                // If not found and user is employee, try to get their own request
+                if (!$advance) {
+                    $advance = $this->advanceSalaryService->getAdvanceById($id, $user, null, $user->user_id);
+                }
+            } catch (\Exception $e) {
+                // Permission denied or not found
+                if (str_contains($e->getMessage(), 'صلاحية')) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $e->getMessage()
+                    ], 403);
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الطلب غير موجود'
+                ], 404);
+            }
 
             if (!$advance) {
                 return response()->json([
@@ -369,18 +395,11 @@ class AdvanceSalaryController extends Controller
     {
         $user = Auth::user();
 
-        if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
-            return response()->json([
-                'success' => false,
-                'message' => 'ليس لديك صلاحية للموافقة على الطلبات'
-            ], 403);
-        }
-
         try {
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
             $remarks = $request->input('remarks');
 
-            $advance = $this->advanceSalaryService->approveAdvance($id, $effectiveCompanyId, $user->user_id, $remarks);
+            $advance = $this->advanceSalaryService->approveAdvance($id, $effectiveCompanyId, $user, $remarks);
 
             if (!$advance) {
                 return response()->json([
@@ -433,7 +452,11 @@ class AdvanceSalaryController extends Controller
     {
         $user = Auth::user();
 
-        if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
+        // Check if user has permission to view advance salary or loan stats
+        $canViewAdvance = $this->permissionService->checkPermission($user, 'hradvance_salary');
+        $canViewLoan = $this->permissionService->checkPermission($user, 'hrloan');
+        
+        if (!$canViewAdvance && !$canViewLoan && !$this->permissionService->isCompanyOwner($user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'ليس لديك صلاحية لعرض الإحصائيات'

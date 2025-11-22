@@ -11,13 +11,18 @@ use App\DTOs\Asset\BulkStatusDTO;
 use App\Models\Asset;
 use App\Models\AssetHistory;
 use App\Models\User;
+use App\Services\SimplePermissionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class AssetService
 {
+    public function __construct(
+        private readonly SimplePermissionService $permissionService
+    ) {}
+
     /**
-     * Get paginated assets with filters (respects user role)
+     * Get paginated assets with filters (respects user permissions)
      */
     public function getPaginatedAssets(AssetFilterDTO $filters, User $user): array
     {
@@ -120,6 +125,11 @@ class AssetService
     public function createAsset(CreateAssetDTO $dto, User $user): AssetResponseDTO
     {
         return DB::transaction(function () use ($dto, $user) {
+            // Check permission - asset2 for create
+            if (!$this->permissionService->checkPermissionWithFallback($user, 'hr_assets', 'asset2')) {
+                throw new \Exception('ليس لديك صلاحية لإنشاء الأصول');
+            }
+            
             $this->ensureEmployeeBelongsToCompany($dto->employeeId, $dto->companyId);
 
             $asset = Asset::create($dto->toArray());
@@ -184,6 +194,11 @@ class AssetService
     public function updateAsset(UpdateAssetDTO $dto, int $companyId, User $user): ?AssetResponseDTO
     {
         return DB::transaction(function () use ($dto, $companyId, $user) {
+            // Check permission - asset3 for edit
+            if (!$this->permissionService->checkPermissionWithFallback($user, 'hr_assets', 'asset3')) {
+                throw new \Exception('ليس لديك صلاحية لتعديل الأصول');
+            }
+            
             $asset = Asset::forCompany($companyId)
                 ->where('assets_id', $dto->assetId)
                 ->first();
@@ -532,30 +547,30 @@ class AssetService
     }
 
     /**
-     * Permission checks
+     * Permission checks using legacy permission system
      */
     public function canViewAssets(User $user): bool
     {
-        $allowedRoles = ['company', 'super_user', 'admin', 'hr', 'manager'];
-        return in_array(strtolower($user->user_type), $allowedRoles);
+        // Check parent permission (hr_assets) or sub-permission (asset1)
+        return $this->permissionService->checkPermissionWithFallback($user, 'hr_assets', 'asset1');
     }
 
     public function canManageAssets(User $user): bool
     {
-        $allowedRoles = ['company', 'super_user', 'admin', 'hr', 'manager'];
-        return in_array(strtolower($user->user_type), $allowedRoles);
+        // Check parent permission (hr_assets) or sub-permission (asset2 for create)
+        return $this->permissionService->checkPermissionWithFallback($user, 'hr_assets', 'asset2');
     }
 
     public function canAssignAssets(User $user): bool
     {
-        $allowedRoles = ['company', 'super_user', 'admin', 'hr', 'manager'];
-        return in_array(strtolower($user->user_type), $allowedRoles);
+        // Check parent permission (hr_assets) for assignment operations
+        return $this->permissionService->checkPermission($user, 'hr_assets');
     }
 
     public function canViewAssetHistory(User $user): bool
     {
-        $allowedRoles = ['company', 'super_user', 'admin', 'hr', 'manager'];
-        return in_array(strtolower($user->user_type), $allowedRoles);
+        // Check parent permission (hr_assets) for viewing history
+        return $this->permissionService->checkPermission($user, 'hr_assets');
     }
 
     public function canReportAsset(User $user): bool

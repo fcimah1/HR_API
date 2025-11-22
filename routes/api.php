@@ -85,14 +85,15 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Advance Salary & Loan Management
+    // Note: Permission checks for POST/PUT/DELETE are handled in controllers/services
+    // because they need to check different permissions based on salary_type (loan vs advance)
     Route::get('/advances', [AdvanceSalaryController::class, 'index']);
     Route::post('/advances', [AdvanceSalaryController::class, 'store']);
     
     // Manager/HR only endpoints for advance salary/loan management (must come before {id} routes)
-    Route::middleware('role:company,admin,hr,manager')->group(function () {
-        Route::get('/advances/stats', [AdvanceSalaryController::class, 'stats']);
-        Route::post('/advances/{id}/approve', [AdvanceSalaryController::class, 'approve']);
-    });
+    // Permission checks are handled in controller based on request type
+    Route::get('/advances/stats', [AdvanceSalaryController::class, 'stats']);
+    Route::post('/advances/{id}/approve', [AdvanceSalaryController::class, 'approve']);
     
     // Note: More specific routes must come before general ones
     Route::delete('/advances/{id}/cancel', [AdvanceSalaryController::class, 'cancel']);
@@ -111,32 +112,30 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     // Report asset issue - all employees can report their assigned assets
     Route::post('/assets/{id}/report-fixing', [AssetController::class, 'reportFixing']);
     
-    // Asset viewing (service handles role-based filtering)
+    // Asset viewing (service handles permission-based filtering)
     Route::get('/assets', [AssetController::class, 'index']);
     Route::get('/assets/{id}', [AssetController::class, 'show']);
     
-    // HR/Manager only endpoints
-    Route::middleware('role:company,admin,hr,manager')->group(function () {
-        // Stats MUST be before general routes to avoid conflicts
-        Route::get('/assets/stats', [AssetController::class, 'stats']);
-        
-        // Asset CRUD operations (NO DELETE per requirements)
-        Route::post('/assets', [AssetController::class, 'store']);
-        Route::put('/assets/{id}', [AssetController::class, 'update']);
-        
-        // Assignment operations
-        Route::post('/assets/{id}/assign', [AssetController::class, 'assign']);
-        Route::post('/assets/{id}/unassign', [AssetController::class, 'unassign']);
-        
-        // Get assets by employee
-        Route::get('/assets/employee/{employeeId}', [AssetController::class, 'getByEmployee']);
-        
-        // Asset history
-        Route::get('/assets/{id}/history', [AssetController::class, 'history']);
-        
-        // Bulk operations
-        Route::post('/assets/bulk-assign', [AssetController::class, 'bulkAssign']);
-        Route::post('/assets/bulk-unassign', [AssetController::class, 'bulkUnassign']);
-        Route::post('/assets/bulk-status', [AssetController::class, 'bulkStatus']);
-    });
+    // HR/Manager only endpoints - permission checks handled in service
+    // Stats MUST be before general routes to avoid conflicts
+    Route::get('/assets/stats', [AssetController::class, 'stats']);
+    
+    // Asset CRUD operations (NO DELETE per requirements)
+    Route::post('/assets', [AssetController::class, 'store'])->middleware('simple.permission:asset2');
+    Route::put('/assets/{id}', [AssetController::class, 'update'])->middleware('simple.permission:asset3');
+    
+    // Assignment operations - require parent permission
+    Route::post('/assets/{id}/assign', [AssetController::class, 'assign'])->middleware('simple.permission:hr_assets');
+    Route::post('/assets/{id}/unassign', [AssetController::class, 'unassign'])->middleware('simple.permission:hr_assets');
+    
+    // Get assets by employee - require parent permission
+    Route::get('/assets/employee/{employeeId}', [AssetController::class, 'getByEmployee'])->middleware('simple.permission:hr_assets');
+    
+    // Asset history - require parent permission
+    Route::get('/assets/{id}/history', [AssetController::class, 'history'])->middleware('simple.permission:hr_assets');
+    
+    // Bulk operations - require parent permission
+    Route::post('/assets/bulk-assign', [AssetController::class, 'bulkAssign'])->middleware('simple.permission:hr_assets');
+    Route::post('/assets/bulk-unassign', [AssetController::class, 'bulkUnassign'])->middleware('simple.permission:hr_assets');
+    Route::post('/assets/bulk-status', [AssetController::class, 'bulkStatus'])->middleware('simple.permission:hr_assets');
 });

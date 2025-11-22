@@ -36,6 +36,26 @@ class SimplePermissionService
     }
 
     /**
+     * Check if user has either parent permission or specific sub-permission
+     * First checks parent permission, then falls back to sub-permission
+     * 
+     * @param User $user
+     * @param string $parentPermission Parent permission (e.g., 'hradvance_salary')
+     * @param string $subPermission Sub permission (e.g., 'advance_salary2')
+     * @return bool
+     */
+    public function checkPermissionWithFallback(User $user, string $parentPermission, string $subPermission): bool
+    {
+        // Check parent permission first
+        if ($this->checkPermission($user, $parentPermission)) {
+            return true;
+        }
+        
+        // Fall back to sub-permission
+        return $this->checkPermission($user, $subPermission);
+    }
+
+    /**
      * التحقق من أن المستخدم ينتمي لنفس الشركة
      */
     public function checkCompanyAccess(User $user, int $targetCompanyId): bool
