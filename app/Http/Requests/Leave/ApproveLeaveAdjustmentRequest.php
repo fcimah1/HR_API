@@ -10,16 +10,16 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * @OA\Schema(
- *     schema="ApproveLeaveApplicationRequest",
+ *     schema="ApproveLeaveAdjustmentRequest",
  *     type="object",
- *     title="Approve Leave Application Request",
+ *     title="Approve Leave Adjustment Request",
  *     required={"action", "remarks"},
  *     @OA\Property(property="action", type="string", description="Action to take (approve/reject)"),
  *     @OA\Property(property="remarks", type="string", description="Remarks for approval")
  * )
  */
 
-class ApproveLeaveApplicationRequest extends FormRequest
+class ApproveLeaveAdjustmentRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -29,6 +29,11 @@ class ApproveLeaveApplicationRequest extends FormRequest
         return Auth::check();
     }
 
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [
@@ -54,14 +59,14 @@ class ApproveLeaveApplicationRequest extends FormRequest
 
     protected function failedValidation(Validator $validator)
     {
-        Log::warning('فشل الموافقة على طلب إجازة', [
+        Log::warning('فشل مراجعة طلب تسوية', [
             'errors' => $validator->errors()->toArray(),
             'input' => $this->all()
         ]);
 
         throw new HttpResponseException(response()->json([
             'success' => false,
-            'message' => 'فشل الموافقة على طلب إجازة',
+            'message' => 'فشل مراجعة طلب تسوية',
             'errors' => $validator->errors(),
         ], 422));
     }

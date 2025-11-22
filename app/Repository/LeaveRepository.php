@@ -7,6 +7,7 @@ use App\DTOs\Leave\LeaveApplicationFilterDTO;
 use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
 use App\DTOs\Leave\CreateLeaveTypeDTO;
+use App\DTOs\Leave\UpdateLeaveTypeDTO;
 use App\Models\LeaveApplication;
 use App\Models\ErpConstant;
 use App\Models\LeaveAdjustment;
@@ -22,7 +23,7 @@ class LeaveRepository implements LeaveRepositoryInterface
      */
     public function getPaginatedApplications(LeaveApplicationFilterDTO $filters): LengthAwarePaginator
     {
-    $companyId = $filters->companyId ;
+        $companyId = $filters->companyId;
         $query = LeaveApplication::where('company_id', $companyId)->with(['employee', 'dutyEmployee', 'leaveType']);
 
         // Apply filters
@@ -65,7 +66,7 @@ class LeaveRepository implements LeaveRepositoryInterface
     {
         $application = LeaveApplication::create($dto->toArray());
         $application->load(['employee', 'dutyEmployee', 'leaveType']);
-        
+
         return $application;
     }
 
@@ -108,13 +109,13 @@ class LeaveRepository implements LeaveRepositoryInterface
         try {
             if ($dto->hasUpdates()) {
                 $updates = $dto->toArray();
-                
+
                 // Update using Eloquent's update method (simpler and more reliable)
                 $application->update($updates);
-                
+
                 // Refresh to get latest data
                 $application->refresh();
-                
+
                 // Load relationships
                 $application->load(['employee', 'dutyEmployee', 'leaveType']);
             }
@@ -124,7 +125,6 @@ class LeaveRepository implements LeaveRepositoryInterface
             ]);
 
             return $application;
-
         } catch (\Exception $e) {
             error_log("LeaveRepository::updateApplication - Error: " . $e->getMessage());
             throw $e;
@@ -137,7 +137,7 @@ class LeaveRepository implements LeaveRepositoryInterface
     public function approveApplication(LeaveApplication $application, int $approvedBy, ?string $remarks = null): LeaveApplication
     {
         $application->update([
-            'status' => true,
+            'status' => LeaveApplication::STATUS_APPROVED,
             'remarks' => $remarks,
         ]);
 
@@ -153,7 +153,8 @@ class LeaveRepository implements LeaveRepositoryInterface
     public function rejectApplication(LeaveApplication $application, int $rejectedBy, string $reason): LeaveApplication
     {
         $application->update([
-            'status' => false,
+            'status' => LeaveApplication::STATUS_REJECTED,
+
             'remarks' => $reason,
         ]);
 
@@ -168,12 +169,12 @@ class LeaveRepository implements LeaveRepositoryInterface
      */
     public function getLeaveStatistics(int $companyId): array
     {
-        
+
         $applicationStats = [
             'total_applications' => LeaveApplication::where('company_id', $companyId)->count(),
             'effective_company_id' => $companyId,
-            'pending_applications' => LeaveApplication::where('company_id', $companyId)->where('status', false)->count(),
-            'approved_applications' => LeaveApplication::where('company_id', $companyId)->where('status', true)->count(),
+            'pending_applications' => LeaveApplication::where('company_id', $companyId)->where('status', LeaveApplication::STATUS_PENDING)->count(),
+            'approved_applications' => LeaveApplication::where('company_id', $companyId)->where('status', LeaveApplication::STATUS_APPROVED)->count(),
         ];
 
         $adjustmentStats = [
@@ -207,17 +208,87 @@ class LeaveRepository implements LeaveRepositoryInterface
             ->where('type', ErpConstant::TYPE_LEAVE_TYPE)
             ->where('category_name', $dto->name)
             ->first();
-        
+
         if ($existingLeaveType) {
             throw new \Exception('نوع الإجازة "' . $dto->name . '" موجود بالفعل لهذه الشركة');
         }
-        
+
         return ErpConstant::create($dto->toArray());
     }
 
     /**
-    * Get total granted leave for an employee (in hours)
-    */
+     * Update leave type
+     */
+    public function updateLeaveType(UpdateLeaveTypeDTO $dto): object
+    {
+        // Find the leave type
+        $leaveType = ErpConstant::where('constants_id', $dto->leaveTypeId)
+            ->where('type', ErpConstant::TYPE_LEAVE_TYPE)
+            ->first();
+
+        if (!$leaveType) {
+            throw new \Exception('نوع الإجازة غير موجود');
+        }
+
+        // Check if another leave type with the same name exists for this company
+        $existingLeaveType = ErpConstant::where('company_id', $leaveType->company_id)
+            ->where('type', ErpConstant::TYPE_LEAVE_TYPE)
+            ->where('category_name', $dto->name)
+            ->where('constants_id', '!=', $dto->leaveTypeId)
+            ->first();
+
+        if ($existingLeaveType) {
+            throw new \Exception('نوع الإجازة "' . $dto->name . '" موجود بالفعل لهذه الشركة');
+        }
+
+        $leaveType->update($dto->toArray());
+        return $leaveType->fresh();
+    }
+
+    /**
+     * Delete (deactivate) leave type
+     * Instead of deleting, we set field_three to 0 (inactive)
+     */
+    public function deleteLeaveType(int $leaveTypeId, int $companyId): bool
+    {
+        // Find the leave type
+        $leaveType = ErpConstant::where('constants_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('type', ErpConstant::TYPE_LEAVE_TYPE)
+            ->first();
+
+        if (!$leaveType) {
+            throw new \Exception('نوع الإجازة غير موجود أو لا ينتمي لهذه الشركة');
+        }
+
+        // Check if the leave type is being used in any leave applications
+        $applicationsCount = LeaveApplication::where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->count();
+
+        if ($applicationsCount > 0) {
+            throw new \Exception('لا يمكن إلغاء تفعيل نوع الإجازة حاليا لأنه مستخدم في طلبات إجازة');
+        }
+
+        // Check if the leave type is being used in any leave adjustments
+        $adjustmentsCount = LeaveAdjustment::where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->count();
+
+        if ($adjustmentsCount > 0) {
+            throw new \Exception('لا يمكن إلغاء تفعيل نوع الإجازة حاليا لأنه مستخدم في تسويات إجازة');
+        }
+        // Deactivate by setting field_three to 0 (inactive)
+        // This is a soft delete - the record remains in the database
+        return $leaveType->update([
+            'field_three' => 0,
+            'updated_at' => now()->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /**
+     * Get total granted leave for an employee (in hours)
+     */
     public function getTotalGrantedLeave(int $employeeId, int $leaveTypeId, int $companyId): float
     {
         // جلب نوع الإجازة (من الشركة أو من الأنواع العامة)
@@ -323,7 +394,7 @@ class LeaveRepository implements LeaveRepositoryInterface
         $applications = LeaveApplication::where('employee_id', $employeeId)
             ->where('leave_type_id', $leaveTypeId)
             ->where('company_id', $companyId)
-            ->where('status', true)
+            ->where('status', LeaveApplication::STATUS_APPROVED)
             ->get();
 
         $totalHours = 0.0;
@@ -354,7 +425,7 @@ class LeaveRepository implements LeaveRepositoryInterface
         $applications = LeaveApplication::where('employee_id', $employeeId)
             ->where('leave_type_id', $leaveTypeId)
             ->where('company_id', $companyId)
-            ->where('status', false)
+            ->where('status', LeaveApplication::STATUS_PENDING)
             ->get();
 
         $totalHours = 0.0;
@@ -377,7 +448,7 @@ class LeaveRepository implements LeaveRepositoryInterface
         return (float) $totalHours;
     }
 
-    
+
     /**
      * Get total approved adjustment hours for an employee (in hours)
      */

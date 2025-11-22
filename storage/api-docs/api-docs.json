@@ -1540,13 +1540,14 @@
                 ]
             }
         },
-        "/api/leaves/adjustments/{id}/approve": {
+        "/api/leaves/adjustments/{id}/approve-or-reject": {
             "post": {
                 "tags": [
                     "Leave Management"
                 ],
-                "summary": "Approve leave adjustment (Managers/HR only)",
-                "operationId": "ed1296ddd39a8f0025b04aae167b094e",
+                "summary": "Approve or Reject leave adjustment (Managers/HR only)",
+                "description": "الموافقة على أو رفض طلب التسوية",
+                "operationId": "b82cc325c53c733f2ab6c794dc716708",
                 "parameters": [
                     {
                         "name": "id",
@@ -1557,9 +1558,38 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "action"
+                                ],
+                                "properties": {
+                                    "action": {
+                                        "description": "الإجراء: approve للموافقة أو reject للرفض",
+                                        "type": "string",
+                                        "enum": [
+                                            "approve",
+                                            "reject"
+                                        ],
+                                        "example": "approve"
+                                    },
+                                    "remarks": {
+                                        "description": "ملاحظات (اختياري)",
+                                        "type": "string",
+                                        "example": "موافق على الطلب"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
-                        "description": "Leave adjustment approved successfully"
+                        "description": "Leave adjustment approved or rejected successfully"
                     }
                 },
                 "security": [
@@ -2200,110 +2230,14 @@
                 ]
             }
         },
-        "/api/leaves/types": {
-            "get": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Get available leave types",
-                "operationId": "217df4e4d7536b0fedbd5dae76fa4d3c",
-                "responses": {
-                    "200": {
-                        "description": "Leave types retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "properties": {
-                                                    "leave_type_id": {
-                                                        "type": "integer",
-                                                        "example": 1
-                                                    },
-                                                    "leave_type_name": {
-                                                        "type": "string",
-                                                        "example": "إجازة سنوية"
-                                                    },
-                                                    "leave_type_short_name": {
-                                                        "type": "string",
-                                                        "example": "سنوية"
-                                                    },
-                                                    "leave_days": {
-                                                        "type": "integer",
-                                                        "example": 30
-                                                    },
-                                                    "leave_type_status": {
-                                                        "type": "boolean",
-                                                        "example": true
-                                                    }
-                                                },
-                                                "type": "object"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            },
+        "/api/leaves/applications/{id}/approve-or-reject": {
             "post": {
                 "tags": [
                     "Leave Management"
                 ],
-                "summary": "Create a new leave type (HR/Admin only)",
-                "operationId": "caca705283dfc334573931ee8d011689",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "leave_type_name",
-                                    "leave_days"
-                                ],
-                                "properties": {
-                                    "leave_type_name": {
-                                        "type": "string",
-                                        "example": "إجازة دراسية"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Leave type created successfully"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/leaves/applications/{id}/approve": {
-            "post": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Approve leave application (Managers/HR only)",
-                "operationId": "3c3347fc6d30e9059e0a25c361397164",
+                "summary": "Approve or Reject leave application (Managers/HR only)",
+                "description": "الموافقة على أو رفض طلب الإجازة",
+                "operationId": "a61f5398f6aced5d73220a88ad98c7fc",
                 "parameters": [
                     {
                         "name": "id",
@@ -2315,11 +2249,25 @@
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
+                                "required": [
+                                    "action"
+                                ],
                                 "properties": {
+                                    "action": {
+                                        "description": "الإجراء: approve للموافقة أو reject للرفض",
+                                        "type": "string",
+                                        "enum": [
+                                            "approve",
+                                            "reject"
+                                        ],
+                                        "example": "approve"
+                                    },
                                     "remarks": {
+                                        "description": "ملاحظات (اختياري)",
                                         "type": "string",
                                         "example": "موافق على الطلب"
                                     }
@@ -2331,26 +2279,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Leave application approved successfully"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/leaves/stats": {
-            "get": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Get leave statistics (Managers/HR only)",
-                "operationId": "a5317e9bdcb5843a614ed8a01d389771",
-                "responses": {
-                    "200": {
-                        "description": "Leave statistics retrieved successfully"
+                        "description": "Leave application approved or rejected successfully"
                     }
                 },
                 "security": [
@@ -2469,9 +2398,663 @@
                     }
                 ]
             }
+        },
+        "/api/leaves/types": {
+            "get": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Get available leave types",
+                "operationId": "217df4e4d7536b0fedbd5dae76fa4d3c",
+                "responses": {
+                    "200": {
+                        "description": "Leave types retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "leave_type_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "leave_type_name": {
+                                                        "type": "string",
+                                                        "example": "إجازة سنوية"
+                                                    },
+                                                    "leave_type_short_name": {
+                                                        "type": "string",
+                                                        "example": "سنوية"
+                                                    },
+                                                    "leave_days": {
+                                                        "type": "integer",
+                                                        "example": 30
+                                                    },
+                                                    "leave_type_status": {
+                                                        "type": "boolean",
+                                                        "example": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Create a new leave type (HR/Admin only)",
+                "operationId": "caca705283dfc334573931ee8d011689",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "leave_type_name",
+                                    "leave_days"
+                                ],
+                                "properties": {
+                                    "leave_type_name": {
+                                        "type": "string",
+                                        "example": "إجازة دراسية"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Leave type created successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/types/{id}": {
+            "put": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Update a leave type (HR/Admin only)",
+                "operationId": "e7a04d8833aaaa623c4fe98d365fb51a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "leave_type_name"
+                                ],
+                                "properties": {
+                                    "leave_type_name": {
+                                        "type": "string",
+                                        "example": "إجازة تعليمية"
+                                    },
+                                    "requires_approval": {
+                                        "description": "يتطلب الموافقة",
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "is_paid_leave": {
+                                        "description": "إجازة مدفوعة",
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "enable_leave_accrual": {
+                                        "description": "تمكين استحقاق الإجازة",
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "is_carry": {
+                                        "description": "الترحيل",
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "carry_limit": {
+                                        "description": "الحد المتاح للترحيل",
+                                        "type": "number",
+                                        "example": 0
+                                    },
+                                    "is_negative_quota": {
+                                        "description": "رصيد الإدارة",
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "negative_limit": {
+                                        "description": "رصيد الحادثة المستحق",
+                                        "type": "number",
+                                        "example": 0
+                                    },
+                                    "is_quota": {
+                                        "description": "تخصيص النسبة السنوية",
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "quota_assign": {
+                                        "description": "تخصيص النسبة السنوية (50 عنصر للسنوات من 0 إلى 49)",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "number",
+                                            "example": 0
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Leave type updated successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Deactivate a leave type (HR/Admin only)",
+                "description": "إلغاء تفعيل نوع الإجازة بدلاً من حذفه",
+                "operationId": "457dc6d69c58fa6932bd19bda12ab81b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave type deactivated successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/stats": {
+            "get": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Get leave statistics (Managers/HR only)",
+                "operationId": "a5317e9bdcb5843a614ed8a01d389771",
+                "responses": {
+                    "200": {
+                        "description": "Leave statistics retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/system-logs": {
+            "get": {
+                "tags": [
+                    "System Logs"
+                ],
+                "summary": "Get system logs",
+                "description": "Retrieve paginated system logs with filtering options",
+                "operationId": "dfb9c390da1e68112026ad8aa5b3fa54",
+                "parameters": [
+                    {
+                        "name": "level",
+                        "in": "query",
+                        "description": "Filter by log level (info, error, etc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "description": "Filter by user ID",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "Filter from date (Y-m-d)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "Filter to date (Y-m-d)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search in message",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/travels": {
+            "get": {
+                "tags": [
+                    "Travel"
+                ],
+                "summary": "Get list of travel requests",
+                "operationId": "a088cf9b97591f82c08c24a8750e14ba",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Travel"
+                ],
+                "summary": "Create a new travel request",
+                "operationId": "ba5f73052026936aab0d789b43b8dfc5",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateTravelRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Travel request created successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/travels/{id}": {
+            "get": {
+                "tags": [
+                    "Travel"
+                ],
+                "summary": "Get travel request details",
+                "operationId": "bd726bfce2e740c0551e45c0750f929b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Travel"
+                ],
+                "summary": "Update travel request",
+                "operationId": "df50586036d8f4902c85a60a4d67d2c6",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTravelRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Travel request updated successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Travel"
+                ],
+                "summary": "Delete travel request",
+                "operationId": "7eb600442d6e0f9fb63fdcb0b857f80c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Travel request deleted successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/travels/{id}/approve-or-reject": {
+            "post": {
+                "tags": [
+                    "Travel"
+                ],
+                "summary": "Approve or Reject travel request",
+                "operationId": "e618695db8b4660e78c235b43e5c07d2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "action": {
+                                        "description": "Action to perform on the travel request",
+                                        "type": "string",
+                                        "enum": [
+                                            "approve",
+                                            "reject"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Travel request status updated successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
+        "schemas": {
+            "CreateTravelRequest": {
+                "title": "Create Travel Request",
+                "required": [
+                    "start_date",
+                    "end_date",
+                    "visit_purpose",
+                    "visit_place",
+                    "travel_mode",
+                    "arrangement_type",
+                    "expected_budget",
+                    "actual_budget"
+                ],
+                "properties": {
+                    "employee_id": {
+                        "description": "Employee ID (optional, for admin/company)",
+                        "type": "integer"
+                    },
+                    "start_date": {
+                        "description": "Start date of travel",
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "end_date": {
+                        "description": "End date of travel",
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "visit_purpose": {
+                        "description": "Purpose of the visit",
+                        "type": "string"
+                    },
+                    "visit_place": {
+                        "description": "Place of visit",
+                        "type": "string"
+                    },
+                    "travel_mode": {
+                        "description": "Mode of travel (1-5)",
+                        "type": "integer"
+                    },
+                    "arrangement_type": {
+                        "description": "Type of arrangement",
+                        "type": "integer"
+                    },
+                    "expected_budget": {
+                        "description": "Expected budget",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "actual_budget": {
+                        "description": "Actual budget",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "description": {
+                        "description": "Description",
+                        "type": "string"
+                    },
+                    "associated_goals": {
+                        "description": "List of associated goal IDs",
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateTravelRequest": {
+                "title": "Update Travel Request",
+                "properties": {
+                    "start_date": {
+                        "description": "Start date of travel",
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "end_date": {
+                        "description": "End date of travel",
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "visit_purpose": {
+                        "description": "Purpose of the visit",
+                        "type": "string"
+                    },
+                    "visit_place": {
+                        "description": "Place of visit",
+                        "type": "string"
+                    },
+                    "travel_mode": {
+                        "description": "Mode of travel (1-5)",
+                        "type": "integer"
+                    },
+                    "arrangement_type": {
+                        "description": "Type of arrangement",
+                        "type": "integer"
+                    },
+                    "expected_budget": {
+                        "description": "Expected budget",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "actual_budget": {
+                        "description": "Actual budget",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "description": {
+                        "description": "Description",
+                        "type": "string"
+                    },
+                    "associated_goals": {
+                        "description": "List of associated goal IDs",
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateTravelStatusRequest": {
+                "title": "Update Travel Status Request",
+                "required": [
+                    "action"
+                ],
+                "properties": {
+                    "action": {
+                        "description": "Action to perform on the travel request",
+                        "type": "string",
+                        "enum": [
+                            "approve",
+                            "reject"
+                        ]
+                    }
+                },
+                "type": "object"
+            }
+        },
         "securitySchemes": {
             "passport": {
                 "type": "oauth2",
@@ -2507,6 +3090,14 @@
         {
             "name": "Employees",
             "description": "Employees"
+        },
+        {
+            "name": "System Logs",
+            "description": "System Logs"
+        },
+        {
+            "name": "Travel",
+            "description": "Travel"
         }
     ]
 }
