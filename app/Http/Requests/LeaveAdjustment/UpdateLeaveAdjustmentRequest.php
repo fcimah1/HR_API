@@ -8,6 +8,20 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @OA\Schema(
+ *     schema="UpdateLeaveAdjustmentRequest",
+ *     type="object",
+ *     title="Update Leave Adjustment Request",
+ *     required={"leave_type_id", "adjust_hours", "reason_adjustment", "adjustment_date", "duty_employee_id"},
+ *     @OA\Property(property="leave_type_id", type="integer", description="Leave type ID"),
+ *     @OA\Property(property="adjust_hours", type="number", format="float", description="Adjustment hours"),
+ *     @OA\Property(property="reason_adjustment", type="string", description="Reason for adjustment"),
+ *     @OA\Property(property="adjustment_date", type="string", format="date", description="Adjustment date"),
+ *     @OA\Property(property="duty_employee_id", type="integer", description="Duty employee ID")
+ * )
+ */
+
 class UpdateLeaveAdjustmentRequest extends FormRequest
 {
     /**

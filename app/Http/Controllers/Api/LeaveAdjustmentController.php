@@ -6,6 +6,7 @@ use App\DTOs\LeaveAdjustment\CreateLeaveAdjustmentDTO;
 use App\DTOs\LeaveAdjustment\LeaveAdjustmentFilterDTO;
 use App\DTOs\LeaveAdjustment\UpdateLeaveAdjustmentDTO;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Leave\ApproveLeaveAdjustmentRequest;
 use App\Http\Requests\LeaveAdjustment\CreateLeaveAdjustmentRequest;
 use App\Http\Requests\LeaveAdjustment\UpdateLeaveAdjustmentRequest;
 use App\Services\LeaveAdjustmentService;
@@ -24,13 +25,13 @@ class LeaveAdjustmentController extends Controller
         $this->simplePermissionService = $permissionService;
     }
 
-    
+
     /**
      * @OA\Get(
      *     path="/api/leaves/adjustments",
      *     summary="Get leave adjustments",
      *     tags={"Leave Management"},
- *     security={{"bearerAuth":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Leave adjustments retrieved successfully"
@@ -40,35 +41,35 @@ class LeaveAdjustmentController extends Controller
     public function getAdjustments(Request $request)
     {
         try {
-        $user = Auth::user();
-        $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment');
-        if (!$isUserHasThisPermission) {
-            return response()->json([
-                'success' => false,
-                'message' => 'غير مصرح لك بعرض تسويات الإجازات'
-            ], 403);
-        }
-        $filters = LeaveAdjustmentFilterDTO::fromRequest($request->all(), $user);
-        
-        Log::info('LeaveController::getAdjustments filters', [
-            'filters' => $filters,
-            'user' => $user
-        ]);
-        $result = $this->leaveService->getPaginatedAdjustments($filters,$user);
-        Log::info('LeaveController::getAdjustments result', [
-            'success' => true,
-            'message' => 'تم جلب تسويات الإجازات بنجاح',
-            'result' => $result,
-            'create_by' => $user->full_name 
-        ]);
+            $user = Auth::user();
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بعرض تسويات الإجازات'
+                ], 403);
+            }
+            $filters = LeaveAdjustmentFilterDTO::fromRequest($request->all(), $user);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'تم جلب تسويات الإجازات بنجاح',
-            'create_by' => $user->full_name,
-            'company_id' => $user->company_id,
-            ...$result
-        ]);
+            Log::info('LeaveController::getAdjustments filters', [
+                'filters' => $filters,
+                'user' => $user
+            ]);
+            $result = $this->leaveService->getPaginatedAdjustments($filters, $user);
+            Log::info('LeaveController::getAdjustments result', [
+                'success' => true,
+                'message' => 'تم جلب تسويات الإجازات بنجاح',
+                'result' => $result,
+                'create_by' => $user->full_name
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم جلب تسويات الإجازات بنجاح',
+                'create_by' => $user->full_name,
+                'company_id' => $user->company_id,
+                ...$result
+            ]);
         } catch (\Exception $e) {
             Log::error('LeaveController::getAdjustments', [
                 'success' => false,
@@ -87,7 +88,7 @@ class LeaveAdjustmentController extends Controller
      *     path="/api/leaves/adjustments",
      *     summary="Create a new leave adjustment",
      *     tags={"Leave Management"},
- *     security={{"bearerAuth":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -107,7 +108,7 @@ class LeaveAdjustmentController extends Controller
      */
     public function createAdjustment(CreateLeaveAdjustmentRequest $request)
     {
-        
+
         try {
             $user = Auth::user();
             $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment1');
@@ -137,7 +138,7 @@ class LeaveAdjustmentController extends Controller
             Log::info('LeaveService::createAdjustment successed', [
                 'adjustment' => $adjustment,
                 'user_id' => $user->user_id,
-                'company_id' => $effectiveCompanyId,    
+                'company_id' => $effectiveCompanyId,
                 'created_by' => $user->full_name
             ]);
             return response()->json([
@@ -146,7 +147,6 @@ class LeaveAdjustmentController extends Controller
                 'created by' => $user->full_name,
                 'data' => $adjustment
             ], 201);
-
         } catch (\Exception $e) {
             Log::error('LeaveController::createAdjustment failed', [
                 'error' => $e->getMessage(),
@@ -162,26 +162,35 @@ class LeaveAdjustmentController extends Controller
         }
     }
 
-    
+
     /**
      * @OA\Post(
-     *     path="/api/leaves/adjustments/{id}/approve",
-     *     summary="Approve leave adjustment (Managers/HR only)",
+     *     path="/api/leaves/adjustments/{id}/approve-or-reject",
+     *     summary="Approve or Reject leave adjustment (Managers/HR only)",
+     *     description="الموافقة على أو رفض طلب التسوية",
      *     tags={"Leave Management"},
- *     security={{"bearerAuth":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
      *         required=true,
      *         @OA\Schema(type="integer")
      *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"action"},
+     *             @OA\Property(property="action", type="string", enum={"approve", "reject"}, example="approve", description="الإجراء: approve للموافقة أو reject للرفض"),
+     *             @OA\Property(property="remarks", type="string", example="موافق على الطلب", description="ملاحظات (اختياري)")
+     *         )
+     *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Leave adjustment approved successfully"
+     *         description="Leave adjustment approved or rejected successfully"
      *     )
      * )
      */
-    public function approveAdjustment(int $id)
+    public function approveAdjustment(ApproveLeaveAdjustmentRequest $request, int $id)
     {
         try {
             $user = Auth::user();
@@ -189,56 +198,85 @@ class LeaveAdjustmentController extends Controller
             if (!$isUserHasThisPermission) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'غير مصرح لك بالموافقة على الطلبات'
+                    'message' => 'غير مصرح لك بمراجعة الطلبات'
                 ], 403);
             }
 
             // استخدام المعرف الفعلي للشركة لدعم مالك الشركة
             $companyId = $this->permissionService->getEffectiveCompanyId($user);
-            Log::info('LeaveController::start', [
+            $action = $request->input('action'); // approve or reject
+
+            Log::info('LeaveAdjustmentController::Request received', [
                 'companyId' => $companyId,
-                'created by' => $user->full_name
-            ]);
-            $adjustment = $this->leaveService->approveAdjustment(
-                $id,
-                $companyId,
-                $user->user_id
-            );
-
-            Log::info('LeaveController::approveAdjustment', [
-                'success' => true,
-                'adjustment' => $adjustment,
+                'action' => $action,
                 'created by' => $user->full_name
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'تم الموافقة على طلب التسوية بنجاح',
-                'data' => $adjustment,
-                'created by' => $user->full_name
-            ]);
+            if ($action === 'approve') {
+                $adjustment = $this->leaveService->approveAdjustment(
+                    $id,
+                    $companyId,
+                    $user->user_id
+                );
+
+                Log::info('LeaveAdjustmentController::approveAdjustment', [
+                    'success' => true,
+                    'adjustment' => $adjustment,
+                    'created by' => $user->full_name
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'تم الموافقة على طلب التسوية بنجاح',
+                    'data' => $adjustment,
+                    'created by' => $user->full_name
+                ]);
+            } else {
+                // رفض التسوية
+                $remarks = $request->input('remarks', 'تم رفض الطلب');
+
+                $adjustment = $this->leaveService->rejectAdjustment(
+                    $id,
+                    $companyId,
+                    $user->user_id,
+                    $remarks
+                );
+
+                Log::info('LeaveAdjustmentController::rejectAdjustment', [
+                    'success' => true,
+                    'adjustment' => $adjustment,
+                    'created by' => $user->full_name
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'تم رفض طلب التسوية بنجاح',
+                    'data' => $adjustment,
+                    'created by' => $user->full_name
+                ]);
+            }
         } catch (\Exception $e) {
-            Log::error('LeaveController::approveAdjustment failed', [
+            Log::error('LeaveAdjustmentController::approveAdjustment failed', [
                 'error' => $e->getMessage(),
                 'created by' => $user->full_name
             ]);
             return response()->json([
                 'success' => false,
-                'message' => 'فشل في الموافقة على طلب التسوية',
+                'message' => 'فشل في مراجعة طلب التسوية',
                 'error' => $e->getMessage(),
                 'created by' => $user->full_name
             ], 500);
         }
     }
 
-    
+
     /**
      * @OA\Put(
      *     path="/api/leaves/adjustments/{id}",
      *     summary="Update a leave adjustment",
      *     description="Updates a leave adjustment. Only pending adjustments can be updated.",
      *     tags={"Leave Management"},
- *     security={{"bearerAuth":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -283,7 +321,7 @@ class LeaveAdjustmentController extends Controller
      */
     public function updateAdjustment(UpdateLeaveAdjustmentRequest $request, int $id)
     {
-        
+
         try {
             $user = Auth::user();
             $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment2');
@@ -296,14 +334,6 @@ class LeaveAdjustmentController extends Controller
             $dto = UpdateLeaveAdjustmentDTO::fromRequest($request->validated());
             $adjustment = $this->leaveService->updateAdjustment($id, $dto, $user->user_id);
 
-            if (!$adjustment) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'تسوية الإجازة غير موجودة أو غير مصرح لك بتعديلها',
-                    'created by' => $user->full_name
-                ], 404);
-            }
-
             Log::info('LeaveController::updateAdjustment', [
                 'success' => true,
                 'adjustment' => $adjustment,
@@ -315,7 +345,6 @@ class LeaveAdjustmentController extends Controller
                 'message' => 'تم تحديث تسوية الإجازة بنجاح',
                 'data' => $adjustment->toArray()
             ]);
-
         } catch (\Exception $e) {
             Log::error('LeaveController::updateAdjustment failed', [
                 'error' => $e->getMessage(),
@@ -335,7 +364,7 @@ class LeaveAdjustmentController extends Controller
      *     summary="Cancel a leave adjustment (mark as rejected)",
      *     description="Cancels a leave adjustment by marking it as rejected. The adjustment remains in the database for audit purposes.",
      *     tags={"Leave Management"},
- *     security={{"bearerAuth":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -363,7 +392,7 @@ class LeaveAdjustmentController extends Controller
      */
     public function cancelAdjustment(int $id)
     {
-        
+
         try {
             $user = Auth::user();
             $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment3');
@@ -373,15 +402,7 @@ class LeaveAdjustmentController extends Controller
                     'message' => 'غير مصرح لك بإلغاء تسويات الإجازات'
                 ], 403);
             }
-            $success = $this->leaveService->cancelAdjustment($id, $user->user_id);
-
-            if (!$success) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'تسوية الإجازة غير موجودة أو لا يمكن إلغاؤها',
-                    'created by' => $user->full_name
-                ], 404);
-            }
+            $this->leaveService->cancelAdjustment($id, $user->user_id);
 
             Log::info('LeaveController::cancelAdjustment', [
                 'success' => true,
@@ -393,7 +414,6 @@ class LeaveAdjustmentController extends Controller
                 'success' => true,
                 'message' => 'تم إلغاء تسوية الإجازة بنجاح'
             ]);
-
         } catch (\Exception $e) {
             Log::error('LeaveController::cancelAdjustment failed', [
                 'error' => $e->getMessage(),
@@ -457,7 +477,7 @@ class LeaveAdjustmentController extends Controller
     //     try {
     //         // الحصول على معرف الشركة الفعلي من attributes
     //         $effectiveCompanyId = $request->attributes->get('effective_company_id') ?? $user->company_id;
-            
+
     //         $dto = CreateLeaveSettlementDTO::fromRequest(
     //             $request->validated(),
     //             $effectiveCompanyId,

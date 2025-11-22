@@ -7,6 +7,18 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @OA\Schema(
+ *     schema="CreateLeaveSettlementRequest",
+ *     type="object",
+ *     title="Create Leave Settlement Request",
+ *     required={"leave_type_id", "hours_to_settle", "settlement_type"},
+ *     @OA\Property(property="leave_type_id", type="integer", description="Leave type ID"),
+ *     @OA\Property(property="hours_to_settle", type="number", format="float", description="Hours to settle"),
+ *     @OA\Property(property="settlement_type", type="string", description="Settlement type")
+ * )
+ */
+
 class CreateLeaveSettlementRequest extends FormRequest
 {
     /**

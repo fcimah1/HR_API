@@ -9,8 +9,57 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Base Employee Request with common validation rules and messages
+ * @OA\Schema(
+ *     schema="BaseEmployeeRequest",
+ *     type="object",
+ *     title="Base Employee Request",
+ *     required={"first_name", "last_name", "contact_number", "gender", "address_1", "address_2", "city", "state", "zipcode", "country", "profile_photo", "employee_id", "reporting_manager", "department_id", "designation_id", "office_shift_id", "basic_salary", "hourly_rate", "salary_type", "leave_categories", "role_description", "date_of_joining", "date_of_birth", "marital_status", "blood_group", "bio", "experience", "account_title", "account_number", "bank_name", "iban", "swift_code", "bank_branch", "contact_full_name", "contact_phone_no", "contact_email", "contact_address", "job_type", "assigned_hours", "is_work_from_home", "is_eqama", "branch_id", "employee_idnum"},
+ *     @OA\Property(property="first_name", type="string", description="First name"),
+ *     @OA\Property(property="last_name", type="string", description="Last name"),
+ *     @OA\Property(property="contact_number", type="string", description="Contact number"),
+ *     @OA\Property(property="gender", type="string", description="Gender"),
+ *     @OA\Property(property="address_1", type="string", description="Address line 1"),
+ *     @OA\Property(property="address_2", type="string", description="Address line 2"),
+ *     @OA\Property(property="city", type="string", description="City"),
+ *     @OA\Property(property="state", type="string", description="State"),
+ *     @OA\Property(property="zipcode", type="string", description="Zip code"),
+ *     @OA\Property(property="country", type="string", description="Country"),
+ *     @OA\Property(property="profile_photo", type="string", description="Profile photo"),
+ *     @OA\Property(property="employee_id", type="string", description="Employee ID"),
+ *     @OA\Property(property="reporting_manager", type="integer", description="Reporting manager"),
+ *     @OA\Property(property="department_id", type="integer", description="Department"),
+ *     @OA\Property(property="designation_id", type="integer", description="Designation"),
+ *     @OA\Property(property="office_shift_id", type="integer", description="Office shift"),
+ *     @OA\Property(property="basic_salary", type="string", description="Basic salary"),
+ *     @OA\Property(property="hourly_rate", type="string", description="Hourly rate"),
+ *     @OA\Property(property="salary_type", type="integer", description="Salary type"),
+ *     @OA\Property(property="leave_categories", type="string", description="Leave categories"),
+ *     @OA\Property(property="role_description", type="string", description="Role description"),
+ *     @OA\Property(property="date_of_joining", type="string", format="date", description="Date of joining"),
+ *     @OA\Property(property="date_of_birth", type="string", format="date", description="Date of birth"),
+ *     @OA\Property(property="marital_status", type="integer", description="Marital status"),
+ *     @OA\Property(property="blood_group", type="string", description="Blood group"),
+ *     @OA\Property(property="bio", type="string", description="Bio"),
+ *     @OA\Property(property="experience", type="integer", description="Experience"),
+ *     @OA\Property(property="account_title", type="string", description="Account title"),
+ *     @OA\Property(property="account_number", type="string", description="Account number"),
+ *     @OA\Property(property="bank_name", type="integer", description="Bank name"),
+ *     @OA\Property(property="iban", type="string", description="IBAN"),
+ *     @OA\Property(property="swift_code", type="string", description="SWIFT code"),
+ *     @OA\Property(property="bank_branch", type="string", description="Bank branch"),
+ *     @OA\Property(property="contact_full_name", type="string", description="Contact full name"),
+ *     @OA\Property(property="contact_phone_no", type="string", description="Contact phone number"),
+ *     @OA\Property(property="contact_email", type="string", description="Contact email"),
+ *     @OA\Property(property="contact_address", type="string", description="Contact address"),
+ *     @OA\Property(property="job_type", type="integer", description="Job type"),
+ *     @OA\Property(property="assigned_hours", type="string", description="Assigned hours"),
+ *     @OA\Property(property="is_work_from_home", type="boolean", description="Is work from home"),
+ *     @OA\Property(property="is_eqama", type="boolean", description="Is eqama"),
+ *     @OA\Property(property="branch_id", type="integer", description="Branch ID"),
+ *     @OA\Property(property="employee_idnum", type="string", description="Employee ID number")
+ * )
  */
+
 abstract class BaseEmployeeRequest extends FormRequest
 {
     /**

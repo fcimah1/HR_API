@@ -22,7 +22,7 @@ class LeaveApplicationResponseDTO
         public readonly ?bool $isHalfDay,
         public readonly ?string $leaveHours,
         public readonly ?string $remarks,
-        public readonly bool $status,
+        public readonly int $status,
         public readonly string $statusText,
         public readonly string $createdAt
     ) {}
@@ -33,17 +33,17 @@ class LeaveApplicationResponseDTO
             leaveId: $application->leave_id,
             companyId: $application->company_id,
             employeeId: $application->employee_id,
-            employeeName: $application->employee ? 
+            employeeName: $application->employee ?
                 ($application->employee->first_name . ' ' . $application->employee->last_name) : 'غير محدد',
             leaveTypeId: $application->leave_type_id,
-            leaveTypeName: $application->leaveType ? 
+            leaveTypeName: $application->leaveType ?
                 $application->leaveType->category_name : 'غير محدد',
             fromDate: $application->from_date,
             toDate: $application->to_date,
             durationDays: self::calculateDuration($application->from_date, $application->to_date),
             reason: $application->reason,
             dutyEmployeeId: $application->duty_employee_id,
-            dutyEmployeeName: $application->dutyEmployee ? 
+            dutyEmployeeName: $application->dutyEmployee ?
                 ($application->dutyEmployee->first_name . ' ' . $application->dutyEmployee->last_name) : null,
             isHalfDay: $application->is_half_day,
             leaveHours: $application->leave_hours,
@@ -72,19 +72,18 @@ class LeaveApplicationResponseDTO
 
     private static function getStatusText($status): string
     {
-        // في النظام القديم status هو boolean (0 أو 1)
-        if (is_bool($status)) {
-            return $status ? 'موافق عليه' : 'قيد المراجعة';
+        switch ($status) {
+            case 0:
+                return 'قيد المراجعة';
+            case 1:
+                return 'موافق عليه';
+            case 2:
+                return 'مرفوض';
+            case 3:
+                return 'ملغي';
+            default:
+                return 'غير محدد';
         }
-        
-        // إذا كان string
-        return match($status) {
-            'pending', '0', 0 => 'قيد المراجعة',
-            'approved', '1', 1 => 'موافق عليه',
-            'rejected' => 'مرفوض',
-            'cancelled' => 'ملغي',
-            default => 'غير محدد'
-        };
     }
 
     public function toArray(): array

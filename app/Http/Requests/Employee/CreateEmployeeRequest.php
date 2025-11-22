@@ -9,6 +9,12 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * @OA\Schema(
+ *     title="Create Employee Request",
+ *     description="Create Employee Request"
+ * )
+ */
 class CreateEmployeeRequest extends FormRequest
 {
     /**
@@ -16,8 +22,7 @@ class CreateEmployeeRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Authorization will be handled in the controller
-        return true;
+        return Auth::check();
     }
 
     /**

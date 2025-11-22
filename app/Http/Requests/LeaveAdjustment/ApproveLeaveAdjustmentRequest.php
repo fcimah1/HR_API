@@ -8,6 +8,16 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * @OA\Schema(
+ *     schema="ApproveLeaveAdjustmentRequest",
+ *     type="object",
+ *     title="Approve Leave Adjustment Request",
+ *     required={"remarks"},
+ *     @OA\Property(property="remarks", type="string", description="Remarks for approval")
+ * )
+ */
+
 class ApproveLeaveAdjustmentRequest extends FormRequest
 {
     /**
