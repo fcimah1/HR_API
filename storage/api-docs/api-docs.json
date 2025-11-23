@@ -2769,6 +2769,862 @@
                 ]
             }
         },
+        "/api/overtime/requests": {
+            "get": {
+                "tags": [
+                    "Overtime Management"
+                ],
+                "summary": "Get overtime requests list",
+                "operationId": "b8eab4ec2c4c94b1bde45ac846056c99",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by status (pending/approved/rejected)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "approved",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by employee ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "Filter from date (Y-m-d)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2025-01-01"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "Filter to date (Y-m-d)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2025-12-31"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Overtime requests retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "time_request_id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "employee_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "request_date": {
+                                                        "type": "string",
+                                                        "format": "date"
+                                                    },
+                                                    "clock_in": {
+                                                        "type": "string"
+                                                    },
+                                                    "clock_out": {
+                                                        "type": "string"
+                                                    },
+                                                    "overtime_reason": {
+                                                        "type": "integer"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "properties": {
+                                                "total": {
+                                                    "type": "integer"
+                                                },
+                                                "per_page": {
+                                                    "type": "integer"
+                                                },
+                                                "current_page": {
+                                                    "type": "integer"
+                                                },
+                                                "last_page": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Overtime Management"
+                ],
+                "summary": "Create new overtime request",
+                "operationId": "4a06dd7b3e1cc5fb6eb66a1e4b53ef62",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "request_date",
+                                    "clock_in",
+                                    "clock_out",
+                                    "overtime_reason",
+                                    "compensation_type"
+                                ],
+                                "properties": {
+                                    "request_date": {
+                                        "description": "تاريخ الطلب (يجب أن يكون بصيغة Y-m-d)",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-11-25"
+                                    },
+                                    "clock_in": {
+                                        "description": "وقت البداية (صيغة 12 ساعة مع AM/PM)",
+                                        "type": "string",
+                                        "example": "2:30 PM"
+                                    },
+                                    "clock_out": {
+                                        "description": "وقت النهاية (صيغة 12 ساعة مع AM/PM)",
+                                        "type": "string",
+                                        "example": "7:00 PM"
+                                    },
+                                    "overtime_reason": {
+                                        "description": "سبب العمل الإضافي: 1=ضغط عمل, 2=مشروع عاجل, 3=غياب زميل, 4=حالة طارئة, 5=عمل إضافي",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "additional_work_hours": {
+                                        "description": "نوع ساعات العمل الإضافية (0-3). مطلوب عند اختيار overtime_reason=5",
+                                        "type": "integer",
+                                        "example": 0
+                                    },
+                                    "compensation_type": {
+                                        "description": "نوع التعويض: 1=مالي, 2=إجازة بديلة",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "request_reason": {
+                                        "description": "سبب الطلب (اختياري، حد أقصى 1000 حرف)",
+                                        "type": "string",
+                                        "example": "عمل إضافي لإنهاء المشروع"
+                                    },
+                                    "employee_id": {
+                                        "description": "معرف الموظف (للشركة/HR فقط عند الإنشاء نيابة عن موظف)",
+                                        "type": "integer",
+                                        "example": 37
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Overtime request created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء طلب العمل الإضافي بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/overtime/requests/{id}": {
+            "get": {
+                "tags": [
+                    "Overtime Management"
+                ],
+                "summary": "Show specific overtime request",
+                "operationId": "77dbd39612d93512aa3c17b14b87ccbf",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Overtime request ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Overtime request details retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "time_request_id": {
+                                                    "type": "integer"
+                                                },
+                                                "company_id": {
+                                                    "type": "integer"
+                                                },
+                                                "staff_id": {
+                                                    "type": "integer"
+                                                },
+                                                "employee_name": {
+                                                    "type": "string"
+                                                },
+                                                "request_date": {
+                                                    "type": "string",
+                                                    "format": "date"
+                                                },
+                                                "clock_in": {
+                                                    "type": "string"
+                                                },
+                                                "clock_out": {
+                                                    "type": "string"
+                                                },
+                                                "overtime_reason": {
+                                                    "type": "integer"
+                                                },
+                                                "compensation_type": {
+                                                    "type": "integer"
+                                                },
+                                                "request_reason": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Request not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Overtime Management"
+                ],
+                "summary": "Update overtime request",
+                "operationId": "9a014d87be9a308659da89ee59f1e907",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Overtime request ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "request_date",
+                                    "clock_in",
+                                    "clock_out",
+                                    "overtime_reason",
+                                    "compensation_type"
+                                ],
+                                "properties": {
+                                    "request_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-11-25"
+                                    },
+                                    "clock_in": {
+                                        "type": "string",
+                                        "example": "2:30 PM"
+                                    },
+                                    "clock_out": {
+                                        "type": "string",
+                                        "example": "7:00 PM"
+                                    },
+                                    "overtime_reason": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "additional_work_hours": {
+                                        "type": "integer",
+                                        "example": 0
+                                    },
+                                    "compensation_type": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "request_reason": {
+                                        "type": "string",
+                                        "example": "تحديث السبب"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Overtime request updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث طلب العمل الإضافي بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Request not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Overtime Management"
+                ],
+                "summary": "Delete overtime request",
+                "operationId": "476c59033d2760ebc8ddb489fa7c65be",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Overtime request ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Overtime request deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف طلب العمل الإضافي بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Request not found"
+                    },
+                    "422": {
+                        "description": "Cannot delete approved/rejected requests"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/overtime/requests/pending": {
+            "get": {
+                "tags": [
+                    "Overtime Management"
+                ],
+                "summary": "Get pending overtime requests awaiting approval",
+                "description": "Returns all pending overtime requests that require approval by the authenticated manager/HR",
+                "operationId": "7bab574f6ce5078d7e8a56e4809e7050",
+                "responses": {
+                    "200": {
+                        "description": "Pending requests retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "time_request_id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "employee_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "request_date": {
+                                                        "type": "string",
+                                                        "format": "date"
+                                                    },
+                                                    "clock_in": {
+                                                        "type": "string"
+                                                    },
+                                                    "clock_out": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "pending"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized - Manager/HR role required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/overtime/requests/team": {
+            "get": {
+                "tags": [
+                    "Overtime Management"
+                ],
+                "summary": "Get team overtime requests",
+                "description": "Returns overtime requests for all team members",
+                "operationId": "194aae02a3cdcc13aea1ccc2ed21f111",
+                "responses": {
+                    "200": {
+                        "description": "Team requests retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "time_request_id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "employee_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "request_date": {
+                                                        "type": "string",
+                                                        "format": "date"
+                                                    },
+                                                    "clock_in": {
+                                                        "type": "string"
+                                                    },
+                                                    "clock_out": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/overtime/requests/{id}/approve": {
+            "post": {
+                "tags": [
+                    "Overtime Management"
+                ],
+                "summary": "Approve overtime request",
+                "operationId": "7b5ffd92fb6f33e3dd8da9631788bbf2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Overtime request ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "remarks": {
+                                        "description": "ملاحظات الموافقة (اختياري، حد أقصى 500 حرف)",
+                                        "type": "string",
+                                        "example": "موافق عليه"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Overtime request approved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تمت الموافقة على طلب العمل الإضافي بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized - Manager/HR role required"
+                    },
+                    "404": {
+                        "description": "Request not found"
+                    },
+                    "422": {
+                        "description": "Request already processed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/overtime/requests/{id}/reject": {
+            "post": {
+                "tags": [
+                    "Overtime Management"
+                ],
+                "summary": "Reject overtime request",
+                "operationId": "c4f1f18481d25cea65008b0c59343be9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Overtime request ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "description": "سبب الرفض (مطلوب، حد أقصى 500 حرف)",
+                                        "type": "string",
+                                        "example": "لا يوجد ضغط عمل كافي"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Overtime request rejected successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم رفض طلب العمل الإضافي"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized - Manager/HR role required"
+                    },
+                    "404": {
+                        "description": "Request not found"
+                    },
+                    "422": {
+                        "description": "Validation error or request already processed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/overtime/stats": {
+            "get": {
+                "tags": [
+                    "Overtime Management"
+                ],
+                "summary": "Get overtime statistics",
+                "description": "Returns overtime statistics including total hours, approved/rejected counts",
+                "operationId": "7c51c8c2489ce6436ab487d7532fd899",
+                "parameters": [
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "Start date for statistics (Y-m-d)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2025-01-01"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "End date for statistics (Y-m-d)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2025-12-31"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Statistics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_requests": {
+                                                    "type": "integer"
+                                                },
+                                                "approved_requests": {
+                                                    "type": "integer"
+                                                },
+                                                "rejected_requests": {
+                                                    "type": "integer"
+                                                },
+                                                "pending_requests": {
+                                                    "type": "integer"
+                                                },
+                                                "total_hours": {
+                                                    "type": "number"
+                                                },
+                                                "approved_hours": {
+                                                    "type": "number"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized - Manager/HR role required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/system-logs": {
             "get": {
                 "tags": [
@@ -3477,19 +4333,6 @@
                 "title": "Update Employee Request",
                 "description": "Update Employee Request"
             },
-            "ApproveLeaveAdjustmentRequest": {
-                "title": "Approve Leave Adjustment Request",
-                "required": [
-                    "remarks"
-                ],
-                "properties": {
-                    "remarks": {
-                        "description": "Remarks for approval",
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
             "CreateLeaveAdjustmentRequest": {
                 "title": "Create Leave Adjustment Request",
                 "required": [
@@ -3751,6 +4594,127 @@
                 },
                 "type": "object"
             },
+            "ApproveOvertimeRequestRequest": {
+                "title": "Approve Overtime Request",
+                "properties": {
+                    "remarks": {
+                        "description": "ملاحظات الموافقة (اختياري، حد أقصى 500 حرف)",
+                        "type": "string",
+                        "example": "موافق عليه"
+                    }
+                },
+                "type": "object"
+            },
+            "CreateOvertimeRequestRequest": {
+                "title": "Create Overtime Request",
+                "required": [
+                    "request_date",
+                    "clock_in",
+                    "clock_out",
+                    "overtime_reason",
+                    "compensation_type"
+                ],
+                "properties": {
+                    "request_date": {
+                        "description": "تاريخ الطلب",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2025-11-25"
+                    },
+                    "clock_in": {
+                        "description": "وقت البداية (صيغة 12 ساعة)",
+                        "type": "string",
+                        "example": "2:30 PM"
+                    },
+                    "clock_out": {
+                        "description": "وقت النهاية (صيغة 12 ساعة)",
+                        "type": "string",
+                        "example": "7:00 PM"
+                    },
+                    "overtime_reason": {
+                        "description": "سبب العمل الإضافي (1-5)",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "additional_work_hours": {
+                        "description": "نوع ساعات العمل (0-3)",
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "compensation_type": {
+                        "description": "نوع التعويض (1=مالي, 2=إجازة)",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "request_reason": {
+                        "description": "سبب الطلب",
+                        "type": "string",
+                        "example": "عمل إضافي"
+                    },
+                    "employee_id": {
+                        "description": "معرف الموظف (للشركة/HR فقط)",
+                        "type": "integer",
+                        "example": 37
+                    }
+                },
+                "type": "object"
+            },
+            "RejectOvertimeRequestRequest": {
+                "title": "Reject Overtime Request",
+                "required": [
+                    "reason"
+                ],
+                "properties": {
+                    "reason": {
+                        "description": "سبب الرفض (مطلوب، حد أقصى 500 حرف)",
+                        "type": "string",
+                        "example": "لا يوجد ضغط عمل كافي"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateOvertimeRequestRequest": {
+                "title": "Update Overtime Request",
+                "required": [
+                    "request_date",
+                    "clock_in",
+                    "clock_out",
+                    "overtime_reason",
+                    "compensation_type"
+                ],
+                "properties": {
+                    "request_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2025-11-25"
+                    },
+                    "clock_in": {
+                        "type": "string",
+                        "example": "2:30 PM"
+                    },
+                    "clock_out": {
+                        "type": "string",
+                        "example": "7:00 PM"
+                    },
+                    "overtime_reason": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "additional_work_hours": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "compensation_type": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "request_reason": {
+                        "type": "string",
+                        "example": "تحديث السبب"
+                    }
+                },
+                "type": "object"
+            },
             "CreateTravelTypeRequest": {
                 "required": [
                     "travel_name"
@@ -3949,6 +4913,10 @@
         {
             "name": "Leave Type Management",
             "description": "Leave types management"
+        },
+        {
+            "name": "Overtime Management",
+            "description": "Overtime requests management"
         },
         {
             "name": "Employees",

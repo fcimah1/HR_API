@@ -6,7 +6,6 @@ use App\DTOs\LeaveAdjustment\CreateLeaveAdjustmentDTO;
 use App\DTOs\LeaveAdjustment\LeaveAdjustmentFilterDTO;
 use App\DTOs\LeaveAdjustment\UpdateLeaveAdjustmentDTO;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\LeaveAdjustment\ApproveLeaveAdjustmentRequest;
 use App\Http\Requests\LeaveAdjustment\CreateLeaveAdjustmentRequest;
 use App\Http\Requests\LeaveAdjustment\UpdateLeaveAdjustmentRequest;
 use App\Services\LeaveAdjustmentService;
