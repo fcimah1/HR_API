@@ -11,6 +11,8 @@ use App\Repository\Interface\AdvanceSalaryRepositoryInterface;
 use App\Repository\AdvanceSalaryRepository;
 use App\Repository\Interface\LeaveAdjustmentRepositoryInterface;
 use App\Repository\LeaveAdjustmentRepository;
+use App\Repository\Interface\OvertimeRepositoryInterface;
+use App\Repository\OvertimeRepository;
 use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(LeaveRepositoryInterface::class, LeaveRepository::class);
         $this->app->singleton(LeaveAdjustmentRepositoryInterface::class, LeaveAdjustmentRepository::class);
         $this->app->singleton(AdvanceSalaryRepositoryInterface::class, AdvanceSalaryRepository::class);
+        $this->app->singleton(OvertimeRepositoryInterface::class, OvertimeRepository::class);
     }
 
     /**

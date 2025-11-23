@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\AdvanceSalaryController;
 use App\Http\Controllers\Api\LeaveAdjustmentController;
+use App\Http\Controllers\Api\OvertimeController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -95,4 +96,20 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::delete('/advances/{id}/cancel', [AdvanceSalaryController::class, 'cancel']);
     Route::get('/advances/{id}', [AdvanceSalaryController::class, 'show']);
     Route::put('/advances/{id}', [AdvanceSalaryController::class, 'update']);
+
+    // Overtime Management
+    Route::get('/overtime/requests', [OvertimeController::class, 'index']);
+    Route::post('/overtime/requests', [OvertimeController::class, 'store']);
+    Route::get('/overtime/requests/pending', [OvertimeController::class, 'pending']);
+    Route::get('/overtime/requests/team', [OvertimeController::class, 'team']);
+    Route::get('/overtime/requests/{id}', [OvertimeController::class, 'show']);
+    Route::put('/overtime/requests/{id}', [OvertimeController::class, 'update']);
+    Route::delete('/overtime/requests/{id}', [OvertimeController::class, 'destroy']);
+    
+    // Manager/HR approval endpoints for overtime
+    Route::middleware('role:company,admin,hr,manager')->group(function () {
+        Route::post('/overtime/requests/{id}/approve', [OvertimeController::class, 'approve']);
+        Route::post('/overtime/requests/{id}/reject', [OvertimeController::class, 'reject']);
+        Route::get('/overtime/stats', [OvertimeController::class, 'stats']);
+    });
 });
