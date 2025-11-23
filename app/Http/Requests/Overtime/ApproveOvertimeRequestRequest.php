@@ -4,6 +4,14 @@ namespace App\Http\Requests\Overtime;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * @OA\Schema(
+ *     schema="ApproveOvertimeRequestRequest",
+ *     type="object",
+ *     title="Approve Overtime Request",
+ *     @OA\Property(property="remarks", type="string", example="موافق عليه", description="ملاحظات الموافقة (اختياري، حد أقصى 500 حرف)")
+ * )
+ */
 class ApproveOvertimeRequestRequest extends FormRequest
 {
     /**

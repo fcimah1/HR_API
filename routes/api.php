@@ -114,7 +114,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/overtime/requests/{id}/reject', [OvertimeController::class, 'reject']);
         Route::get('/overtime/stats', [OvertimeController::class, 'stats']);
     });
-});
+
     // System Logs
     Route::middleware('role:company')->group(function () {
         Route::get('/system-logs', [App\Http\Controllers\Api\SystemLogController::class, 'index']);

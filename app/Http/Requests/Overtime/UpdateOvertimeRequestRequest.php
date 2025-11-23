@@ -5,6 +5,21 @@ namespace App\Http\Requests\Overtime;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * @OA\Schema(
+ *     schema="UpdateOvertimeRequestRequest",
+ *     type="object",
+ *     title="Update Overtime Request",
+ *     required={"request_date", "clock_in", "clock_out", "overtime_reason", "compensation_type"},
+ *     @OA\Property(property="request_date", type="string", format="date", example="2025-11-25"),
+ *     @OA\Property(property="clock_in", type="string", example="2:30 PM"),
+ *     @OA\Property(property="clock_out", type="string", example="7:00 PM"),
+ *     @OA\Property(property="overtime_reason", type="integer", example=1),
+ *     @OA\Property(property="additional_work_hours", type="integer", example=0),
+ *     @OA\Property(property="compensation_type", type="integer", example=1),
+ *     @OA\Property(property="request_reason", type="string", example="تحديث السبب")
+ * )
+ */
 class UpdateOvertimeRequestRequest extends FormRequest
 {
     /**
