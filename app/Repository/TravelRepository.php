@@ -29,20 +29,21 @@ class TravelRepository implements TravelRepositoryInterface
 
     public function findById(int $id): ?Travel
     {
-        return Travel::find($id);
+        return Travel::with(['employee', 'arrangementType:constants_id,category_name'])->find($id);
     }
 
     public function findByIdAndCompany(int $id, int $companyId): ?Travel
     {
         return Travel::where('travel_id', $id)
             ->where('company_id', $companyId)
+            ->with(['employee', 'arrangementType:constants_id,category_name'])
             ->first();
     }
 
     public function getByCompany(int $companyId, int $perPage = 15): LengthAwarePaginator
     {
         return Travel::where('company_id', $companyId)
-            ->with(['employee:user_id,first_name,last_name'])
+            ->with(['employee:user_id,first_name,last_name', 'arrangementType:constants_id,category_name'])
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
     }
@@ -50,6 +51,7 @@ class TravelRepository implements TravelRepositoryInterface
     public function getByEmployee(int $employeeId, int $perPage = 15): LengthAwarePaginator
     {
         return Travel::where('employee_id', $employeeId)
+            ->with(['employee:user_id,first_name,last_name', 'arrangementType:constants_id,category_name'])
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
     }
@@ -83,8 +85,9 @@ class TravelRepository implements TravelRepositoryInterface
             ->whereIn('status', [Travel::STATUS_PENDING, Travel::STATUS_APPROVED]) // Only check pending and approved
             ->where(function ($q) use ($startDate, $endDate) {
                 // Two date ranges overlap if: (start1 <= end2) AND (end1 >= start2)
-                $q->where('start_date', '<=', $endDate)
-                    ->where('end_date', '>=', $startDate);
+                // Use DATE() to compare only date part, ignoring time
+                $q->whereRaw('DATE(start_date) <= ?', [$endDate])
+                    ->whereRaw('DATE(end_date) >= ?', [$startDate]);
             });
 
         // Exclude current travel when updating
@@ -104,5 +107,24 @@ class TravelRepository implements TravelRepositoryInterface
         ]);
 
         return $count > 0;
+    }
+
+    public function search(int $companyId, string $query, int $perPage = 15): LengthAwarePaginator
+    {
+        return Travel::where('company_id', $companyId)
+            ->where(function ($q) use ($query) {
+                // Search by visit place
+                $q->where('visit_place', 'like', "%{$query}%")
+                    // Search by visit purpose
+                    ->orWhere('visit_purpose', 'like', "%{$query}%")
+                    // Search by employee name
+                    ->orWhereHas('employee', function ($employeeQuery) use ($query) {
+                        $employeeQuery->where('first_name', 'like', "%{$query}%")
+                            ->orWhere('last_name', 'like', "%{$query}%");
+                    });
+            })
+            ->with(['employee:user_id,first_name,last_name', 'arrangementType:constants_id,category_name'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
     }
 }

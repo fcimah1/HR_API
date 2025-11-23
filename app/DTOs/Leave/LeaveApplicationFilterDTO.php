@@ -10,6 +10,7 @@ class LeaveApplicationFilterDTO
         public readonly ?string $companyName = null,
         public readonly ?int $companyId = null,
         public readonly ?int $employeeId = null,
+        public readonly ?array $employeeIds = null,
         public readonly ?bool $status = null,
         public readonly ?int $leaveTypeId = null,
         public readonly ?string $fromDate = null,
@@ -32,11 +33,12 @@ class LeaveApplicationFilterDTO
                 $status = (bool) $data['status'];
             }
         }
-        
+
         return new self(
             companyName: $data['company_name'] ?? null,
             companyId: $data['company_id'] ?? null,
             employeeId: $data['employee_id'] ?? null,
+            employeeIds: $data['employee_ids'] ?? null,
             status: $status,
             leaveTypeId: $data['leave_type_id'] ?? null,
             fromDate: $data['from_date'] ?? null,
@@ -54,6 +56,7 @@ class LeaveApplicationFilterDTO
             'company_name' => $this->companyName,
             'company_id' => $this->companyId,
             'employee_id' => $this->employeeId,
+            'employee_ids' => $this->employeeIds,
             'status' => $this->status,
             'leave_type_id' => $this->leaveTypeId,
             'from_date' => $this->fromDate,

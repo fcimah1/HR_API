@@ -254,9 +254,6 @@ class LeaveAdjustmentService
     /**
      * Cancel leave adjustment (mark as rejected)
      */
-    /**
-     * Cancel leave adjustment (mark as rejected)
-     */
     public function cancelAdjustment(int $id, int $employeeId): bool
     {
         return DB::transaction(function () use ($id, $employeeId) {
@@ -284,6 +281,20 @@ class LeaveAdjustmentService
 
             return true;
         });
+    }
+
+    /**
+     * Get leave adjustment by ID with company validation
+     */
+    public function showLeaveAdjustment(int $id, int $companyId): ?LeaveAdjustment
+    {
+        $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $companyId);
+
+        if (!$adjustment) {
+            throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
+        }
+
+        return $adjustment;
     }
 
     // /**

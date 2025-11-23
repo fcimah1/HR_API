@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\StaffRole;
-use Illuminate\Support\Facades\Log;
 
 class SimplePermissionService
 {
@@ -14,29 +13,13 @@ class SimplePermissionService
     public function checkPermission(User $user, string $permission): bool
     {
         $userType = strtolower(trim($user->user_type ?? ''));
-        Log::info('SimplePermissionService::checkPermission', [
-            'user' => $user,
-            'permission' => $permission,
-            'created by' => $user->full_name
-        ]);
         // مستخدم الشركة له صلاحيات كاملة ولا يعتمد على جدول الأدوار
         if ($userType === 'company') {
-            Log::info('SimplePermissionService::checkPermission:company', [
-                'user' => $user,
-                'permission' => $permission,
-                'created by' => $user->full_name
-            ]);
             return true;
         }
 
         // إذا لم يكن مرتبطًا بدور صالح، فلا صلاحيات
         if ($user->user_role_id <= 0) {
-            Log::info('SimplePermissionService::error:user_role_id', [
-                'user' => $user,
-
-                'permission' => $permission,
-                'created by' => $user->full_name
-            ]);
             return false;
         }
 
@@ -45,22 +28,11 @@ class SimplePermissionService
             ->first();
 
         if (!$role) {
-            Log::info('SimplePermissionService::error:role', [
-                'user' => $user,
-                'permission' => $permission,
-                'created by' => $user->full_name
-            ]);
             return false;
         }
 
         // التحقق من وجود الصلاحية في role_resources
         $permissions = array_filter(explode(',', $role->role_resources ?? ''));
-        Log::info('SimplePermissionService::checkPermission:permissions', [
-            'user' => $user,
-            'permission' => $permission,
-            'permissions' => $permissions,
-            'created by' => $user->full_name
-        ]);
         return in_array($permission, $permissions);
     }
 

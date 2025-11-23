@@ -17,6 +17,7 @@ use App\Http\Requests\Leave\ApproveLeaveApplicationRequest;
 use App\Models\LeaveAdjustment;
 use App\Models\LeaveApplication;
 use App\Models\User;
+use App\Repository\Interface\LeaveTypeRepositoryInterface;
 use App\Services\SimplePermissionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -25,13 +26,16 @@ use Illuminate\Support\Facades\Log;
 class LeaveService
 {
     protected $leaveRepository;
+    protected $leaveTypeRepository;
     protected $permissionService;
 
     public function __construct(
         LeaveRepositoryInterface $leaveRepository,
+        LeaveTypeRepositoryInterface $leaveTypeRepository,
         SimplePermissionService $permissionService
     ) {
         $this->leaveRepository = $leaveRepository;
+        $this->leaveTypeRepository = $leaveTypeRepository;
         $this->permissionService = $permissionService;
     }
 
@@ -40,28 +44,31 @@ class LeaveService
      */
 
 
+
     public function getPaginatedApplications(LeaveApplicationFilterDTO $filters, User $user): array
     {
         // إنشاء filters جديد بناءً على صلاحيات المستخدم
         $filterData = $filters->toArray();
 
-        // إذا كان صاحب الشركة، يمكنه رؤية جميع طلبات شركته
-        if ($this->permissionService->isCompanyOwner($user)) {
+        // التحقق من نوع المستخدم (company أو staff فقط)
+        if ($user->user_type == 'company') {
+            // مدير الشركة: يرى جميع طلبات شركته
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
-        }
-        // إذا كان مدير/إداري (admin/hr/manager) في الشركة، يمكنه رؤية جميع طلبات الشركة
-        elseif (in_array(strtolower($user->user_type), ['admin', 'hr', 'manager'])) {
-            $filterData['company_id'] = $user->company_id;
-        }
-        // إذا كان موظف لديه صلاحية عرض جميع الطلبات
-        elseif ($this->permissionService->checkPermission($user, 'leave.view.all')) {
-            $filterData['company_id'] = $user->company_id;
-        }
-        // إذا كان موظف عادي، يرى طلباته الشخصية فقط
-        else {
-            $filterData['employee_id'] = $user->user_id;
-            $filterData['company_id'] = $user->company_id;
+        } else {
+            // موظف (staff): يرى طلباته + طلبات الموظفين التابعين له
+            $subordinateIds = $this->getSubordinateEmployeeIds($user->user_id);
+
+            if (!empty($subordinateIds)) {
+                // لديه موظفين تابعين: طلباته + طلبات التابعين
+                $subordinateIds[] = $user->user_id; // إضافة نفسه
+                $filterData['employee_ids'] = $subordinateIds;
+                $filterData['company_id'] = $user->company_id;
+            } else {
+                // ليس لديه موظفين تابعين: طلباته فقط
+                $filterData['employee_id'] = $user->user_id;
+                $filterData['company_id'] = $user->company_id;
+            }
         }
 
         // إنشاء DTO جديد مع البيانات المحدثة
@@ -81,6 +88,30 @@ class LeaveService
                 'has_more_pages' => $applications->hasMorePages(),
             ]
         ];
+    }
+
+    /**
+     * Get all subordinate employee IDs using recursive reporting structure
+     * 
+     * @param int $managerId
+     * @return array
+     */
+    private function getSubordinateEmployeeIds(int $managerId): array
+    {
+        $db = \Illuminate\Support\Facades\DB::connection()->getPdo();
+
+        // Recursive query to get all subordinates (same as CodeIgniter)
+        $sql = "SELECT user_id
+                FROM (SELECT * FROM `ci_erp_users_details` ORDER BY user_id) reporting_manager,
+                     (SELECT @pv := :manager_id) initialisation
+                WHERE FIND_IN_SET(reporting_manager, @pv)
+                AND LENGTH(@pv := CONCAT(@pv, ',', user_id))";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute(['manager_id' => $managerId]);
+        $results = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+
+        return array_map('intval', $results);
     }
 
     /**
@@ -424,88 +455,7 @@ class LeaveService
         return $this->leaveRepository->getLeaveStatistics($companyId,);
     }
 
-    /**
-     * Get active leave types
-     */
-    public function getActiveLeaveTypes(int $companyId): array
-    {
-        $leaveTypes = $this->leaveRepository->getActiveLeaveTypes($companyId);
 
-        return $leaveTypes->map(function ($constant) {
-            return [
-                'leave_type_id' => $constant->constants_id,
-                'leave_type_name' => $constant->leave_type_name,
-                'leave_type_short_name' => $constant->leave_type_short_name,
-                'leave_days' => $constant->leave_days,
-                'leave_type_status' => $constant->leave_type_status,
-                'company_id' => $constant->company_id,
-            ];
-        })->toArray();
-    }
-
-    /**
-     * Create leave type
-     */
-    public function createLeaveType(CreateLeaveTypeDTO $dto): array
-    {
-        return DB::transaction(function () use ($dto) {
-            Log::info('LeaveService::createLeaveType - Transaction started', [
-                'company_id' => $dto->companyId,
-                'leave_type_name' => $dto->name
-            ]);
-
-            $leaveType = $this->leaveRepository->createLeaveType($dto);
-
-            Log::info('LeaveService::createLeaveType - Transaction committed', [
-                'leave_type_id' => $leaveType->constants_id
-            ]);
-
-            return [
-                'leave_type_id' => $leaveType->constants_id,
-                'leave_type_name' => $leaveType->leave_type_name,
-                'leave_type_short_name' => $leaveType->leave_type_short_name,
-                'leave_days' => $leaveType->leave_days,
-                'leave_type_status' => $leaveType->leave_type_status,
-                'company_id' => $leaveType->company_id,
-            ];
-        });
-    }
-
-    /**
-     * Update leave type
-     */
-    public function updateLeaveType(UpdateLeaveTypeDTO $dto): array
-    {
-        return DB::transaction(function () use ($dto) {
-            Log::info('LeaveService::updateLeaveType - Transaction started', [
-                'leave_type_id' => $dto->leaveTypeId,
-                'leave_type_name' => $dto->name
-            ]);
-
-            $leaveType = $this->leaveRepository->updateLeaveType($dto);
-
-            Log::info('LeaveService::updateLeaveType - Transaction committed', [
-                'leave_type_id' => $leaveType->constants_id
-            ]);
-
-            return [
-                'leave_type_id' => $leaveType->constants_id,
-                'leave_type_name' => $leaveType->leave_type_name,
-                'leave_type_short_name' => $leaveType->leave_type_short_name,
-                'leave_days' => $leaveType->leave_days,
-                'leave_type_status' => $leaveType->leave_type_status,
-                'company_id' => $leaveType->company_id,
-            ];
-        });
-    }
-
-    /**
-     * Delete leave type
-     */
-    public function deleteLeaveType(int $leaveTypeId, int $companyId): bool
-    {
-        return $this->leaveRepository->deleteLeaveType($leaveTypeId, $companyId);
-    }
 
     /**
      * Get available leave balance for an employee
@@ -543,7 +493,19 @@ class LeaveService
         $hoursPerDay = 8.0;
 
         // Get active leave types for the company
-        $leaveTypes = $this->getActiveLeaveTypes($companyId);
+        $leaveTypesCollection = $this->leaveTypeRepository->getActiveLeaveTypes($companyId);
+
+        // Convert collection to array format expected by the rest of the method
+        $leaveTypes = $leaveTypesCollection->map(function ($constant) {
+            return [
+                'leave_type_id' => $constant->constants_id,
+                'leave_type_name' => $constant->leave_type_name,
+                'leave_type_short_name' => $constant->leave_type_short_name,
+                'leave_days' => $constant->leave_days,
+                'leave_type_status' => $constant->leave_type_status,
+                'company_id' => $constant->company_id,
+            ];
+        })->toArray();
 
         if ($leaveTypeId !== null) {
             $leaveTypes = array_values(array_filter($leaveTypes, function (array $type) use ($leaveTypeId) {
@@ -634,6 +596,118 @@ class LeaveService
             'hours_per_day' => $hoursPerDay,
             'total' => $totalsWithDays,
             'items' => $items,
+        ];
+    }
+
+    /**
+     * Get monthly leave statistics for an employee
+     * Returns detailed monthly breakdown for each leave type
+     * 
+     * @param int $employeeId
+     * @param int $companyId
+     * @return array
+     */
+    public function getMonthlyLeaveStatistics(int $employeeId, int $companyId): array
+    {
+        $currentYear = (int) date('Y');
+
+        // Get active leave types for the company
+        $leaveTypesCollection = $this->leaveTypeRepository->getActiveLeaveTypes($companyId);
+
+        // Convert collection to array
+        $leaveTypes = $leaveTypesCollection->map(function ($constant) {
+            return [
+                'leave_type_id' => $constant->constants_id,
+                'leave_type_name' => $constant->leave_type_name,
+                'leave_type_short_name' => $constant->leave_type_short_name,
+                'leave_days' => $constant->leave_days,
+                'field_one' => $constant->field_one,
+            ];
+        })->toArray();
+
+        // Get employee details for assigned_hours
+        $employee = \App\Models\User::find($employeeId);
+        $assignedHours = [];
+
+        if ($employee) {
+            $details = $employee->details()->first();
+            if ($details && !empty($details->assigned_hours)) {
+                $assignedHours = @unserialize($details->assigned_hours);
+                if (!is_array($assignedHours)) {
+                    $assignedHours = [];
+                }
+            }
+        }
+
+        $result = [];
+
+        foreach ($leaveTypes as $type) {
+            $typeId = (int) ($type['leave_type_id'] ?? 0);
+            if (!$typeId) {
+                continue;
+            }
+
+            // Get assigned hours for this leave type
+            $typeAssignedHours = $assignedHours[$typeId] ?? 0;
+
+            // Check if leave accrual is enabled for this type
+            $fieldOne = $type['field_one'] ?? '';
+            $leaveOptions = @unserialize($fieldOne);
+            $enableLeaveAccrual = false;
+
+            if (is_array($leaveOptions) && isset($leaveOptions['enable_leave_accrual'])) {
+                $enableLeaveAccrual = $leaveOptions['enable_leave_accrual'] == 1;
+            }
+
+            // Get monthly data
+            $monthlyGranted = $this->leaveRepository->getMonthlyGrantedHours($employeeId, $typeId, $companyId);
+            $monthlyUsed = $this->leaveRepository->getMonthlyUsedHours($employeeId, $typeId, $companyId, $currentYear);
+
+            // Calculate monthly remaining
+            $monthlyBreakdown = [];
+            $months = [
+                1 => 'Jan',
+                2 => 'Feb',
+                3 => 'Mar',
+                4 => 'Apr',
+                5 => 'May',
+                6 => 'Jun',
+                7 => 'Jul',
+                8 => 'Aug',
+                9 => 'Sep',
+                10 => 'Oct',
+                11 => 'Nov',
+                12 => 'Dec'
+            ];
+
+            foreach ($months as $monthNum => $monthName) {
+                $granted = $monthlyGranted[$monthNum] ?? 0.0;
+                $used = $monthlyUsed[$monthNum] ?? 0.0;
+                $remaining = $granted - $used;
+
+                $monthlyBreakdown[$monthNum] = [
+                    'month_name' => $monthName,
+                    'granted' => (float) $granted,
+                    'used' => (float) $used,
+                    'remaining' => (float) $remaining,
+                ];
+            }
+
+            $result[] = [
+                'leave_type_id' => $typeId,
+                'leave_type_name' => $type['leave_type_name'] ?? null,
+                'leave_type_short_name' => $type['leave_type_short_name'] ?? null,
+                'assigned_hours' => (float) $typeAssignedHours,
+                'enable_leave_accrual' => $enableLeaveAccrual,
+                'monthly_breakdown' => $monthlyBreakdown,
+            ];
+        }
+
+        return [
+            'employee_id' => $employeeId,
+            'company_id' => $companyId,
+            'year' => $currentYear,
+            'leave_types' => $result,
         ];
     }
 }

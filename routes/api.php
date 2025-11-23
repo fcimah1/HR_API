@@ -31,30 +31,26 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
 
-    // Employee routes - require specific roles
-    Route::middleware('role:company,admin,hr,manager')->group(function () {
-        // Employee management
-        Route::get('/employees', [EmployeeController::class, 'index']);
-        Route::get('/employees/stats', [EmployeeController::class, 'stats']);
-        Route::get('/employees/search', [EmployeeController::class, 'search']);
-        Route::get('/employees/by-type/{type}', [EmployeeController::class, 'getByType']);
-        Route::get('/employees/{id}', [EmployeeController::class, 'show']);
+    // Employee management
+    Route::get('/employees', [EmployeeController::class, 'index']);
+    Route::get('/employees/stats', [EmployeeController::class, 'stats']);
+    Route::get('/employees/search', [EmployeeController::class, 'search']);
+    Route::get('/employees/by-type/{type}', [EmployeeController::class, 'getByType']);
+    Route::get('/employees/{id}', [EmployeeController::class, 'show']);
 
-        // Employee filters and exports
-        Route::get('/employees/export/pdf', [EmployeeController::class, 'exportPdf']);
-        Route::get('/employees/export/pdf/detailed', [EmployeeController::class, 'exportDetailedPdf']);
-        Route::get('/employees/export/pdf/arabic', [EmployeeController::class, 'exportArabicPdf']);
-        Route::get('/employees/export/pdf/arabic-full', [EmployeeController::class, 'exportFullArabicPdf']);
-        Route::get('/employees/active', [EmployeeController::class, 'getActiveEmployees']);
-        Route::get('/employees/inactive', [EmployeeController::class, 'getInactiveEmployees']);
-    });
+    // Employee filters and exports
+    Route::get('/employees/export/pdf', [EmployeeController::class, 'exportPdf']);
+    Route::get('/employees/export/pdf/detailed', [EmployeeController::class, 'exportDetailedPdf']);
+    Route::get('/employees/export/pdf/arabic', [EmployeeController::class, 'exportArabicPdf']);
+    Route::get('/employees/export/pdf/arabic-full', [EmployeeController::class, 'exportFullArabicPdf']);
+    Route::get('/employees/active', [EmployeeController::class, 'getActiveEmployees']);
+    Route::get('/employees/inactive', [EmployeeController::class, 'getInactiveEmployees']);
+
 
     // Employee CRUD - require admin/hr roles only
-    Route::middleware('role:company,admin,hr')->group(function () {
-        Route::post('/employees', [EmployeeController::class, 'store']);
-        Route::put('/employees/{id}', [EmployeeController::class, 'update']);
-        Route::delete('/employees/{id}', [EmployeeController::class, 'destroy']);
-    });
+    Route::post('/employees', [EmployeeController::class, 'store']);
+    Route::put('/employees/{id}', [EmployeeController::class, 'update']);
+    Route::delete('/employees/{id}', [EmployeeController::class, 'destroy']);
 
 
     // Leave Management with Simple Permission Checks
@@ -69,6 +65,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::post('/leaves/adjustments', [LeaveAdjustmentController::class, 'createAdjustment']);
     // Note: More specific routes must come before general ones
     Route::delete('/leaves/adjustments/{id}/cancel', [LeaveAdjustmentController::class, 'cancelAdjustment']);
+    Route::get('/leaves/adjustments/{id}', [LeaveAdjustmentController::class, 'showLeaveAdjustment']);
     Route::put('/leaves/adjustments/{id}', [LeaveAdjustmentController::class, 'updateAdjustment']);
 
     Route::get('/leaves/types', [LeaveController::class, 'getLeaveTypes']);
@@ -78,6 +75,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
 
     // Leave balance check & settlement
     Route::get('/leaves/check-balance', [LeaveController::class, 'checkLeaveBalance']);
+    Route::get('/leaves/monthly-statistics', [LeaveController::class, 'getMonthlyStatistics']);
     // Route::post('/leaves/settlement', [LeaveController::class, 'settleLeave']);
     Route::get('/leaves/stats', [LeaveController::class, 'getStats']);
     Route::post('/leaves/applications/{id}/approve-or-reject', [LeaveController::class, 'approveApplication']);
@@ -99,6 +97,13 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::get('/advances/{id}', [AdvanceSalaryController::class, 'show']);
     Route::put('/advances/{id}', [AdvanceSalaryController::class, 'update']);
 
+    // Leave Type Management
+    Route::get('/leave-types', [App\Http\Controllers\Api\LeaveTypeController::class, 'index']);
+    Route::post('/leave-types', [App\Http\Controllers\Api\LeaveTypeController::class, 'storeLeaveType']);
+    Route::get('/leave-types/{id}', [App\Http\Controllers\Api\LeaveTypeController::class, 'showLeaveType']);
+    Route::put('/leave-types/{id}', [App\Http\Controllers\Api\LeaveTypeController::class, 'updateLeaveType']);
+    Route::delete('/leave-types/{id}', [App\Http\Controllers\Api\LeaveTypeController::class, 'destroyLeaveType']);
+
     // Overtime Management
     Route::get('/overtime/requests', [OvertimeController::class, 'index']);
     Route::post('/overtime/requests', [OvertimeController::class, 'store']);
@@ -107,7 +112,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::get('/overtime/requests/{id}', [OvertimeController::class, 'show']);
     Route::put('/overtime/requests/{id}', [OvertimeController::class, 'update']);
     Route::delete('/overtime/requests/{id}', [OvertimeController::class, 'destroy']);
-    
+
     // Manager/HR approval endpoints for overtime
     Route::middleware('role:company,admin,hr,manager')->group(function () {
         Route::post('/overtime/requests/{id}/approve', [OvertimeController::class, 'approve']);
@@ -122,9 +127,18 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
 
     // Travel Management
     Route::get('/travels', [App\Http\Controllers\Api\TravelController::class, 'index']);
-    Route::post('/travels', [App\Http\Controllers\Api\TravelController::class, 'store']);
-    Route::get('/travels/{id}', [App\Http\Controllers\Api\TravelController::class, 'show']);
-    Route::put('/travels/{id}', [App\Http\Controllers\Api\TravelController::class, 'update']);
-    Route::delete('/travels/{id}', [App\Http\Controllers\Api\TravelController::class, 'cancel']);
+    Route::post('/travels', [App\Http\Controllers\Api\TravelController::class, 'storeTravel']);
+    Route::get('/travels/search', [App\Http\Controllers\Api\TravelController::class, 'search']);
+    Route::get('/travels/{id}', [App\Http\Controllers\Api\TravelController::class, 'showTravel']);
+    Route::put('/travels/{id}', [App\Http\Controllers\Api\TravelController::class, 'updateTravel']);
+    Route::delete('/travels/{id}', [App\Http\Controllers\Api\TravelController::class, 'cancelTravel']);
     Route::post('/travels/{id}/approve-or-reject', [App\Http\Controllers\Api\TravelController::class, 'approveTravel']);
+
+    // Travel Type Management
+    Route::get('/travel-types', [App\Http\Controllers\Api\TravelTypeController::class, 'index']);
+    Route::post('/travel-types', [App\Http\Controllers\Api\TravelTypeController::class, 'storeTravelType']);
+    Route::get('/travel-types/search', [App\Http\Controllers\Api\TravelTypeController::class, 'search']);
+    Route::get('/travel-types/{id}', [App\Http\Controllers\Api\TravelTypeController::class, 'showTravelType']);
+    Route::put('/travel-types/{id}', [App\Http\Controllers\Api\TravelTypeController::class, 'updateTravelType']);
+    Route::delete('/travel-types/{id}', [App\Http\Controllers\Api\TravelTypeController::class, 'destroyTravelType']);
 });

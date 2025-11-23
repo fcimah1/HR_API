@@ -6,8 +6,7 @@ use App\DTOs\Leave\LeaveApplicationFilterDTO;
 use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
 use App\Models\LeaveApplication;
-use App\DTOs\Leave\CreateLeaveTypeDTO;
-use App\DTOs\Leave\UpdateLeaveTypeDTO;
+
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -58,25 +57,7 @@ interface LeaveRepositoryInterface
      */
     public function getLeaveStatistics(int $companyId): array;
 
-    /**
-     * Get active leave types for company
-     */
-    public function getActiveLeaveTypes(int $companyId): Collection;
 
-    /**
-     * Create leave type
-     */
-    public function createLeaveType(CreateLeaveTypeDTO $dto) :object;
-
-    /**
-     * Update leave type
-     */
-    public function updateLeaveType(UpdateLeaveTypeDTO $dto) :object;
-
-    /**
-     * Delete leave type
-     */
-    public function deleteLeaveType(int $leaveTypeId, int $companyId): bool;
 
     /**
      * Get total granted leave for an employee
@@ -93,10 +74,32 @@ interface LeaveRepositoryInterface
      */
     public function getPendingLeaveHours(int $employeeId, int $leaveTypeId, int $companyId): float;
 
-    
+
     /**
      * Get total approved adjustment hours for an employee (in hours)
      */
     public function getTotalAdjustmentHours(int $employeeId, int $leaveTypeId, int $companyId): float;
 
+    /**
+     * Get monthly granted hours for a leave type
+     * Returns array with month number as key and granted hours as value
+     * 
+     * @param int $employeeId
+     * @param int $leaveTypeId
+     * @param int $companyId
+     * @return array [1 => 13.33, 2 => 13.33, ...]
+     */
+    public function getMonthlyGrantedHours(int $employeeId, int $leaveTypeId, int $companyId): array;
+
+    /**
+     * Get monthly used hours for a leave type
+     * Returns array with month number as key and used hours as value
+     * 
+     * @param int $employeeId
+     * @param int $leaveTypeId
+     * @param int $companyId
+     * @param int $year
+     * @return array [1 => 8.0, 2 => 0.0, ...]
+     */
+    public function getMonthlyUsedHours(int $employeeId, int $leaveTypeId, int $companyId, int $year): array;
 }
