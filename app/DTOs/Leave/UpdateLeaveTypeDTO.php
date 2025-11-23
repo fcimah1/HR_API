@@ -2,10 +2,10 @@
 
 namespace App\DTOs\Leave;
 
-class CreateLeaveTypeDTO
+class UpdateLeaveTypeDTO
 {
     public function __construct(
-        public readonly int $companyId,
+        public readonly int $leaveTypeId,
         public readonly string $name,
         public readonly bool $requiresApproval = true,
         public readonly bool $isPaidLeave = false,
@@ -18,7 +18,7 @@ class CreateLeaveTypeDTO
         public readonly array $quotaAssign = [],
     ) {}
 
-    public static function fromRequest(array $data, int $companyId): self
+    public static function fromRequest(array $data): self
     {
         $requiresApproval = array_key_exists('requires_approval', $data)
             ? (bool) $data['requires_approval']
@@ -57,7 +57,7 @@ class CreateLeaveTypeDTO
             : [];
 
         return new self(
-            companyId: $companyId,
+            leaveTypeId: $data['leave_type_id'],
             name: $data['leave_type_name'],
             requiresApproval: $requiresApproval,
             isPaidLeave: $isPaidLeave,
@@ -91,14 +91,11 @@ class CreateLeaveTypeDTO
         ];
 
         return [
-            'company_id' => $this->companyId,
-            'type' => 'leave_type',
             'category_name' => $this->name,
             'field_one' => serialize($options),
             'field_two' => $this->requiresApproval ? 1 : 0,
             'field_three' => $this->isPaidLeave ? 1 : 0,
-            'created_at' => now()->format('Y-m-d H:i:s'),
+            'updated_at' => now()->format('Y-m-d H:i:s'),
         ];
     }
 }
-

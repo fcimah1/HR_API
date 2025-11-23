@@ -1,0 +1,51 @@
+<?php
+
+namespace App\DTOs\Travel;
+
+class UpdateTravelDTO
+{
+    public function __construct(
+        public ?string $start_date = null,
+        public ?string $end_date = null,
+        public ?string $visit_purpose = null,
+        public ?string $visit_place = null,
+        public ?int $travel_mode = null,
+        public ?int $arrangement_type = null,
+        public ?float $expected_budget = null,
+        public ?float $actual_budget = null,
+        public ?string $description = null,
+        public ?string $associated_goals = null,
+    ) {}
+
+    public static function fromRequest($request): self
+    {
+        return new self(
+            start_date: $request->input('start_date'),
+            end_date: $request->input('end_date'),
+            visit_purpose: $request->input('visit_purpose'),
+            visit_place: $request->input('visit_place'),
+            travel_mode: $request->input('travel_mode'),
+            arrangement_type: $request->input('arrangement_type'),
+            expected_budget: $request->input('expected_budget'),
+            actual_budget: $request->input('actual_budget'),
+            description: $request->input('description'),
+            associated_goals: $request->input('associated_goals') ? implode(',', $request->input('associated_goals')) : null
+        );
+    }
+
+    public function toArray(): array
+    {
+        return array_filter([
+            'start_date' => $this->start_date,
+            'end_date' => $this->end_date,
+            'visit_purpose' => $this->visit_purpose,
+            'visit_place' => $this->visit_place,
+            'travel_mode' => $this->travel_mode,
+            'arrangement_type' => $this->arrangement_type,
+            'expected_budget' => $this->expected_budget,
+            'actual_budget' => $this->actual_budget,
+            'description' => $this->description,
+            'associated_goals' => $this->associated_goals,
+        ], fn($value) => !is_null($value));
+    }
+}

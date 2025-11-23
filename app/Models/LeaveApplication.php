@@ -36,19 +36,24 @@ class LeaveApplication extends Model
         'leave_attachment',
         'created_at',
     ];
-    protected $allowedFields = ['leave_id','company_id','employee_id','leave_type_id','from_date','to_date','particular_date','leave_hours','reason','leave_month','leave_year','remarks','status','is_half_day','leave_attachment','created_at','duty_employee_id'];
+    protected $allowedFields = ['leave_id', 'company_id', 'employee_id', 'leave_type_id', 'from_date', 'to_date', 'particular_date', 'leave_hours', 'reason', 'leave_month', 'leave_year', 'remarks', 'status', 'is_half_day', 'leave_attachment', 'created_at', 'duty_employee_id'];
 
     /**
      * The attributes that should be cast.
      */
     protected $casts = [
-        'status' => 'boolean',
+        'status' => 'integer',
         'is_half_day' => 'boolean',
         'company_id' => 'integer',
         'employee_id' => 'integer',
         'duty_employee_id' => 'integer',
         'leave_type_id' => 'integer',
     ];
+
+
+    const STATUS_PENDING = 0;
+    const STATUS_APPROVED = 1;
+    const STATUS_REJECTED = 2;
 
     /**
      * Get the employee who applied for leave
@@ -91,9 +96,9 @@ class LeaveApplication extends Model
     }
 
     /**
-     * Filter by status (approved/pending)
+     * Filter by status
      */
-    public function scopeWithStatus(Builder $query, bool $status): Builder
+    public function scopeWithStatus(Builder $query, int $status): Builder
     {
         return $query->where('status', $status);
     }
@@ -103,7 +108,7 @@ class LeaveApplication extends Model
      */
     public function scopePending(Builder $query): Builder
     {
-        return $query->where('status', false);
+        return $query->where('status', self::STATUS_PENDING);
     }
 
     /**
@@ -111,6 +116,6 @@ class LeaveApplication extends Model
      */
     public function scopeApproved(Builder $query): Builder
     {
-        return $query->where('status', true);
+        return $query->where('status', self::STATUS_APPROVED);
     }
 }

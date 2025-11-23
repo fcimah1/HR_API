@@ -6,7 +6,15 @@ use Illuminate\Validation\Rule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+
+/**
+ * @OA\Schema(
+ *     title="Update Employee Request",
+ *     description="Update Employee Request"
+ * )
+ */
 
 class UpdateEmployeeRequest extends FormRequest
 {
@@ -15,8 +23,7 @@ class UpdateEmployeeRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Authorization will be handled in the controller
-        return true;
+        return Auth::check();
     }
 
     /**

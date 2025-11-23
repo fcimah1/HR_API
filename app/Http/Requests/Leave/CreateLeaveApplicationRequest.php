@@ -7,6 +7,23 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * @OA\Schema(
+ *     schema="CreateLeaveApplicationRequest",
+ *     type="object",
+ *     title="Create Leave Application Request",
+ *     required={"leave_type_id", "from_date", "to_date", "reason", "duty_employee_id", "is_half_day", "leave_hours", "remarks"},
+ *     @OA\Property(property="leave_type_id", type="integer", description="Leave type ID"),
+ *     @OA\Property(property="from_date", type="string", format="date", description="From date"),
+ *     @OA\Property(property="to_date", type="string", format="date", description="To date"),
+ *     @OA\Property(property="reason", type="string", description="Reason for leave"),
+ *     @OA\Property(property="duty_employee_id", type="integer", description="Duty employee ID"),
+ *     @OA\Property(property="is_half_day", type="boolean", description="Is half day"),
+ *     @OA\Property(property="leave_hours", type="string", description="Leave hours"),
+ *     @OA\Property(property="remarks", type="string", description="Remarks")
+ * )
+ */
+
 class CreateLeaveApplicationRequest extends FormRequest
 {
     /**

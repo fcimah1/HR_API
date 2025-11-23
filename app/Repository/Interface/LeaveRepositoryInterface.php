@@ -7,6 +7,7 @@ use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
 use App\Models\LeaveApplication;
 use App\DTOs\Leave\CreateLeaveTypeDTO;
+use App\DTOs\Leave\UpdateLeaveTypeDTO;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -66,6 +67,16 @@ interface LeaveRepositoryInterface
      * Create leave type
      */
     public function createLeaveType(CreateLeaveTypeDTO $dto) :object;
+
+    /**
+     * Update leave type
+     */
+    public function updateLeaveType(UpdateLeaveTypeDTO $dto) :object;
+
+    /**
+     * Delete leave type
+     */
+    public function deleteLeaveType(int $leaveTypeId, int $companyId): bool;
 
     /**
      * Get total granted leave for an employee

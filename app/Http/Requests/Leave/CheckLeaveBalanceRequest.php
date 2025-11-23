@@ -7,6 +7,17 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @OA\Schema(
+ *     schema="CheckLeaveBalanceRequest",
+ *     type="object",
+ *     title="Check Leave Balance Request",
+ *     required={"leave_type_id", "employee_id"},
+ *     @OA\Property(property="leave_type_id", type="integer", description="Leave type ID"),
+ *     @OA\Property(property="employee_id", type="integer", description="Employee ID")
+ * )
+ */
+
 class CheckLeaveBalanceRequest extends FormRequest
 {
     /**

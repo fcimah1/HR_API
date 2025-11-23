@@ -30,7 +30,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
-    
+
     // Employee routes - require specific roles
     Route::middleware('role:company,admin,hr,manager')->group(function () {
         // Employee management
@@ -39,7 +39,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('/employees/search', [EmployeeController::class, 'search']);
         Route::get('/employees/by-type/{type}', [EmployeeController::class, 'getByType']);
         Route::get('/employees/{id}', [EmployeeController::class, 'show']);
-        
+
         // Employee filters and exports
         Route::get('/employees/export/pdf', [EmployeeController::class, 'exportPdf']);
         Route::get('/employees/export/pdf/detailed', [EmployeeController::class, 'exportDetailedPdf']);
@@ -64,34 +64,36 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::delete('/leaves/applications/{id}/cancel', [LeaveController::class, 'cancelApplication']);
     Route::put('/leaves/applications/{id}', [LeaveController::class, 'updateApplication']);
     Route::get('/leaves/applications/{id}', [LeaveController::class, 'showApplication']);
-    
+
     Route::get('/leaves/adjustments', [LeaveAdjustmentController::class, 'getAdjustments']);
-    Route::post('/leaves/adjustments',[LeaveAdjustmentController::class, 'createAdjustment']);
+    Route::post('/leaves/adjustments', [LeaveAdjustmentController::class, 'createAdjustment']);
     // Note: More specific routes must come before general ones
     Route::delete('/leaves/adjustments/{id}/cancel', [LeaveAdjustmentController::class, 'cancelAdjustment']);
     Route::put('/leaves/adjustments/{id}', [LeaveAdjustmentController::class, 'updateAdjustment']);
-    
+
     Route::get('/leaves/types', [LeaveController::class, 'getLeaveTypes']);
     Route::post('/leaves/types', [LeaveController::class, 'createLeaveType']);
+    Route::put('/leaves/types/{id}', [LeaveController::class, 'updateLeaveType']);
+    Route::delete('/leaves/types/{id}', [LeaveController::class, 'deleteLeaveType']);
 
     // Leave balance check & settlement
     Route::get('/leaves/check-balance', [LeaveController::class, 'checkLeaveBalance']);
     // Route::post('/leaves/settlement', [LeaveController::class, 'settleLeave']);
     Route::get('/leaves/stats', [LeaveController::class, 'getStats']);
-    Route::post('/leaves/applications/{id}/approve', [LeaveController::class, 'approveApplication']);
-    Route::post('/leaves/adjustments/{id}/approve', [LeaveAdjustmentController::class, 'approveAdjustment']);
-    
+    Route::post('/leaves/applications/{id}/approve-or-reject', [LeaveController::class, 'approveApplication']);
+    Route::post('/leaves/adjustments/{id}/approve-or-reject', [LeaveAdjustmentController::class, 'approveAdjustment']);
+
 
     // Advance Salary & Loan Management
     Route::get('/advances', [AdvanceSalaryController::class, 'index']);
     Route::post('/advances', [AdvanceSalaryController::class, 'store']);
-    
+
     // Manager/HR only endpoints for advance salary/loan management (must come before {id} routes)
     Route::middleware('role:company,admin,hr,manager')->group(function () {
         Route::get('/advances/stats', [AdvanceSalaryController::class, 'stats']);
         Route::post('/advances/{id}/approve', [AdvanceSalaryController::class, 'approve']);
     });
-    
+
     // Note: More specific routes must come before general ones
     Route::delete('/advances/{id}/cancel', [AdvanceSalaryController::class, 'cancel']);
     Route::get('/advances/{id}', [AdvanceSalaryController::class, 'show']);
@@ -112,4 +114,17 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/overtime/requests/{id}/reject', [OvertimeController::class, 'reject']);
         Route::get('/overtime/stats', [OvertimeController::class, 'stats']);
     });
+});
+    // System Logs
+    Route::middleware('role:company')->group(function () {
+        Route::get('/system-logs', [App\Http\Controllers\Api\SystemLogController::class, 'index']);
+    });
+
+    // Travel Management
+    Route::get('/travels', [App\Http\Controllers\Api\TravelController::class, 'index']);
+    Route::post('/travels', [App\Http\Controllers\Api\TravelController::class, 'store']);
+    Route::get('/travels/{id}', [App\Http\Controllers\Api\TravelController::class, 'show']);
+    Route::put('/travels/{id}', [App\Http\Controllers\Api\TravelController::class, 'update']);
+    Route::delete('/travels/{id}', [App\Http\Controllers\Api\TravelController::class, 'cancel']);
+    Route::post('/travels/{id}/approve-or-reject', [App\Http\Controllers\Api\TravelController::class, 'approveTravel']);
 });

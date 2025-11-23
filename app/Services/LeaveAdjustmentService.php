@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 
 class LeaveAdjustmentService
 {
-    protected $permissionService;   
+    protected $permissionService;
     protected $leaveService;
     protected $leaveAdjustmentRepository;
 
@@ -35,21 +35,21 @@ class LeaveAdjustmentService
     public function getAdjustments(int $userId): array
     {
         $user = User::findOrFail($userId);
-        
+
         // Create filter array instead of DTO directly
         $filterData = [];
-        
+
         // Apply company filter based on user permissions
         if ($this->permissionService->isCompanyOwner($user)) {
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
         }
-        
+
         // Create DTO from filter data
-        $filters = LeaveAdjustmentFilterDTO::fromRequest($filterData,$user);
-        
-        $adjustments = $this->leaveAdjustmentRepository->getPaginatedAdjustments($filters,$user);
-        
+        $filters = LeaveAdjustmentFilterDTO::fromRequest($filterData, $user);
+
+        $adjustments = $this->leaveAdjustmentRepository->getPaginatedAdjustments($filters, $user);
+
         return [
             'created_by' => $user->full_name,
             'company_id' => $user->company_id,
@@ -63,7 +63,7 @@ class LeaveAdjustmentService
         ];
     }
 
-    
+
     /**
      * Get paginated leave adjustments
      */
@@ -71,12 +71,12 @@ class LeaveAdjustmentService
     {
         // إنشاء filters جديد بناءً على صلاحيات المستخدم
         $filterData = $filters->toArray();
-        
+
         // إذا كان صاحب الشركة، يمكنه رؤية جميع طلبات شركته
         if ($this->permissionService->isCompanyOwner($user)) {
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
-        } 
+        }
         // إذا كان مدير/إداري (admin/hr/manager) في الشركة، يمكنه رؤية جميع طلبات الشركة
         elseif (in_array(strtolower($user->user_type), ['admin', 'hr', 'manager'])) {
             $filterData['company_id'] = $user->company_id;
@@ -114,12 +114,13 @@ class LeaveAdjustmentService
      */
     public function createAdjust(CreateLeaveAdjustmentDTO $data): array
     {
-        try {
-            Log::info('LeaveService::createAdjustment started', [
-                'data' => $data->adjustHours,
-                'user_id' => $data->employeeId,
-                'company_id' => $data->companyId
+        return DB::transaction(function () use ($data) {
+            Log::info('LeaveAdjustmentService::createAdjustment - Transaction started', [
+                'employee_id' => $data->employeeId,
+                'leave_type_id' => $data->leaveTypeId,
+                'adjust_hours' => $data->adjustHours
             ]);
+
             // إذا كانت التسوية خصم من رصيد الإجازات (ساعات سالبة)، تحقق من أن الرصيد يكفي
             if ($data->adjustHours < 0) {
                 $availableBalance = $this->leaveService->getAvailableLeaveBalance(
@@ -127,7 +128,8 @@ class LeaveAdjustmentService
                     $data->leaveTypeId,
                     $data->companyId
                 );
-                Log::info('LeaveService::createAdjustment availableBalance', [
+
+                Log::info('LeaveAdjustmentService::createAdjustment availableBalance', [
                     'availableBalance' => $availableBalance,
                     'user_id' => $data->employeeId,
                     'company_id' => $data->companyId
@@ -143,21 +145,14 @@ class LeaveAdjustmentService
             }
 
             $adjustment = $this->leaveAdjustmentRepository->createAdjust($data);
-            Log::info('LeaveService::createAdjustment success', [
-                'adjustment' => $adjustment,
-                'user_id' => $adjustment->employee_id,
-                'company_id' => $adjustment->company_id,
-                'created_by' => $adjustment->full_name
+
+            Log::info('LeaveAdjustmentService::createAdjustment - Transaction committed', [
+                'adjustment_id' => $adjustment->id,
+                'employee_id' => $adjustment->employee_id
             ]);
+
             return $adjustment->toArray();
-         
-        } catch (\Exception $e) {
-            Log::error('Create Adjustment Error', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -165,60 +160,130 @@ class LeaveAdjustmentService
      */
     public function approveAdjustment(int $id, int $companyId, int $approvedBy): LeaveAdjustment
     {
-        $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $companyId);
+        return DB::transaction(function () use ($id, $companyId, $approvedBy) {
+            Log::info('LeaveAdjustmentService::approveAdjustment - Transaction started', [
+                'adjustment_id' => $id,
+                'approved_by' => $approvedBy
+            ]);
 
-        if (!$adjustment) {
-            throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
-        }
+            $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $companyId);
 
+            if (!$adjustment) {
+                throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
+            }
 
-        if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
-            throw new \Exception('لا يمكن الموافقة على هذا الطلب لأنه تم معالجته مسبقاً');
-        }
+            if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
+                throw new \Exception('لا يمكن الموافقة على هذا الطلب لأنه تم معالجته مسبقاً');
+            }
 
-        $approvedAdjustment = $this->leaveAdjustmentRepository->approveAdjustment($adjustment, $approvedBy);
-        return $approvedAdjustment;
+            $approvedAdjustment = $this->leaveAdjustmentRepository->approveAdjustment($adjustment, $approvedBy);
+
+            Log::info('LeaveAdjustmentService::approveAdjustment - Transaction committed', [
+                'adjustment_id' => $approvedAdjustment->id
+            ]);
+
+            return $approvedAdjustment;
+        });
     }
 
+    /**
+     * Reject leave adjustment
+     */
+    public function rejectAdjustment(int $id, int $companyId, int $rejectedBy, string $reason): LeaveAdjustment
+    {
+        return DB::transaction(function () use ($id, $companyId, $rejectedBy, $reason) {
+            Log::info('LeaveAdjustmentService::rejectAdjustment - Transaction started', [
+                'adjustment_id' => $id,
+                'rejected_by' => $rejectedBy
+            ]);
 
+            $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $companyId);
+
+            if (!$adjustment) {
+                throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
+            }
+
+            if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
+                throw new \Exception('لا يمكن رفض هذا الطلب لأنه تم معالجته مسبقاً');
+            }
+
+            $rejectedAdjustment = $this->leaveAdjustmentRepository->rejectAdjustment($adjustment, $rejectedBy, $reason);
+
+            Log::info('LeaveAdjustmentService::rejectAdjustment - Transaction committed', [
+                'adjustment_id' => $rejectedAdjustment->id
+            ]);
+
+            return $rejectedAdjustment;
+        });
+    }
+
+    /**
+     * Update leave adjustment
+     */
     /**
      * Update leave adjustment
      */
     public function updateAdjustment(int $id, UpdateLeaveAdjustmentDTO $dto, int $employeeId): ?LeaveAdjustment
     {
-        $adjustment = $this->leaveAdjustmentRepository->findAdjustmentForEmployee($id, $employeeId);
+        return DB::transaction(function () use ($id, $dto, $employeeId) {
+            Log::info('LeaveAdjustmentService::updateAdjustment - Transaction started', [
+                'adjustment_id' => $id,
+                'employee_id' => $employeeId
+            ]);
 
-        if (!$adjustment) {
-            return null;
-        }
+            $adjustment = $this->leaveAdjustmentRepository->findAdjustmentForEmployee($id, $employeeId);
 
-        if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
-            throw new \Exception('لا يمكن تعديل التسوية بعد المراجعة');
-        }
+            if (!$adjustment) {
+                throw new \Exception('التسوية غير موجودة');
+            }
 
-        $updatedAdjustment = $this->leaveAdjustmentRepository->updateAdjustment($adjustment, $dto);
-        return $updatedAdjustment;
+            if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
+                throw new \Exception('لا يمكن تعديل التسوية بعد المراجعة');
+            }
+
+            $updatedAdjustment = $this->leaveAdjustmentRepository->updateAdjustment($adjustment, $dto);
+
+            Log::info('LeaveAdjustmentService::updateAdjustment - Transaction committed', [
+                'adjustment_id' => $updatedAdjustment->id
+            ]);
+
+            return $updatedAdjustment;
+        });
     }
 
     /**
      * Cancel leave adjustment (mark as rejected)
      */
+    /**
+     * Cancel leave adjustment (mark as rejected)
+     */
     public function cancelAdjustment(int $id, int $employeeId): bool
     {
-        $adjustment = $this->leaveAdjustmentRepository->findAdjustmentForEmployee($id, $employeeId);
-        
-        if (!$adjustment) {
-            return false;
-        }
+        return DB::transaction(function () use ($id, $employeeId) {
+            Log::info('LeaveAdjustmentService::cancelAdjustment - Transaction started', [
+                'adjustment_id' => $id,
+                'employee_id' => $employeeId
+            ]);
 
-        if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
-            throw new \Exception('لا يمكن إلغاء التسوية بعد المراجعة');
-        }
+            $adjustment = $this->leaveAdjustmentRepository->findAdjustmentForEmployee($id, $employeeId);
 
-        // Mark as rejected (keeps record in database)
-        $this->leaveAdjustmentRepository->cancelAdjustment($adjustment, $employeeId, 'تم إلغاء التسوية من قبل الموظف');
-        
-        return true;
+            if (!$adjustment) {
+                throw new \Exception('التسوية غير موجودة');
+            }
+
+            if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
+                throw new \Exception('لا يمكن إلغاء التسوية بعد المراجعة');
+            }
+
+            // Mark as rejected (keeps record in database)
+            $this->leaveAdjustmentRepository->cancelAdjustment($adjustment, $employeeId, 'تم إلغاء التسوية من قبل الموظف');
+
+            Log::info('LeaveAdjustmentService::cancelAdjustment - Transaction committed', [
+                'adjustment_id' => $id
+            ]);
+
+            return true;
+        });
     }
 
     // /**
@@ -250,7 +315,7 @@ class LeaveAdjustmentService
     //             // This typically involves:
     //             // a) Creating a Leave Adjustment to deduct the settled hours.
     //             // b) Creating a record in a payroll/finance system for payment (Not implemented here, only the HR side).
-                
+
     //             $adjustmentData = new CreateLeaveAdjustmentDTO(
     //                 employeeId: $dto->employeeId,
     //                 leaveTypeId: $dto->leaveTypeId,
@@ -262,23 +327,23 @@ class LeaveAdjustmentService
     //             );
 
     //             $adjustment = $this->leaveAdjustmentRepository->createAdjust($adjustmentData);
-                
+
     //             $message = 'تمت تسوية ' . $dto->hoursToSettle . ' ساعة بنجاح كصرف نقدي. تم تحديث رصيد الإجازات.';
     //             $settlementRecord = $adjustment->toArray();
 
     //         } elseif ($dto->settlementType === 'take_leave') {
     //             // Logic for Taking Leave (Converting to a leave application)
     //             // This is essentially creating a new leave application with the settled hours.
-                
+
     //             // Note: This assumes 'hoursToSettle' is the total duration of the leave application.
     //             // If the user meant converting the *remaining balance* into a single application, 
     //             // the logic should be adjusted to use the full available balance.
-                
+
     //             // For simplicity, we will create a Leave Adjustment to deduct the hours, 
     //             // and the system should handle the actual leave application separately.
     //             // However, based on the user's request "تسوية اجازاته المستحقه", 
     //             // we will treat 'take_leave' as a final deduction/settlement.
-                
+
     //             $adjustmentData = new CreateLeaveAdjustmentDTO(
     //                 companyId: $dto->companyId,
     //                 employeeId: $dto->employeeId,
@@ -291,7 +356,7 @@ class LeaveAdjustmentService
     //             );
 
     //             $adjustment = $this->leaveAdjustmentRepository->createAdjust($adjustmentData);
-                
+
     //             $message = 'تمت تسوية ' . $dto->hoursToSettle . ' ساعة بنجاح كإجازة مأخوذة. تم تحديث رصيد الإجازات.';
     //             $settlementRecord = $adjustment->toArray();
     //         } else {
