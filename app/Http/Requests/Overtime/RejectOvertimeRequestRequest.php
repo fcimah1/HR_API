@@ -4,6 +4,15 @@ namespace App\Http\Requests\Overtime;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * @OA\Schema(
+ *     schema="RejectOvertimeRequestRequest",
+ *     type="object",
+ *     title="Reject Overtime Request",
+ *     required={"reason"},
+ *     @OA\Property(property="reason", type="string", example="لا يوجد ضغط عمل كافي", description="سبب الرفض (مطلوب، حد أقصى 500 حرف)")
+ * )
+ */
 class RejectOvertimeRequestRequest extends FormRequest
 {
     /**

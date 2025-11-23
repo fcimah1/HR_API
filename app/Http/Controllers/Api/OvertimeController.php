@@ -17,6 +17,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * @OA\Tag(
+ *     name="Overtime Management",
+ *     description="Overtime requests management"
+ * )
+ */
 class OvertimeController extends Controller
 {
     public function __construct(
@@ -26,8 +32,71 @@ class OvertimeController extends Controller
     ) {}
 
     /**
-     * Get overtime requests list.
-     * GET /api/overtime/requests
+     * @OA\Get(
+     *     path="/api/overtime/requests",
+     *     summary="Get overtime requests list",
+     *     tags={"Overtime Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="status",
+     *         in="query",
+     *         description="Filter by status (pending/approved/rejected)",
+     *         @OA\Schema(type="string", enum={"pending", "approved", "rejected"})
+     *     ),
+     *     @OA\Parameter(
+     *         name="employee_id",
+     *         in="query",
+     *         description="Filter by employee ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="from_date",
+     *         in="query",
+     *         description="Filter from date (Y-m-d)",
+     *         @OA\Schema(type="string", format="date", example="2025-01-01")
+     *     ),
+     *     @OA\Parameter(
+     *         name="to_date",
+     *         in="query",
+     *         description="Filter to date (Y-m-d)",
+     *         @OA\Schema(type="string", format="date", example="2025-12-31")
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         description="Items per page",
+     *         @OA\Schema(type="integer", default=15)
+     *     ),
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="Page number",
+     *         @OA\Schema(type="integer", default=1)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Overtime requests retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="array", @OA\Items(
+     *                 @OA\Property(property="time_request_id", type="integer"),
+     *                 @OA\Property(property="employee_name", type="string"),
+     *                 @OA\Property(property="request_date", type="string", format="date"),
+     *                 @OA\Property(property="clock_in", type="string"),
+     *                 @OA\Property(property="clock_out", type="string"),
+     *                 @OA\Property(property="overtime_reason", type="integer"),
+     *                 @OA\Property(property="status", type="string")
+     *             )),
+     *             @OA\Property(property="pagination", type="object",
+     *                 @OA\Property(property="total", type="integer"),
+     *                 @OA\Property(property="per_page", type="integer"),
+     *                 @OA\Property(property="current_page", type="integer"),
+     *                 @OA\Property(property="last_page", type="integer")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Unauthorized")
+     * )
      */
     public function index(Request $request)
     {
@@ -73,8 +142,41 @@ class OvertimeController extends Controller
     }
 
     /**
-     * Show specific overtime request.
-     * GET /api/overtime/requests/{id}
+     * @OA\Get(
+     *     path="/api/overtime/requests/{id}",
+     *     summary="Show specific overtime request",
+     *     tags={"Overtime Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Overtime request ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Overtime request details retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="time_request_id", type="integer"),
+     *                 @OA\Property(property="company_id", type="integer"),
+     *                 @OA\Property(property="staff_id", type="integer"),
+     *                 @OA\Property(property="employee_name", type="string"),
+     *                 @OA\Property(property="request_date", type="string", format="date"),
+     *                 @OA\Property(property="clock_in", type="string"),
+     *                 @OA\Property(property="clock_out", type="string"),
+     *                 @OA\Property(property="overtime_reason", type="integer"),
+     *                 @OA\Property(property="compensation_type", type="integer"),
+     *                 @OA\Property(property="request_reason", type="string"),
+     *                 @OA\Property(property="status", type="string")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Unauthorized"),
+     *     @OA\Response(response=404, description="Request not found")
+     * )
      */
     public function show(int $id)
     {
@@ -110,8 +212,52 @@ class OvertimeController extends Controller
     }
 
     /**
-     * Create new overtime request.
-     * POST /api/overtime/requests
+     * @OA\Post(
+     *     path="/api/overtime/requests",
+     *     summary="Create new overtime request",
+     *     tags={"Overtime Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"request_date", "clock_in", "clock_out", "overtime_reason", "compensation_type"},
+     *             @OA\Property(property="request_date", type="string", format="date", example="2025-11-25", description="تاريخ الطلب (يجب أن يكون بصيغة Y-m-d)"),
+     *             @OA\Property(property="clock_in", type="string", example="2:30 PM", description="وقت البداية (صيغة 12 ساعة مع AM/PM)"),
+     *             @OA\Property(property="clock_out", type="string", example="7:00 PM", description="وقت النهاية (صيغة 12 ساعة مع AM/PM)"),
+     *             @OA\Property(
+     *                 property="overtime_reason",
+     *                 type="integer",
+     *                 example=1,
+     *                 description="سبب العمل الإضافي: 1=ضغط عمل, 2=مشروع عاجل, 3=غياب زميل, 4=حالة طارئة, 5=عمل إضافي"
+     *             ),
+     *             @OA\Property(
+     *                 property="additional_work_hours",
+     *                 type="integer",
+     *                 example=0,
+     *                 description="نوع ساعات العمل الإضافية (0-3). مطلوب عند اختيار overtime_reason=5"
+     *             ),
+     *             @OA\Property(
+     *                 property="compensation_type",
+     *                 type="integer",
+     *                 example=1,
+     *                 description="نوع التعويض: 1=مالي, 2=إجازة بديلة"
+     *             ),
+     *             @OA\Property(property="request_reason", type="string", example="عمل إضافي لإنهاء المشروع", description="سبب الطلب (اختياري، حد أقصى 1000 حرف)"),
+     *             @OA\Property(property="employee_id", type="integer", example=37, description="معرف الموظف (للشركة/HR فقط عند الإنشاء نيابة عن موظف)")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Overtime request created successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم إنشاء طلب العمل الإضافي بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Unauthorized"),
+     *     @OA\Response(response=422, description="Validation error")
+     * )
      */
     public function store(CreateOvertimeRequestRequest $request)
     {
@@ -194,8 +340,44 @@ class OvertimeController extends Controller
     }
 
     /**
-     * Update overtime request.
-     * PUT /api/overtime/requests/{id}
+     * @OA\Put(
+     *     path="/api/overtime/requests/{id}",
+     *     summary="Update overtime request",
+     *     tags={"Overtime Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Overtime request ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"request_date", "clock_in", "clock_out", "overtime_reason", "compensation_type"},
+     *             @OA\Property(property="request_date", type="string", format="date", example="2025-11-25"),
+     *             @OA\Property(property="clock_in", type="string", example="2:30 PM"),
+     *             @OA\Property(property="clock_out", type="string", example="7:00 PM"),
+     *             @OA\Property(property="overtime_reason", type="integer", example=1),
+     *             @OA\Property(property="additional_work_hours", type="integer", example=0),
+     *             @OA\Property(property="compensation_type", type="integer", example=1),
+     *             @OA\Property(property="request_reason", type="string", example="تحديث السبب")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Overtime request updated successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تحديث طلب العمل الإضافي بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Unauthorized"),
+     *     @OA\Response(response=404, description="Request not found"),
+     *     @OA\Response(response=422, description="Validation error")
+     * )
      */
     public function update(UpdateOvertimeRequestRequest $request, int $id)
     {
@@ -232,8 +414,30 @@ class OvertimeController extends Controller
     }
 
     /**
-     * Delete overtime request.
-     * DELETE /api/overtime/requests/{id}
+     * @OA\Delete(
+     *     path="/api/overtime/requests/{id}",
+     *     summary="Delete overtime request",
+     *     tags={"Overtime Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Overtime request ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Overtime request deleted successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم حذف طلب العمل الإضافي بنجاح")
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Unauthorized"),
+     *     @OA\Response(response=404, description="Request not found"),
+     *     @OA\Response(response=422, description="Cannot delete approved/rejected requests")
+     * )
      */
     public function destroy(int $id)
     {
@@ -266,8 +470,29 @@ class OvertimeController extends Controller
     }
 
     /**
-     * Get pending overtime requests awaiting approval.
-     * GET /api/overtime/requests/pending
+     * @OA\Get(
+     *     path="/api/overtime/requests/pending",
+     *     summary="Get pending overtime requests awaiting approval",
+     *     description="Returns all pending overtime requests that require approval by the authenticated manager/HR",
+     *     tags={"Overtime Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Pending requests retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="array", @OA\Items(
+     *                 @OA\Property(property="time_request_id", type="integer"),
+     *                 @OA\Property(property="employee_name", type="string"),
+     *                 @OA\Property(property="request_date", type="string", format="date"),
+     *                 @OA\Property(property="clock_in", type="string"),
+     *                 @OA\Property(property="clock_out", type="string"),
+     *                 @OA\Property(property="status", type="string", example="pending")
+     *             ))
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Unauthorized - Manager/HR role required")
+     * )
      */
     public function pending()
     {
@@ -303,8 +528,29 @@ class OvertimeController extends Controller
     }
 
     /**
-     * Get team overtime requests.
-     * GET /api/overtime/requests/team
+     * @OA\Get(
+     *     path="/api/overtime/requests/team",
+     *     summary="Get team overtime requests",
+     *     description="Returns overtime requests for all team members",
+     *     tags={"Overtime Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Team requests retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="array", @OA\Items(
+     *                 @OA\Property(property="time_request_id", type="integer"),
+     *                 @OA\Property(property="employee_name", type="string"),
+     *                 @OA\Property(property="request_date", type="string", format="date"),
+     *                 @OA\Property(property="clock_in", type="string"),
+     *                 @OA\Property(property="clock_out", type="string"),
+     *                 @OA\Property(property="status", type="string")
+     *             ))
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Unauthorized")
+     * )
      */
     public function team()
     {
@@ -340,8 +586,37 @@ class OvertimeController extends Controller
     }
 
     /**
-     * Approve overtime request.
-     * POST /api/overtime/requests/{id}/approve
+     * @OA\Post(
+     *     path="/api/overtime/requests/{id}/approve",
+     *     summary="Approve overtime request",
+     *     tags={"Overtime Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Overtime request ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=false,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="remarks", type="string", example="موافق عليه", description="ملاحظات الموافقة (اختياري، حد أقصى 500 حرف)")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Overtime request approved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تمت الموافقة على طلب العمل الإضافي بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Unauthorized - Manager/HR role required"),
+     *     @OA\Response(response=404, description="Request not found"),
+     *     @OA\Response(response=422, description="Request already processed")
+     * )
      */
     public function approve(ApproveOvertimeRequestRequest $request, int $id)
     {
@@ -388,8 +663,38 @@ class OvertimeController extends Controller
     }
 
     /**
-     * Reject overtime request.
-     * POST /api/overtime/requests/{id}/reject
+     * @OA\Post(
+     *     path="/api/overtime/requests/{id}/reject",
+     *     summary="Reject overtime request",
+     *     tags={"Overtime Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Overtime request ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"reason"},
+     *             @OA\Property(property="reason", type="string", example="لا يوجد ضغط عمل كافي", description="سبب الرفض (مطلوب، حد أقصى 500 حرف)")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Overtime request rejected successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم رفض طلب العمل الإضافي"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Unauthorized - Manager/HR role required"),
+     *     @OA\Response(response=404, description="Request not found"),
+     *     @OA\Response(response=422, description="Validation error or request already processed")
+     * )
      */
     public function reject(RejectOvertimeRequestRequest $request, int $id)
     {
@@ -436,8 +741,41 @@ class OvertimeController extends Controller
     }
 
     /**
-     * Get overtime statistics.
-     * GET /api/overtime/stats
+     * @OA\Get(
+     *     path="/api/overtime/stats",
+     *     summary="Get overtime statistics",
+     *     description="Returns overtime statistics including total hours, approved/rejected counts",
+     *     tags={"Overtime Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="from_date",
+     *         in="query",
+     *         description="Start date for statistics (Y-m-d)",
+     *         @OA\Schema(type="string", format="date", example="2025-01-01")
+     *     ),
+     *     @OA\Parameter(
+     *         name="to_date",
+     *         in="query",
+     *         description="End date for statistics (Y-m-d)",
+     *         @OA\Schema(type="string", format="date", example="2025-12-31")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Statistics retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="total_requests", type="integer"),
+     *                 @OA\Property(property="approved_requests", type="integer"),
+     *                 @OA\Property(property="rejected_requests", type="integer"),
+     *                 @OA\Property(property="pending_requests", type="integer"),
+     *                 @OA\Property(property="total_hours", type="number"),
+     *                 @OA\Property(property="approved_hours", type="number")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Unauthorized - Manager/HR role required")
+     * )
      */
     public function stats(Request $request)
     {
