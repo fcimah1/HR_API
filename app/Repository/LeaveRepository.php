@@ -33,8 +33,14 @@ class LeaveRepository implements LeaveRepositoryInterface
             });
         }
 
+        // Support for single employee_id
         if ($filters->employeeId !== null) {
             $query->where('employee_id', $filters->employeeId);
+        }
+
+        // Support for multiple employee_ids (for subordinates)
+        if ($filters->employeeIds !== null && is_array($filters->employeeIds) && !empty($filters->employeeIds)) {
+            $query->whereIn('employee_id', $filters->employeeIds);
         }
 
         if ($filters->status !== null) {
@@ -175,6 +181,7 @@ class LeaveRepository implements LeaveRepositoryInterface
             'effective_company_id' => $companyId,
             'pending_applications' => LeaveApplication::where('company_id', $companyId)->where('status', LeaveApplication::STATUS_PENDING)->count(),
             'approved_applications' => LeaveApplication::where('company_id', $companyId)->where('status', LeaveApplication::STATUS_APPROVED)->count(),
+            'rejected_applications' => LeaveApplication::where('company_id', $companyId)->where('status', LeaveApplication::STATUS_REJECTED)->count(),
         ];
 
         $adjustmentStats = [
@@ -182,6 +189,7 @@ class LeaveRepository implements LeaveRepositoryInterface
             'total_adjustments' => LeaveAdjustment::where('company_id', $companyId)->count(),
             'pending_adjustments' => LeaveAdjustment::where('company_id', $companyId)->where('status', LeaveAdjustment::STATUS_PENDING)->count(),
             'approved_adjustments' => LeaveAdjustment::where('company_id', $companyId)->where('status', LeaveAdjustment::STATUS_APPROVED)->count(),
+            'rejected_adjustments' => LeaveAdjustment::where('company_id', $companyId)->where('status', LeaveAdjustment::STATUS_REJECTED)->count(),
         ];
 
         return [
@@ -190,101 +198,7 @@ class LeaveRepository implements LeaveRepositoryInterface
         ];
     }
 
-    /**
-     * Get active leave types for company
-     */
-    public function getActiveLeaveTypes(int $companyId): Collection
-    {
-        return ErpConstant::getActiveLeaveTypes($companyId);
-    }
 
-    /**
-     * Create leave type
-     */
-    public function createLeaveType(CreateLeaveTypeDTO $dto): object
-    {
-        // Check if leave type already exists for this company
-        $existingLeaveType = ErpConstant::where('company_id', $dto->companyId)
-            ->where('type', ErpConstant::TYPE_LEAVE_TYPE)
-            ->where('category_name', $dto->name)
-            ->first();
-
-        if ($existingLeaveType) {
-            throw new \Exception('نوع الإجازة "' . $dto->name . '" موجود بالفعل لهذه الشركة');
-        }
-
-        return ErpConstant::create($dto->toArray());
-    }
-
-    /**
-     * Update leave type
-     */
-    public function updateLeaveType(UpdateLeaveTypeDTO $dto): object
-    {
-        // Find the leave type
-        $leaveType = ErpConstant::where('constants_id', $dto->leaveTypeId)
-            ->where('type', ErpConstant::TYPE_LEAVE_TYPE)
-            ->first();
-
-        if (!$leaveType) {
-            throw new \Exception('نوع الإجازة غير موجود');
-        }
-
-        // Check if another leave type with the same name exists for this company
-        $existingLeaveType = ErpConstant::where('company_id', $leaveType->company_id)
-            ->where('type', ErpConstant::TYPE_LEAVE_TYPE)
-            ->where('category_name', $dto->name)
-            ->where('constants_id', '!=', $dto->leaveTypeId)
-            ->first();
-
-        if ($existingLeaveType) {
-            throw new \Exception('نوع الإجازة "' . $dto->name . '" موجود بالفعل لهذه الشركة');
-        }
-
-        $leaveType->update($dto->toArray());
-        return $leaveType->fresh();
-    }
-
-    /**
-     * Delete (deactivate) leave type
-     * Instead of deleting, we set field_three to 0 (inactive)
-     */
-    public function deleteLeaveType(int $leaveTypeId, int $companyId): bool
-    {
-        // Find the leave type
-        $leaveType = ErpConstant::where('constants_id', $leaveTypeId)
-            ->where('company_id', $companyId)
-            ->where('type', ErpConstant::TYPE_LEAVE_TYPE)
-            ->first();
-
-        if (!$leaveType) {
-            throw new \Exception('نوع الإجازة غير موجود أو لا ينتمي لهذه الشركة');
-        }
-
-        // Check if the leave type is being used in any leave applications
-        $applicationsCount = LeaveApplication::where('leave_type_id', $leaveTypeId)
-            ->where('company_id', $companyId)
-            ->count();
-
-        if ($applicationsCount > 0) {
-            throw new \Exception('لا يمكن إلغاء تفعيل نوع الإجازة حاليا لأنه مستخدم في طلبات إجازة');
-        }
-
-        // Check if the leave type is being used in any leave adjustments
-        $adjustmentsCount = LeaveAdjustment::where('leave_type_id', $leaveTypeId)
-            ->where('company_id', $companyId)
-            ->count();
-
-        if ($adjustmentsCount > 0) {
-            throw new \Exception('لا يمكن إلغاء تفعيل نوع الإجازة حاليا لأنه مستخدم في تسويات إجازة');
-        }
-        // Deactivate by setting field_three to 0 (inactive)
-        // This is a soft delete - the record remains in the database
-        return $leaveType->update([
-            'field_three' => 0,
-            'updated_at' => now()->format('Y-m-d H:i:s'),
-        ]);
-    }
 
     /**
      * Get total granted leave for an employee (in hours)
@@ -459,5 +373,102 @@ class LeaveRepository implements LeaveRepositoryInterface
             ->where('company_id', $companyId)
             ->where('status', LeaveAdjustment::STATUS_APPROVED)
             ->sum('adjust_hours');
+    }
+
+    /**
+     * Get monthly granted hours for a leave type
+     * Returns array with month number as key and granted hours as value
+     * 
+     * This reads from the staff_details table where leave_options are stored
+     * as serialized data containing monthly accrual information.
+     * If no monthly data exists, it divides the total granted hours by 12.
+     */
+    public function getMonthlyGrantedHours(int $employeeId, int $leaveTypeId, int $companyId): array
+    {
+        // Initialize empty array for 12 months
+        $monthlyHours = array_fill(1, 12, 0.0);
+        $hasMonthlyData = false;
+
+        // Try to get monthly accrual data from leave_options (if employee details exist)
+        $employee = User::find($employeeId);
+        if ($employee) {
+            $details = $employee->details()->first();
+
+            if ($details && !empty($details->leave_options)) {
+                $options = @unserialize($details->leave_options);
+
+                if (is_array($options) && isset($options[$leaveTypeId]) && is_array($options[$leaveTypeId])) {
+                    // Extract monthly hours for this leave type
+                    $leaveTypeOptions = $options[$leaveTypeId];
+
+                    // The structure is: [month_number => hours]
+                    for ($month = 1; $month <= 12; $month++) {
+                        if (isset($leaveTypeOptions[$month]) && $leaveTypeOptions[$month] > 0) {
+                            $monthlyHours[$month] = (float) $leaveTypeOptions[$month];
+                            $hasMonthlyData = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // If no monthly accrual data exists, distribute total granted hours equally across 12 months
+        if (!$hasMonthlyData) {
+            $totalGranted = $this->getTotalGrantedLeave($employeeId, $leaveTypeId, $companyId);
+
+            if ($totalGranted > 0) {
+                $monthlyAmount = $totalGranted / 12;
+
+                for ($month = 1; $month <= 12; $month++) {
+                    $monthlyHours[$month] = (float) $monthlyAmount;
+                }
+            }
+        }
+
+        return $monthlyHours;
+    }
+
+    /**
+     * Get monthly used hours for a leave type
+     * Returns array with month number as key and used hours as value
+     * 
+     * Calculates used hours from approved leave applications
+     */
+    public function getMonthlyUsedHours(int $employeeId, int $leaveTypeId, int $companyId, int $year): array
+    {
+        // Initialize empty array for 12 months
+        $monthlyHours = array_fill(1, 12, 0.0);
+
+        // Get all approved applications for this employee and leave type in the specified year
+        $applications = LeaveApplication::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('status', LeaveApplication::STATUS_APPROVED)
+            ->whereYear('from_date', $year)
+            ->get();
+
+        foreach ($applications as $application) {
+            // Get the month from from_date
+            try {
+                $fromDate = new \DateTime($application->from_date);
+                $month = (int) $fromDate->format('n'); // 1-12
+
+                // Calculate hours for this application
+                $hours = 0.0;
+                if (!is_null($application->leave_hours)) {
+                    $hours = (float) $application->leave_hours;
+                } elseif ($application->from_date && $application->to_date) {
+                    $toDate = new \DateTime($application->to_date);
+                    $days = $toDate->diff($fromDate)->days + 1;
+                    $hours = $days * 8.0;
+                }
+
+                $monthlyHours[$month] += $hours;
+            } catch (\Exception $e) {
+                continue;
+            }
+        }
+
+        return $monthlyHours;
     }
 }

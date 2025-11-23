@@ -55,7 +55,7 @@ class TravelService
             $travel = $this->travelRepository->findByIdAndCompany($id, $effectiveCompanyId);
 
             if (!$travel) {
-                throw new \Exception('Travel request not found or access denied');
+                throw new \Exception('الطلب غير موجود');
             }
 
             // Check permissions (only owner or company can update, and usually only if pending)
@@ -63,12 +63,15 @@ class TravelService
             $isCompany = $user->user_type === 'company'; // Or check role
 
             if (!$isOwner && !$isCompany) {
-                throw new \Exception('Unauthorized to update this travel request');
+                throw new \Exception('غير مسموح بتحديث طلب سفر الموظف');
             }
 
-            // If owner, can only update if pending (status 0)
-            if ($isOwner && $travel->status != 0) {
-                throw new \Exception('Cannot update travel request after it has been processed');
+            if ($travel->status == 1) {
+                throw new \Exception(' لا يمكن تحديث طلب سفر بعد الموافقة عليه');
+            }
+
+            if ($travel->status == 2) {
+                throw new \Exception(' لا يمكن تحديث طلب سفر بعد رفضه');
             }
 
             // Check for overlapping travel dates (if dates are being updated)
@@ -95,7 +98,7 @@ class TravelService
             $travel = $this->travelRepository->findByIdAndCompany($id, $effectiveCompanyId);
 
             if (!$travel) {
-                throw new \Exception('Travel request not found');
+                throw new \Exception('الطلب غير موجود');
             }
 
             // Permission check
@@ -103,11 +106,16 @@ class TravelService
             $isCompany = $user->user_type === 'company';
 
             if (!$isOwner && !$isCompany) {
-                throw new \Exception('Unauthorized to delete this travel request');
+                throw new \Exception('غير مسموح بحذف طلب سفر الموظف');
             }
 
-            if ($isOwner && $travel->status != 0) {
-                throw new \Exception('Cannot delete travel request after it has been processed');
+            // Only pending requests can be cancelled
+            if ($travel->status == 1) {
+                throw new \Exception('لا يمكن حذف طلب سفر تم الموافقة عليه');
+            }
+
+            if ($travel->status == 2) {
+                throw new \Exception('لا يمكن حذف طلب سفر تم رفضه');
             }
 
             $this->travelRepository->cancel($id);
@@ -170,7 +178,7 @@ class TravelService
     {
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-        if ($user->user_type === 'company' || $this->permissionService->checkPermission($user, 'view_all_travels')) {
+        if ($user->user_type === 'company') {
             return $this->travelRepository->getByCompany($effectiveCompanyId);
         } else {
             return $this->travelRepository->getByEmployee($user->user_id);
@@ -183,15 +191,32 @@ class TravelService
         $travel = $this->travelRepository->findByIdAndCompany($id, $effectiveCompanyId);
 
         if (!$travel) {
-            throw new \Exception('Travel request not found');
+            throw new \Exception('الطلب غير موجود');
         }
 
         // Check if user is owner or has permission to view
         if ($user->user_type !== 'company' && $travel->employee_id !== $user->user_id) {
             // Add more granular permission checks here if needed (e.g. manager view)
-            throw new \Exception('Unauthorized to view this travel request');
+            throw new \Exception('غير مسموح بعرض طلب سفر الموظف');
         }
 
         return $travel;
+    }
+
+    public function searchTravels(User $user, string $query)
+    {
+        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+        $travels = $this->travelRepository->search($effectiveCompanyId, $query);
+        if ($travels->isEmpty()) {
+            throw new \Exception('لا يوجد طلبات سفر');
+        }
+        if ($user->user_type === 'company') {
+            return $travels;
+        } else {
+            return $travels->filter(function ($travel) use ($user) {
+                return $travel->employee_id === $user->user_id;
+            });
+        }
     }
 }

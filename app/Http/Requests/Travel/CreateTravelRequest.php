@@ -42,7 +42,7 @@ class CreateTravelRequest extends FormRequest
             'visit_purpose' => 'required|string|max:255',
             'visit_place' => 'required|string|max:255',
             'travel_mode' => 'required|integer|in:1,2,3,4,5',
-            'arrangement_type' => 'required|integer', // Assuming validation against constants table is not strictly required here or handled elsewhere
+            'arrangement_type' => 'required|integer|exists:ci_erp_constants,constants_id',
             'expected_budget' => 'required|numeric|min:0',
             'actual_budget' => 'required|numeric|min:0',
             'description' => 'nullable|string',

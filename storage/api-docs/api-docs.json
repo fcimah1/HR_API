@@ -1469,7 +1469,7 @@
         "/api/leaves/adjustments": {
             "get": {
                 "tags": [
-                    "Leave Management"
+                    "Leave Adjustments"
                 ],
                 "summary": "Get leave adjustments",
                 "operationId": "a5878c3ae38a3b67c87c90127ed908b1",
@@ -1486,7 +1486,7 @@
             },
             "post": {
                 "tags": [
-                    "Leave Management"
+                    "Leave Adjustments"
                 ],
                 "summary": "Create a new leave adjustment",
                 "operationId": "4cf661832803d2f1c9291d4b5c2e5cf8",
@@ -1543,7 +1543,7 @@
         "/api/leaves/adjustments/{id}/approve-or-reject": {
             "post": {
                 "tags": [
-                    "Leave Management"
+                    "Leave Adjustments"
                 ],
                 "summary": "Approve or Reject leave adjustment (Managers/HR only)",
                 "description": "الموافقة على أو رفض طلب التسوية",
@@ -1600,9 +1600,39 @@
             }
         },
         "/api/leaves/adjustments/{id}": {
+            "get": {
+                "tags": [
+                    "Leave Adjustments"
+                ],
+                "summary": "Get a specific leave adjustment",
+                "operationId": "cc94f6c0e7c9d47c3a136f7289be8adc",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave adjustment retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Leave adjustment not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
             "put": {
                 "tags": [
-                    "Leave Management"
+                    "Leave Adjustments"
                 ],
                 "summary": "Update a leave adjustment",
                 "description": "Updates a leave adjustment. Only pending adjustments can be updated.",
@@ -1723,7 +1753,7 @@
         "/api/leaves/adjustments/{id}/cancel": {
             "delete": {
                 "tags": [
-                    "Leave Management"
+                    "Leave Adjustments"
                 ],
                 "summary": "Cancel a leave adjustment (mark as rejected)",
                 "description": "Cancels a leave adjustment by marking it as rejected. The adjustment remains in the database for audit purposes.",
@@ -2399,13 +2429,146 @@
                 ]
             }
         },
-        "/api/leaves/types": {
+        "/api/leaves/stats": {
             "get": {
                 "tags": [
                     "Leave Management"
                 ],
+                "summary": "Get leave statistics (Managers/HR only)",
+                "operationId": "a5317e9bdcb5843a614ed8a01d389771",
+                "responses": {
+                    "200": {
+                        "description": "Leave statistics retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/monthly-statistics": {
+            "get": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Get monthly leave statistics for an employee",
+                "description": "Returns detailed monthly breakdown of leave hours (granted, used, remaining) for each leave type. Supports leave accrual system.",
+                "operationId": "bc8a5435fe44c820f8f5ef9d6df0ed19",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "معرف الموظف المستهدف (للشركة/المدير لعرض إحصائيات موظف آخر)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Monthly statistics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الإحصائيات الشهرية بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "employee_id": {
+                                                    "type": "integer"
+                                                },
+                                                "company_id": {
+                                                    "type": "integer"
+                                                },
+                                                "year": {
+                                                    "type": "integer"
+                                                },
+                                                "leave_types": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "leave_type_id": {
+                                                                "type": "integer"
+                                                            },
+                                                            "leave_type_name": {
+                                                                "type": "string"
+                                                            },
+                                                            "assigned_hours": {
+                                                                "type": "number"
+                                                            },
+                                                            "enable_leave_accrual": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "monthly_breakdown": {
+                                                                "properties": {
+                                                                    "1": {
+                                                                        "properties": {
+                                                                            "month_name": {
+                                                                                "type": "string",
+                                                                                "example": "Jan"
+                                                                            },
+                                                                            "granted": {
+                                                                                "type": "number",
+                                                                                "example": 13.33
+                                                                            },
+                                                                            "used": {
+                                                                                "type": "number",
+                                                                                "example": 8
+                                                                            },
+                                                                            "remaining": {
+                                                                                "type": "number",
+                                                                                "example": 5.33
+                                                                            }
+                                                                        },
+                                                                        "type": "object"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - No permission to view this employee's statistics"
+                    },
+                    "404": {
+                        "description": "Employee not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leave-types": {
+            "get": {
+                "tags": [
+                    "Leave Type Management"
+                ],
                 "summary": "Get available leave types",
-                "operationId": "217df4e4d7536b0fedbd5dae76fa4d3c",
+                "operationId": "df58840be7999bb0a9e0b06c5922a215",
                 "responses": {
                     "200": {
                         "description": "Leave types retrieved successfully",
@@ -2460,10 +2623,10 @@
             },
             "post": {
                 "tags": [
-                    "Leave Management"
+                    "Leave Type Management"
                 ],
                 "summary": "Create a new leave type (HR/Admin only)",
-                "operationId": "caca705283dfc334573931ee8d011689",
+                "operationId": "93a582e1d3af06c00eb856a12b8a34ae",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -2477,6 +2640,10 @@
                                     "leave_type_name": {
                                         "type": "string",
                                         "example": "إجازة دراسية"
+                                    },
+                                    "leave_days": {
+                                        "type": "integer",
+                                        "example": 10
                                     }
                                 },
                                 "type": "object"
@@ -2496,13 +2663,43 @@
                 ]
             }
         },
-        "/api/leaves/types/{id}": {
+        "/api/leave-types/{id}": {
+            "get": {
+                "tags": [
+                    "Leave Type Management"
+                ],
+                "summary": "Get specific leave type details",
+                "operationId": "2554f18205664f37928af16367490557",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave type details retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Leave type not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
             "put": {
                 "tags": [
-                    "Leave Management"
+                    "Leave Type Management"
                 ],
-                "summary": "Update a leave type (HR/Admin only)",
-                "operationId": "e7a04d8833aaaa623c4fe98d365fb51a",
+                "summary": "Update a leave type",
+                "operationId": "b0c0b5b152018cfa233d028a0530dcac",
                 "parameters": [
                     {
                         "name": "id",
@@ -2518,61 +2715,14 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "required": [
-                                    "leave_type_name"
-                                ],
                                 "properties": {
                                     "leave_type_name": {
                                         "type": "string",
-                                        "example": "إجازة تعليمية"
+                                        "example": "Updated Leave Name"
                                     },
-                                    "requires_approval": {
-                                        "description": "يتطلب الموافقة",
-                                        "type": "boolean",
-                                        "example": true
-                                    },
-                                    "is_paid_leave": {
-                                        "description": "إجازة مدفوعة",
-                                        "type": "boolean",
-                                        "example": false
-                                    },
-                                    "enable_leave_accrual": {
-                                        "description": "تمكين استحقاق الإجازة",
-                                        "type": "boolean",
-                                        "example": false
-                                    },
-                                    "is_carry": {
-                                        "description": "الترحيل",
-                                        "type": "boolean",
-                                        "example": false
-                                    },
-                                    "carry_limit": {
-                                        "description": "الحد المتاح للترحيل",
-                                        "type": "number",
-                                        "example": 0
-                                    },
-                                    "is_negative_quota": {
-                                        "description": "رصيد الإدارة",
-                                        "type": "boolean",
-                                        "example": false
-                                    },
-                                    "negative_limit": {
-                                        "description": "رصيد الحادثة المستحق",
-                                        "type": "number",
-                                        "example": 0
-                                    },
-                                    "is_quota": {
-                                        "description": "تخصيص النسبة السنوية",
-                                        "type": "boolean",
-                                        "example": true
-                                    },
-                                    "quota_assign": {
-                                        "description": "تخصيص النسبة السنوية (50 عنصر للسنوات من 0 إلى 49)",
-                                        "type": "array",
-                                        "items": {
-                                            "type": "number",
-                                            "example": 0
-                                        }
+                                    "leave_days": {
+                                        "type": "integer",
+                                        "example": 15
                                     }
                                 },
                                 "type": "object"
@@ -2593,11 +2743,10 @@
             },
             "delete": {
                 "tags": [
-                    "Leave Management"
+                    "Leave Type Management"
                 ],
-                "summary": "Deactivate a leave type (HR/Admin only)",
-                "description": "إلغاء تفعيل نوع الإجازة بدلاً من حذفه",
-                "operationId": "457dc6d69c58fa6932bd19bda12ab81b",
+                "summary": "Delete a leave type",
+                "operationId": "254d4c93ebe93b444ddecd0f5ad87a2f",
                 "parameters": [
                     {
                         "name": "id",
@@ -2610,26 +2759,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Leave type deactivated successfully"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/leaves/stats": {
-            "get": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Get leave statistics (Managers/HR only)",
-                "operationId": "a5317e9bdcb5843a614ed8a01d389771",
-                "responses": {
-                    "200": {
-                        "description": "Leave statistics retrieved successfully"
+                        "description": "Leave type deleted successfully"
                     }
                 },
                 "security": [
@@ -2749,7 +2879,7 @@
                     "Travel"
                 ],
                 "summary": "Create a new travel request",
-                "operationId": "ba5f73052026936aab0d789b43b8dfc5",
+                "operationId": "01975e9e0ee348ea05c6f0906c73101b",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -2778,7 +2908,7 @@
                     "Travel"
                 ],
                 "summary": "Get travel request details",
-                "operationId": "bd726bfce2e740c0551e45c0750f929b",
+                "operationId": "61bb431ad99011f0428105c98999c27e",
                 "parameters": [
                     {
                         "name": "id",
@@ -2805,7 +2935,7 @@
                     "Travel"
                 ],
                 "summary": "Update travel request",
-                "operationId": "df50586036d8f4902c85a60a4d67d2c6",
+                "operationId": "84e19e44d82378ce053d4b79715545d0",
                 "parameters": [
                     {
                         "name": "id",
@@ -2842,7 +2972,7 @@
                     "Travel"
                 ],
                 "summary": "Delete travel request",
-                "operationId": "7eb600442d6e0f9fb63fdcb0b857f80c",
+                "operationId": "3515afa817ff92dbb460e86677aba274",
                 "parameters": [
                     {
                         "name": "id",
@@ -2913,10 +3043,735 @@
                     }
                 ]
             }
+        },
+        "/api/travels/search": {
+            "get": {
+                "tags": [
+                    "Travel"
+                ],
+                "summary": "Search travel requests",
+                "operationId": "82661febceec93b7af7bd9fea2e255b8",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/travel-types": {
+            "get": {
+                "tags": [
+                    "Travel Type"
+                ],
+                "summary": "Get list of travel types",
+                "operationId": "84c8d84de82784f07169368669ef8644",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Travel Type"
+                ],
+                "summary": "Create a new travel type",
+                "operationId": "7cde4a41468cc99a73bc0525aee2f667",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateTravelTypeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Travel type created successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/travel-types/{id}": {
+            "get": {
+                "tags": [
+                    "Travel Type"
+                ],
+                "summary": "Get travel type details",
+                "operationId": "d946f9a4bf16dde4f25a7071b83a656a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Travel Type"
+                ],
+                "summary": "Update travel type",
+                "operationId": "6f8bdf19b51c36b4901dc05351fbaf6e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTravelTypeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Travel type updated successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Travel Type"
+                ],
+                "summary": "Delete travel type",
+                "operationId": "64785b7d8f82688427e95917e2f47290",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Travel type deleted successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/travel-types/search": {
+            "get": {
+                "tags": [
+                    "Travel Type"
+                ],
+                "summary": "Search travel types",
+                "operationId": "1be6777de487a03c83504d428693ddb5",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
         "schemas": {
+            "BaseEmployeeRequest": {
+                "title": "Base Employee Request",
+                "required": [
+                    "first_name",
+                    "last_name",
+                    "contact_number",
+                    "gender",
+                    "address_1",
+                    "address_2",
+                    "city",
+                    "state",
+                    "zipcode",
+                    "country",
+                    "profile_photo",
+                    "employee_id",
+                    "reporting_manager",
+                    "department_id",
+                    "designation_id",
+                    "office_shift_id",
+                    "basic_salary",
+                    "hourly_rate",
+                    "salary_type",
+                    "leave_categories",
+                    "role_description",
+                    "date_of_joining",
+                    "date_of_birth",
+                    "marital_status",
+                    "blood_group",
+                    "bio",
+                    "experience",
+                    "account_title",
+                    "account_number",
+                    "bank_name",
+                    "iban",
+                    "swift_code",
+                    "bank_branch",
+                    "contact_full_name",
+                    "contact_phone_no",
+                    "contact_email",
+                    "contact_address",
+                    "job_type",
+                    "assigned_hours",
+                    "is_work_from_home",
+                    "is_eqama",
+                    "branch_id",
+                    "employee_idnum"
+                ],
+                "properties": {
+                    "first_name": {
+                        "description": "First name",
+                        "type": "string"
+                    },
+                    "last_name": {
+                        "description": "Last name",
+                        "type": "string"
+                    },
+                    "contact_number": {
+                        "description": "Contact number",
+                        "type": "string"
+                    },
+                    "gender": {
+                        "description": "Gender",
+                        "type": "string"
+                    },
+                    "address_1": {
+                        "description": "Address line 1",
+                        "type": "string"
+                    },
+                    "address_2": {
+                        "description": "Address line 2",
+                        "type": "string"
+                    },
+                    "city": {
+                        "description": "City",
+                        "type": "string"
+                    },
+                    "state": {
+                        "description": "State",
+                        "type": "string"
+                    },
+                    "zipcode": {
+                        "description": "Zip code",
+                        "type": "string"
+                    },
+                    "country": {
+                        "description": "Country",
+                        "type": "string"
+                    },
+                    "profile_photo": {
+                        "description": "Profile photo",
+                        "type": "string"
+                    },
+                    "employee_id": {
+                        "description": "Employee ID",
+                        "type": "string"
+                    },
+                    "reporting_manager": {
+                        "description": "Reporting manager",
+                        "type": "integer"
+                    },
+                    "department_id": {
+                        "description": "Department",
+                        "type": "integer"
+                    },
+                    "designation_id": {
+                        "description": "Designation",
+                        "type": "integer"
+                    },
+                    "office_shift_id": {
+                        "description": "Office shift",
+                        "type": "integer"
+                    },
+                    "basic_salary": {
+                        "description": "Basic salary",
+                        "type": "string"
+                    },
+                    "hourly_rate": {
+                        "description": "Hourly rate",
+                        "type": "string"
+                    },
+                    "salary_type": {
+                        "description": "Salary type",
+                        "type": "integer"
+                    },
+                    "leave_categories": {
+                        "description": "Leave categories",
+                        "type": "string"
+                    },
+                    "role_description": {
+                        "description": "Role description",
+                        "type": "string"
+                    },
+                    "date_of_joining": {
+                        "description": "Date of joining",
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "date_of_birth": {
+                        "description": "Date of birth",
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "marital_status": {
+                        "description": "Marital status",
+                        "type": "integer"
+                    },
+                    "blood_group": {
+                        "description": "Blood group",
+                        "type": "string"
+                    },
+                    "bio": {
+                        "description": "Bio",
+                        "type": "string"
+                    },
+                    "experience": {
+                        "description": "Experience",
+                        "type": "integer"
+                    },
+                    "account_title": {
+                        "description": "Account title",
+                        "type": "string"
+                    },
+                    "account_number": {
+                        "description": "Account number",
+                        "type": "string"
+                    },
+                    "bank_name": {
+                        "description": "Bank name",
+                        "type": "integer"
+                    },
+                    "iban": {
+                        "description": "IBAN",
+                        "type": "string"
+                    },
+                    "swift_code": {
+                        "description": "SWIFT code",
+                        "type": "string"
+                    },
+                    "bank_branch": {
+                        "description": "Bank branch",
+                        "type": "string"
+                    },
+                    "contact_full_name": {
+                        "description": "Contact full name",
+                        "type": "string"
+                    },
+                    "contact_phone_no": {
+                        "description": "Contact phone number",
+                        "type": "string"
+                    },
+                    "contact_email": {
+                        "description": "Contact email",
+                        "type": "string"
+                    },
+                    "contact_address": {
+                        "description": "Contact address",
+                        "type": "string"
+                    },
+                    "job_type": {
+                        "description": "Job type",
+                        "type": "integer"
+                    },
+                    "assigned_hours": {
+                        "description": "Assigned hours",
+                        "type": "string"
+                    },
+                    "is_work_from_home": {
+                        "description": "Is work from home",
+                        "type": "boolean"
+                    },
+                    "is_eqama": {
+                        "description": "Is eqama",
+                        "type": "boolean"
+                    },
+                    "branch_id": {
+                        "description": "Branch ID",
+                        "type": "integer"
+                    },
+                    "employee_idnum": {
+                        "description": "Employee ID number",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CreateEmployeeRequest": {
+                "title": "Create Employee Request",
+                "description": "Create Employee Request"
+            },
+            "UpdateEmployeeRequest": {
+                "title": "Update Employee Request",
+                "description": "Update Employee Request"
+            },
+            "ApproveLeaveAdjustmentRequest": {
+                "title": "Approve Leave Adjustment Request",
+                "required": [
+                    "remarks"
+                ],
+                "properties": {
+                    "remarks": {
+                        "description": "Remarks for approval",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CreateLeaveAdjustmentRequest": {
+                "title": "Create Leave Adjustment Request",
+                "required": [
+                    "leave_type_id",
+                    "adjustment_date",
+                    "duty_employee_id",
+                    "adjust_hours",
+                    "reason_adjustment"
+                ],
+                "properties": {
+                    "leave_type_id": {
+                        "description": "Leave type ID",
+                        "type": "integer"
+                    },
+                    "adjustment_date": {
+                        "description": "Adjustment date",
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "duty_employee_id": {
+                        "description": "Duty employee ID",
+                        "type": "integer"
+                    },
+                    "adjust_hours": {
+                        "description": "Adjustment hours",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "reason_adjustment": {
+                        "description": "Reason for adjustment",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CreateLeaveSettlementRequest": {
+                "title": "Create Leave Settlement Request",
+                "required": [
+                    "leave_type_id",
+                    "hours_to_settle",
+                    "settlement_type"
+                ],
+                "properties": {
+                    "leave_type_id": {
+                        "description": "Leave type ID",
+                        "type": "integer"
+                    },
+                    "hours_to_settle": {
+                        "description": "Hours to settle",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "settlement_type": {
+                        "description": "Settlement type",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateLeaveAdjustmentRequest": {
+                "title": "Update Leave Adjustment Request",
+                "required": [
+                    "leave_type_id",
+                    "adjust_hours",
+                    "reason_adjustment",
+                    "adjustment_date",
+                    "duty_employee_id"
+                ],
+                "properties": {
+                    "leave_type_id": {
+                        "description": "Leave type ID",
+                        "type": "integer"
+                    },
+                    "adjust_hours": {
+                        "description": "Adjustment hours",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "reason_adjustment": {
+                        "description": "Reason for adjustment",
+                        "type": "string"
+                    },
+                    "adjustment_date": {
+                        "description": "Adjustment date",
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "duty_employee_id": {
+                        "description": "Duty employee ID",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "ApproveLeaveApplicationRequest": {
+                "title": "Approve Leave Application Request",
+                "required": [
+                    "action",
+                    "remarks"
+                ],
+                "properties": {
+                    "action": {
+                        "description": "Action to take (approve/reject)",
+                        "type": "string"
+                    },
+                    "remarks": {
+                        "description": "Remarks for approval",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CheckLeaveBalanceRequest": {
+                "title": "Check Leave Balance Request",
+                "required": [
+                    "leave_type_id",
+                    "employee_id"
+                ],
+                "properties": {
+                    "leave_type_id": {
+                        "description": "Leave type ID",
+                        "type": "integer"
+                    },
+                    "employee_id": {
+                        "description": "Employee ID",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "CreateLeaveApplicationRequest": {
+                "title": "Create Leave Application Request",
+                "required": [
+                    "leave_type_id",
+                    "from_date",
+                    "to_date",
+                    "reason",
+                    "duty_employee_id",
+                    "is_half_day",
+                    "leave_hours",
+                    "remarks"
+                ],
+                "properties": {
+                    "leave_type_id": {
+                        "description": "Leave type ID",
+                        "type": "integer"
+                    },
+                    "from_date": {
+                        "description": "From date",
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "to_date": {
+                        "description": "To date",
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "reason": {
+                        "description": "Reason for leave",
+                        "type": "string"
+                    },
+                    "duty_employee_id": {
+                        "description": "Duty employee ID",
+                        "type": "integer"
+                    },
+                    "is_half_day": {
+                        "description": "Is half day",
+                        "type": "boolean"
+                    },
+                    "leave_hours": {
+                        "description": "Leave hours",
+                        "type": "string"
+                    },
+                    "remarks": {
+                        "description": "Remarks",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CreateLeaveTypeRequest": {
+                "title": "Create Leave Type Request",
+                "required": [
+                    "leave_type_name",
+                    "requires_approval"
+                ],
+                "properties": {
+                    "leave_type_name": {
+                        "description": "Leave type name",
+                        "type": "string"
+                    },
+                    "requires_approval": {
+                        "description": "Requires approval",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateLeaveApplicationRequest": {
+                "title": "Update Leave Application Request",
+                "required": [
+                    "from_date",
+                    "to_date",
+                    "reason",
+                    "duty_employee_id",
+                    "is_half_day",
+                    "leave_hours",
+                    "remarks"
+                ],
+                "properties": {
+                    "from_date": {
+                        "description": "From date",
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "to_date": {
+                        "description": "To date",
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "reason": {
+                        "description": "Reason for leave",
+                        "type": "string"
+                    },
+                    "duty_employee_id": {
+                        "description": "Duty employee ID",
+                        "type": "integer"
+                    },
+                    "is_half_day": {
+                        "description": "Is half day",
+                        "type": "boolean"
+                    },
+                    "leave_hours": {
+                        "description": "Leave hours",
+                        "type": "string"
+                    },
+                    "remarks": {
+                        "description": "Remarks",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateLeaveTypeRequest": {
+                "title": "Update Leave Type Request",
+                "required": [
+                    "leave_type_name",
+                    "requires_approval"
+                ],
+                "properties": {
+                    "leave_type_name": {
+                        "description": "Leave type name",
+                        "type": "string"
+                    },
+                    "requires_approval": {
+                        "description": "Requires approval",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "CreateTravelTypeRequest": {
+                "required": [
+                    "travel_name"
+                ],
+                "properties": {
+                    "travel_name": {
+                        "type": "string",
+                        "example": "Personal Arrangement"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateTravelTypeRequest": {
+                "properties": {
+                    "travel_name": {
+                        "type": "string",
+                        "example": "Company Arrangement"
+                    }
+                },
+                "type": "object"
+            },
             "CreateTravelRequest": {
                 "title": "Create Travel Request",
                 "required": [
@@ -3084,8 +3939,16 @@
             "description": "User authentication endpoints"
         },
         {
+            "name": "Leave Adjustments",
+            "description": "Leave Adjustments management"
+        },
+        {
             "name": "Leave Management",
             "description": "Leave applications management"
+        },
+        {
+            "name": "Leave Type Management",
+            "description": "Leave types management"
         },
         {
             "name": "Employees",
@@ -3098,6 +3961,10 @@
         {
             "name": "Travel",
             "description": "Travel"
+        },
+        {
+            "name": "Travel Type",
+            "description": "Travel Type"
         }
     ]
 }

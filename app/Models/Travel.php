@@ -50,8 +50,19 @@ class Travel extends Model
         return $this->belongsTo(User::class, 'added_by', 'user_id');
     }
 
+    public function arrangementType()
+    {
+        return $this->belongsTo(ErpConstant::class, 'arrangement_type', 'constants_id')
+            ->where('type', 'travel_type');
+    }
+
     const STATUS_PENDING = 0;
     const STATUS_APPROVED = 1;
     const STATUS_REJECTED = 2;
 
+    const TRAVEL_MODE_BUS = 1;
+    const TRAVEL_MODE_TRAIN = 2;
+    const TRAVEL_MODE_PLANE = 3;
+    const TRAVEL_MODE_TAXI = 4;
+    const TRAVEL_MODE_RENTAL_CAR = 5;
 }

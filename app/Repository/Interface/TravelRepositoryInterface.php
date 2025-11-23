@@ -19,4 +19,5 @@ interface TravelRepositoryInterface
     public function approve(int $id): Travel;
     public function reject(int $id): Travel;
     public function hasOverlappingTravel(int $employeeId, string $startDate, string $endDate, ?int $excludeTravelId = null): bool;
+    public function search(int $companyId, string $query, int $perPage = 15): LengthAwarePaginator;
 }

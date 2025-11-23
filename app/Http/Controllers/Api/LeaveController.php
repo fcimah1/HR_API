@@ -90,7 +90,7 @@ class LeaveController extends Controller
     {
         try {
             $user = Auth::user();
-            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave1');
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave2');
             if (!$isUserHasThisPermission) {
                 return response()->json([
                     'success' => false,
@@ -241,6 +241,16 @@ class LeaveController extends Controller
     {
         try {
             $user = Auth::user();
+
+            // التحقق من الصلاحيات
+            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave2');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بعرض تفاصيل طلبات الإجازات'
+                ], 403);
+            }
+
             // الحصول على معرف الشركة الفعلي من attributes
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
 
@@ -659,316 +669,6 @@ class LeaveController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/api/leaves/types",
-     *     summary="Get available leave types",
-     *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Response(
-     *         response=200,
-     *         description="Leave types retrieved successfully",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="data", type="array", @OA\Items(
-     *                 @OA\Property(property="leave_type_id", type="integer", example=1),
-     *                 @OA\Property(property="leave_type_name", type="string", example="إجازة سنوية"),
-     *                 @OA\Property(property="leave_type_short_name", type="string", example="سنوية"),
-     *                 @OA\Property(property="leave_days", type="integer", example=30),
-     *                 @OA\Property(property="leave_type_status", type="boolean", example=true)
-     *             ))
-     *         )
-     *     )
-     * )
-     */
-    public function getLeaveTypes(Request $request)
-    {
-        try {
-            $user = Auth::user();
-            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_type1');
-            if (!$isUserHasThisPermission) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'غير مصرح لك بعرض أنواع الإجازات'
-                ], 403);
-            }
-
-            // الحصول على معرف الشركة الفعلي من الـ middleware SimpleCompanyIsolation
-            $effectiveCompanyId = $request->attributes->get('effective_company_id') ?? $user->company_id;
-            Log::info('LeaveController::start', [
-                'success' => true,
-                'effectiveCompanyId' => $effectiveCompanyId,
-                'created_by' => $user->full_name
-            ]);
-            // Get leave types for the user's company and general types
-            $leaveTypes = $this->leaveService->getActiveLeaveTypes($effectiveCompanyId);
-            Log::info('LeaveController::getLeaveTypes', [
-                'success' => true,
-                'leaveTypes' => $leaveTypes,
-                'effectiveCompanyId' => $effectiveCompanyId,
-                'created_by' => $user->full_name
-            ]);
-            // Transform data to match expected format
-
-            return response()->json([
-                'success' => true,
-                'data' => $leaveTypes,
-                'effectiveCompanyId' => $effectiveCompanyId,
-                'message' => 'تم جلب أنواع الإجازات بنجاح',
-                'created_by' => $user->full_name,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('LeaveController::getLeaveTypes failed', [
-                'error' => $e->getMessage(),
-                'created_by' => $user->full_name
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'فشل في جلب أنواع الإجازات',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * @OA\Post(
-     *     path="/api/leaves/types",
-     *     summary="Create a new leave type (HR/Admin only)",
-     *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             required={"leave_type_name","leave_days"},
-     *             @OA\Property(property="leave_type_name", type="string", example="إجازة دراسية"),
-     *           
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=201,
-     *         description="Leave type created successfully"
-     *     )
-     * )
-     */
-    public function createLeaveType(CreateLeaveTypeRequest $request)
-    {
-        try {
-            $user = Auth::user();
-
-            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_type2');
-            if (!$isUserHasThisPermission) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'غير مصرح لك بإنشاء أنواع إجازات جديدة'
-                ], 403);
-            }
-
-            $effectiveCompanyId = $request->attributes->get('effective_company_id');
-
-            $dto = CreateLeaveTypeDTO::fromRequest(
-                $request->validated(),
-                $effectiveCompanyId,
-            );
-
-            Log::info('LeaveService::createType started', [
-                'dto' => $dto->toArray(),
-                'created by' => $user->full_name
-            ]);
-
-            $leaveType = $this->leaveService->createLeaveType($dto);
-
-            Log::info('LeaveService::createType completed', [
-                'dto' => $dto->toArray(),
-                'leave_type' => $leaveType,
-                'created by' => $user->full_name,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'تم إنشاء نوع الإجازة بنجاح',
-                'data' => $leaveType,
-                'created by' => $user->full_name
-            ], 201);
-        } catch (\Exception $e) {
-            Log::error('LeaveController::createLeaveType failed', [
-                'error' => $e->getMessage(),
-                'created by' => $user->full_name
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'فشل في إنشاء نوع الإجازة',
-                'error' => $e->getMessage(),
-                'created by' => $user->full_name
-            ], 500);
-        }
-    }
-
-    /**
-     * @OA\Put(
-     *     path="/api/leaves/types/{id}",
-     *     summary="Update a leave type (HR/Admin only)",
-     *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         required=true,
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             required={"leave_type_name"},
-     *             @OA\Property(property="leave_type_name", type="string", example="إجازة تعليمية"),
-     *             @OA\Property(property="requires_approval", type="boolean", example=true, description="يتطلب الموافقة"),
-     *             @OA\Property(property="is_paid_leave", type="boolean", example=false, description="إجازة مدفوعة"),
-     *             @OA\Property(property="enable_leave_accrual", type="boolean", example=false, description="تمكين استحقاق الإجازة"),
-     *             @OA\Property(property="is_carry", type="boolean", example=false, description="الترحيل"),
-     *             @OA\Property(property="carry_limit", type="number", example=0, description="الحد المتاح للترحيل"),
-     *             @OA\Property(property="is_negative_quota", type="boolean", example=false, description="رصيد الإدارة"),
-     *             @OA\Property(property="negative_limit", type="number", example=0, description="رصيد الحادثة المستحق"),
-     *             @OA\Property(property="is_quota", type="boolean", example=true, description="تخصيص النسبة السنوية"),
-     *             @OA\Property(
-     *                 property="quota_assign",
-     *                 type="array",
-     *                 description="تخصيص النسبة السنوية (50 عنصر للسنوات من 0 إلى 49)",
-     *                 @OA\Items(type="number", example=0)
-     *             )
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Leave type updated successfully"
-     *     )
-     * )
-     */
-    public function updateLeaveType(UpdateLeaveTypeRequest $request, int $id)
-    {
-        try {
-            $user = Auth::user();
-
-            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_type3');
-            if (!$isUserHasThisPermission) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'غير مصرح لك بتعديل أنواع الإجازات'
-                ], 403);
-            }
-
-            $dto = UpdateLeaveTypeDTO::fromRequest(
-                array_merge($request->validated(), ['leave_type_id' => $id])
-            );
-
-            Log::info('LeaveController::updateLeaveType started', [
-                'leave_type_id' => $id,
-                'dto' => $dto->toArray(),
-                'created by' => $user->full_name
-            ]);
-
-            $leaveType = $this->leaveService->updateLeaveType($dto);
-
-            Log::info('LeaveController::updateLeaveType completed', [
-                'leave_type' => $leaveType,
-                'created by' => $user->full_name
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'تم تحديث نوع الإجازة بنجاح',
-                'data' => $leaveType,
-                'created by' => $user->full_name
-            ]);
-        } catch (\Exception $e) {
-            Log::error('LeaveController::updateLeaveType failed', [
-                'leave_type_id' => $id,
-                'error' => $e->getMessage(),
-                'created by' => $user->full_name
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'فشل في تحديث نوع الإجازة',
-                'error' => $e->getMessage(),
-                'created by' => $user->full_name
-            ], 500);
-        }
-    }
-
-    /**
-     * @OA\Delete(
-     *     path="/api/leaves/types/{id}",
-     *     summary="Deactivate a leave type (HR/Admin only)",
-     *     description="إلغاء تفعيل نوع الإجازة بدلاً من حذفه",
-     *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         required=true,
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Leave type deactivated successfully"
-     *     )
-     * )
-     */
-    public function deleteLeaveType(int $id)
-    {
-        try {
-            $user = Auth::user();
-
-            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_type4');
-            if (!$isUserHasThisPermission) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'غير مصرح لك بإلغاء تفعيل أنواع الإجازات'
-                ], 403);
-            }
-
-            // الحصول على معرف الشركة الفعلي من الـ middleware SimpleCompanyIsolation
-            $effectiveCompanyId = request()->attributes->get('effective_company_id') ?? $user->company_id;
-
-            Log::info('LeaveController::deleteLeaveType (deactivate) started', [
-                'leave_type_id' => $id,
-                'effectiveCompanyId' => $effectiveCompanyId,
-                'created by' => $user->full_name
-            ]);
-
-            $success = $this->leaveService->deleteLeaveType($id, $effectiveCompanyId);
-
-            if (!$success) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'فشل في إلغاء تفعيل نوع الإجازة',
-                    'created by' => $user->full_name
-                ], 500);
-            }
-
-            Log::info('LeaveController::deleteLeaveType (deactivate) completed', [
-                'leave_type_id' => $id,
-                'created by' => $user->full_name
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'تم إلغاء تفعيل نوع الإجازة بنجاح',
-                'created by' => $user->full_name
-            ]);
-        } catch (\Exception $e) {
-            Log::error('LeaveController::deleteLeaveType (deactivate) failed', [
-                'leave_type_id' => $id,
-                'error' => $e->getMessage(),
-                'created by' => $user->full_name
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'فشل في إلغاء تفعيل نوع الإجازة',
-                'error' => $e->getMessage(),
-                'created by' => $user->full_name
-            ], 500);
-        }
-    }
-
-    /**
-     * @OA\Get(
      *     path="/api/leaves/stats",
      *     summary="Get leave statistics (Managers/HR only)",
      *     tags={"Leave Management"},
@@ -1012,6 +712,124 @@ class LeaveController extends Controller
                 'message' => 'فشل في عرض الإحصائيات',
                 'error' => $e->getMessage(),
                 'created by' => $user->full_name
+            ], 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/leaves/monthly-statistics",
+     *     summary="Get monthly leave statistics for an employee",
+     *     description="Returns detailed monthly breakdown of leave hours (granted, used, remaining) for each leave type. Supports leave accrual system.",
+     *     tags={"Leave Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="employee_id",
+     *         in="query",
+     *         required=false,
+     *         description="معرف الموظف المستهدف (للشركة/المدير لعرض إحصائيات موظف آخر)",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Monthly statistics retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب الإحصائيات الشهرية بنجاح"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="employee_id", type="integer"),
+     *                 @OA\Property(property="company_id", type="integer"),
+     *                 @OA\Property(property="year", type="integer"),
+     *                 @OA\Property(property="leave_types", type="array",
+     *                     @OA\Items(
+     *                         @OA\Property(property="leave_type_id", type="integer"),
+     *                         @OA\Property(property="leave_type_name", type="string"),
+     *                         @OA\Property(property="assigned_hours", type="number"),
+     *                         @OA\Property(property="enable_leave_accrual", type="boolean"),
+     *                         @OA\Property(property="monthly_breakdown", type="object",
+     *                             @OA\Property(property="1", type="object",
+     *                                 @OA\Property(property="month_name", type="string", example="Jan"),
+     *                                 @OA\Property(property="granted", type="number", example=13.33),
+     *                                 @OA\Property(property="used", type="number", example=8.0),
+     *                                 @OA\Property(property="remaining", type="number", example=5.33)
+     *                             )
+     *                         )
+     *                     )
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission to view this employee's statistics"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Employee not found"
+     *     )
+     * )
+     */
+    public function getMonthlyStatistics(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $requestedEmployeeId = $request->input('employee_id');
+
+            // تحديد الموظف المستهدف: افتراضيًا المستخدم الحالي
+            $targetEmployee = $user;
+
+            if (!is_null($requestedEmployeeId)) {
+                $requestedEmployeeId = (int) $requestedEmployeeId;
+
+                // إذا كان يطلب موظفًا غير نفسه، نتحقق من الصلاحيات
+                if ($requestedEmployeeId !== $user->user_id) {
+                    $targetEmployee = User::find($requestedEmployeeId);
+
+                    if (!$targetEmployee) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'الموظف المطلوب غير موجود',
+                        ], 404);
+                    }
+
+                    if (!$this->permissionService->canAccessEmployee($user, $targetEmployee)) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'ليس لديك صلاحية لعرض إحصائيات هذا الموظف',
+                        ], 403);
+                    }
+                }
+            }
+
+            // الحصول على معرف الشركة الفعلي للموظف المستهدف
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($targetEmployee);
+
+            $statistics = $this->leaveService->getMonthlyLeaveStatistics(
+                $targetEmployee->user_id,
+                $effectiveCompanyId
+            );
+
+            Log::info('LeaveController::getMonthlyStatistics', [
+                'success' => true,
+                'employee_id' => $targetEmployee->user_id,
+                'requested_by' => $user->full_name
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم جلب الإحصائيات الشهرية بنجاح',
+                'data' => $statistics
+            ]);
+        } catch (\Exception $e) {
+            Log::error('LeaveController::getMonthlyStatistics failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب الإحصائيات الشهرية',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

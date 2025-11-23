@@ -36,8 +36,33 @@ class TravelController extends Controller
      */
     public function index()
     {
-        $travels = $this->travelService->getTravels(Auth::user());
-        return response()->json(['success' => true, 'data' => $travels]);
+        try {
+            $user = Auth::user();
+            $hasPermission = $this->permissionService->checkPermission($user, 'travel1');
+            if (!$hasPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مسموح بعرض طلبات السفر'
+                ], 403);
+            }
+            $travels = $this->travelService->getTravels($user);
+            return response()->json([
+                'success' => true,
+                'message' => 'تم الحصول على طلبات السفر بنجاح',
+                'data' => $travels
+            ]);
+        } catch (\Exception $e) {
+            Log::error('TravelController::index failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل في الحصول على طلبات السفر',
+                'created_by' => $user->full_name ?? 'unknown'
+            ]);
+            return response()->json([
+                'success' => false,
+                'created_by' => $user->full_name ?? 'unknown',
+                'message' => $e->getMessage()
+            ], 404);
+        }
     }
 
     /**
@@ -53,15 +78,16 @@ class TravelController extends Controller
      *     @OA\Response(response=201, description="Travel request created successfully")
      * )
      */
-    public function store(CreateTravelRequest $request)
+    public function storeTravel(CreateTravelRequest $request)
     {
         try {
             $user = Auth::user();
             // Permission check (assumes permission key 'travel3')
-            $hasPermission = $this->permissionService->checkPermission($user, 'travel3');
+            $hasPermission = $this->permissionService->checkPermission($user, 'travel2');
             if (!$hasPermission) {
                 return response()->json([
                     'success' => false,
+                    'created_by' => $user->full_name ?? 'unknown',
                     'message' => 'غير مصرح لك بإنشاء طلبات السفر'
                 ], 403);
             }
@@ -78,14 +104,9 @@ class TravelController extends Controller
             $dto = CreateTravelDTO::fromRequest($request, $employeeId, $effectiveCompanyId, $user->user_id);
             $travel = $this->travelService->createTravel($dto);
 
-            Log::info('TravelController::store', [
-                'success' => true,
-                'message' => 'تم إنشاء طلب السفر بنجاح',
-                'created_by' => $user->full_name
-            ]);
-
             return response()->json([
                 'success' => true,
+                'created_by' => $user->full_name,
                 'message' => 'تم إنشاء طلب السفر بنجاح',
                 'data' => $travel
             ], 201);
@@ -97,6 +118,7 @@ class TravelController extends Controller
             ]);
             return response()->json([
                 'success' => false,
+                'created_by' => $user->full_name ?? 'unknown',
                 'message' => 'فشل في إنشاء طلب السفر',
                 'error' => $e->getMessage()
             ], 500);
@@ -113,16 +135,21 @@ class TravelController extends Controller
      *     @OA\Response(response=200, description="Successful operation")
      * )
      */
-    public function show($id)
+    public function showTravel(int $id, Request $request)
     {
         try {
             $user = Auth::user();
+
+            // التحقق من الصلاحيات
+            $isUserHasThisPermission = $this->permissionService->checkPermission($user, 'travel2');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بعرض تفاصيل طلبات السفر'
+                ], 403);
+            }
+
             $travel = $this->travelService->getTravel($id, $user);
-            Log::info('TravelController::show', [
-                'success' => true,
-                'message' => 'تم الحصول على طلب السفر بنجاح',
-                'created_by' => $user->full_name
-            ]);
             return response()->json(['success' => true, 'data' => $travel]);
         } catch (\Exception $e) {
             Log::error('TravelController::show failed', [
@@ -148,11 +175,11 @@ class TravelController extends Controller
      *     @OA\Response(response=200, description="Travel request updated successfully")
      * )
      */
-    public function update(UpdateTravelRequest $request, $id)
+    public function updateTravel(UpdateTravelRequest $request, $id)
     {
         try {
             $user = Auth::user();
-            $isUserHasThisPermission = $this->permissionService->checkPermission($user, 'travel4');
+            $isUserHasThisPermission = $this->permissionService->checkPermission($user, 'travel3');
             if (!$isUserHasThisPermission) {
                 return response()->json([
                     'success' => false,
@@ -160,17 +187,7 @@ class TravelController extends Controller
                 ], 403);
             }
             $dto = UpdateTravelDTO::fromRequest($request);
-            Log::info('TravelController::getUpdateDTOData', [
-                'success' => true,
-                'dto' => $dto,
-                'created by' => $user->full_name
-            ]);
             $travel = $this->travelService->updateTravel($id, $dto, Auth::user());
-            Log::info('TravelController::update', [
-                'success' => true,
-                'message' => 'تم تحديث طلب السفر بنجاح',
-                'created_by' => $user->full_name
-            ]);
             return response()->json(['success' => true, 'message' => 'تم تحديث طلب السفر بنجاح', 'data' => $travel]);
         } catch (\Exception $e) {
             Log::error('TravelController::update failed', [
@@ -192,7 +209,7 @@ class TravelController extends Controller
      *     @OA\Response(response=200, description="Travel request deleted successfully")
      * )
      */
-    public function cancel($id)
+    public function cancelTravel($id)
     {
         try {
             $user = Auth::user();
@@ -232,7 +249,7 @@ class TravelController extends Controller
     {
         $user = Auth::user();
         try {
-            $isUserHasThisPermission = $this->permissionService->checkPermission($user, 'travel4');
+            $isUserHasThisPermission = $this->permissionService->checkPermission($user, 'travel5');
             if (!$isUserHasThisPermission) {
                 return response()->json([
                     'success' => false,
@@ -242,22 +259,9 @@ class TravelController extends Controller
 
             $action = $request->input('action'); // approve or reject
 
-            Log::info('TravelController::Request received', [
-                'request' => $request->all(),
-                'action' => $action,
-                'created by' => $user->full_name
-            ]);
-
             if ($action === 'approve') {
                 // استدعاء خدمة الموافقة على الطلب
                 $application = $this->travelService->approveTravel($id, $request, $user);
-
-                Log::info('TravelController::Approved', [
-                    'success' => true,
-                    'action' => $action,
-                    'message' => 'تم الموافقة على طلب السفر بنجاح',
-                    'created by' => $user->full_name
-                ]);
 
                 return response()->json([
                     'success' => true,
@@ -274,14 +278,6 @@ class TravelController extends Controller
                         'message' => 'طلب السفر غير موجود'
                     ], 404);
                 }
-
-                Log::info('TravelController::Rejected', [
-                    'success' => true,
-                    'action' => $action,
-                    'message' => 'تم رفض طلب السفر بنجاح',
-                    'application' => $application,
-                    'created by' => $user->full_name
-                ]);
 
                 return response()->json([
                     'success' => true,
@@ -301,6 +297,45 @@ class TravelController extends Controller
                 'error' => $e->getMessage(),
                 'created by' => $user->full_name
             ], 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/travels/search",
+     *     summary="Search travel requests",
+     *     tags={"Travel"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="query", in="query", required=true, @OA\Schema(type="string")),
+     *     @OA\Response(response=200, description="Successful operation")
+     * )
+     */
+    public function search(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $hasPermission = $this->permissionService->checkPermission($user, 'travel1');
+            if (!$hasPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مسموح بالبحث في طلبات السفر'
+                ], 403);
+            }
+
+            $query = $request->input('query', '');
+            $travels = $this->travelService->searchTravels($user, $query);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم البحث بنجاح',
+                'data' => $travels
+            ]);
+        } catch (\Exception $e) {
+            Log::error('TravelController::search failed', [
+                'error' => $e->getMessage(),
+                'user' => $user->full_name ?? 'unknown'
+            ]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 }
