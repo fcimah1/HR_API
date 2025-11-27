@@ -5,17 +5,17 @@ namespace App\DTOs\Leave;
 class UpdateLeaveTypeDTO
 {
     public function __construct(
-        public readonly int $leaveTypeId,
-        public readonly string $name,
-        public readonly bool $requiresApproval = true,
-        public readonly bool $isPaidLeave = false,
-        public readonly bool $enableLeaveAccrual = false,
-        public readonly bool $isCarry = false,
-        public readonly float $carryLimit = 0,
-        public readonly bool $isNegativeQuota = false,
-        public readonly float $negativeLimit = 0,
-        public readonly bool $isQuota = true,
-        public readonly array $quotaAssign = [],
+        public  int $leaveTypeId,
+        public  string $name,
+        public  bool $requiresApproval = true,
+        public  bool $isPaidLeave = false,
+        public  bool $enableLeaveAccrual = false,
+        public  bool $isCarry = false,
+        public  float $carryLimit = 0,
+        public  bool $isNegativeQuota = false,
+        public  float $negativeLimit = 0,
+        public  bool $isQuota = true,
+        public  array $quotaAssign = [],
     ) {}
 
     public static function fromRequest(array $data): self

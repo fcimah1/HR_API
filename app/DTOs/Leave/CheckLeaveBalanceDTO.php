@@ -10,11 +10,11 @@ use Illuminate\Support\Facades\Validator;
 class CheckLeaveBalanceDTO
 {
     public function __construct(
-        public readonly int $employeeId,
-        public readonly int $leaveTypeId,
-        public readonly string $startDate,
-        public readonly string $endDate,
-        public readonly int $companyId
+        public  int $employeeId,
+        public  int $leaveTypeId,
+        public  string $startDate,
+        public  string $endDate,
+        public  int $companyId
     ) {}
 
     /**

@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Repository\Interface\LeaveRepositoryInterface;
 use App\DTOs\Leave\LeaveApplicationFilterDTO;
 use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
@@ -17,6 +16,7 @@ use App\Http\Requests\Leave\ApproveLeaveApplicationRequest;
 use App\Models\LeaveAdjustment;
 use App\Models\LeaveApplication;
 use App\Models\User;
+use App\Repository\Interface\LeaveRepositoryInterface;
 use App\Repository\Interface\LeaveTypeRepositoryInterface;
 use App\Services\SimplePermissionService;
 use Illuminate\Support\Facades\Auth;
@@ -630,7 +630,7 @@ class LeaveService
         $assignedHours = [];
 
         if ($employee) {
-            $details = $employee->details()->first();
+            $details = $employee->user_details()->first();
             if ($details && !empty($details->assigned_hours)) {
                 $assignedHours = @unserialize($details->assigned_hours);
                 if (!is_array($assignedHours)) {

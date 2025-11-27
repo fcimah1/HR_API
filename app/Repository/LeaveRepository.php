@@ -239,7 +239,7 @@ class LeaveRepository implements LeaveRepositoryInterface
             return $days * 8.0;
         }
 
-        $details = $employee->details()->first();
+        $details = $employee->user_details()->first();
 
         // إذا لم يوجد تاريخ تعيين واضح نستخدم أول شريحة كافتراضي
         if (!$details || empty($details->date_of_joining)) {
@@ -392,7 +392,7 @@ class LeaveRepository implements LeaveRepositoryInterface
         // Try to get monthly accrual data from leave_options (if employee details exist)
         $employee = User::find($employeeId);
         if ($employee) {
-            $details = $employee->details()->first();
+            $details = $employee->user_details()->first();
 
             if ($details && !empty($details->leave_options)) {
                 $options = @unserialize($details->leave_options);
