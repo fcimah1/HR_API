@@ -45,13 +45,6 @@ class Branch extends Model
         'manager_id' => 'integer',
     ];
 
-    /**
-     * Get the company that owns this branch.
-     */
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Company::class, 'company_id', 'company_id');
-    }
 
     /**
      * Get the manager of this branch.

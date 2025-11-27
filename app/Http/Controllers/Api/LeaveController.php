@@ -31,9 +31,9 @@ class LeaveController extends Controller
 {
     public $simplePermissionService;
     public function __construct(
-        private readonly LeaveService $leaveService,
-        private readonly SimplePermissionService $permissionService
-    ) {
+        private  LeaveService $leaveService,
+        private  SimplePermissionService $permissionService)
+    {
         $this->simplePermissionService = $permissionService;
     }
     /**
@@ -684,13 +684,13 @@ class LeaveController extends Controller
         $user = Auth::user();
         try {
 
-            if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'غير مصرح لك بعرض الإحصائيات',
-                    'created by' => $user->full_name
-                ], 403);
-            }
+            // if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
+            //     return response()->json([
+            //         'success' => false,
+            //         'message' => 'غير مصرح لك بعرض الإحصائيات',
+            //         'created by' => $user->full_name
+            //     ], 403);
+            // }
             // effective company id
 
             $companyId = $this->permissionService->getEffectiveCompanyId($user);

@@ -21,10 +21,15 @@ use Illuminate\Support\Facades\Log;
  */
 class LeaveTypeController extends Controller
 {
+    protected $leaveTypeService;
+    protected $permissionService;
     public function __construct(
-        private readonly LeaveTypeService $leaveTypeService,
-        private readonly SimplePermissionService $permissionService
-    ) {}
+          LeaveTypeService $leaveTypeService,
+          SimplePermissionService $permissionService
+    ) {
+        $this->leaveTypeService = $leaveTypeService;
+        $this->permissionService = $permissionService;
+    }
 
     /**
      * @OA\Get(
@@ -52,7 +57,7 @@ class LeaveTypeController extends Controller
     {
         try {
             $user = Auth::user();
-            $isUserHasThisPermission = $this->permissionService->checkPermission($user, 'leave_type1');
+            $isUserHasThisPermission = $this->permissionService->checkPermission($user, ' ');
             if (!$isUserHasThisPermission) {
                 return response()->json([
                     'success' => false,
@@ -231,7 +236,7 @@ class LeaveTypeController extends Controller
                 ], 403);
             }
 
-            $dto = UpdateLeaveTypeDTO::fromRequest($request->validated(), $id);
+            $dto = UpdateLeaveTypeDTO::fromRequest($request->validated());
 
             $leaveType = $this->leaveTypeService->updateLeaveType($dto);
 

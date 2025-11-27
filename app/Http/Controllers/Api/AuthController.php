@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -37,7 +38,15 @@ class AuthController extends Controller
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Login successful"),
      *             @OA\Property(property="token", type="string", example="1|abc123..."),
-     *             @OA\Property(property="user", type="object")
+     *             @OA\Property(property="user", type="object"),
+     *             @OA\Property(property="permissions", type="array", @OA\Items(type="string"), example={"dashboard_view", "employees_manage", "reports_view"}),
+     *             @OA\Property(
+     *                 property="role",
+     *                 type="object",
+     *                 @OA\Property(property="role_id", type="integer", example=1),
+     *                 @OA\Property(property="role_name", type="string", example="Administrator"),
+     *                 @OA\Property(property="role_access", type="integer", example=1)
+     *             )
      *         )
      *     ),
      *     @OA\Response(
@@ -59,13 +68,13 @@ class AuthController extends Controller
         ]);
 
         // Try to find user by username or email
-        $user = User::where(function($query) use ($request) {
-                        $query->where('username', $request->username)
-                              ->orWhere('email', $request->username);
-                    })
-                   ->where('company_name', $request->company_name)
-                   ->first();
-
+        $user = User::where(function ($query) use ($request) {
+            $query->where('username', $request->username)
+                ->orWhere('email', $request->username);
+        })
+            ->where('company_name', $request->company_name)
+            ->with('user_details')
+            ->first();
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'username' => ['The provided credentials are incorrect.'],
@@ -85,16 +94,27 @@ class AuthController extends Controller
         // Create new token with Passport
         $token = $user->createToken('HR-API-Token')->accessToken;
 
+        // Get user permissions and role data
+        $permissionData = $user->sendPermissionsWithUserDetails();
+        // Remove staffRole relationship completely from the user object
+        unset($user->staffRole);
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
             'token' => $token,
-            'user' => $user
+            'user' => $user,
+            'permissions' => $permissionData['permissions'],
+            'role' => [
+                'role_id' => $permissionData['role_id'],
+                'role_name' => $permissionData['role_name'],
+                'role_access' => $permissionData['role_access'],
+            ]
         ]);
     }
 
     // Registration is disabled - Users must be created by admin/HR through employee management
-    
+
     /**
      * @OA\Post(
      *     path="/api/logout",
@@ -177,10 +197,10 @@ class AuthController extends Controller
     public function refresh(Request $request)
     {
         $user = $request->user();
-        
+
         // Revoke current token
         $request->user()->token()->revoke();
-        
+
         // Create new token with Passport
         $token = $user->createToken('HR-API-Token')->accessToken;
 
@@ -209,10 +229,10 @@ class AuthController extends Controller
     public function getCompanies()
     {
         $companies = User::whereNotNull('company_name')
-                        ->distinct()
-                        ->pluck('company_name')
-                        ->filter()
-                        ->values();
+            ->distinct()
+            ->pluck('company_name')
+            ->filter()
+            ->values();
 
         return response()->json([
             'success' => true,

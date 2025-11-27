@@ -106,6 +106,7 @@ class UserDetails extends Model
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
+    // get permissions of the user
     /**
      * Get the reporting manager
      */
