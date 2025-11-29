@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Services\AttendanceService;
 use App\DTOs\Attendance\AttendanceFilterDTO;
 use App\DTOs\Attendance\CreateAttendanceDTO;
+use App\DTOs\Attendance\GetAttendanceDetailsDTO;
 use App\DTOs\Attendance\UpdateAttendanceDTO;
 use App\Http\Requests\Attendance\ClockInRequest;
 use App\Http\Requests\Attendance\ClockOutRequest;
+use App\Http\Requests\Attendance\GetAttendanceDetailsRequest;
 use App\Http\Requests\Attendance\UpdateAttendanceRequest;
 use App\Services\SimplePermissionService;
 use Illuminate\Http\Request;
@@ -300,43 +302,8 @@ class AttendanceController extends Controller
         }
     }
 
-    /**
-     * @OA\Get(
-     *     path="/api/attendances/{id}",
-     *     summary="Get specific attendance record",
-     *     tags={"Attendance Management"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         required=true,
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Attendance record retrieved"
-     *     )
-     * )
-     */
-    public function show(int $id)
-    {
-        try {
-            $user = Auth::user();
-            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            // This would require adding a getById method to the service
-            // For now, return a simple response
-            return response()->json([
-                'success' => true,
-                'message' => 'Feature in progress'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    }
+    
 
     /**
      * @OA\Put(
@@ -468,6 +435,67 @@ class AttendanceController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('AttendanceController::getMonthlyReport failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/attendances/details",
+     *     summary="Get attendance details for specific user and date",
+     *     tags={"Attendance Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="user_id",
+     *         in="query",
+     *         required=true,
+     *         description="User ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="date",
+     *         in="query",
+     *         required=true,
+     *         description="Date (YYYY-MM-DD)",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Attendance details retrieved"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Attendance record not found"
+     *     )
+     * )
+     */
+    public function getAttendanceDetails(GetAttendanceDetailsRequest $request)
+    {
+        try {
+            $currentUser = Auth::user();
+            $dto = GetAttendanceDetailsDTO::fromRequest($request);
+
+            $details = $this->attendanceService->getAttendanceDetails($currentUser, $dto);
+
+            if (!$details) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'سجل الحضور غير موجود لهذا التاريخ'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $details
+            ]);
+        } catch (\Exception $e) {
+            Log::error('AttendanceController::getAttendanceDetails failed', [
                 'error' => $e->getMessage(),
                 'user_id' => Auth::id(),
             ]);

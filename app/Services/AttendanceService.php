@@ -6,6 +6,7 @@ use App\DTOs\Attendance\AttendanceFilterDTO;
 use App\DTOs\Attendance\CreateAttendanceDTO;
 use App\DTOs\Attendance\UpdateAttendanceDTO;
 use App\DTOs\Attendance\AttendanceResponseDTO;
+use App\DTOs\Attendance\GetAttendanceDetailsDTO;
 use App\Models\Attendance;
 use App\Models\User;
 use App\Repository\Interface\AttendanceRepositoryInterface;
@@ -298,6 +299,29 @@ class AttendanceService
 
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($currentUser);
         return $this->attendanceRepository->getMonthlyReport($targetId, $month, $effectiveCompanyId);
+    }
+
+    /**
+     * Get attendance details for a specific employee and date
+     */
+    public function getAttendanceDetails(User $currentUser, GetAttendanceDetailsDTO $dto): ?array
+    {
+        if ($dto->userId !== $currentUser->user_id) {
+            // Check permissions
+            $canViewAll = $currentUser->user_type === 'company' || $this->permissionService->checkPermission($currentUser, 'timesheet');
+
+            if (!$canViewAll) {
+                throw new \Exception('ليس لديك صلاحية لعرض تفاصيل حضور موظف آخر');
+            }
+        }
+
+        $attendance = $this->attendanceRepository->findTodayAttendance($dto->userId, $dto->date);
+
+        if (!$attendance) {
+            return null;
+        }
+
+        return AttendanceResponseDTO::fromModel($attendance, true)->toArray();
     }
 
     /**

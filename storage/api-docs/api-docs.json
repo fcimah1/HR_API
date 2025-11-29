@@ -817,6 +817,49 @@
                 ]
             }
         },
+        "/api/attendances/details": {
+            "get": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "Get attendance details for specific user and date",
+                "operationId": "04376e4d707a33f4b3d6af2b42f81254",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "description": "User ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "description": "Date (YYYY-MM-DD)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attendance details retrieved"
+                    },
+                    "404": {
+                        "description": "Attendance record not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/login": {
             "post": {
                 "tags": [
