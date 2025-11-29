@@ -6,6 +6,8 @@ use App\Repository\Interface\EmployeeRepositoryInterface;
 use App\Repository\EmployeeRepository;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
+use App\Repository\Interface\AttendanceRepositoryInterface;
+use App\Repository\AttendanceRepository;
 use App\Repository\Interface\LeaveRepositoryInterface;
 use App\Repository\LeaveRepository;
 use App\Repository\Interface\AdvanceSalaryRepositoryInterface;
@@ -21,6 +23,7 @@ use App\Repository\TravelTypeRepository;
 use App\Repository\Interface\LeaveTypeRepositoryInterface;
 use App\Repository\LeaveTypeRepository;
 use Laravel\Passport\Passport;
+use Laravel\Telescope\TelescopeServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(EmployeeRepositoryInterface::class, EmployeeRepository::class);
+        $this->app->singleton(AttendanceRepositoryInterface::class, AttendanceRepository::class);
         $this->app->singleton(LeaveRepositoryInterface::class, LeaveRepository::class);
         $this->app->singleton(LeaveAdjustmentRepositoryInterface::class, LeaveAdjustmentRepository::class);
         $this->app->singleton(AdvanceSalaryRepositoryInterface::class, AdvanceSalaryRepository::class);
@@ -37,6 +41,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TravelRepositoryInterface::class, TravelRepository::class);
         $this->app->bind(TravelTypeRepositoryInterface::class, TravelTypeRepository::class);
         $this->app->bind(LeaveTypeRepositoryInterface::class, LeaveTypeRepository::class);
+        if ($this->app->environment('local') && class_exists(\Laravel\Telescope\TelescopeServiceProvider::class)) {
+            $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
+            $this->app->register(TelescopeServiceProvider::class);
+        }
     }
 
     /**
