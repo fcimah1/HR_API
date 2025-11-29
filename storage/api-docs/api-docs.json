@@ -499,6 +499,324 @@
                 ]
             }
         },
+        "/api/attendances": {
+            "get": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "Get attendance records",
+                "operationId": "57cd91ddd513b3298d731adc13ba7560",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by employee ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "Filter from date (YYYY-MM-DD)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "Filter to date (YYYY-MM-DD)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attendance records retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/attendances/clock-in": {
+            "post": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "Clock in for the day",
+                "operationId": "bd568b4c1c76669a76f9a3aeb497bdbc",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "latitude": {
+                                        "type": "string",
+                                        "example": "24.7136"
+                                    },
+                                    "longitude": {
+                                        "type": "string",
+                                        "example": "46.6753"
+                                    },
+                                    "work_from_home": {
+                                        "type": "boolean",
+                                        "example": false
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Clock in successful"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/attendances/clock-out": {
+            "post": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "Clock out for the day",
+                "operationId": "48ad8bf9a2dda392902a2450c184f384",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "latitude": {
+                                        "type": "string",
+                                        "example": "24.7136"
+                                    },
+                                    "longitude": {
+                                        "type": "string",
+                                        "example": "46.6753"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Clock out successful"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/attendances/lunch-break-in": {
+            "post": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "Start lunch break",
+                "operationId": "2350b3da1e85a8bb25a5b8fe813c7e49",
+                "responses": {
+                    "200": {
+                        "description": "Lunch break started"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/attendances/lunch-break-out": {
+            "post": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "End lunch break",
+                "operationId": "39da4d5e4507e5f9e5e5e4c6f5844523",
+                "responses": {
+                    "200": {
+                        "description": "Lunch break ended"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/attendances/today": {
+            "get": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "Get today's attendance status",
+                "operationId": "d1e71fe6ff4e82d6a18e211c0349d854",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Employee ID (optional, requires permission to view others)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Today's status retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/attendances/{id}": {
+            "get": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "Get specific attendance record",
+                "operationId": "a71023f5c8c3443d5396f2dd0af2d0dd",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attendance record retrieved"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "Update attendance record (admin only)",
+                "operationId": "5403d8c6b80f4d3ae3df2bc0a6111f3c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attendance updated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "Delete attendance record (admin only)",
+                "operationId": "ecd5b1f0cc806724682136b1fb032c96",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attendance deleted"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/attendances/monthly-report": {
+            "get": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "Get monthly attendance report",
+                "operationId": "f2c9333318a121cb51d8a3ea55c23a44",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Employee ID (optional, requires permission to view others)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "month",
+                        "in": "query",
+                        "description": "Month in YYYY-MM format",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "2025-11"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Monthly report retrieved"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/login": {
             "post": {
                 "tags": [
@@ -556,6 +874,34 @@
                                             "example": "1|abc123..."
                                         },
                                         "user": {
+                                            "type": "object"
+                                        },
+                                        "permissions": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "example": [
+                                                "dashboard_view",
+                                                "employees_manage",
+                                                "reports_view"
+                                            ]
+                                        },
+                                        "role": {
+                                            "properties": {
+                                                "role_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "role_name": {
+                                                    "type": "string",
+                                                    "example": "Administrator"
+                                                },
+                                                "role_access": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                }
+                                            },
                                             "type": "object"
                                         }
                                     },
@@ -4897,6 +5243,10 @@
         {
             "name": "Advance Salary & Loan Management",
             "description": "Employee advance salary and loan requests management"
+        },
+        {
+            "name": "Attendance Management",
+            "description": "Attendance and timesheet management"
         },
         {
             "name": "Authentication",
