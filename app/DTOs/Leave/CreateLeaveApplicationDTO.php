@@ -2,6 +2,8 @@
 
 namespace App\DTOs\Leave;
 
+use App\Enums\NumericalStatusEnum;
+
 class CreateLeaveApplicationDTO
 {
     public function __construct(
@@ -36,7 +38,7 @@ class CreateLeaveApplicationDTO
     public function toArray(): array
     {
         $fromDate = new \DateTime($this->fromDate);
-        
+
         return [
             'company_id' => $this->companyId,
             'employee_id' => $this->employeeId,
@@ -50,7 +52,7 @@ class CreateLeaveApplicationDTO
             'remarks' => $this->remarks,
             'leave_month' => $fromDate->format('m'),
             'leave_year' => $fromDate->format('Y'),
-            'status' => false, // Pending by default
+            'status' => NumericalStatusEnum::PENDING->value, // Pending by default
             'created_at' => now()->format('Y-m-d H:i:s'),
         ];
     }

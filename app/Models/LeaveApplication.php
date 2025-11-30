@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\NumericalStatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,9 +52,9 @@ class LeaveApplication extends Model
     ];
 
 
-    const STATUS_PENDING = 0;
-    const STATUS_APPROVED = 1;
-    const STATUS_REJECTED = 2;
+    const STATUS_PENDING = NumericalStatusEnum::PENDING->value;
+    const STATUS_APPROVED = NumericalStatusEnum::APPROVED->value;
+    const STATUS_REJECTED = NumericalStatusEnum::REJECTED->value;
 
     /**
      * Get the employee who applied for leave

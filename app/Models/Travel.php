@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\Enums\TravelModeEnum;
+use App\Enums\NumericalStatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;   // ← **Add this line**
 
@@ -56,13 +58,13 @@ class Travel extends Model
             ->where('type', 'travel_type');
     }
 
-    const STATUS_PENDING = 0;
-    const STATUS_APPROVED = 1;
-    const STATUS_REJECTED = 2;
+    const STATUS_PENDING = NumericalStatusEnum::PENDING->value;
+    const STATUS_APPROVED = NumericalStatusEnum::APPROVED->value;
+    const STATUS_REJECTED = NumericalStatusEnum::REJECTED->value;
 
-    const TRAVEL_MODE_BUS = 1;
-    const TRAVEL_MODE_TRAIN = 2;
-    const TRAVEL_MODE_PLANE = 3;
-    const TRAVEL_MODE_TAXI = 4;
-    const TRAVEL_MODE_RENTAL_CAR = 5;
+    const TRAVEL_MODE_BUS = TravelModeEnum::BUS->value;
+    const TRAVEL_MODE_TRAIN = TravelModeEnum::TRAIN->value;
+    const TRAVEL_MODE_PLANE = TravelModeEnum::PLANE->value;
+    const TRAVEL_MODE_TAXI = TravelModeEnum::TAXI->value;
+    const TRAVEL_MODE_RENTAL_CAR = TravelModeEnum::RENTAL_CAR->value;
 }

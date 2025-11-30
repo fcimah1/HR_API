@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\StatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -56,9 +57,9 @@ class Attendance extends Model
     ];
 
     // Status constants
-    const STATUS_PENDING = 'Pending';
-    const STATUS_APPROVED = 'Approved';
-    const STATUS_REJECTED = 'Rejected';
+    const STATUS_PENDING = StatusEnum::PENDING;
+    const STATUS_APPROVED = StatusEnum::APPROVED;
+    const STATUS_REJECTED = StatusEnum::REJECTED;
 
     /**
      * Get the employee who owns the attendance record

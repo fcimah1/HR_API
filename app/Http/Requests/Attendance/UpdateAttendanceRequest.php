@@ -2,10 +2,12 @@
 
 namespace App\Http\Requests\Attendance;
 
+use App\Enums\NumericalStatusEnum;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class UpdateAttendanceRequest extends FormRequest
 {
@@ -19,7 +21,7 @@ class UpdateAttendanceRequest extends FormRequest
         return [
             'clock_in' => 'nullable|date_format:Y-m-d H:i:s',
             'clock_out' => 'nullable|date_format:Y-m-d H:i:s|after:clock_in',
-            'status' => 'nullable|string|in:Pending,Approved,Rejected',
+            'status' => ['nullable', 'string', Rule::in(NumericalStatusEnum::cases())],
             'shift_id' => 'nullable|integer|exists:ci_office_shift,office_shift_id',
             'attendance_status' => 'nullable|string|in:Present,Absent',
         ];

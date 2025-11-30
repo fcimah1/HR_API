@@ -6,14 +6,7 @@ use App\DTOs\Leave\LeaveApplicationFilterDTO;
 use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
 use App\DTOs\Leave\LeaveApplicationResponseDTO;
-use App\DTOs\Leave\LeaveAdjustmentFilterDTO;
-use App\DTOs\Leave\CreateLeaveAdjustmentDTO;
-use App\DTOs\Leave\UpdateLeaveAdjustmentDTO;
-use App\DTOs\Leave\CreateLeaveSettlementDTO;
-use App\DTOs\Leave\CreateLeaveTypeDTO;
-use App\DTOs\Leave\UpdateLeaveTypeDTO;
 use App\Http\Requests\Leave\ApproveLeaveApplicationRequest;
-use App\Models\LeaveAdjustment;
 use App\Models\LeaveApplication;
 use App\Models\User;
 use App\Repository\Interface\LeaveRepositoryInterface;
@@ -22,22 +15,22 @@ use App\Services\SimplePermissionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use App\Enums\StringStatusEnum;
+use App\Mail\Leave\LeaveSubmitted;
+use App\Mail\Leave\LeaveUpdated;
+use App\Mail\Leave\LeaveApproved;
+use App\Mail\Leave\LeaveRejected;
 
 class LeaveService
 {
-    protected $leaveRepository;
-    protected $leaveTypeRepository;
-    protected $permissionService;
-
     public function __construct(
-        LeaveRepositoryInterface $leaveRepository,
-        LeaveTypeRepositoryInterface $leaveTypeRepository,
-        SimplePermissionService $permissionService
-    ) {
-        $this->leaveRepository = $leaveRepository;
-        $this->leaveTypeRepository = $leaveTypeRepository;
-        $this->permissionService = $permissionService;
-    }
+        protected LeaveRepositoryInterface $leaveRepository,
+        protected LeaveTypeRepositoryInterface $leaveTypeRepository,
+        protected SimplePermissionService $permissionService,
+        protected NotificationService $notificationService,
+        protected ApprovalWorkflowService $approvalWorkflow,
+    ) {}
 
     /**
      * Get paginated leave applications with filters and permission check
@@ -140,11 +133,6 @@ class LeaveService
                 $dto->companyId
             );
 
-            Log::info('LeaveService::createApplication:availableBalance', [
-                'availableBalance' => $availableBalance,
-                'requestedHours' => $requestedHours,
-            ]);
-
             // إذا كانت الإجازة المطلوبة أكبر من الرصيد المتاح نرفض الطلب
             if ($requestedHours > $availableBalance) {
                 throw new \Exception(
@@ -152,15 +140,57 @@ class LeaveService
                 );
             }
 
-            $application = $this->leaveRepository->createApplication($dto);
+            $leave = $this->leaveRepository->createApplication($dto);
+            // ملاحظة: العلاقات ['employee', 'dutyEmployee', 'leaveType'] محملة بالفعل من الـ Repository
 
-            Log::info('LeaveService::createApplication - Transaction committed', [
-                'application_id' => $application->leave_id
-            ]);
+            // Get employee email and name from already loaded relationships
+            $employeeEmail = $leave->employee->email ?? null;
+            $employeeName = $leave->employee->full_name ?? 'Employee';
+            $leaveTypeName = $leave->leaveType->leave_type_name ?? 'Leave';
 
-            return LeaveApplicationResponseDTO::fromModel($application)->toArray();
+            // Start approval workflow if multi-level approval is enabled
+            $this->approvalWorkflow->submitForApproval(
+                'leave_settings',
+                (string)$leave->leave_id,
+                $dto->employeeId,
+                $dto->companyId
+            );
+
+            // Send submission notifications
+            $notificationsSent = $this->notificationService->sendSubmissionNotification(
+                'leave_settings',
+                (string)$leave->leave_id,
+                $dto->companyId,
+                StringStatusEnum::PENDING->value
+            );
+
+            // If no notifications were sent (due to missing/invalid configuration),
+            // send a notification to the employee as fallback
+            if ($notificationsSent === 0) {
+                $this->notificationService->sendCustomNotification(
+                    'leave_settings',
+                    (string)$leave->leave_id,
+                    [$dto->employeeId],
+                    StringStatusEnum::PENDING->value
+                );
+            }
+
+            // Send email notification if employee email exists
+            // Note: If this fails, the transaction will rollback but notifications might have been sent
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new LeaveSubmitted(
+                    employeeName: $employeeName,
+                    leaveType: $leaveTypeName,
+                    startDate: $dto->fromDate,
+                    endDate: $dto->toDate,
+                ));
+            }
+
+            return LeaveApplicationResponseDTO::fromModel($leave)->toArray();
         });
     }
+
+
 
     /**
      * Get leave application by ID with permission check
@@ -200,72 +230,6 @@ class LeaveService
         return null;
     }
 
-    /**
-     * Update leave application with permission check
-     */
-    // public function updateApplication(int $id, UpdateLeaveApplicationDTO $dto, User $user): ?LeaveApplicationResponseDTO
-    // {
-    //     \DB::beginTransaction();
-    //     try {
-    //         \Log::info('LeaveService::updateApplication started', [
-    //             'application_id' => $id,
-    //             'user_id' => $user->user_id,
-    //             'updates' => array_keys(array_filter($dto->toArray()))
-    //         ]);
-
-    //         // Get effective company ID first
-    //         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-
-    //         // Find application without loading relationships first
-    //         $application = $this->leaveRepository->findApplicationInCompany($id, $effectiveCompanyId);
-
-    //         if (!$application) {
-    //             \Log::warning('Application not found', ['application_id' => $id, 'company_id' => $effectiveCompanyId]);
-    //             \DB::rollBack();
-    //             return null;
-    //         }
-
-    //         // Check permissions
-    //         if ($application->employee_id !== $user->user_id) {
-    //             \Log::warning('Permission denied - not owner', [
-    //                 'application_employee_id' => $application->employee_id,
-    //                 'current_user_id' => $user->user_id
-    //             ]);
-    //             \DB::rollBack();
-    //             throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
-    //         }
-
-    //         // Check if application can be updated
-    //         if ($application->status !== false) {
-    //             \Log::warning('Cannot update - not pending', ['status' => $application->status]);
-    //             \DB::rollBack();
-    //             throw new \Exception('لا يمكن تعديل الطلب بعد المراجعة');
-    //         }
-
-    //         // Update application
-    //         $updatedApplication = $this->leaveRepository->updateApplication($application, $dto);
-
-    //         \DB::commit();
-
-    //         \Log::info('Application updated successfully', [
-    //             'application_id' => $updatedApplication->leave_id,
-    //             'updates' => array_keys(array_filter($dto->toArray()))
-    //         ]);
-
-    //         return LeaveApplicationResponseDTO::fromModel($updatedApplication);
-
-    //     } catch (\Exception $e) {
-    //         \DB::rollBack();
-    //         \Log::error('Error in LeaveService::updateApplication', [
-    //             'error' => $e->getMessage(),
-    //             'trace' => $e->getTraceAsString()
-    //         ]);
-    //         throw $e;
-    //     }
-    // }   
-
-
-
 
     /**
      * Update leave application with permission check
@@ -276,10 +240,6 @@ class LeaveService
     public function update_Application(int $id, UpdateLeaveApplicationDTO $dto, User $user): ?array
     {
         return DB::transaction(function () use ($id, $dto, $user) {
-            Log::info('LeaveService::update_Application - Transaction started', [
-                'application_id' => $id,
-                'user_id' => $user->user_id
-            ]);
 
             // الحصول على معرف الشركة الفعلي
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
@@ -305,17 +265,27 @@ class LeaveService
 
             $updatedApplication = $this->leaveRepository->update_Application($application, $dto);
 
-            Log::info('LeaveService::update_Application - Transaction committed', [
-                'application_id' => $updatedApplication->leave_id
-            ]);
+            // Get employee email and name from already loaded relationships
+            $employeeEmail = $updatedApplication->employee->email ?? null;
+            $employeeName = $updatedApplication->employee->full_name ?? 'Employee';
+            $leaveTypeName = $updatedApplication->leaveType->leave_type_name ?? 'Leave';
+
+
+            // Send email notification if employee email exists
+            // Note: If this fails, the transaction will rollback but notifications might have been sent
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new LeaveUpdated(
+                    employeeName: $employeeName,
+                    leaveType: $leaveTypeName,
+                    startDate: $updatedApplication->from_date,
+                    endDate: $updatedApplication->to_date,
+                ));
+            }
 
             return LeaveApplicationResponseDTO::fromModel($updatedApplication)->toArray();
         });
     }
 
-    /**
-     * Cancel leave application (mark as rejected)
-     */
     /**
      * Cancel leave application (mark as rejected)
      */
@@ -358,6 +328,15 @@ class LeaveService
             Log::info('LeaveService::cancelApplication - Transaction committed', [
                 'application_id' => $id
             ]);
+
+            // Send notification for cancellation (using custom notification to notify managers)
+            // We notify the company managers/admins
+            $this->notificationService->sendSubmissionNotification(
+                'leave_settings',
+                (string)$id,
+                $effectiveCompanyId,
+                StringStatusEnum::REJECTED->value
+            );
 
             return true;
         });
@@ -406,11 +385,31 @@ class LeaveService
                 $user->user_id, // approvedBy
                 $remarks
             );
+            if (!$approvedApplication) {
+                throw new \Exception('فشل في الموافقة على الطلب');
+            }
+            // Send approval notification
+            $this->notificationService->sendApprovalNotification(
+                'leave_settings',
+                (string)$approvedApplication->leave_id,
+                $companyId,
+                StringStatusEnum::APPROVED->value
+            );
 
-            Log::info('LeaveService::approveApplication - Transaction committed', [
-                'application_id' => $approvedApplication->leave_id,
-                'approved_by' => $user->user_id
-            ]);
+            // Send approval email
+            $employeeEmail = $approvedApplication->employee->email ?? null;
+            $employeeName = $approvedApplication->employee->full_name ?? 'Employee';
+            $leaveTypeName = $approvedApplication->leaveType->leave_type_name ?? 'Leave';
+
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new LeaveApproved(
+                    employeeName: $employeeName,
+                    leaveType: $leaveTypeName,
+                    startDate: $approvedApplication->from_date,
+                    endDate: $approvedApplication->to_date,
+                    remarks: $remarks
+                ));
+            }
 
             return LeaveApplicationResponseDTO::fromModel($approvedApplication);
         });
@@ -439,9 +438,32 @@ class LeaveService
 
             $rejectedApplication = $this->leaveRepository->rejectApplication($application, $rejectedBy, $reason);
 
-            Log::info('LeaveService::rejectApplication - Transaction committed', [
-                'application_id' => $rejectedApplication->leave_id
-            ]);
+            if (!$rejectedApplication) {
+                throw new \Exception('فشل في رفض الطلب');
+            }
+
+            // Send rejection notification
+            $this->notificationService->sendApprovalNotification(
+                'leave_settings',
+                (string)$rejectedApplication->leave_id,
+                $companyId,
+                StringStatusEnum::REJECTED->value
+            );
+
+            // Send rejection email
+            $employeeEmail = $rejectedApplication->employee->email ?? null;
+            $employeeName = $rejectedApplication->employee->full_name ?? 'Employee';
+            $leaveTypeName = $rejectedApplication->leaveType->leave_type_name ?? 'Leave';
+
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new LeaveRejected(
+                    employeeName: $employeeName,
+                    leaveType: $leaveTypeName,
+                    startDate: $rejectedApplication->from_date,
+                    endDate: $rejectedApplication->to_date,
+                    reason: $reason
+                ));
+            }
 
             return LeaveApplicationResponseDTO::fromModel($rejectedApplication)->toArray();
         });

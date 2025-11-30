@@ -22,6 +22,14 @@ use App\Repository\TravelRepository;
 use App\Repository\TravelTypeRepository;
 use App\Repository\Interface\LeaveTypeRepositoryInterface;
 use App\Repository\LeaveTypeRepository;
+use App\Repository\Interface\NotificationSettingRepositoryInterface;
+use App\Repository\Interface\NotificationStatusRepositoryInterface;
+use App\Repository\Interface\NotificationApprovalRepositoryInterface;
+use App\Repository\NotificationSettingRepository;
+use App\Repository\NotificationStatusRepository;
+use App\Repository\NotificationApprovalRepository;
+use App\Repository\Interface\HolidayRepositoryInterface;
+use App\Repository\HolidayRepository;
 use Laravel\Passport\Passport;
 use Laravel\Telescope\TelescopeServiceProvider;
 
@@ -41,6 +49,15 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TravelRepositoryInterface::class, TravelRepository::class);
         $this->app->bind(TravelTypeRepositoryInterface::class, TravelTypeRepository::class);
         $this->app->bind(LeaveTypeRepositoryInterface::class, LeaveTypeRepository::class);
+
+        // Notification repositories
+        $this->app->singleton(NotificationSettingRepositoryInterface::class, NotificationSettingRepository::class);
+        $this->app->singleton(NotificationStatusRepositoryInterface::class, NotificationStatusRepository::class);
+        $this->app->singleton(NotificationApprovalRepositoryInterface::class, NotificationApprovalRepository::class);
+
+        // Holiday repository
+        $this->app->singleton(HolidayRepositoryInterface::class, HolidayRepository::class);
+
         if ($this->app->environment('local') && class_exists(\Laravel\Telescope\TelescopeServiceProvider::class)) {
             $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
             $this->app->register(TelescopeServiceProvider::class);

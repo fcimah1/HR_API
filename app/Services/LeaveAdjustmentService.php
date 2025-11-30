@@ -12,21 +12,29 @@ use App\Services\SimplePermissionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\LeaveAdjustment\AdjustmentSubmitted;
+use App\Mail\LeaveAdjustment\AdjustmentApproved;
+use App\Mail\LeaveAdjustment\AdjustmentRejected;
+use App\Enums\StringStatusEnum;
 
 class LeaveAdjustmentService
 {
     protected $permissionService;
     protected $leaveService;
     protected $leaveAdjustmentRepository;
+    protected $notificationService;
 
     public function __construct(
         SimplePermissionService $permissionService,
         LeaveService $leaveService,
-        LeaveAdjustmentRepositoryInterface $leaveAdjustmentRepository
+        LeaveAdjustmentRepositoryInterface $leaveAdjustmentRepository,
+        NotificationService $notificationService
     ) {
         $this->permissionService = $permissionService;
         $this->leaveService = $leaveService;
         $this->leaveAdjustmentRepository = $leaveAdjustmentRepository;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -129,12 +137,6 @@ class LeaveAdjustmentService
                     $data->companyId
                 );
 
-                Log::info('LeaveAdjustmentService::createAdjustment availableBalance', [
-                    'availableBalance' => $availableBalance,
-                    'user_id' => $data->employeeId,
-                    'company_id' => $data->companyId
-                ]);
-
                 $hoursToDeduct = abs($data->adjustHours);
 
                 if ($availableBalance < $hoursToDeduct) {
@@ -146,10 +148,27 @@ class LeaveAdjustmentService
 
             $adjustment = $this->leaveAdjustmentRepository->createAdjust($data);
 
-            Log::info('LeaveAdjustmentService::createAdjustment - Transaction committed', [
-                'adjustment_id' => $adjustment->id,
-                'employee_id' => $adjustment->employee_id
-            ]);
+            // Send notification
+            $this->notificationService->sendSubmissionNotification(
+                'leave_adjustment_settings',
+                (string)$adjustment->id,
+                $data->companyId,
+                StringStatusEnum::PENDING->value
+            );
+
+            // Send email notification
+            $employeeEmail = $adjustment->employee->email ?? null;
+            $employeeName = $adjustment->employee->full_name ?? 'Employee';
+            $leaveTypeName = $adjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
+
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new AdjustmentSubmitted(
+                    employeeName: $employeeName,
+                    leaveType: $leaveTypeName,
+                    adjustHours: $data->adjustHours,
+                    reason: $data->reasonAdjustment
+                ));
+            }
 
             return $adjustment->toArray();
         });
@@ -161,11 +180,6 @@ class LeaveAdjustmentService
     public function approveAdjustment(int $id, int $companyId, int $approvedBy): LeaveAdjustment
     {
         return DB::transaction(function () use ($id, $companyId, $approvedBy) {
-            Log::info('LeaveAdjustmentService::approveAdjustment - Transaction started', [
-                'adjustment_id' => $id,
-                'approved_by' => $approvedBy
-            ]);
-
             $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $companyId);
 
             if (!$adjustment) {
@@ -178,9 +192,27 @@ class LeaveAdjustmentService
 
             $approvedAdjustment = $this->leaveAdjustmentRepository->approveAdjustment($adjustment, $approvedBy);
 
-            Log::info('LeaveAdjustmentService::approveAdjustment - Transaction committed', [
-                'adjustment_id' => $approvedAdjustment->id
-            ]);
+            // Send approval notification
+            $this->notificationService->sendApprovalNotification(
+                'leave_adjustment_settings',
+                (string)$approvedAdjustment->id,
+                $companyId,
+                StringStatusEnum::APPROVED->value
+            );
+
+            // Send email notification
+            $employeeEmail = $approvedAdjustment->employee->email ?? null;
+            $employeeName = $approvedAdjustment->employee->full_name ?? 'Employee';
+            $leaveTypeName = $approvedAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
+
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new AdjustmentApproved(
+                    employeeName: $employeeName,
+                    leaveType: $leaveTypeName,
+                    adjustHours: $approvedAdjustment->adjust_hours,
+                    remarks: null
+                ));
+            }
 
             return $approvedAdjustment;
         });
@@ -192,11 +224,6 @@ class LeaveAdjustmentService
     public function rejectAdjustment(int $id, int $companyId, int $rejectedBy, string $reason): LeaveAdjustment
     {
         return DB::transaction(function () use ($id, $companyId, $rejectedBy, $reason) {
-            Log::info('LeaveAdjustmentService::rejectAdjustment - Transaction started', [
-                'adjustment_id' => $id,
-                'rejected_by' => $rejectedBy
-            ]);
-
             $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $companyId);
 
             if (!$adjustment) {
@@ -209,9 +236,27 @@ class LeaveAdjustmentService
 
             $rejectedAdjustment = $this->leaveAdjustmentRepository->rejectAdjustment($adjustment, $rejectedBy, $reason);
 
-            Log::info('LeaveAdjustmentService::rejectAdjustment - Transaction committed', [
-                'adjustment_id' => $rejectedAdjustment->id
-            ]);
+            // Send rejection notification
+            $this->notificationService->sendApprovalNotification(
+                'leave_adjustment_settings',
+                (string)$rejectedAdjustment->id,
+                $companyId,
+                StringStatusEnum::REJECTED->value
+            );
+
+            // Send email notification
+            $employeeEmail = $rejectedAdjustment->employee->email ?? null;
+            $employeeName = $rejectedAdjustment->employee->full_name ?? 'Employee';
+            $leaveTypeName = $rejectedAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
+
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new AdjustmentRejected(
+                    employeeName: $employeeName,
+                    leaveType: $leaveTypeName,
+                    adjustHours: $rejectedAdjustment->adjust_hours,
+                    reason: $reason
+                ));
+            }
 
             return $rejectedAdjustment;
         });
@@ -226,11 +271,6 @@ class LeaveAdjustmentService
     public function updateAdjustment(int $id, UpdateLeaveAdjustmentDTO $dto, int $employeeId): ?LeaveAdjustment
     {
         return DB::transaction(function () use ($id, $dto, $employeeId) {
-            Log::info('LeaveAdjustmentService::updateAdjustment - Transaction started', [
-                'adjustment_id' => $id,
-                'employee_id' => $employeeId
-            ]);
-
             $adjustment = $this->leaveAdjustmentRepository->findAdjustmentForEmployee($id, $employeeId);
 
             if (!$adjustment) {
@@ -242,11 +282,19 @@ class LeaveAdjustmentService
             }
 
             $updatedAdjustment = $this->leaveAdjustmentRepository->updateAdjustment($adjustment, $dto);
+            // Send email notification
+            $employeeEmail = $updatedAdjustment->employee->email ?? null;
+            $employeeName = $updatedAdjustment->employee->full_name ?? 'Employee';
+            $leaveTypeName = $updatedAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
 
-            Log::info('LeaveAdjustmentService::updateAdjustment - Transaction committed', [
-                'adjustment_id' => $updatedAdjustment->id
-            ]);
-
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new AdjustmentRejected(
+                    employeeName: $employeeName,
+                    leaveType: $leaveTypeName,
+                    adjustHours: $updatedAdjustment->adjust_hours,
+                    reason: $updatedAdjustment->reason,
+                ));
+            }
             return $updatedAdjustment;
         });
     }
@@ -257,11 +305,6 @@ class LeaveAdjustmentService
     public function cancelAdjustment(int $id, int $employeeId): bool
     {
         return DB::transaction(function () use ($id, $employeeId) {
-            Log::info('LeaveAdjustmentService::cancelAdjustment - Transaction started', [
-                'adjustment_id' => $id,
-                'employee_id' => $employeeId
-            ]);
-
             $adjustment = $this->leaveAdjustmentRepository->findAdjustmentForEmployee($id, $employeeId);
 
             if (!$adjustment) {
@@ -273,12 +316,28 @@ class LeaveAdjustmentService
             }
 
             // Mark as rejected (keeps record in database)
-            $this->leaveAdjustmentRepository->cancelAdjustment($adjustment, $employeeId, 'تم إلغاء التسوية من قبل الموظف');
+            $cancelledAdjustment = $this->leaveAdjustmentRepository->cancelAdjustment($adjustment, $employeeId, 'تم إلغاء التسوية من قبل الموظف');
 
-            Log::info('LeaveAdjustmentService::cancelAdjustment - Transaction committed', [
-                'adjustment_id' => $id
-            ]);
+                        // Send rejection notification
+            $this->notificationService->sendApprovalNotification(
+                'leave_adjustment_settings',
+                (string)$cancelledAdjustment->id,
+                $cancelledAdjustment->company_id,
+                StringStatusEnum::REJECTED->value
+            );
+            // Send email notification
+            $employeeEmail = $cancelledAdjustment->employee->email ?? null;
+            $employeeName = $cancelledAdjustment->employee->full_name ?? 'Employee';
+            $leaveTypeName = $cancelledAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
 
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new AdjustmentRejected(
+                    employeeName: $employeeName,
+                    leaveType: $leaveTypeName,
+                    adjustHours: $cancelledAdjustment->adjust_hours,
+                    reason: $cancelledAdjustment->reason,
+                ));
+            }
             return true;
         });
     }
