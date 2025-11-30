@@ -5,43 +5,67 @@ namespace App\Services;
 use App\DTOs\Travel\CreateTravelDTO;
 use App\DTOs\Travel\UpdateTravelDTO;
 use App\Http\Requests\Travel\UpdateTravelStatusRequest;
+use App\Mail\Travel\TravelSubmitted;
+use App\Mail\Travel\TravelUpdated;
+use App\Mail\Travel\TravelApproved;
+use App\Mail\Travel\TravelRejected;
 use App\Models\User;
 use App\Repository\Interface\TravelRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\SimplePermissionService;
+use Illuminate\Support\Facades\Mail;
+use App\Enums\StringStatusEnum;
 
 class TravelService
 {
-    protected $travelRepository;
-    protected $permissionService;
-
-    public function __construct(TravelRepositoryInterface $travelRepository, SimplePermissionService $permissionService)
-    {
-        $this->travelRepository = $travelRepository;
-        $this->permissionService = $permissionService;
-    }
+    public function __construct(
+        protected TravelRepositoryInterface $travelRepository,
+        protected SimplePermissionService $permissionService,
+        protected NotificationService $notificationService,
+        protected ApprovalWorkflowService $approvalWorkflow,
+    ) {}
 
     public function createTravel(CreateTravelDTO $dto): object
     {
         return DB::transaction(function () use ($dto) {
-            Log::info('TravelService::createTravel - Transaction started', ['employee_id' => $dto->employee_id]);
-
-            // Check for overlapping travel dates
-            Log::info('TravelService::createTravel - Checking for overlaps', [
-                'employee_id' => $dto->employee_id,
-                'start_date' => $dto->start_date,
-                'end_date' => $dto->end_date
-            ]);
 
             if ($this->travelRepository->hasOverlappingTravel($dto->employee_id, $dto->start_date, $dto->end_date)) {
-                Log::warning('TravelService::createTravel - Overlap detected!');
                 throw new \Exception('يوجد طلب سفر آخر لنفس الموظف في نفس الفترة الزمنية أو فترة متداخلة معها');
             }
 
             $travel = $this->travelRepository->create($dto);
 
-            Log::info('TravelService::createTravel - Transaction committed', ['travel_id' => $travel->travel_id]);
+            // Send submission notifications
+            $this->notificationService->sendSubmissionNotification(
+                'travel_settings',
+                (string)$travel->travel_id,
+                $dto->company_id,
+                StringStatusEnum::PENDING->value
+            );
+
+            // Start approval workflow
+            $this->approvalWorkflow->submitForApproval(
+                'travel_settings',
+                (string)$travel->travel_id,
+                $dto->employee_id,
+                $dto->company_id
+            );
+
+            // Send email notification
+            $employeeEmail = $travel->employee->email ?? null;
+            $employeeName = $travel->employee->full_name ?? 'Employee';
+
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new TravelSubmitted(
+                    employeeName: $employeeName,
+                    destination: $travel->visit_place,
+                    startDate: $travel->start_date,
+                    endDate: $travel->end_date,
+                    purpose: $travel->visit_purpose
+                ));
+            }
+
             return $travel;
         });
     }
@@ -49,7 +73,6 @@ class TravelService
     public function updateTravel(int $id, UpdateTravelDTO $dto, User $user): object
     {
         return DB::transaction(function () use ($id, $dto, $user) {
-            Log::info('TravelService::updateTravel - Transaction started', ['travel_id' => $id]);
 
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $travel = $this->travelRepository->findByIdAndCompany($id, $effectiveCompanyId);
@@ -84,7 +107,20 @@ class TravelService
 
             $this->travelRepository->update($travel, $dto);
 
-            Log::info('TravelService::updateTravel - Transaction committed', ['travel_id' => $id]);
+            // Send email notification
+            $employeeEmail = $travel->employee->email ?? null;
+            $employeeName = $travel->employee->full_name ?? 'Employee';
+
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new TravelUpdated(
+                    employeeName: $employeeName,
+                    destination: $travel->visit_place,
+                    startDate: $travel->start_date,
+                    endDate: $travel->end_date,
+                    purpose: $travel->visit_purpose
+                ));
+            }
+
             return $travel;
         });
     }
@@ -92,7 +128,6 @@ class TravelService
     public function cancelTravel(int $id, User $user): bool
     {
         return DB::transaction(function () use ($id, $user) {
-            Log::info('TravelService::cancelTravel - Transaction started', ['travel_id' => $id]);
 
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $travel = $this->travelRepository->findByIdAndCompany($id, $effectiveCompanyId);
@@ -120,7 +155,26 @@ class TravelService
 
             $this->travelRepository->cancel($id);
 
-            Log::info('TravelService::cancelTravel - Transaction committed', ['travel_id' => $id]);
+            // Send notification for cancellation
+            $this->notificationService->sendSubmissionNotification(
+                'travel_settings',
+                (string)$id,
+                $effectiveCompanyId,
+                StringStatusEnum::REJECTED->value
+            );
+            // Send email notification
+            $employeeEmail = $travel->employee->email ?? null;
+            $employeeName = $travel->employee->full_name ?? 'Employee';
+
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new TravelRejected(
+                    employeeName: $employeeName,
+                    destination: $travel->visit_place,
+                    startDate: $travel->start_date,
+                    endDate: $travel->end_date,
+                    purpose: $travel->visit_purpose
+                ));
+            }
             return true;
         });
     }
@@ -128,7 +182,6 @@ class TravelService
     public function approveTravel(int $id, UpdateTravelStatusRequest $request, User $user): object
     {
         return DB::transaction(function () use ($id, $request, $user) {
-            Log::info('TravelService::approveTravel - Transaction started', ['travel_id' => $id]);
 
             // Get the authenticated user from the request
             $user = $request->user();
@@ -146,7 +199,28 @@ class TravelService
 
             $travel = $this->travelRepository->approve($id);
 
-            Log::info('TravelService::approveTravel - Transaction committed', ['travel_id' => $id]);
+            // Send approval notification
+            $this->notificationService->sendApprovalNotification(
+                'travel_settings',
+                (string)$travel->travel_id,
+                $effectiveCompanyId,
+                StringStatusEnum::APPROVED->value
+            );
+
+            // Send email notification
+            $employeeEmail = $travel->employee->email ?? null;
+            $employeeName = $travel->employee->full_name ?? 'Employee';
+
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new TravelApproved(
+                    employeeName: $employeeName,
+                    destination: $travel->visit_place,
+                    startDate: $travel->start_date,
+                    endDate: $travel->end_date,
+                    remarks: null
+                ));
+            }
+
             return $travel;
         });
     }
@@ -154,7 +228,6 @@ class TravelService
     public function rejectTravel(int $id, UpdateTravelStatusRequest $request, User $user): object
     {
         return DB::transaction(function () use ($id, $request, $user) {
-            Log::info('TravelService::rejectTravel - Transaction started', ['travel_id' => $id]);
 
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $travel = $this->travelRepository->findByIdAndCompany($id, $effectiveCompanyId);
@@ -169,7 +242,28 @@ class TravelService
 
             $travel = $this->travelRepository->reject($id);
 
-            Log::info('TravelService::rejectTravel - Transaction committed', ['travel_id' => $id]);
+            // Send rejection notification
+            $this->notificationService->sendApprovalNotification(
+                'travel_settings',
+                (string)$travel->travel_id,
+                $effectiveCompanyId,
+                StringStatusEnum::REJECTED->value
+            );
+
+            // Send email notification
+            $employeeEmail = $travel->employee->email ?? null;
+            $employeeName = $travel->employee->full_name ?? 'Employee';
+
+            if ($employeeEmail) {
+                Mail::to($employeeEmail)->send(new TravelRejected(
+                    employeeName: $employeeName,
+                    destination: $travel->visit_place,
+                    startDate: $travel->start_date,
+                    endDate: $travel->end_date,
+                    purpose: 'تم رفض طلب السفر'
+                ));
+            }
+
             return $travel;
         });
     }

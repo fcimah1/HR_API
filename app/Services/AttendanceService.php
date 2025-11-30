@@ -7,7 +7,6 @@ use App\DTOs\Attendance\CreateAttendanceDTO;
 use App\DTOs\Attendance\UpdateAttendanceDTO;
 use App\DTOs\Attendance\AttendanceResponseDTO;
 use App\DTOs\Attendance\GetAttendanceDetailsDTO;
-use App\Models\Attendance;
 use App\Models\User;
 use App\Repository\Interface\AttendanceRepositoryInterface;
 use App\Services\SimplePermissionService;
@@ -16,16 +15,12 @@ use Illuminate\Support\Facades\Log;
 
 class AttendanceService
 {
-    protected $attendanceRepository;
-    protected $permissionService;
-
     public function __construct(
-        AttendanceRepositoryInterface $attendanceRepository,
-        SimplePermissionService $permissionService
-    ) {
-        $this->attendanceRepository = $attendanceRepository;
-        $this->permissionService = $permissionService;
-    }
+        protected AttendanceRepositoryInterface $attendanceRepository,
+        protected SimplePermissionService $permissionService,
+        protected HolidayService $holidayService,
+        protected NotificationService $notificationService,
+    ) {}
 
     /**
      * Get paginated attendance records with filters
@@ -89,13 +84,17 @@ class AttendanceService
     public function clockIn(CreateAttendanceDTO $dto): array
     {
         return DB::transaction(function () use ($dto) {
+
             // Check if already clocked in today
             if ($this->attendanceRepository->hasClockedInToday($dto->employeeId)) {
                 throw new \Exception('لقد سجلت الحضور اليوم بالفعل');
             }
 
-            // TODO: Check for holidays and leave applications
-            // This would require Holiday and LeaveApplication models
+            // Check for holidays
+            if ($this->holidayService->isHoliday($dto->attendanceDate, $dto->companyId)) {
+                $holiday = $this->holidayService->getHolidayForDate($dto->attendanceDate, $dto->companyId);
+                throw new \Exception('لا يمكن تسجيل الحضور في يوم عطلة: ' . ($holiday['event_name'] ?? 'عطلة رسمية'));
+            }
 
             $attendance = $this->attendanceRepository->clockIn($dto);
 

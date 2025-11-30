@@ -164,4 +164,36 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::put('/travel-types/{id}', [App\Http\Controllers\Api\TravelTypeController::class, 'updateTravelType']);
         Route::delete('/travel-types/{id}', [App\Http\Controllers\Api\TravelTypeController::class, 'destroyTravelType']);
     });
+
+    // Notifications & Approvals
+    Route::prefix('notifications')->group(function () {
+        // User notifications
+        Route::get('/', [App\Http\Controllers\Api\NotificationController::class, 'index']);
+        Route::get('/unread-count', [App\Http\Controllers\Api\NotificationController::class, 'unreadCount']);
+        Route::put('/{id}/read', [App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
+        Route::put('/mark-all-read', [App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
+
+        // Notification settings (Admin only)
+        Route::middleware('simple.permission:admin')->group(function () {
+            Route::get('/settings/{module}', [App\Http\Controllers\Api\NotificationController::class, 'getSettings']);
+            Route::post('/settings', [App\Http\Controllers\Api\NotificationController::class, 'updateSettings']);
+        });
+    });
+
+    // Approval workflow
+    Route::prefix('approvals')->group(function () {
+        Route::get('/pending', [App\Http\Controllers\Api\ApprovalController::class, 'getPending']);
+        Route::post('/process', [App\Http\Controllers\Api\ApprovalController::class, 'processApproval']);
+        Route::get('/history/{module}/{id}', [App\Http\Controllers\Api\ApprovalController::class, 'getHistory']);
+    });
+
+    // Holidays Management
+    Route::prefix('holidays')->middleware('simple.permission:holiday')->group(function () {
+        Route::get('/', [App\Http\Controllers\Api\HolidayController::class, 'index']);
+        Route::post('/', [App\Http\Controllers\Api\HolidayController::class, 'store']);
+        Route::get('/{id}', [App\Http\Controllers\Api\HolidayController::class, 'show']);
+        Route::put('/{id}', [App\Http\Controllers\Api\HolidayController::class, 'update']);
+        Route::delete('/{id}', [App\Http\Controllers\Api\HolidayController::class, 'destroy']);
+        Route::get('/check/{date}', [App\Http\Controllers\Api\HolidayController::class, 'checkHoliday']);
+    });
 });

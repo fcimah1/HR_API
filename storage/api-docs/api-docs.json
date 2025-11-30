@@ -499,6 +499,121 @@
                 ]
             }
         },
+        "/api/approvals/pending": {
+            "get": {
+                "tags": [
+                    "Approvals"
+                ],
+                "summary": "Get pending approvals for current user",
+                "operationId": "26ec213d788512a098d206f32a5fffb6",
+                "parameters": [
+                    {
+                        "name": "module_option",
+                        "in": "query",
+                        "description": "Filter by module (optional)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Pending approvals retrieved"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/approvals/process": {
+            "post": {
+                "tags": [
+                    "Approvals"
+                ],
+                "summary": "Process approval or rejection",
+                "operationId": "a7a00c36be499d2369d63aa64231a550",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "module_option",
+                                    "module_key_id",
+                                    "status"
+                                ],
+                                "properties": {
+                                    "module_option": {
+                                        "type": "string"
+                                    },
+                                    "module_key_id": {
+                                        "type": "string"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "approve",
+                                            "reject"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Approval processed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/approvals/history/{module}/{id}": {
+            "get": {
+                "tags": [
+                    "Approvals"
+                ],
+                "summary": "Get approval history for a request",
+                "operationId": "59f49db0992412a1b3f9a7bebf748640",
+                "parameters": [
+                    {
+                        "name": "module",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Approval history retrieved"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/attendances": {
             "get": {
                 "tags": [
@@ -695,33 +810,6 @@
             }
         },
         "/api/attendances/{id}": {
-            "get": {
-                "tags": [
-                    "Attendance Management"
-                ],
-                "summary": "Get specific attendance record",
-                "operationId": "a71023f5c8c3443d5396f2dd0af2d0dd",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Attendance record retrieved"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            },
             "put": {
                 "tags": [
                     "Attendance Management"
@@ -1846,6 +1934,226 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/holidays": {
+            "get": {
+                "tags": [
+                    "Holidays"
+                ],
+                "summary": "Get holidays list",
+                "operationId": "fc790fe0e2245df18452dddcc2d1d24f",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "is_publish",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Holidays retrieved"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Holidays"
+                ],
+                "summary": "Create holiday",
+                "operationId": "6e1a410f934c1e82216a5374b3de7b3a",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "event_name",
+                                    "start_date",
+                                    "end_date"
+                                ],
+                                "properties": {
+                                    "event_name": {
+                                        "type": "string"
+                                    },
+                                    "start_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "end_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "is_publish": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Holiday created"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/holidays/{id}": {
+            "get": {
+                "tags": [
+                    "Holidays"
+                ],
+                "summary": "Get holiday by ID",
+                "operationId": "8a159d2b70c8b82bb7dab95558c5baba",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Holiday retrieved"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Holidays"
+                ],
+                "summary": "Update holiday",
+                "operationId": "4939ef51b74adb2c472a600699d98e9a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "event_name": {
+                                        "type": "string"
+                                    },
+                                    "start_date": {
+                                        "type": "string"
+                                    },
+                                    "end_date": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Holiday updated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Holidays"
+                ],
+                "summary": "Delete holiday",
+                "operationId": "0372c9e38d6ab4945d28808580390955",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Holiday deleted"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/holidays/check/{date}": {
+            "get": {
+                "tags": [
+                    "Holidays"
+                ],
+                "summary": "Check if date is holiday",
+                "operationId": "5712c87f25926befbe46a499fc4659bb",
+                "parameters": [
+                    {
+                        "name": "date",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Holiday check result"
                     }
                 },
                 "security": [
@@ -3149,6 +3457,212 @@
                 "responses": {
                     "200": {
                         "description": "Leave type deleted successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notifications": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get user notifications",
+                "operationId": "6d56a555955089a73fdf3f7229e8ead8",
+                "parameters": [
+                    {
+                        "name": "module_option",
+                        "in": "query",
+                        "description": "Filter by module (optional)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notifications retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notifications/unread-count": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get unread notifications count",
+                "operationId": "f3e05b69d516049be949f02a45e0eedd",
+                "parameters": [
+                    {
+                        "name": "module_option",
+                        "in": "query",
+                        "description": "Filter by module (optional)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Unread count retrieved"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notifications/{id}/read": {
+            "put": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark notification as read",
+                "operationId": "bf4a71383df08623c93c72b3103d323e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification marked as read"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notifications/mark-all-read": {
+            "put": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark all notifications as read",
+                "operationId": "021e95ad762859058fca564a776d6c77",
+                "parameters": [
+                    {
+                        "name": "module_option",
+                        "in": "query",
+                        "description": "Mark all for specific module (optional)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "All notifications marked as read"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notifications/settings/{module}": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get notification settings for module (Admin only)",
+                "operationId": "ea04ac9dc5a8de6e218fc4e1688a2ca0",
+                "parameters": [
+                    {
+                        "name": "module",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Settings retrieved"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notifications/settings": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Update notification settings (Admin only)",
+                "operationId": "1d48bc390ef13b07e5ad0d3c30e31344",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "module_option"
+                                ],
+                                "properties": {
+                                    "module_option": {
+                                        "type": "string"
+                                    },
+                                    "notify_upon_submission": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "notify_upon_approval": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "approval_level": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Settings updated"
                     }
                 },
                 "security": [
@@ -5288,12 +5802,20 @@
             "description": "Employee advance salary and loan requests management"
         },
         {
+            "name": "Approvals",
+            "description": "API for multi-level approval workflow"
+        },
+        {
             "name": "Attendance Management",
             "description": "Attendance and timesheet management"
         },
         {
             "name": "Authentication",
             "description": "User authentication endpoints"
+        },
+        {
+            "name": "Holidays",
+            "description": "Public holidays management"
         },
         {
             "name": "Leave Adjustments",
@@ -5306,6 +5828,10 @@
         {
             "name": "Leave Type Management",
             "description": "Leave types management"
+        },
+        {
+            "name": "Notifications",
+            "description": "API for managing notifications and notification settings"
         },
         {
             "name": "Overtime Management",
