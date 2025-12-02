@@ -24,16 +24,45 @@ class AdvanceSalaryResponseDTO
         public readonly int $status,
         public readonly string $statusText,
         public readonly int $isDeductedFromSalary,
-        public readonly string $createdAt
+        public readonly string $createdAt,
+        public readonly ?array $employee = null,
+        public readonly ?array $approvals = null,
     ) {}
 
     public static function fromModel(AdvanceSalary $advance): self
     {
+        // Load relationships if not already loaded
+        if (!$advance->relationLoaded('employee')) {
+            $advance->load('employee');
+        }
+        if (!$advance->relationLoaded('approvals')) {
+            $advance->load('approvals.staff');
+        }
+
+        $employee = $advance->employee ? [
+            'user_id' => $advance->employee->user_id,
+            'first_name' => $advance->employee->first_name,
+            'last_name' => $advance->employee->last_name,
+            'email' => $advance->employee->email,
+            'full_name' => $advance->employee->full_name,
+        ] : null;
+
+        $approvals = $advance->approvals->map(function ($approval) {
+            return [
+                'staff_approval_id' => $approval->staff_approval_id,
+                'staff_id' => $approval->staff_id,
+                'staff_name' => $approval->staff ? $approval->staff->full_name : null,
+                'status' => $approval->status,
+                'approval_level' => $approval->approval_level,
+                'updated_at' => $approval->updated_at,
+            ];
+        })->toArray();
+
         return new self(
             advanceSalaryId: $advance->advance_salary_id,
             companyId: $advance->company_id,
             employeeId: $advance->employee_id,
-            employeeName: $advance->employee ? 
+            employeeName: $advance->employee ?
                 ($advance->employee->first_name . ' ' . $advance->employee->last_name) : 'غير محدد',
             salaryType: $advance->salary_type,
             salaryTypeText: $advance->getTypeText(),
@@ -48,7 +77,9 @@ class AdvanceSalaryResponseDTO
             status: $advance->status,
             statusText: $advance->getStatusText(),
             isDeductedFromSalary: $advance->is_deducted_from_salary,
-            createdAt: $advance->created_at
+            createdAt: $advance->created_at,
+            employee: $employee,
+            approvals: $approvals,
         );
     }
 
@@ -73,7 +104,8 @@ class AdvanceSalaryResponseDTO
             'status_text' => $this->statusText,
             'is_deducted_from_salary' => $this->isDeductedFromSalary,
             'created_at' => $this->createdAt,
+            'employee' => $this->employee,
+            'approvals' => $this->approvals,
         ];
     }
 }
-

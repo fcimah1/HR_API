@@ -81,7 +81,7 @@ class CreateLeaveTypeRequest extends FormRequest
      */
     protected function failedAuthorization()
     {
-        throw new \Illuminate\Http\Exceptions\HttpResponseException(
+        throw new HttpResponseException(
             response()->json([
                 'success' => false,
                 'message' => 'غير مصرح لك بإنشاء أنواع إجازات جديدة'

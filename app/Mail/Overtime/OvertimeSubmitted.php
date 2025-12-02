@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Mail\LeaveAdjustment;
+namespace App\Mail\Overtime;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -8,28 +8,28 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class AdjustmentRejected extends Mailable
+class OvertimeSubmitted extends Mailable
 {
     use Queueable, SerializesModels;
 
     public function __construct(
         public string $employeeName,
-        public string $leaveType,
-        public float $adjustHours,
+        public string $requestDate,
+        public string $totalHours,
         public string $reason
     ) {}
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'تم رفض تسوية الإجازة',
+            subject: 'طلب عمل إضافي جديد',
         );
     }
 
     public function content(): Content
     {
         return new Content(
-            view: 'emails.leave_adjustment.adjustment-rejected',
+            view: 'emails.overtime.submitted',
         );
     }
 

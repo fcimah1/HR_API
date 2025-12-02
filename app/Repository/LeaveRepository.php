@@ -24,7 +24,7 @@ class LeaveRepository implements LeaveRepositoryInterface
     public function getPaginatedApplications(LeaveApplicationFilterDTO $filters): LengthAwarePaginator
     {
         $companyId = $filters->companyId;
-        $query = LeaveApplication::where('company_id', $companyId)->with(['employee', 'dutyEmployee', 'leaveType']);
+        $query = LeaveApplication::where('company_id', $companyId)->with(['employee', 'dutyEmployee', 'leaveType','approvals.staff']);
 
         // Apply filters
         if ($filters->companyName !== null) {
@@ -71,7 +71,7 @@ class LeaveRepository implements LeaveRepositoryInterface
     public function createApplication(CreateLeaveApplicationDTO $dto): LeaveApplication
     {
         $application = LeaveApplication::create($dto->toArray());
-        $application->load(['employee', 'dutyEmployee', 'leaveType']);
+        $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
 
         return $application;
     }
@@ -81,8 +81,7 @@ class LeaveRepository implements LeaveRepositoryInterface
      */
     public function findApplication(int $id): ?LeaveApplication
     {
-        return LeaveApplication::with(['employee', 'dutyEmployee', 'leaveType'])
-            ->find($id);
+        return LeaveApplication::with(['employee', 'dutyEmployee', 'leaveType','approvals.staff'])->findOrFail($id);
     }
 
     /**
@@ -90,10 +89,8 @@ class LeaveRepository implements LeaveRepositoryInterface
      */
     public function findApplicationInCompany(int $id, int $companyId): ?LeaveApplication
     {
-        return LeaveApplication::with(['employee', 'dutyEmployee', 'leaveType'])
-            ->where('leave_id', $id)
-            ->where('company_id', $companyId)
-            ->first();
+        return LeaveApplication::where('company_id', $companyId)->findOrFail($id)
+                ->load(['employee', 'dutyEmployee', 'leaveType','approvals.staff']);
     }
 
     /**
@@ -101,10 +98,8 @@ class LeaveRepository implements LeaveRepositoryInterface
      */
     public function findApplicationForEmployee(int $id, int $employeeId): ?LeaveApplication
     {
-        return LeaveApplication::with(['employee', 'dutyEmployee', 'leaveType'])
-            ->where('leave_id', $id)
-            ->where('employee_id', $employeeId)
-            ->first();
+        return LeaveApplication::where('employee_id', $employeeId)->findOrFail($id)
+                ->load(['employee', 'dutyEmployee', 'leaveType','approvals.staff']);
     }
 
     /**
@@ -123,7 +118,7 @@ class LeaveRepository implements LeaveRepositoryInterface
                 $application->refresh();
 
                 // Load relationships
-                $application->load(['employee', 'dutyEmployee', 'leaveType']);
+                $application->load(['employee', 'dutyEmployee', 'leaveType','approvals.staff']);
             }
 
             Log::debug('LeaveRepository::updateApplication - Update completed', [
@@ -148,7 +143,7 @@ class LeaveRepository implements LeaveRepositoryInterface
         ]);
 
         $application->refresh();
-        $application->load(['employee', 'dutyEmployee', 'leaveType']);
+        $application->load(['employee', 'dutyEmployee', 'leaveType','approvals.staff']);
 
         return $application;
     }
@@ -165,7 +160,7 @@ class LeaveRepository implements LeaveRepositoryInterface
         ]);
 
         $application->refresh();
-        $application->load(['employee', 'dutyEmployee', 'leaveType']);
+        $application->load(['employee', 'dutyEmployee', 'leaveType','approvals.staff']);
 
         return $application;
     }

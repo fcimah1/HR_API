@@ -24,11 +24,40 @@ class LeaveApplicationResponseDTO
         public readonly ?string $remarks,
         public readonly int $status,
         public readonly string $statusText,
-        public readonly string $createdAt
+        public readonly string $createdAt,
+        public readonly ?array $employee = null,
+        public readonly ?array $approvals = null,
     ) {}
 
     public static function fromModel(LeaveApplication $application): self
     {
+        // Load relationships if not already loaded
+        if (!$application->relationLoaded('employee')) {
+            $application->load('employee');
+        }
+        if (!$application->relationLoaded('approvals')) {
+            $application->load('approvals.staff');
+        }
+
+        $employee = $application->employee ? [
+            'user_id' => $application->employee->user_id,
+            'first_name' => $application->employee->first_name,
+            'last_name' => $application->employee->last_name,
+            'email' => $application->employee->email,
+            'full_name' => $application->employee->full_name,
+        ] : null;
+
+        $approvals = $application->approvals->map(function ($approval) {
+            return [
+                'staff_approval_id' => $approval->staff_approval_id,
+                'staff_id' => $approval->staff_id,
+                'staff_name' => $approval->staff ? $approval->staff->full_name : null,
+                'status' => $approval->status,
+                'approval_level' => $approval->approval_level,
+                'updated_at' => $approval->updated_at,
+            ];
+        })->toArray();
+
         return new self(
             leaveId: $application->leave_id,
             companyId: $application->company_id,
@@ -50,7 +79,9 @@ class LeaveApplicationResponseDTO
             remarks: $application->remarks,
             status: $application->status,
             statusText: self::getStatusText($application->status),
-            createdAt: $application->created_at
+            createdAt: $application->created_at,
+            employee: $employee,
+            approvals: $approvals,
         );
     }
 
@@ -73,16 +104,14 @@ class LeaveApplicationResponseDTO
     private static function getStatusText($status): string
     {
         switch ($status) {
-            case 0:
-                return 'قيد المراجعة';
             case 1:
-                return 'موافق عليه';
+                return 'pending';
             case 2:
-                return 'مرفوض';
+                return 'approved';
             case 3:
-                return 'ملغي';
+                return 'rejected';
             default:
-                return 'غير محدد';
+                return 'pending';
         }
     }
 
@@ -107,6 +136,8 @@ class LeaveApplicationResponseDTO
             'status' => $this->status,
             'status_text' => $this->statusText,
             'created_at' => $this->createdAt,
+            'employee' => $this->employee,
+            'approvals' => $this->approvals,
         ];
     }
 }

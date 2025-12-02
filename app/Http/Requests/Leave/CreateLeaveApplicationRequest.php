@@ -1,6 +1,10 @@
 <?php
 
 namespace App\Http\Requests\Leave;
+
+use App\Models\ErpConstant;
+use App\Models\LeaveApplication;
+use App\Models\User;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Foundation\Http\FormRequest;
@@ -52,8 +56,8 @@ class CreateLeaveApplicationRequest extends FormRequest
                     $companyId = $permissionService->getEffectiveCompanyId($user);
                     
                     // التحقق من وجود نوع الإجازة
-                    $leaveType = \App\Models\ErpConstant::where('constants_id', $value)
-                        ->where('type', \App\Models\ErpConstant::TYPE_LEAVE_TYPE)
+                    $leaveType =  ErpConstant::where('constants_id', $value)
+                        ->where('type',  ErpConstant::TYPE_LEAVE_TYPE)
                         ->where(function($query) use ($companyId) {
                             $query->where('company_id', $companyId)
                                   ->orWhere('company_id', 0); // الأنواع العامة
@@ -124,7 +128,7 @@ class CreateLeaveApplicationRequest extends FormRequest
                 $permissionService = app(\App\Services\SimplePermissionService::class);
                 $effectiveCompanyId = $permissionService->getEffectiveCompanyId($user);
                 
-                $dutyEmployee = \App\Models\User::where('user_id', $this->duty_employee_id)
+                $dutyEmployee =  User::where('user_id', $this->duty_employee_id)
                     ->where('company_id', $effectiveCompanyId)
                     ->where('is_active', true)
                     ->exists();
@@ -151,7 +155,7 @@ class CreateLeaveApplicationRequest extends FormRequest
                 $from = $fromDate->format('Y-m-d');
                 $to = $toDate->format('Y-m-d');
 
-                $hasOverlap = \App\Models\LeaveApplication::where('employee_id', $user->user_id)
+                $hasOverlap = LeaveApplication::where('employee_id', $user->user_id)
                     ->where('company_id', $effectiveCompanyId)
                     ->where(function ($query) use ($from, $to) {
                         $query->where(function ($q) use ($from, $to) {

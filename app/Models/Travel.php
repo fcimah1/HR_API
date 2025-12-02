@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\Enums\TravelModeEnum;
+use App\Enums\TravelModeEnum;
 use App\Enums\NumericalStatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;   // ← **Add this line**
@@ -56,6 +56,15 @@ class Travel extends Model
     {
         return $this->belongsTo(ErpConstant::class, 'arrangement_type', 'constants_id')
             ->where('type', 'travel_type');
+    }
+
+    /**
+     * Get the approvals for this travel request
+     */
+    public function approvals()
+    {
+        return $this->hasMany(StaffApproval::class, 'module_key_id', 'travel_id')
+            ->where('module_option', 'travel_request_settings');
     }
 
     const STATUS_PENDING = NumericalStatusEnum::PENDING->value;

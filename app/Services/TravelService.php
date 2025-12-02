@@ -14,7 +14,7 @@ use App\Repository\Interface\TravelRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\SimplePermissionService;
-use Illuminate\Support\Facades\Mail;
+use App\Jobs\SendEmailNotificationJob;
 use App\Enums\StringStatusEnum;
 
 class TravelService
@@ -37,11 +37,12 @@ class TravelService
             $travel = $this->travelRepository->create($dto);
 
             // Send submission notifications
-            $this->notificationService->sendSubmissionNotification(
+            $notificationsSent = $this->notificationService->sendSubmissionNotification(
                 'travel_settings',
                 (string)$travel->travel_id,
                 $dto->company_id,
-                StringStatusEnum::PENDING->value
+                StringStatusEnum::SUBMITTED->value,
+                $dto->employee_id
             );
 
             // Start approval workflow
@@ -52,18 +53,32 @@ class TravelService
                 $dto->company_id
             );
 
+            // If no notifications were sent (due to missing/invalid configuration),
+            // send a notification to the employee as fallback
+            if ($notificationsSent === 0 || $notificationsSent === null || !isset($notificationsSent)) {
+                $this->notificationService->sendCustomNotification(
+                    'travel_settings',
+                    (string)$travel->travel_id,
+                    [$dto->employee_id],
+                    StringStatusEnum::SUBMITTED->value
+                );
+            }
+
             // Send email notification
             $employeeEmail = $travel->employee->email ?? null;
             $employeeName = $travel->employee->full_name ?? 'Employee';
 
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new TravelSubmitted(
-                    employeeName: $employeeName,
-                    destination: $travel->visit_place,
-                    startDate: $travel->start_date,
-                    endDate: $travel->end_date,
-                    purpose: $travel->visit_purpose
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new TravelSubmitted(
+                        employeeName: $employeeName,
+                        destination: $travel->visit_place,
+                        startDate: $travel->start_date,
+                        endDate: $travel->end_date,
+                        purpose: $travel->visit_purpose
+                    ),
+                    $employeeEmail
+                );
             }
 
             return $travel;
@@ -112,13 +127,16 @@ class TravelService
             $employeeName = $travel->employee->full_name ?? 'Employee';
 
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new TravelUpdated(
-                    employeeName: $employeeName,
-                    destination: $travel->visit_place,
-                    startDate: $travel->start_date,
-                    endDate: $travel->end_date,
-                    purpose: $travel->visit_purpose
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new TravelUpdated(
+                        employeeName: $employeeName,
+                        destination: $travel->visit_place,
+                        startDate: $travel->start_date,
+                        endDate: $travel->end_date,
+                        purpose: $travel->visit_purpose
+                    ),
+                    $employeeEmail
+                );
             }
 
             return $travel;
@@ -167,13 +185,16 @@ class TravelService
             $employeeName = $travel->employee->full_name ?? 'Employee';
 
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new TravelRejected(
-                    employeeName: $employeeName,
-                    destination: $travel->visit_place,
-                    startDate: $travel->start_date,
-                    endDate: $travel->end_date,
-                    purpose: $travel->visit_purpose
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new TravelRejected(
+                        employeeName: $employeeName,
+                        destination: $travel->visit_place,
+                        startDate: $travel->start_date,
+                        endDate: $travel->end_date,
+                        purpose: $travel->visit_purpose
+                    ),
+                    $employeeEmail
+                );
             }
             return true;
         });
@@ -204,7 +225,10 @@ class TravelService
                 'travel_settings',
                 (string)$travel->travel_id,
                 $effectiveCompanyId,
-                StringStatusEnum::APPROVED->value
+                StringStatusEnum::APPROVED->value,
+                $user->user_id,  // Approver ID
+                null,
+                $travel->employee_id // Submitter ID
             );
 
             // Send email notification
@@ -212,13 +236,16 @@ class TravelService
             $employeeName = $travel->employee->full_name ?? 'Employee';
 
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new TravelApproved(
-                    employeeName: $employeeName,
-                    destination: $travel->visit_place,
-                    startDate: $travel->start_date,
-                    endDate: $travel->end_date,
-                    remarks: null
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new TravelApproved(
+                        employeeName: $employeeName,
+                        destination: $travel->visit_place,
+                        startDate: $travel->start_date,
+                        endDate: $travel->end_date,
+                        remarks: null
+                    ),
+                    $employeeEmail
+                );
             }
 
             return $travel;
@@ -247,7 +274,10 @@ class TravelService
                 'travel_settings',
                 (string)$travel->travel_id,
                 $effectiveCompanyId,
-                StringStatusEnum::REJECTED->value
+                StringStatusEnum::REJECTED->value,
+                $user->user_id,  // Rejector ID
+                null,
+                $travel->employee_id // Submitter ID
             );
 
             // Send email notification
@@ -255,13 +285,16 @@ class TravelService
             $employeeName = $travel->employee->full_name ?? 'Employee';
 
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new TravelRejected(
-                    employeeName: $employeeName,
-                    destination: $travel->visit_place,
-                    startDate: $travel->start_date,
-                    endDate: $travel->end_date,
-                    purpose: 'تم رفض طلب السفر'
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new TravelRejected(
+                        employeeName: $employeeName,
+                        destination: $travel->visit_place,
+                        startDate: $travel->start_date,
+                        endDate: $travel->end_date,
+                        purpose: 'تم رفض طلب السفر'
+                    ),
+                    $employeeEmail
+                );
             }
 
             return $travel;

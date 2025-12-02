@@ -44,12 +44,51 @@ class StaffApproval extends Model
         return $this->belongsTo(User::class, 'staff_id', 'user_id');
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the leave application for this approval.
+     */
+    public function leaveApplication()
+    {
+        return $this->belongsTo(LeaveApplication::class, 'module_key_id', 'leave_id');
+    }
+    
+    /**
+     * Get the leave adjustment for this approval.
+     */
+    public function leaveAdjustment()
+    {
+        return $this->belongsTo(LeaveAdjustment::class, 'module_key_id', 'leave_adjustment_id');
+    }
+
+    /**
+     * Get the leave adjustment for this approval.
+     */
+    public function travelRequest()
+    {
+        return $this->belongsTo(Travel::class, 'module_key_id', 'travel_request_id');
+    }
+
     /**
      * Get the overtime request for this approval.
      */
     public function overtimeRequest(): BelongsTo
     {
         return $this->belongsTo(OvertimeRequest::class, 'module_key_id', 'time_request_id');
+    }
+
+    public function attendance()
+    {
+        return $this->belongsTo(Attendance::class, 'module_key_id', 'attendance_id');
+    }
+
+    public function advanceSalary()
+    {
+        return $this->belongsTo(AdvanceSalary::class, 'module_key_id', 'advance_salary_id');
     }
 
     /**

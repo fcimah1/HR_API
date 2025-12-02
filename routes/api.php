@@ -31,6 +31,7 @@ Route::get('/companies', [AuthController::class, 'getCompanies']);
 Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
+    Route::get('/user/permissions', [AuthController::class, 'permissions']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
 
     // Employee management

@@ -8,6 +8,7 @@ use App\DTOs\LeaveAdjustment\UpdateLeaveAdjustmentDTO;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LeaveAdjustment\CreateLeaveAdjustmentRequest;
 use App\Http\Requests\LeaveAdjustment\UpdateLeaveAdjustmentRequest;
+use App\Http\Requests\LeaveAdjustment\ApproveLeaveAdjustmentRequest;
 use App\Services\LeaveAdjustmentService;
 use App\Services\SimplePermissionService;
 use Illuminate\Http\Request;
@@ -161,11 +162,16 @@ class LeaveAdjustmentController extends Controller
      *         required=true,
      *         @OA\Schema(type="integer")
      *     ),
+     *     @OA\Parameter(
+     *         name="action",
+     *         in="query",
+     *         required=true,
+     *         @OA\Schema(type="string", enum={"approve", "reject"}),
+     *         description="الإجراء: approve للموافقة أو reject للرفض"
+     *     ),
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"action"},
-     *             @OA\Property(property="action", type="string", enum={"approve", "reject"}, example="approve", description="الإجراء: approve للموافقة أو reject للرفض"),
      *             @OA\Property(property="remarks", type="string", example="موافق على الطلب", description="ملاحظات (اختياري)")
      *         )
      *     ),

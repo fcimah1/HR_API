@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\NumericalStatusEnum;
+use App\Enums\StringStatusEnum;
 use Illuminate\Database\Eloquent\Model;
 
 class NotificationStatus extends Model
@@ -14,6 +15,7 @@ class NotificationStatus extends Model
     /**
      * Module status options
      */
+    const STATUS_SUBMITTED = StringStatusEnum::SUBMITTED->value;
     const STATUS_PENDING = NumericalStatusEnum::PENDING->value;
     const STATUS_APPROVED = NumericalStatusEnum::APPROVED->value;
     const STATUS_REJECTED = NumericalStatusEnum::REJECTED->value;

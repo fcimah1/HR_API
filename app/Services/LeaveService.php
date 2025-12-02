@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Enums\StringStatusEnum;
+use App\Jobs\SendEmailNotificationJob;
 use App\Mail\Leave\LeaveSubmitted;
 use App\Mail\Leave\LeaveUpdated;
 use App\Mail\Leave\LeaveApproved;
@@ -91,7 +92,7 @@ class LeaveService
      */
     private function getSubordinateEmployeeIds(int $managerId): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection()->getPdo();
+        $db = DB::connection()->getPdo();
 
         // Recursive query to get all subordinates (same as CodeIgniter)
         $sql = "SELECT user_id
@@ -141,8 +142,10 @@ class LeaveService
             }
 
             $leave = $this->leaveRepository->createApplication($dto);
-            // ملاحظة: العلاقات ['employee', 'dutyEmployee', 'leaveType'] محملة بالفعل من الـ Repository
 
+            if (!$leave) {
+                throw new \Exception('Failed to create leave application');
+            }
             // Get employee email and name from already loaded relationships
             $employeeEmail = $leave->employee->email ?? null;
             $employeeName = $leave->employee->full_name ?? 'Employee';
@@ -161,29 +164,32 @@ class LeaveService
                 'leave_settings',
                 (string)$leave->leave_id,
                 $dto->companyId,
-                StringStatusEnum::PENDING->value
+                StringStatusEnum::SUBMITTED->value,
+                $dto->employeeId // Submitter ID
             );
 
             // If no notifications were sent (due to missing/invalid configuration),
             // send a notification to the employee as fallback
-            if ($notificationsSent === 0) {
+            if ($notificationsSent === 0 || $notificationsSent === null || !isset($notificationsSent)) {
                 $this->notificationService->sendCustomNotification(
                     'leave_settings',
                     (string)$leave->leave_id,
                     [$dto->employeeId],
-                    StringStatusEnum::PENDING->value
+                    StringStatusEnum::SUBMITTED->value
                 );
             }
 
-            // Send email notification if employee email exists
-            // Note: If this fails, the transaction will rollback but notifications might have been sent
+            // Send email notification if employee email exists (dispatched as job)
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new LeaveSubmitted(
-                    employeeName: $employeeName,
-                    leaveType: $leaveTypeName,
-                    startDate: $dto->fromDate,
-                    endDate: $dto->toDate,
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new LeaveSubmitted(
+                        employeeName: $employeeName,
+                        leaveType: $leaveTypeName,
+                        startDate: $dto->fromDate,
+                        endDate: $dto->toDate,
+                    ),
+                    $employeeEmail
+                );
             }
 
             return LeaveApplicationResponseDTO::fromModel($leave)->toArray();
@@ -271,15 +277,17 @@ class LeaveService
             $leaveTypeName = $updatedApplication->leaveType->leave_type_name ?? 'Leave';
 
 
-            // Send email notification if employee email exists
-            // Note: If this fails, the transaction will rollback but notifications might have been sent
+            // Send email notification if employee email exists (dispatched as job)
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new LeaveUpdated(
-                    employeeName: $employeeName,
-                    leaveType: $leaveTypeName,
-                    startDate: $updatedApplication->from_date,
-                    endDate: $updatedApplication->to_date,
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new LeaveUpdated(
+                        employeeName: $employeeName,
+                        leaveType: $leaveTypeName,
+                        startDate: $updatedApplication->from_date,
+                        endDate: $updatedApplication->to_date,
+                    ),
+                    $employeeEmail
+                );
             }
 
             return LeaveApplicationResponseDTO::fromModel($updatedApplication)->toArray();
@@ -317,7 +325,7 @@ class LeaveService
             }
 
             // الموظف العادي يمكنه إلغاء الطلبات المعلقة فقط
-            if ($isOwner && $application->status !== \App\Models\LeaveApplication::STATUS_PENDING) {
+            if ($isOwner && $application->status !== LeaveApplication::STATUS_PENDING) {
                 throw new \Exception('لا يمكن إلغاء الطلب بعد المراجعة');
             }
 
@@ -335,7 +343,8 @@ class LeaveService
                 'leave_settings',
                 (string)$id,
                 $effectiveCompanyId,
-                StringStatusEnum::REJECTED->value
+                StringStatusEnum::REJECTED->value,
+                $application->employee_id // Submitter ID
             );
 
             return true;
@@ -371,7 +380,7 @@ class LeaveService
             }
 
             // Check if the application is already processed
-            if ($application->status !== \App\Models\LeaveApplication::STATUS_PENDING) {
+            if ($application->status !== LeaveApplication::STATUS_PENDING) {
                 throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
             }
 
@@ -393,7 +402,10 @@ class LeaveService
                 'leave_settings',
                 (string)$approvedApplication->leave_id,
                 $companyId,
-                StringStatusEnum::APPROVED->value
+                StringStatusEnum::APPROVED->value,
+                $user->user_id,  // Approver ID
+                null, // Approval Level (default)
+                $approvedApplication->employee_id // Submitter ID
             );
 
             // Send approval email
@@ -401,14 +413,18 @@ class LeaveService
             $employeeName = $approvedApplication->employee->full_name ?? 'Employee';
             $leaveTypeName = $approvedApplication->leaveType->leave_type_name ?? 'Leave';
 
+            // Send approval email (dispatched as job)
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new LeaveApproved(
-                    employeeName: $employeeName,
-                    leaveType: $leaveTypeName,
-                    startDate: $approvedApplication->from_date,
-                    endDate: $approvedApplication->to_date,
-                    remarks: $remarks
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new LeaveApproved(
+                        employeeName: $employeeName,
+                        leaveType: $leaveTypeName,
+                        startDate: $approvedApplication->from_date,
+                        endDate: $approvedApplication->to_date,
+                        remarks: $remarks
+                    ),
+                    $employeeEmail
+                );
             }
 
             return LeaveApplicationResponseDTO::fromModel($approvedApplication);
@@ -432,7 +448,7 @@ class LeaveService
                 throw new \Exception('الطلب غير موجود');
             }
 
-            if ($application->status !== \App\Models\LeaveApplication::STATUS_PENDING) {
+            if ($application->status !== LeaveApplication::STATUS_PENDING) {
                 throw new \Exception('لا يمكن رفض طلب تم الموافقة عليه مسبقاً');
             }
 
@@ -447,7 +463,10 @@ class LeaveService
                 'leave_settings',
                 (string)$rejectedApplication->leave_id,
                 $companyId,
-                StringStatusEnum::REJECTED->value
+                StringStatusEnum::REJECTED->value,
+                $rejectedBy,  // Rejector ID (parameter from method)
+                null, // Approval Level (default)
+                $rejectedApplication->employee_id // Submitter ID
             );
 
             // Send rejection email
@@ -455,14 +474,18 @@ class LeaveService
             $employeeName = $rejectedApplication->employee->full_name ?? 'Employee';
             $leaveTypeName = $rejectedApplication->leaveType->leave_type_name ?? 'Leave';
 
+            // Send rejection email (dispatched as job)
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new LeaveRejected(
-                    employeeName: $employeeName,
-                    leaveType: $leaveTypeName,
-                    startDate: $rejectedApplication->from_date,
-                    endDate: $rejectedApplication->to_date,
-                    reason: $reason
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new LeaveRejected(
+                        employeeName: $employeeName,
+                        leaveType: $leaveTypeName,
+                        startDate: $rejectedApplication->from_date,
+                        endDate: $rejectedApplication->to_date,
+                        reason: $reason
+                    ),
+                    $employeeEmail
+                );
             }
 
             return LeaveApplicationResponseDTO::fromModel($rejectedApplication)->toArray();
@@ -648,7 +671,7 @@ class LeaveService
         })->toArray();
 
         // Get employee details for assigned_hours
-        $employee = \App\Models\User::find($employeeId);
+        $employee =  User::find($employeeId);
         $assignedHours = [];
 
         if ($employee) {

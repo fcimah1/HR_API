@@ -52,9 +52,9 @@ class LeaveApplication extends Model
     ];
 
 
-    const STATUS_PENDING = NumericalStatusEnum::PENDING->value;
-    const STATUS_APPROVED = NumericalStatusEnum::APPROVED->value;
-    const STATUS_REJECTED = NumericalStatusEnum::REJECTED->value;
+    public const STATUS_PENDING = NumericalStatusEnum::PENDING->value;
+    public const STATUS_APPROVED = NumericalStatusEnum::APPROVED->value;
+    public const STATUS_REJECTED = NumericalStatusEnum::REJECTED->value;
 
     /**
      * Get the employee who applied for leave
@@ -78,6 +78,15 @@ class LeaveApplication extends Model
     public function leaveType(): BelongsTo
     {
         return $this->belongsTo(ErpConstant::class, 'leave_type_id', 'constants_id');
+    }
+
+    /**
+     * Get the approvals for this leave application
+     */
+    public function approvals()
+    {
+        return $this->hasMany(StaffApproval::class, 'module_key_id', 'leave_id')
+            ->where('module_option', 'leave_settings');
     }
 
     /**

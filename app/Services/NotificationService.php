@@ -5,9 +5,14 @@ namespace App\Services;
 use App\DTOs\Notification\CreateNotificationDTO;
 use App\DTOs\Notification\NotificationSettingDTO;
 use App\DTOs\Notification\NotificationResponseDTO;
+use App\DTOs\Notification\ApprovalActionDTO;
+use App\Jobs\SendApprovalNotificationJob;
+use App\Jobs\SendNotificationJob;
 use App\Repository\Interface\NotificationSettingRepositoryInterface;
 use App\Repository\Interface\NotificationStatusRepositoryInterface;
+use App\Repository\Interface\NotificationApprovalRepositoryInterface;
 use App\Enums\NumericalStatusEnum;
+use App\Models\UserDetails;
 use Illuminate\Support\Facades\Log;
 
 class NotificationService
@@ -15,35 +20,43 @@ class NotificationService
     public function __construct(
         protected NotificationSettingRepositoryInterface $settingRepository,
         protected NotificationStatusRepositoryInterface $statusRepository,
+        protected NotificationApprovalRepositoryInterface $approvalRepository,
     ) {}
 
     /**
      * Send notification upon submission
      */
-    public function sendSubmissionNotification(
-        string $moduleOption,
-        string $moduleKeyId,
-        int $companyId,
-        int|string $status = NumericalStatusEnum::PENDING->value
-    ): int {
+    public function sendSubmissionNotification(string $moduleOption, string $moduleKeyId, int $companyId, int|string $status = NumericalStatusEnum::PENDING->value, ?int $submitterId = null): int 
+    {
         $notifiers = $this->settingRepository->getSubmissionNotifiers($companyId, $moduleOption);
+        Log::info('Submission notifiers', [
+            'module' => $moduleOption,
+            'company_id' => $companyId,
+            'notifiers' => $notifiers,
+        ]);
 
-        if (empty($notifiers)) {
-            Log::info('No submission notifiers configured', [
-                'module' => $moduleOption,
-                'company_id' => $companyId,
-            ]);
+        // Resolve notifiers (handle 'self', 'manager')
+        $resolvedNotifiers = $this->resolveNotifiers($notifiers, $submitterId);
+
+        if (empty($resolvedNotifiers)) {
+            if (empty($notifiers)) {
+                Log::info('No submission notifiers configured', [
+                    'module' => $moduleOption,
+                    'company_id' => $companyId,
+                ]);
+            }
             return 0;
         }
 
-        $dto = CreateNotificationDTO::create(
+        // Dispatch job to send notifications asynchronously
+        SendNotificationJob::dispatch(
             $moduleOption,
             $status,
             $moduleKeyId,
-            $notifiers
+            $resolvedNotifiers
         );
 
-        return $this->statusRepository->createNotifications($dto);
+        return count($resolvedNotifiers);
     }
 
     /**
@@ -53,49 +66,122 @@ class NotificationService
         string $moduleOption,
         string $moduleKeyId,
         int $companyId,
-        int|string $status = NumericalStatusEnum::APPROVED->value
+        int|string $status = NumericalStatusEnum::APPROVED->value,
+        ?int $approverId = null,
+        ?int $approvalLevel = null,
+        ?int $submitterId = null
     ): int {
         $notifiers = $this->settingRepository->getApprovalNotifiers($companyId, $moduleOption);
 
-        if (empty($notifiers)) {
-            Log::info('No approval notifiers configured', [
+        // Resolve notifiers (handle 'self', 'manager')
+        $resolvedNotifiers = $this->resolveNotifiers($notifiers, $submitterId);
+
+        // Always notify the submitter (employee) of the decision
+        if ($submitterId) {
+            $resolvedNotifiers[] = $submitterId;
+        }
+
+        $resolvedNotifiers = array_unique($resolvedNotifiers);
+
+        if (empty($resolvedNotifiers)) {
+            Log::info('No notifiers found for approval', [
                 'module' => $moduleOption,
                 'company_id' => $companyId,
             ]);
             return 0;
         }
 
-        $dto = CreateNotificationDTO::create(
+        // If approval level is not specified, try to determine it from settings
+        if ($approvalLevel === null && $approverId !== null) {
+            $setting = $this->settingRepository->getSettingByModule($companyId, $moduleOption);
+            if ($setting) {
+                // Check levels 1 to 5
+                for ($i = 1; $i <= 5; $i++) {
+                    $levelApprover = $setting->getApproverForLevel($i);
+                    if ($levelApprover === $approverId) {
+                        $approvalLevel = $i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Dispatch job to handle approval notification asynchronously
+        SendApprovalNotificationJob::dispatch(
             $moduleOption,
-            $status,
             $moduleKeyId,
-            $notifiers
+            $companyId,
+            $status,
+            $approverId,
+            $approvalLevel,
+            $submitterId,
+            $resolvedNotifiers
         );
 
-        return $this->statusRepository->createNotifications($dto);
+        return count($resolvedNotifiers);
+    }
+
+    /**
+     * Convert string status to integer
+     */
+    private function convertStatusToInt(string $status): int
+    {
+        return match ($status) {
+            'pending' => NumericalStatusEnum::PENDING->value,
+            'approved' => NumericalStatusEnum::APPROVED->value,
+            'rejected' => NumericalStatusEnum::REJECTED->value,
+            default => NumericalStatusEnum::PENDING->value,
+        };
+    }
+
+    /**
+     * Resolve notifiers (handle keywords like 'self', 'manager')
+     */
+    private function resolveNotifiers(array $notifiers, ?int $submitterId): array
+    {
+        $resolvedIds = [];
+
+        foreach ($notifiers as $notifier) {
+            if (is_numeric($notifier)) {
+                $resolvedIds[] = (int)$notifier;
+                continue;
+            }
+
+            if (!$submitterId) {
+                continue;
+            }
+
+            if ($notifier === 'self') {
+                $resolvedIds[] = $submitterId;
+            } elseif ($notifier === 'manager') {
+                $details =  UserDetails::where('user_id', $submitterId)->first();
+                if ($details && $details->reporting_manager) {
+                    $resolvedIds[] = $details->reporting_manager;
+                }
+            }
+        }
+
+        return array_unique($resolvedIds);
     }
 
     /**
      * Send custom notification to specific users
      */
-    public function sendCustomNotification(
-        string $moduleOption,
-        string $moduleKeyId,
-        array $staffIds,
-        int|string $status = NumericalStatusEnum::PENDING->value
-    ): int {
+    public function sendCustomNotification(string $moduleOption, string $moduleKeyId, array $staffIds, int|string $status = NumericalStatusEnum::PENDING->value): int 
+    {
         if (empty($staffIds)) {
             return 0;
         }
 
-        $dto = CreateNotificationDTO::create(
+        // Dispatch job to send custom notifications asynchronously
+        SendNotificationJob::dispatch(
             $moduleOption,
             $status,
             $moduleKeyId,
             $staffIds
         );
 
-        return $this->statusRepository->createNotifications($dto);
+        return count($staffIds);
     }
 
     /**

@@ -8,24 +8,34 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class AdjustmentApproved extends Mailable
+class LeaveAdjustmentApproved extends Mailable
 {
     use Queueable, SerializesModels;
 
+    /**
+     * Create a new message instance.
+     */
     public function __construct(
         public string $employeeName,
         public string $leaveType,
         public float $adjustHours,
+        public string $reason,
         public ?string $remarks = null
     ) {}
 
+    /**
+     * Get the message envelope.
+     */
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'تمت الموافقة على تسوية الإجازة',
+            subject: 'تمت الموافقة على طلب التسوية',
         );
     }
 
+    /**
+     * Get the message content definition.
+     */
     public function content(): Content
     {
         return new Content(
@@ -33,6 +43,11 @@ class AdjustmentApproved extends Mailable
         );
     }
 
+    /**
+     * Get the attachments for the message.
+     *
+     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
+     */
     public function attachments(): array
     {
         return [];

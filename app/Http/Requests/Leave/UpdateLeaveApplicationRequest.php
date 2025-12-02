@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Leave;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -83,7 +84,7 @@ class UpdateLeaveApplicationRequest extends FormRequest
             // Check if duty employee belongs to same company
             if ($this->filled('duty_employee_id')) {
                 try {
-                    $dutyEmployee = \App\Models\User::select('user_id')
+                    $dutyEmployee =  User::select('user_id')
                         ->where('user_id', $this->duty_employee_id)
                         ->where('is_active', true)
                         ->first();

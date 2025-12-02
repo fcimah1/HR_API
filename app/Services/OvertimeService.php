@@ -12,6 +12,11 @@ use App\Models\User;
 use App\Services\SimplePermissionService;
 use App\Services\ApprovalService;
 use App\Services\OvertimeCalculationService;
+use App\Enums\StringStatusEnum;
+use App\Jobs\SendEmailNotificationJob;
+use App\Mail\Overtime\OvertimeSubmitted;
+use App\Mail\Overtime\OvertimeApproved;
+use App\Mail\Overtime\OvertimeRejected;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -21,7 +26,9 @@ class OvertimeService
         private readonly OvertimeRepositoryInterface $overtimeRepository,
         private readonly SimplePermissionService $permissionService,
         private readonly ApprovalService $approvalService,
-        private readonly OvertimeCalculationService $calculationService
+        private readonly OvertimeCalculationService $calculationService,
+        private readonly NotificationService $notificationService,
+        private readonly ApprovalWorkflowService $approvalWorkflow
     ) {}
 
     /**
@@ -30,7 +37,7 @@ class OvertimeService
     public function getPaginatedRequests(OvertimeRequestFilterDTO $filters, User $user): array
     {
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-        
+
         // Apply company filter
         $modifiedFilters = new OvertimeRequestFilterDTO(
             employeeId: $filters->employeeId,
@@ -129,6 +136,48 @@ class OvertimeService
 
             $request = $this->overtimeRepository->createRequest($data);
 
+               // Start approval workflow if multi-level approval is enabled
+            $this->approvalWorkflow->submitForApproval(
+                'overtime_request_settings',
+                (string)$request->time_request_id,
+                $dto->companyId,
+                $dto->staffId
+            );
+            // Send submission notification
+            $notificationsSent = $this->notificationService->sendSubmissionNotification(
+                'overtime_request_settings',
+                (string)$request->time_request_id,
+                $dto->companyId,
+                StringStatusEnum::SUBMITTED->value,
+                $dto->staffId
+            );
+
+            // If no notifications were sent (due to missing/invalid configuration),
+            // send a notification to the employee as fallback
+            if ($notificationsSent === 0 || $notificationsSent === null || !isset($notificationsSent)) {
+                $this->notificationService->sendCustomNotification(
+                    'overtime_request_settings',
+                    (string)$request->time_request_id,
+                    [$dto->staffId],
+                    StringStatusEnum::SUBMITTED->value
+                );
+            }
+            // Send email notification
+            $employeeEmail = $request->employee->email ?? null;
+            $employeeName = $request->employee->full_name ?? 'Employee';
+
+            if ($employeeEmail) {
+                SendEmailNotificationJob::dispatch(
+                    new OvertimeSubmitted(
+                        employeeName: $employeeName,
+                        requestDate: $dto->requestDate,
+                        totalHours: $totalHours,
+                        reason: $dto->requestReason
+                    ),
+                    $employeeEmail
+                );
+            }
+
             Log::info('OvertimeService::createRequest completed', [
                 'request_id' => $request->time_request_id
             ]);
@@ -144,9 +193,9 @@ class OvertimeService
     {
         return DB::transaction(function () use ($id, $dto, $user) {
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-            
+
             $request = $this->overtimeRepository->findRequestInCompany($id, $effectiveCompanyId);
-            
+
             if (!$request) {
                 throw new \Exception('الطلب غير موجود');
             }
@@ -218,9 +267,9 @@ class OvertimeService
     public function deleteRequest(int $id, User $user): bool
     {
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-        
+
         $request = $this->overtimeRepository->findRequestInCompany($id, $effectiveCompanyId);
-        
+
         if (!$request) {
             throw new \Exception('الطلب غير موجود');
         }
@@ -245,9 +294,9 @@ class OvertimeService
     {
         return DB::transaction(function () use ($id, $approver, $remarks) {
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($approver);
-            
+
             $request = $this->overtimeRepository->findRequestInCompany($id, $effectiveCompanyId);
-            
+
             if (!$request) {
                 throw new \Exception('الطلب غير موجود');
             }
@@ -257,11 +306,38 @@ class OvertimeService
             }
 
             $userType = strtolower(trim($approver->user_type ?? ''));
-            
+
             // Company user can approve directly
             if ($userType === 'company') {
                 $approvedRequest = $this->overtimeRepository->approveRequest($request);
-                
+
+                // Send approval notification
+                $this->notificationService->sendApprovalNotification(
+                    'overtime_request_settings',
+                    (string)$request->time_request_id,
+                    $effectiveCompanyId,
+                    StringStatusEnum::APPROVED->value,
+                    $approver->user_id,
+                    1,
+                    $request->staff_id
+                );
+
+                // Send email notification
+                $employeeEmail = $request->employee->email ?? null;
+                $employeeName = $request->employee->full_name ?? 'Employee';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new OvertimeApproved(
+                            employeeName: $employeeName,
+                            requestDate: $request->request_date,
+                            totalHours: $request->total_hours,
+                            remarks: $remarks
+                        ),
+                        $employeeEmail
+                    );
+                }
+
                 // Record final approval
                 $this->approvalService->recordApproval(
                     $request->time_request_id,
@@ -271,7 +347,7 @@ class OvertimeService
                     'overtime_request_settings',
                     $effectiveCompanyId
                 );
-                
+
                 return OvertimeRequestResponseDTO::fromModel($approvedRequest);
             }
 
@@ -296,7 +372,18 @@ class OvertimeService
             if ($isFinal) {
                 // Final approval - update request status
                 $approvedRequest = $this->overtimeRepository->approveRequest($request);
-                
+
+                // Send approval notification
+                $this->notificationService->sendApprovalNotification(
+                    'overtime_request_settings',
+                    (string)$request->time_request_id,
+                    $effectiveCompanyId,
+                    StringStatusEnum::APPROVED->value,
+                    $approver->user_id,
+                    null,
+                    $request->staff_id
+                );
+
                 // Record final approval
                 $this->approvalService->recordApproval(
                     $request->time_request_id,
@@ -306,7 +393,7 @@ class OvertimeService
                     'overtime_request_settings',
                     $effectiveCompanyId
                 );
-                
+
                 return OvertimeRequestResponseDTO::fromModel($approvedRequest);
             } else {
                 // Intermediate approval - just record it
@@ -318,11 +405,11 @@ class OvertimeService
                     'overtime_request_settings',
                     $effectiveCompanyId
                 );
-                
+
                 // Reload to get updated approvals
                 $request->refresh();
                 $request->load(['employee', 'approvals.staff']);
-                
+
                 return OvertimeRequestResponseDTO::fromModel($request);
             }
         });
@@ -335,9 +422,9 @@ class OvertimeService
     {
         return DB::transaction(function () use ($id, $rejector, $reason) {
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($rejector);
-            
+
             $request = $this->overtimeRepository->findRequestInCompany($id, $effectiveCompanyId);
-            
+
             if (!$request) {
                 throw new \Exception('الطلب غير موجود');
             }
@@ -348,7 +435,34 @@ class OvertimeService
 
             // Reject the request
             $rejectedRequest = $this->overtimeRepository->rejectRequest($request, $reason);
-            
+
+            // Send rejection notification
+            $this->notificationService->sendApprovalNotification(
+                'overtime_request_settings',
+                (string)$request->time_request_id,
+                $effectiveCompanyId,
+                StringStatusEnum::REJECTED->value,
+                $rejector->user_id,
+                null,
+                $request->staff_id
+            );
+
+            // Send email notification
+            $employeeEmail = $request->employee->email ?? null;
+            $employeeName = $request->employee->full_name ?? 'Employee';
+
+            if ($employeeEmail) {
+                SendEmailNotificationJob::dispatch(
+                    new OvertimeRejected(
+                        employeeName: $employeeName,
+                        requestDate: $request->request_date,
+                        totalHours: $request->total_hours,
+                        reason: $reason
+                    ),
+                    $employeeEmail
+                );
+            }
+
             // Record rejection
             $this->approvalService->recordApproval(
                 $request->time_request_id,
@@ -358,7 +472,7 @@ class OvertimeService
                 'overtime_request_settings',
                 $effectiveCompanyId
             );
-            
+
             return OvertimeRequestResponseDTO::fromModel($rejectedRequest);
         });
     }
@@ -369,7 +483,7 @@ class OvertimeService
     public function getRequestsForApproval(User $user): array
     {
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-        
+
         $requests = $this->overtimeRepository->getRequestsRequiringApproval(
             $user->user_id,
             $effectiveCompanyId
@@ -387,7 +501,7 @@ class OvertimeService
     public function getTeamRequests(User $manager): array
     {
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($manager);
-        
+
         $requests = $this->overtimeRepository->getRequestsByManager(
             $manager->user_id,
             $effectiveCompanyId
@@ -405,9 +519,9 @@ class OvertimeService
     public function getStats(User $user, ?string $fromDate = null, ?string $toDate = null): OvertimeStatsDTO
     {
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-        
+
         $stats = $this->overtimeRepository->getStats($effectiveCompanyId, $fromDate, $toDate);
-        
+
         return OvertimeStatsDTO::fromData($stats);
     }
 
@@ -417,16 +531,16 @@ class OvertimeService
     public function getRequest(int $id, User $user): OvertimeRequestResponseDTO
     {
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-        
+
         $request = $this->overtimeRepository->findRequestInCompany($id, $effectiveCompanyId);
-        
+
         if (!$request) {
             throw new \Exception('الطلب غير موجود');
         }
 
         // Check if user can access this request
         $canAccess = $this->overtimeRepository->canUserAccessRequest($user, $request);
-        
+
         if (!$canAccess) {
             throw new \Exception('ليس لديك صلاحية لعرض هذا الطلب');
         }
@@ -434,4 +548,3 @@ class OvertimeService
         return OvertimeRequestResponseDTO::fromModel($request);
     }
 }
-

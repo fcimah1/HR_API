@@ -3,6 +3,7 @@
 namespace App\DTOs\Leave;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 
 class LeaveApplicationFilterDTO
 {
@@ -11,7 +12,7 @@ class LeaveApplicationFilterDTO
         public readonly ?int $companyId = null,
         public readonly ?int $employeeId = null,
         public readonly ?array $employeeIds = null,
-        public readonly ?bool $status = null,
+        public readonly ?int $status = null, // 1 for pending, 2 for approved, 3 for rejected
         public readonly ?int $leaveTypeId = null,
         public readonly ?string $fromDate = null,
         public readonly ?string $toDate = null,
@@ -25,12 +26,16 @@ class LeaveApplicationFilterDTO
     {
         // Handle status conversion properly
         $status = null;
-        if (isset($data['status'])) {
-            // Handle string values "true"/"false" from query parameters
-            if (is_string($data['status'])) {
-                $status = filter_var($data['status'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        // status can be string (pending/approved/rejected) or int (1/2/3)
+        if (array_key_exists('status', $data) && $data['status'] !== null) {
+            if ($data['status'] === 'approved' || $data['status'] === 2) {
+                $status = 2;
+            } else if ($data['status'] === 'rejected' || $data['status'] === 3) {
+                $status = 3;
+            } else if ($data['status'] === 'pending' || $data['status'] === 1) {
+                $status = 1;
             } else {
-                $status = (bool) $data['status'];
+                $status = null;
             }
         }
 

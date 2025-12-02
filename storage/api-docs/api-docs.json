@@ -406,6 +406,19 @@
                         "schema": {
                             "type": "integer"
                         }
+                    },
+                    {
+                        "name": "action",
+                        "in": "query",
+                        "description": "الإجراء: approve للموافقة أو reject للرفض",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "approve",
+                                "reject"
+                            ]
+                        }
                     }
                 ],
                 "requestBody": {
@@ -1123,6 +1136,56 @@
                                         },
                                         "user": {
                                             "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/user/permissions": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Get authenticated user permissions",
+                "operationId": "e3f0d3396209e4753e1964e16d250533",
+                "responses": {
+                    "200": {
+                        "description": "Permissions retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "permissions": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "role_id": {
+                                            "type": "integer"
+                                        },
+                                        "role_name": {
+                                            "type": "string"
+                                        },
+                                        "role_access": {
+                                            "type": "integer"
                                         }
                                     },
                                     "type": "object"
@@ -2253,6 +2316,19 @@
                         "schema": {
                             "type": "integer"
                         }
+                    },
+                    {
+                        "name": "action",
+                        "in": "query",
+                        "description": "الإجراء: approve للموافقة أو reject للرفض",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "approve",
+                                "reject"
+                            ]
+                        }
                     }
                 ],
                 "requestBody": {
@@ -2260,19 +2336,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "required": [
-                                    "action"
-                                ],
                                 "properties": {
-                                    "action": {
-                                        "description": "الإجراء: approve للموافقة أو reject للرفض",
-                                        "type": "string",
-                                        "enum": [
-                                            "approve",
-                                            "reject"
-                                        ],
-                                        "example": "approve"
-                                    },
                                     "remarks": {
                                         "description": "ملاحظات (اختياري)",
                                         "type": "string",
@@ -2535,9 +2599,14 @@
                     {
                         "name": "status",
                         "in": "query",
-                        "description": "Filter by status (true=approved, false=pending)",
+                        "description": "Filter by status (pending/approved/rejected)",
                         "schema": {
-                            "type": "boolean"
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "approved",
+                                "rejected"
+                            ]
                         }
                     },
                     {
@@ -2973,26 +3042,27 @@
                         "schema": {
                             "type": "integer"
                         }
+                    },
+                    {
+                        "name": "action",
+                        "in": "query",
+                        "description": "الإجراء: approve للموافقة أو reject للرفض",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "approve",
+                                "reject"
+                            ]
+                        }
                     }
                 ],
                 "requestBody": {
-                    "required": true,
+                    "required": false,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "required": [
-                                    "action"
-                                ],
                                 "properties": {
-                                    "action": {
-                                        "description": "الإجراء: approve للموافقة أو reject للرفض",
-                                        "type": "string",
-                                        "enum": [
-                                            "approve",
-                                            "reject"
-                                        ],
-                                        "example": "approve"
-                                    },
                                     "remarks": {
                                         "description": "ملاحظات (اختياري)",
                                         "type": "string",
@@ -4769,28 +4839,21 @@
                         "schema": {
                             "type": "integer"
                         }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "action": {
-                                        "description": "Action to perform on the travel request",
-                                        "type": "string",
-                                        "enum": [
-                                            "approve",
-                                            "reject"
-                                        ]
-                                    }
-                                },
-                                "type": "object"
-                            }
+                    },
+                    {
+                        "name": "action",
+                        "in": "query",
+                        "description": "Action to perform on the travel request",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "approve",
+                                "reject"
+                            ]
                         }
                     }
-                },
+                ],
                 "responses": {
                     "200": {
                         "description": "Travel request status updated successfully"

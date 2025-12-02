@@ -103,12 +103,10 @@ class UpdateLeaveTypeRequest extends FormRequest
      */
     protected function failedAuthorization()
     {
-        throw new \Illuminate\Http\Exceptions\HttpResponseException(
-            response()->json([
-                'success' => false,
-                'message' => 'غير مصرح لك بتعديل أنواع الإجازات'
-            ], 403)
-        );
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => 'غير مصرح لك بتعديل أنواع الإجازات'
+        ], 403));
     }
 
     protected function failedValidation(Validator $validator)
