@@ -31,12 +31,16 @@
 
         .content {
             padding: 30px;
+            direction: rtl;
+            text-align: right;
         }
 
         .info-row {
             margin-bottom: 15px;
             padding-bottom: 15px;
             border-bottom: 1px solid #eee;
+            direction: rtl;
+            text-align: right;
         }
 
         .label {

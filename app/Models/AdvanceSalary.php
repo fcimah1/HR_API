@@ -54,6 +54,15 @@ class AdvanceSalary extends Model
     }
 
     /**
+     * Get the approvals for this advance salary request
+     */
+    public function approvals()
+    {
+        return $this->hasMany(StaffApproval::class, 'module_key_id', 'advance_salary_id')
+            ->where('module_option', 'advance_salary_settings');
+    }
+
+    /**
      * Check if this is a loan request
      */
     public function isLoan(): bool
@@ -106,7 +115,7 @@ class AdvanceSalary extends Model
      */
     public function getStatusText(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             0 => 'قيد الانتظار',
             1 => 'موافق عليه',
             2 => 'مرفوض',
@@ -119,7 +128,7 @@ class AdvanceSalary extends Model
      */
     public function getTypeText(): string
     {
-        return match($this->salary_type) {
+        return match ($this->salary_type) {
             'loan' => 'قرض',
             'advance' => 'سلفة',
             default => 'غير معروف',
@@ -134,4 +143,3 @@ class AdvanceSalary extends Model
         return $this->one_time_deduct === '1' ? 'نعم' : 'لا';
     }
 }
-

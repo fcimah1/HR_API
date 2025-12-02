@@ -7,9 +7,13 @@ use App\DTOs\AdvanceSalary\AdvanceSalaryFilterDTO;
 use App\DTOs\AdvanceSalary\CreateAdvanceSalaryDTO;
 use App\DTOs\AdvanceSalary\UpdateAdvanceSalaryDTO;
 use App\DTOs\AdvanceSalary\AdvanceSalaryResponseDTO;
-use App\Models\AdvanceSalary;
 use App\Models\User;
 use App\Services\SimplePermissionService;
+use App\Enums\StringStatusEnum;
+use App\Jobs\SendEmailNotificationJob;
+use App\Mail\AdvanceSalary\AdvanceSalarySubmitted;
+use App\Mail\AdvanceSalary\AdvanceSalaryApproved;
+use App\Mail\AdvanceSalary\AdvanceSalaryRejected;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -17,7 +21,8 @@ class AdvanceSalaryService
 {
     public function __construct(
         private readonly AdvanceSalaryRepositoryInterface $advanceSalaryRepository,
-        private readonly SimplePermissionService $permissionService
+        private readonly SimplePermissionService $permissionService,
+        private readonly NotificationService $notificationService
     ) {}
 
     /**
@@ -27,12 +32,12 @@ class AdvanceSalaryService
     {
         // Create new filters based on user permissions
         $filterData = $filters->toArray();
-        
+
         // If company owner, can see all requests in their company
         if ($this->permissionService->isCompanyOwner($user)) {
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
-        } 
+        }
         // If employee has permission to view all requests
         elseif ($this->permissionService->checkPermission($user, 'advance.view.all')) {
             $filterData['company_id'] = $user->company_id;
@@ -42,12 +47,12 @@ class AdvanceSalaryService
             $filterData['employee_id'] = $user->user_id;
             $filterData['company_id'] = $user->company_id;
         }
-        
+
         // Create new DTO with updated data
         $updatedFilters = AdvanceSalaryFilterDTO::fromRequest($filterData);
 
         $advances = $this->advanceSalaryRepository->getPaginatedAdvances($updatedFilters);
-        
+
         $advanceDTOs = collect($advances->items())->map(function ($advance) {
             return AdvanceSalaryResponseDTO::fromModel($advance);
         });
@@ -71,7 +76,7 @@ class AdvanceSalaryService
      */
     public function createAdvance(CreateAdvanceSalaryDTO $dto): AdvanceSalaryResponseDTO
     {
-        return \DB::transaction(function () use ($dto) {
+        return DB::transaction(function () use ($dto) {
             try {
                 Log::info('AdvanceSalaryService::createAdvance started', [
                     'company_id' => $dto->companyId,
@@ -82,7 +87,31 @@ class AdvanceSalaryService
                 ]);
 
                 $advance = $this->advanceSalaryRepository->createAdvance($dto);
-                
+
+                // Send submission notification
+                $this->notificationService->sendSubmissionNotification(
+                    'advance_salary_settings',
+                    (string)$advance->advance_salary_id,
+                    $dto->companyId,
+                    StringStatusEnum::SUBMITTED->value,
+                    $dto->employeeId
+                );
+
+                // Send email notification
+                $employeeEmail = $advance->employee->email ?? null;
+                $employeeName = $advance->employee->full_name ?? 'Employee';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new AdvanceSalarySubmitted(
+                            employeeName: $employeeName,
+                            amount: (float)$advance->advance_amount,
+                            salaryType: $advance->salary_type
+                        ),
+                        $employeeEmail
+                    );
+                }
+
                 Log::info('AdvanceSalaryService::createAdvance completed successfully', [
                     'advance_id' => $advance->advance_salary_id,
                     'salary_type' => $advance->salary_type,
@@ -129,7 +158,7 @@ class AdvanceSalaryService
         // Find advance by company ID (for company users/admins)
         if ($companyId !== null) {
             $advance = $this->advanceSalaryRepository->findAdvanceInCompany($id, $companyId);
-            
+
             if ($advance) {
                 Log::info('AdvanceSalaryService::getAdvanceById - Found by company', [
                     'advance_id' => $id,
@@ -138,11 +167,11 @@ class AdvanceSalaryService
                 return AdvanceSalaryResponseDTO::fromModel($advance);
             }
         }
-        
+
         // Find advance by user ID (for regular employees)
         if ($userId !== null) {
             $advance = $this->advanceSalaryRepository->findAdvanceForEmployee($id, $userId);
-            
+
             if ($advance) {
                 Log::info('AdvanceSalaryService::getAdvanceById - Found by employee', [
                     'advance_id' => $id,
@@ -166,58 +195,57 @@ class AdvanceSalaryService
      */
     public function updateAdvance(int $id, UpdateAdvanceSalaryDTO $dto, User $user): ?AdvanceSalaryResponseDTO
     {
-        \DB::beginTransaction();
+        DB::beginTransaction();
         try {
-            \Log::info('AdvanceSalaryService::updateAdvance started', [
+            Log::info('AdvanceSalaryService::updateAdvance started', [
                 'advance_id' => $id,
                 'user_id' => $user->user_id,
                 'updates' => array_keys(array_filter($dto->toArray()))
             ]);
-            
+
             // Get effective company ID first
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-            
+
             // Find advance without loading relationships first
             $advance = $this->advanceSalaryRepository->findAdvanceInCompany($id, $effectiveCompanyId);
-            
+
             if (!$advance) {
-                \Log::warning('Advance not found', ['advance_id' => $id, 'company_id' => $effectiveCompanyId]);
-                \DB::rollBack();
+                Log::warning('Advance not found', ['advance_id' => $id, 'company_id' => $effectiveCompanyId]);
+                DB::rollBack();
                 return null;
             }
 
             // Check permissions
             if ($advance->employee_id !== $user->user_id) {
-                \Log::warning('Permission denied - not owner', [
+                Log::warning('Permission denied - not owner', [
                     'advance_employee_id' => $advance->employee_id,
                     'current_user_id' => $user->user_id
                 ]);
-                \DB::rollBack();
+                DB::rollBack();
                 throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
             }
 
             // Check if advance can be updated (only pending)
             if ($advance->status !== 0) {
-                \Log::warning('Cannot update - not pending', ['status' => $advance->status]);
-                \DB::rollBack();
+                Log::warning('Cannot update - not pending', ['status' => $advance->status]);
+                DB::rollBack();
                 throw new \Exception('لا يمكن تعديل الطلب بعد المراجعة');
             }
 
             // Update advance
             $updatedAdvance = $this->advanceSalaryRepository->updateAdvance($advance, $dto);
-            
-            \DB::commit();
-            
-            \Log::info('Advance updated successfully', [
+
+            DB::commit();
+
+            Log::info('Advance updated successfully', [
                 'advance_id' => $updatedAdvance->advance_salary_id,
                 'updates' => array_keys(array_filter($dto->toArray()))
             ]);
-            
+
             return AdvanceSalaryResponseDTO::fromModel($updatedAdvance);
-            
         } catch (\Exception $e) {
-            \DB::rollBack();
-            \Log::error('Error in AdvanceSalaryService::updateAdvance', [
+            DB::rollBack();
+            Log::error('Error in AdvanceSalaryService::updateAdvance', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -230,7 +258,7 @@ class AdvanceSalaryService
      */
     public function cancelAdvance(int $id, User $user): bool
     {
-        return \DB::transaction(function () use ($id, $user) {
+        return DB::transaction(function () use ($id, $user) {
             try {
                 Log::info('AdvanceSalaryService::cancelAdvance started', [
                     'advance_id' => $id,
@@ -240,10 +268,10 @@ class AdvanceSalaryService
 
                 // Get effective company ID
                 $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-                
+
                 // Find advance in same company
                 $advance = $this->advanceSalaryRepository->findAdvanceInCompany($id, $effectiveCompanyId);
-                
+
                 if (!$advance) {
                     Log::warning('AdvanceSalaryService::cancelAdvance - Advance not found', [
                         'advance_id' => $id,
@@ -257,7 +285,7 @@ class AdvanceSalaryService
                 // 2. Manager/Company can cancel any request (pending or approved)
                 $isOwner = $advance->employee_id === $user->user_id;
                 $isManager = in_array($user->user_type, ['company', 'admin', 'hr', 'manager']);
-                
+
                 if (!$isOwner && !$isManager) {
                     Log::warning('AdvanceSalaryService::cancelAdvance - Permission denied', [
                         'advance_id' => $id,
@@ -266,7 +294,7 @@ class AdvanceSalaryService
                     ]);
                     throw new \Exception('ليس لديك صلاحية لإلغاء هذا الطلب');
                 }
-                
+
                 // Regular employee can only cancel pending requests
                 if ($isOwner && !$isManager && $advance->status !== 0) {
                     Log::warning('AdvanceSalaryService::cancelAdvance - Cannot cancel non-pending request', [
@@ -279,7 +307,7 @@ class AdvanceSalaryService
                 // Mark as rejected/cancelled (keeps record in database for audit trail)
                 $cancelReason = $isManager ? 'تم إلغاء الطلب من قبل الإدارة' : 'تم إلغاء الطلب من قبل الموظف';
                 $this->advanceSalaryRepository->rejectAdvance($advance, $user->user_id, $cancelReason);
-                
+
                 Log::info('AdvanceSalaryService::cancelAdvance completed successfully', [
                     'advance_id' => $id,
                     'cancelled_by' => $user->user_id,
@@ -305,7 +333,7 @@ class AdvanceSalaryService
      */
     public function approveAdvance(int $id, int $companyId, int $approvedBy, ?string $remarks = null): ?AdvanceSalaryResponseDTO
     {
-        return \DB::transaction(function () use ($id, $companyId, $approvedBy, $remarks) {
+        return DB::transaction(function () use ($id, $companyId, $approvedBy, $remarks) {
             try {
                 Log::info('AdvanceSalaryService::approveAdvance started', [
                     'advance_id' => $id,
@@ -315,7 +343,7 @@ class AdvanceSalaryService
                 ]);
 
                 $advance = $this->advanceSalaryRepository->findAdvanceInCompany($id, $companyId);
-                
+
                 if (!$advance) {
                     Log::warning('AdvanceSalaryService::approveAdvance - Advance not found', [
                         'advance_id' => $id,
@@ -333,7 +361,34 @@ class AdvanceSalaryService
                 }
 
                 $approvedAdvance = $this->advanceSalaryRepository->approveAdvance($advance, $approvedBy, $remarks);
-                
+
+                // Send approval notification
+                $this->notificationService->sendApprovalNotification(
+                    'advance_salary_settings',
+                    (string)$approvedAdvance->advance_salary_id,
+                    $companyId,
+                    StringStatusEnum::APPROVED->value,
+                    $approvedBy,
+                    null,
+                    $advance->employee_id
+                );
+
+                // Send email notification
+                $employeeEmail = $advance->employee->email ?? null;
+                $employeeName = $advance->employee->full_name ?? 'Employee';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new AdvanceSalaryApproved(
+                            employeeName: $employeeName,
+                            amount: (float)$advance->advance_amount,
+                            salaryType: $advance->salary_type,
+                            remarks: $remarks
+                        ),
+                        $employeeEmail
+                    );
+                }
+
                 Log::info('AdvanceSalaryService::approveAdvance completed successfully', [
                     'advance_id' => $id,
                     'employee_id' => $advance->employee_id,
@@ -361,7 +416,7 @@ class AdvanceSalaryService
      */
     public function rejectAdvance(int $id, int $companyId, int $rejectedBy, string $reason): ?AdvanceSalaryResponseDTO
     {
-        return \DB::transaction(function () use ($id, $companyId, $rejectedBy, $reason) {
+        return DB::transaction(function () use ($id, $companyId, $rejectedBy, $reason) {
             try {
                 Log::info('AdvanceSalaryService::rejectAdvance started', [
                     'advance_id' => $id,
@@ -371,7 +426,7 @@ class AdvanceSalaryService
                 ]);
 
                 $advance = $this->advanceSalaryRepository->findAdvanceInCompany($id, $companyId);
-                
+
                 if (!$advance) {
                     Log::warning('AdvanceSalaryService::rejectAdvance - Advance not found', [
                         'advance_id' => $id,
@@ -389,7 +444,34 @@ class AdvanceSalaryService
                 }
 
                 $rejectedAdvance = $this->advanceSalaryRepository->rejectAdvance($advance, $rejectedBy, $reason);
-                
+
+                // Send rejection notification
+                $this->notificationService->sendApprovalNotification(
+                    'advance_salary_settings',
+                    (string)$rejectedAdvance->advance_salary_id,
+                    $companyId,
+                    StringStatusEnum::REJECTED->value,
+                    $rejectedBy,
+                    null,
+                    $advance->employee_id
+                );
+
+                // Send email notification
+                $employeeEmail = $advance->employee->email ?? null;
+                $employeeName = $advance->employee->full_name ?? 'Employee';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new AdvanceSalaryRejected(
+                            employeeName: $employeeName,
+                            amount: (float)$advance->advance_amount,
+                            salaryType: $advance->salary_type,
+                            reason: $reason
+                        ),
+                        $employeeEmail
+                    );
+                }
+
                 Log::info('AdvanceSalaryService::rejectAdvance completed successfully', [
                     'advance_id' => $id,
                     'employee_id' => $advance->employee_id,
@@ -427,7 +509,7 @@ class AdvanceSalaryService
     public function updateTotalPaid(int $id, int $companyId, float $amount): ?AdvanceSalaryResponseDTO
     {
         $advance = $this->advanceSalaryRepository->findAdvanceInCompany($id, $companyId);
-        
+
         if (!$advance) {
             return null;
         }
@@ -446,7 +528,7 @@ class AdvanceSalaryService
     public function markAsDeducted(int $id, int $companyId): ?AdvanceSalaryResponseDTO
     {
         $advance = $this->advanceSalaryRepository->findAdvanceInCompany($id, $companyId);
-        
+
         if (!$advance) {
             return null;
         }
@@ -459,4 +541,3 @@ class AdvanceSalaryService
         return AdvanceSalaryResponseDTO::fromModel($updatedAdvance);
     }
 }
-

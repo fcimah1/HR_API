@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\LeaveAdjustment;
 
+use App\Models\ErpConstant;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -70,7 +72,7 @@ class UpdateLeaveAdjustmentRequest extends FormRequest
             // Check if duty employee belongs to same company
             if ($this->filled('duty_employee_id')) {
                 $user = $this->user();
-                $dutyEmployee = \App\Models\User::where('user_id', $this->duty_employee_id)
+                $dutyEmployee =  User::where('user_id', $this->duty_employee_id)
                     ->where('company_name', $user->company_name)
                     ->where('is_active', true)
                     ->exists();
@@ -83,7 +85,7 @@ class UpdateLeaveAdjustmentRequest extends FormRequest
             // Check if leave type belongs to user's company
             if ($this->filled('leave_type_id')) {
                 $user = $this->user();
-                $leaveTypes = \App\Models\ErpConstant::getActiveLeaveTypesByCompanyName($user->company_name);
+                $leaveTypes =  ErpConstant::getActiveLeaveTypesByCompanyName($user->company_name);
                 $availableIds = $leaveTypes->pluck('constants_id')->toArray();
                 
                 if (!in_array($this->leave_type_id, $availableIds)) {

@@ -66,7 +66,7 @@ class LeaveAdjustment extends Model
      */
     public function employee(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'employee_id', 'user_id');
+        return $this->belongsTo(User::class, 'staff_id', 'user_id');
     }
 
     /**
@@ -83,6 +83,15 @@ class LeaveAdjustment extends Model
     public function leaveType(): BelongsTo
     {
         return $this->belongsTo(ErpConstant::class, 'leave_type_id', 'constants_id');
+    }
+
+    /**
+     * Get the approvals for this leave adjustment
+     */
+    public function approvals()
+    {
+        return $this->hasMany(StaffApproval::class, 'module_key_id', 'adjustment_id')
+            ->where('module_option', 'leave_adjustment_settings');
     }
 
     /**

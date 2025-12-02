@@ -9,13 +9,12 @@ use App\Models\LeaveAdjustment;
 use App\Models\User;
 use App\Repository\Interface\LeaveAdjustmentRepositoryInterface;
 use App\Services\SimplePermissionService;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\LeaveAdjustment\AdjustmentSubmitted;
-use App\Mail\LeaveAdjustment\AdjustmentApproved;
-use App\Mail\LeaveAdjustment\AdjustmentRejected;
+use App\Jobs\SendEmailNotificationJob;
+use App\Mail\LeaveAdjustment\LeaveAdjustmentApproved;
+use App\Mail\LeaveAdjustment\LeaveAdjustmentRejected;
+use App\Mail\LeaveAdjustment\LeaveAdjustmentSubmitted;
 use App\Enums\StringStatusEnum;
 
 class LeaveAdjustmentService
@@ -56,7 +55,7 @@ class LeaveAdjustmentService
         // Create DTO from filter data
         $filters = LeaveAdjustmentFilterDTO::fromRequest($filterData, $user);
 
-        $adjustments = $this->leaveAdjustmentRepository->getPaginatedAdjustments($filters, $user);
+        $adjustments = $this->leaveAdjustmentRepository->getPaginatedAdjustments($filters);
 
         return [
             'created_by' => $user->full_name,
@@ -162,12 +161,15 @@ class LeaveAdjustmentService
             $leaveTypeName = $adjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
 
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new AdjustmentSubmitted(
-                    employeeName: $employeeName,
-                    leaveType: $leaveTypeName,
-                    adjustHours: $data->adjustHours,
-                    reason: $data->reasonAdjustment
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new LeaveAdjustmentSubmitted(
+                        employeeName: $employeeName,
+                        leaveType: $leaveTypeName,
+                        adjustHours: $data->adjustHours,
+                        reason: $data->reasonAdjustment
+                    ),
+                    $employeeEmail
+                );
             }
 
             return $adjustment->toArray();
@@ -197,7 +199,8 @@ class LeaveAdjustmentService
                 'leave_adjustment_settings',
                 (string)$approvedAdjustment->id,
                 $companyId,
-                StringStatusEnum::APPROVED->value
+                StringStatusEnum::APPROVED->value,
+                $approvedBy  // Approver ID
             );
 
             // Send email notification
@@ -206,12 +209,16 @@ class LeaveAdjustmentService
             $leaveTypeName = $approvedAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
 
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new AdjustmentApproved(
-                    employeeName: $employeeName,
-                    leaveType: $leaveTypeName,
-                    adjustHours: $approvedAdjustment->adjust_hours,
-                    remarks: null
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new LeaveAdjustmentApproved(
+                        employeeName: $employeeName,
+                        leaveType: $leaveTypeName,
+                        adjustHours: $approvedAdjustment->adjust_hours,
+                        reason: $approvedAdjustment->reason_adjustment,
+                        remarks: null
+                    ),
+                    $employeeEmail
+                );
             }
 
             return $approvedAdjustment;
@@ -241,7 +248,8 @@ class LeaveAdjustmentService
                 'leave_adjustment_settings',
                 (string)$rejectedAdjustment->id,
                 $companyId,
-                StringStatusEnum::REJECTED->value
+                StringStatusEnum::REJECTED->value,
+                $rejectedBy  // Rejector ID
             );
 
             // Send email notification
@@ -250,12 +258,15 @@ class LeaveAdjustmentService
             $leaveTypeName = $rejectedAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
 
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new AdjustmentRejected(
-                    employeeName: $employeeName,
-                    leaveType: $leaveTypeName,
-                    adjustHours: $rejectedAdjustment->adjust_hours,
-                    reason: $reason
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new LeaveAdjustmentRejected(
+                        employeeName: $employeeName,
+                        leaveType: $leaveTypeName,
+                        adjustHours: $rejectedAdjustment->adjust_hours,
+                        reason: $rejectedAdjustment->reason_adjustment,
+                    ),
+                    $employeeEmail
+                );
             }
 
             return $rejectedAdjustment;
@@ -288,12 +299,15 @@ class LeaveAdjustmentService
             $leaveTypeName = $updatedAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
 
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new AdjustmentRejected(
-                    employeeName: $employeeName,
-                    leaveType: $leaveTypeName,
-                    adjustHours: $updatedAdjustment->adjust_hours,
-                    reason: $updatedAdjustment->reason,
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new LeaveAdjustmentRejected(
+                        employeeName: $employeeName,
+                        leaveType: $leaveTypeName,
+                        adjustHours: $updatedAdjustment->adjust_hours,
+                        reason: $updatedAdjustment->reason_adjustment,
+                    ),
+                    $employeeEmail
+                );
             }
             return $updatedAdjustment;
         });
@@ -318,12 +332,13 @@ class LeaveAdjustmentService
             // Mark as rejected (keeps record in database)
             $cancelledAdjustment = $this->leaveAdjustmentRepository->cancelAdjustment($adjustment, $employeeId, 'تم إلغاء التسوية من قبل الموظف');
 
-                        // Send rejection notification
+            // Send rejection notification
             $this->notificationService->sendApprovalNotification(
                 'leave_adjustment_settings',
                 (string)$cancelledAdjustment->id,
                 $cancelledAdjustment->company_id,
-                StringStatusEnum::REJECTED->value
+                StringStatusEnum::REJECTED->value,
+                $employeeId  // Employee who cancelled
             );
             // Send email notification
             $employeeEmail = $cancelledAdjustment->employee->email ?? null;
@@ -331,12 +346,15 @@ class LeaveAdjustmentService
             $leaveTypeName = $cancelledAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
 
             if ($employeeEmail) {
-                Mail::to($employeeEmail)->send(new AdjustmentRejected(
-                    employeeName: $employeeName,
-                    leaveType: $leaveTypeName,
-                    adjustHours: $cancelledAdjustment->adjust_hours,
-                    reason: $cancelledAdjustment->reason,
-                ));
+                SendEmailNotificationJob::dispatch(
+                    new LeaveAdjustmentRejected(
+                        employeeName: $employeeName,
+                        leaveType: $leaveTypeName,
+                        adjustHours: $cancelledAdjustment->adjust_hours,
+                        reason: $cancelledAdjustment->reason_adjustment,
+                    ),
+                    $employeeEmail
+                );
             }
             return true;
         });
@@ -355,113 +373,4 @@ class LeaveAdjustmentService
 
         return $adjustment;
     }
-
-    // /**
-    //  * Get available leave balance for an employee
-    //  *
-    //  * @param int $employeeId
-    //  * @param int $leaveTypeId
-    //  * @param int $companyId
-    //  * @return float
-    //  */
-    // public function handleLeaveSettlement(CreateLeaveSettlementDTO $dto): array
-    // {
-    //     DB::beginTransaction();
-    //     try {
-    //         // 1. Check available balance
-    //         $availableBalance = $this->getAvailableLeaveBalance(
-    //             $dto->employeeId,
-    //             $dto->leaveTypeId,
-    //             $dto->companyId
-    //         );
-
-    //         if ($availableBalance < $dto->hoursToSettle) {
-    //             throw new \Exception('الرصيد المتاح (' . $availableBalance . ' ساعة) غير كافٍ لتسوية ' . $dto->hoursToSettle . ' ساعة.');
-    //         }
-
-    //         // 2. Perform the settlement based on type
-    //         if ($dto->settlementType === 'encashment') {
-    //             // Logic for Encashment (Cash out)
-    //             // This typically involves:
-    //             // a) Creating a Leave Adjustment to deduct the settled hours.
-    //             // b) Creating a record in a payroll/finance system for payment (Not implemented here, only the HR side).
-
-    //             $adjustmentData = new CreateLeaveAdjustmentDTO(
-    //                 employeeId: $dto->employeeId,
-    //                 leaveTypeId: $dto->leaveTypeId,
-    //                 adjustHours: -$dto->hoursToSettle, // Negative value to deduct from balance
-    //                 reasonAdjustment: 'تسوية إجازات مستحقة (صرف نقدي) - ' . $dto->hoursToSettle . ' ساعة',
-    //                 adjustmentDate: now()->toDateString(),
-    //                 dutyEmployeeId: null,
-    //                 companyId: $dto->companyId,
-    //             );
-
-    //             $adjustment = $this->leaveAdjustmentRepository->createAdjust($adjustmentData);
-
-    //             $message = 'تمت تسوية ' . $dto->hoursToSettle . ' ساعة بنجاح كصرف نقدي. تم تحديث رصيد الإجازات.';
-    //             $settlementRecord = $adjustment->toArray();
-
-    //         } elseif ($dto->settlementType === 'take_leave') {
-    //             // Logic for Taking Leave (Converting to a leave application)
-    //             // This is essentially creating a new leave application with the settled hours.
-
-    //             // Note: This assumes 'hoursToSettle' is the total duration of the leave application.
-    //             // If the user meant converting the *remaining balance* into a single application, 
-    //             // the logic should be adjusted to use the full available balance.
-
-    //             // For simplicity, we will create a Leave Adjustment to deduct the hours, 
-    //             // and the system should handle the actual leave application separately.
-    //             // However, based on the user's request "تسوية اجازاته المستحقه", 
-    //             // we will treat 'take_leave' as a final deduction/settlement.
-
-    //             $adjustmentData = new CreateLeaveAdjustmentDTO(
-    //                 companyId: $dto->companyId,
-    //                 employeeId: $dto->employeeId,
-    //                 leaveTypeId: $dto->leaveTypeId,
-    //                 adjustHours: -$dto->hoursToSettle, // Negative value to deduct from balance
-    //                 reasonAdjustment: 'تسوية إجازات مستحقة (أخذ إجازة) - ' . $dto->hoursToSettle . ' ساعة',
-    //                 adjustmentDate: now()->toDateString(),
-    //                 dutyEmployeeId: null,
-    //                 status: 1 // Approved immediately for settlement
-    //             );
-
-    //             $adjustment = $this->leaveAdjustmentRepository->createAdjust($adjustmentData);
-
-    //             $message = 'تمت تسوية ' . $dto->hoursToSettle . ' ساعة بنجاح كإجازة مأخوذة. تم تحديث رصيد الإجازات.';
-    //             $settlementRecord = $adjustment->toArray();
-    //         } else {
-    //             throw new \InvalidArgumentException('نوع التسوية غير صالح.');
-    //         }
-
-    //         // 3. Recalculate new balance
-    //         $newAvailableBalance = $this->getAvailableLeaveBalance(
-    //             $dto->employeeId,
-    //             $dto->leaveTypeId,
-    //             $dto->companyId
-    //         );
-
-    //         DB::commit();
-
-    //         return [
-    //             'success' => true,
-    //             'message' => $message,
-    //             'settlement_type' => $dto->settlementType,
-    //             'hours_settled' => $dto->hoursToSettle,
-    //             'old_balance' => $availableBalance,
-    //             'new_balance' => $newAvailableBalance,
-    //             'record' => $settlementRecord
-    //         ];
-
-    //     } catch (\Exception $e) {
-    //         DB::rollBack();
-    //         Log::error('LeaveService::handleLeaveSettlement failed', [
-    //             'error' => $e->getMessage(),
-    //             'employee_id' => $dto->employeeId
-    //         ]);
-    //         throw $e;
-    //     }
-    // }
-
-
-
 }

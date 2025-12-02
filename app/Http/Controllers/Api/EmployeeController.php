@@ -8,6 +8,7 @@ use App\DTOs\Employee\UpdateEmployeeDTO;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Employee\CreateEmployeeRequest;
 use App\Http\Requests\Employee\UpdateEmployeeRequest;
+use App\Models\User;
 use App\Services\EmployeeService;
 use Carbon\Exceptions\Exception;
 use Illuminate\Http\Request;
@@ -1261,7 +1262,7 @@ class EmployeeController extends Controller
         ]);
 
         // استخدام User model مع العلاقات بدلاً من Service - جلب الموظفين بناءً على company_name
-        $employees = \App\Models\User::where('company_name', $user->company_name)
+        $employees =  User::where('company_name', $user->company_name)
             ->with([
                 'details',                      // علاقة UserDetails
                 'details.department',           // علاقة Department من خلال UserDetails

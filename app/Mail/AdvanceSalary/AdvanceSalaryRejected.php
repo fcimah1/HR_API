@@ -1,0 +1,40 @@
+<?php
+
+namespace App\Mail\AdvanceSalary;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
+
+class AdvanceSalaryRejected extends Mailable
+{
+    use Queueable, SerializesModels;
+
+    public function __construct(
+        public string $employeeName,
+        public float $amount,
+        public string $salaryType,
+        public string $reason
+    ) {}
+
+    public function envelope(): Envelope
+    {
+        return new Envelope(
+            subject: 'تم رفض طلب السلفة',
+        );
+    }
+
+    public function content(): Content
+    {
+        return new Content(
+            view: 'emails.advance_salary.rejected',
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
+    }
+}

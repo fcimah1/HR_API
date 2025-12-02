@@ -169,7 +169,45 @@ class AuthController extends Controller
     {
         return response()->json([
             'success' => true,
-            'user' => $request->user()
+            'user' => $request->user(),
+            'permissions' => $request->user()->sendPermissionsWithUserDetails()['permissions'],
+        ]);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/user/permissions",
+     *     summary="Get authenticated user permissions",
+     *     tags={"Authentication"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Permissions retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="permissions", type="array", @OA\Items(type="string")),
+     *             @OA\Property(property="role_id", type="integer"),
+     *             @OA\Property(property="role_name", type="string"),
+     *             @OA\Property(property="role_access", type="integer")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated"
+     *     )
+     * )
+     */
+    public function permissions(Request $request)
+    {
+        $user = $request->user();
+        $permissionData = $user->sendPermissionsWithUserDetails();
+
+        return response()->json([
+            'success' => true,
+            'permissions' => $permissionData['permissions'],
+            'role_id' => $permissionData['role_id'],
+            'role_name' => $permissionData['role_name'],
+            'role_access' => $permissionData['role_access'],
         ]);
     }
 

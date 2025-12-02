@@ -354,6 +354,13 @@ class AdvanceSalaryController extends Controller
      *         required=true,
      *         @OA\Schema(type="integer")
      *     ),
+     *     @OA\Parameter(
+     *         name="action",
+     *         in="query",
+     *         required=true,
+     *         @OA\Schema(type="string", enum={"approve", "reject"}),
+     *         description="الإجراء: approve للموافقة أو reject للرفض"
+     *     ),
      *     @OA\RequestBody(
      *         @OA\JsonContent(
      *             @OA\Property(property="remarks", type="string", example="موافق على الطلب")
@@ -380,7 +387,14 @@ class AdvanceSalaryController extends Controller
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
             $remarks = $request->input('remarks');
 
-            $advance = $this->advanceSalaryService->approveAdvance($id, $effectiveCompanyId, $user->user_id, $remarks);
+            $action = $request->input('action');
+
+            if ($action === 'approve') {
+                $advance = $this->advanceSalaryService->approveAdvance($id, $effectiveCompanyId, $user->user_id, $remarks);
+
+            } elseif ($action === 'reject') {
+                $advance = $this->advanceSalaryService->rejectAdvance($id, $effectiveCompanyId, $user->user_id, $remarks);
+            }
 
             if (!$advance) {
                 return response()->json([
@@ -391,7 +405,7 @@ class AdvanceSalaryController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'تمت الموافقة على الطلب بنجاح',
+                'message' => $action === 'approve' ? 'تمت الموافقة على الطلب ' : 'تم رفض الطلب ',
                 'data' => $advance->toArray()
             ]);
 

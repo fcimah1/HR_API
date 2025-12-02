@@ -2,6 +2,7 @@
 
 namespace App\DTOs\LeaveAdjustment;
 
+use App\Models\LeaveAdjustment;
 use Illuminate\Support\Facades\Log;
 
 class CreateLeaveAdjustmentDTO
@@ -40,7 +41,7 @@ class CreateLeaveAdjustmentDTO
             'reason_adjustment' => $this->reasonAdjustment,
             'adjustment_date' => $this->adjustmentDate,
             'duty_employee_id' => $this->dutyEmployeeId,
-            'status' => $this->status ?? \App\Models\LeaveAdjustment::STATUS_PENDING,
+            'status' => $this->status ??  LeaveAdjustment::STATUS_PENDING,
             'created_at' => now(),
         ];
 

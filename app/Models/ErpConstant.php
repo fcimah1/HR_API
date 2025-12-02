@@ -165,7 +165,7 @@ class ErpConstant extends Model
     public static function getActiveLeaveTypesByCompanyName(string $companyName): \Illuminate\Database\Eloquent\Collection
     {
         // Get company IDs that match the company name
-        $companyIds = \App\Models\User::where('company_name', $companyName)
+        $companyIds =  User::where('company_name', $companyName)
             ->distinct()
             ->pluck('company_id')
             ->toArray();

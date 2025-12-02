@@ -69,7 +69,7 @@ class ApprovalWorkflowService
     public function processApproval(ApprovalActionDTO $dto): array
     {
         // Check if user already approved
-        if ($this->approvalRepository->hasUserApproved($dto->approverId, $dto->moduleOption, $dto->moduleKeyId)) {
+        if ($this->approvalRepository->hasUserApproved($dto->staffId, $dto->moduleOption, $dto->moduleKeyId)) {
             throw new \Exception('لقد قمت بالموافقة على هذا الطلب مسبقاً');
         }
 
@@ -82,7 +82,7 @@ class ApprovalWorkflowService
             moduleOption: $dto->moduleOption,
             moduleKeyId: $dto->moduleKeyId,
             status: $dto->status,
-            approverId: $dto->approverId,
+            staffId: $dto->staffId,
             companyId: $dto->companyId,
             approvalLevel: $newLevel
         );
@@ -91,7 +91,16 @@ class ApprovalWorkflowService
 
         // If rejected, notify submitter and stop
         if ($dto->isRejection()) {
-            // TODO: Get submitter ID and notify
+            // Send rejection notification
+            $this->notificationService->sendApprovalNotification(
+                $dto->moduleOption,
+                $dto->moduleKeyId,
+                $dto->companyId,
+                3, // REJECTED
+                $dto->staffId,
+                $newLevel
+            );
+
             return [
                 'status' => 'rejected',
                 'message' => 'تم رفض الطلب',
@@ -108,7 +117,9 @@ class ApprovalWorkflowService
                 $dto->moduleOption,
                 $dto->moduleKeyId,
                 $dto->companyId,
-                'approved'
+                2, // APPROVED
+                $dto->staffId,
+                $newLevel
             );
 
             return [
@@ -127,7 +138,7 @@ class ApprovalWorkflowService
                 $dto->moduleOption,
                 $dto->moduleKeyId,
                 [$nextApprover],
-                'pending'
+                1 // PENDING
             );
         }
 

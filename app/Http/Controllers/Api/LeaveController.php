@@ -47,8 +47,8 @@ class LeaveController extends Controller
      *     @OA\Parameter(
      *         name="status",
      *         in="query",
-     *         description="Filter by status (true=approved, false=pending)",
-     *         @OA\Schema(type="boolean")
+     *         description="Filter by status (pending/approved/rejected)",
+     *         @OA\Schema(type="string", enum={"pending", "approved", "rejected"})
      *     ),
      *     @OA\Parameter(
      *         name="leave_type_id",
@@ -447,11 +447,16 @@ class LeaveController extends Controller
      *         required=true,
      *         @OA\Schema(type="integer")
      *     ),
-     *     @OA\RequestBody(
+     *     @OA\Parameter(
+     *         name="action",
+     *         in="query",
      *         required=true,
+     *         @OA\Schema(type="string", enum={"approve", "reject"}),
+     *         description="الإجراء: approve للموافقة أو reject للرفض"
+     *     ),
+     *     @OA\RequestBody(
+     *         required=false,
      *         @OA\JsonContent(
-     *             required={"action"},
-     *             @OA\Property(property="action", type="string", enum={"approve", "reject"}, example="approve", description="الإجراء: approve للموافقة أو reject للرفض"),
      *             @OA\Property(property="remarks", type="string", example="موافق على الطلب", description="ملاحظات (اختياري)")
      *         )
      *     ),

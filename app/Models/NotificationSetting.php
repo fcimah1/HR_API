@@ -82,9 +82,10 @@ class NotificationSetting extends Model
             // If it's a number, add it directly
             if (is_numeric($value)) {
                 $staffIds[] = (int)$value;
+            } else {
+                // Keep keywords like 'manager', 'self' to be handled by the calling code
+                $staffIds[] = $value;
             }
-            // Keywords like 'manager', 'self' will be handled by the calling code
-            // For now, we skip them here and let the service layer resolve them
         }
 
         return array_unique($staffIds);
@@ -112,8 +113,10 @@ class NotificationSetting extends Model
             // If it's a number, add it directly
             if (is_numeric($value)) {
                 $staffIds[] = (int)$value;
+            } else {
+                // Keep keywords like 'manager', 'self' to be handled by the calling code
+                $staffIds[] = $value;
             }
-            // Keywords like 'manager', 'self' will be handled by the calling code
         }
 
         return array_unique($staffIds);

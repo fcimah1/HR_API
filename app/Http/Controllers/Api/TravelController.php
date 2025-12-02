@@ -234,11 +234,12 @@ class TravelController extends Controller
      *     tags={"Travel"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
-     *     @OA\RequestBody(
+     *     @OA\Parameter(
+     *         name="action",
+     *         in="query",
      *         required=true,
-     *         @OA\JsonContent(
-     *             @OA\Property(property="action", type="string", enum={"approve", "reject"}, description="Action to perform on the travel request"),
-     *         )
+     *         @OA\Schema(type="string", enum={"approve", "reject"}),
+     *         description="Action to perform on the travel request"
      *     ),
      *     @OA\Response(response=200, description="Travel request status updated successfully")
      * )
