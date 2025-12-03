@@ -19,6 +19,17 @@ class AttendanceRepository implements AttendanceRepositoryInterface
     {
         $query = Attendance::with(['employee']);
 
+        if ($filters->search !== null && trim($filters->search) !== '') {
+            $searchTerm = '%' . $filters->search . '%';
+            $query->where(function ($q) use ($searchTerm) {
+                // البحث في بيانات الموظف
+                $q->whereHas('employee', function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('first_name', 'like', $searchTerm)
+                        ->orWhere('last_name', 'like', $searchTerm)
+                        ->orWhere('email', 'like', $searchTerm);
+                });
+            });
+        }
         // Apply company filter
         if ($filters->companyId !== null) {
             $query->where('company_id', $filters->companyId);

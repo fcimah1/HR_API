@@ -2,18 +2,16 @@
 
 namespace App\Repository;
 
+use App\DTOs\Leave\CreateHourlyLeaveDTO;
+use Illuminate\Support\Facades\DB;
 use App\Repository\Interface\LeaveRepositoryInterface;
 use App\DTOs\Leave\LeaveApplicationFilterDTO;
 use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
-use App\DTOs\Leave\CreateLeaveTypeDTO;
-use App\DTOs\Leave\UpdateLeaveTypeDTO;
 use App\Models\LeaveApplication;
 use App\Models\ErpConstant;
 use App\Models\LeaveAdjustment;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 
 class LeaveRepository implements LeaveRepositoryInterface
@@ -21,55 +19,127 @@ class LeaveRepository implements LeaveRepositoryInterface
     /**
      * Get paginated leave applications with filters
      */
-    public function getPaginatedApplications(LeaveApplicationFilterDTO $filters): LengthAwarePaginator
+    /**
+     * الحصول على طلبات الإجازات مع التصفية والترقيم الصفحي
+     */
+    public function getPaginatedApplications(LeaveApplicationFilterDTO $filters, User $user): array
     {
         $companyId = $filters->companyId;
-        $query = LeaveApplication::where('company_id', $companyId)->with(['employee', 'dutyEmployee', 'leaveType','approvals.staff']);
+        $query = LeaveApplication::where('company_id', $companyId)
+            ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
 
-        // Apply filters
+        // تطبيق فلتر البحث
+        if ($filters->search !== null && trim($filters->search) !== '') {
+            $searchTerm = '%' . $filters->search . '%';
+            $query->where(function ($q) use ($searchTerm) {
+                // البحث في بيانات الموظف
+                $q->whereHas('employee', function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('first_name', 'like', $searchTerm)
+                        ->orWhere('last_name', 'like', $searchTerm)
+                        ->orWhere('email', 'like', $searchTerm);
+                });
+
+                // البحث في بيانات موظف المناوبة
+                $q->orWhereHas('dutyEmployee', function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('first_name', 'like', $searchTerm)
+                        ->orWhere('last_name', 'like', $searchTerm);
+                });
+
+                // البحث في نوع الإجازة
+                $q->orWhereHas('leaveType', function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('category_name', 'like', $searchTerm);
+                });
+
+                // البحث في حقول الإجازة نفسها
+                $q->orWhere('reason', 'like', $searchTerm);
+                $q->orWhere('from_date', 'like', $searchTerm);
+                $q->orWhere('to_date', 'like', $searchTerm);
+                $q->orWhere('status', 'like', $searchTerm);
+
+                // البحث في الموظفين الذين قاموا بالموافقة (nested relationship)
+                $q->orWhereHas('approvals.staff', function ($approvalQuery) use ($searchTerm) {
+                    $approvalQuery->where('first_name', 'like', $searchTerm)
+                        ->orWhere('last_name', 'like', $searchTerm);
+                });
+            });
+        }
+
+        // تطبيق الفلاتر الأخرى
         if ($filters->companyName !== null) {
             $query->whereHas('employee', function ($q) use ($filters) {
                 $q->where('company_name', $filters->companyName);
             });
         }
 
-        // Support for single employee_id
+        // فلتر معرف الموظف
         if ($filters->employeeId !== null) {
             $query->where('employee_id', $filters->employeeId);
         }
 
-        // Support for multiple employee_ids (for subordinates)
+        // فلتر معرفات الموظفين (للتبعية)
         if ($filters->employeeIds !== null && is_array($filters->employeeIds) && !empty($filters->employeeIds)) {
             $query->whereIn('employee_id', $filters->employeeIds);
         }
 
+        // فلتر الحالة
         if ($filters->status !== null) {
             $query->where('status', $filters->status);
         }
 
+        // فلتر نوع الإجازة
         if ($filters->leaveTypeId !== null) {
             $query->where('leave_type_id', $filters->leaveTypeId);
         }
 
+        // فلتر تاريخ البداية
         if ($filters->fromDate !== null) {
             $query->where('from_date', '>=', $filters->fromDate);
         }
 
+        // فلتر تاريخ النهاية
         if ($filters->toDate !== null) {
             $query->where('to_date', '<=', $filters->toDate);
         }
 
-        // Apply sorting
-        $query->orderBy($filters->sortBy, $filters->sortDirection);
+        // تطبيق الفرز
+        $sortBy = in_array($filters->sortBy, ['created_at', 'from_date', 'to_date', 'status'])
+            ? $filters->sortBy
+            : 'created_at';
 
-        return $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
+        $sortDirection = strtolower($filters->sortDirection) === 'asc' ? 'asc' : 'desc';
+        $query->orderBy($sortBy, $sortDirection);
+
+        // Paginate
+        $paginator = $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
+
+        return [
+            'data' => $paginator->items(),
+            'total' => $paginator->total(),
+            'per_page' => $paginator->perPage(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'from' => $paginator->firstItem(),
+            'to' => $paginator->lastItem(),
+        ];
     }
 
     /**
-     * Create a new leave application
+     * Create a new leave application from DTO
      */
     public function createApplication(CreateLeaveApplicationDTO $dto): LeaveApplication
     {
+        $application = LeaveApplication::create($dto->toArray());
+        $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
+
+        return $application;
+    }
+
+    /**
+     * Create a new leave application from hourly DTO
+     */
+    public function createApplicationFromHourly(CreateHourlyLeaveDTO $dto): LeaveApplication
+    {
+        /** @var LeaveApplication $application */
         $application = LeaveApplication::create($dto->toArray());
         $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
 
@@ -81,7 +151,7 @@ class LeaveRepository implements LeaveRepositoryInterface
      */
     public function findApplication(int $id): ?LeaveApplication
     {
-        return LeaveApplication::with(['employee', 'dutyEmployee', 'leaveType','approvals.staff'])->findOrFail($id);
+        return LeaveApplication::with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff'])->findOrFail($id);
     }
 
     /**
@@ -90,7 +160,7 @@ class LeaveRepository implements LeaveRepositoryInterface
     public function findApplicationInCompany(int $id, int $companyId): ?LeaveApplication
     {
         return LeaveApplication::where('company_id', $companyId)->findOrFail($id)
-                ->load(['employee', 'dutyEmployee', 'leaveType','approvals.staff']);
+            ->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
     }
 
     /**
@@ -99,7 +169,7 @@ class LeaveRepository implements LeaveRepositoryInterface
     public function findApplicationForEmployee(int $id, int $employeeId): ?LeaveApplication
     {
         return LeaveApplication::where('employee_id', $employeeId)->findOrFail($id)
-                ->load(['employee', 'dutyEmployee', 'leaveType','approvals.staff']);
+            ->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
     }
 
     /**
@@ -118,7 +188,7 @@ class LeaveRepository implements LeaveRepositoryInterface
                 $application->refresh();
 
                 // Load relationships
-                $application->load(['employee', 'dutyEmployee', 'leaveType','approvals.staff']);
+                $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
             }
 
             Log::debug('LeaveRepository::updateApplication - Update completed', [
@@ -143,7 +213,7 @@ class LeaveRepository implements LeaveRepositoryInterface
         ]);
 
         $application->refresh();
-        $application->load(['employee', 'dutyEmployee', 'leaveType','approvals.staff']);
+        $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
 
         return $application;
     }
@@ -160,7 +230,7 @@ class LeaveRepository implements LeaveRepositoryInterface
         ]);
 
         $application->refresh();
-        $application->load(['employee', 'dutyEmployee', 'leaveType','approvals.staff']);
+        $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
 
         return $application;
     }
@@ -465,5 +535,70 @@ class LeaveRepository implements LeaveRepositoryInterface
         }
 
         return $monthlyHours;
+    }
+
+
+    /**
+     * Get active duty employees with optional search
+     *
+     * @param int $id Company ID
+     * @param string|null $search Optional search term to filter users by name, email, or company name
+     * @return array
+     */
+    /**
+     * Get active employees for duty employee selection with optional filters
+     * 
+     * @param int $id Company ID
+     * @param string|null $search Optional search term to filter by name, email, or company name
+     * @param int|null $employeeId Optional employee ID to filter by specific employee
+     * @return array
+     */
+    public function getDutyEmployee(int $id, ?string $search = null, ?int $employeeId = null): array
+    {
+        $query = User::where('company_id', $id)
+            ->where('is_active', 1);
+
+        // Filter by employee_id if provided
+        if ($employeeId !== null) {
+            $query->where('user_id', $employeeId);
+        }
+
+        // Add search condition if search term is provided
+        if ($search) {
+            $searchTerm = "%{$search}%";
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('first_name', 'LIKE', $searchTerm)
+                  ->orWhere('last_name', 'LIKE', $searchTerm)
+                  ->orWhere('email', 'LIKE', $searchTerm)
+                  ->orWhere('company_name', 'LIKE', $searchTerm)
+                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$searchTerm]);
+            });
+        }
+
+        return $query->select([
+                'company_id',
+                'user_id',
+                'email',
+                'first_name',
+                'last_name',
+                'company_name',
+                DB::raw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) as full_name")
+            ])
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id'=> $user->id,
+                    'company_id' => $user->company_id,
+                    'user_id' => $user->user_id,
+                    'full_name' => trim($user->first_name . ' ' . $user->last_name),
+                    'email' => $user->email,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'company_name' => $user->company_name,
+                ];
+            })
+            ->toArray();
     }
 }

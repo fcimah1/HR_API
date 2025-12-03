@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\DTOs\Leave\CreateHourlyLeaveDTO;
 use App\DTOs\Leave\LeaveApplicationFilterDTO;
 use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Enums\StringStatusEnum;
 use App\Jobs\SendEmailNotificationJob;
+use App\Mail\Leave\HourSubmitted;
 use App\Mail\Leave\LeaveSubmitted;
 use App\Mail\Leave\LeaveUpdated;
 use App\Mail\Leave\LeaveApproved;
@@ -68,20 +70,9 @@ class LeaveService
         // إنشاء DTO جديد مع البيانات المحدثة
         $updatedFilters = LeaveApplicationFilterDTO::fromRequest($filterData);
 
-        $applications = $this->leaveRepository->getPaginatedApplications($updatedFilters);
+        $applications = $this->leaveRepository->getPaginatedApplications($updatedFilters, $user);
 
-        return [
-            'data' => $applications->items(),
-            'pagination' => [
-                'current_page' => $applications->currentPage(),
-                'last_page' => $applications->lastPage(),
-                'per_page' => $applications->perPage(),
-                'total' => $applications->total(),
-                'from' => $applications->firstItem(),
-                'to' => $applications->lastItem(),
-                'has_more_pages' => $applications->hasMorePages(),
-            ]
-        ];
+        return $applications;
     }
 
     /**
@@ -109,7 +100,112 @@ class LeaveService
     }
 
     /**
-     * Create a new leave application with permission check
+     * Get active employees for duty employee selection with optional filters
+     * Returns list of active employees in the specified company
+     * 
+     * @param int $companyId
+     * @param string|null $search Optional search term to filter by name, email, or company name
+     * @param int|null $employeeId Optional employee ID to filter by specific employee
+     * @return array
+     */
+    public function getEmployeesForDutyEmployee(int $companyId, ?string $search = null, ?int $employeeId = null): array
+    {
+        
+        $employees = $this->leaveRepository->getDutyEmployee(
+            $companyId,
+            $search,
+            $employeeId
+        );
+
+        return $employees;
+    }
+
+    /**
+     * Create a new hourly leave application
+     * @param \App\DTOs\Leave\CreateHourlyLeaveDTO $dto
+     * @return object
+     * @throws \Exception
+     */
+    public function createHourlyLeaveApplication(CreateHourlyLeaveDTO $dto): object
+    {
+        return DB::transaction(function () use ($dto) {
+            Log::info('LeaveService::createHourlyLeaveApplication', [
+                'employee_id' => $dto->employeeId,
+                'leave_type_id' => $dto->leaveTypeId,
+                'date' => $dto->date,
+                'clock_in_m' => $dto->clockInM,
+                'clock_out_m' => $dto->clockOutM
+            ]);
+
+            // Calculate leave hours
+            $startTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockInM);
+            $endTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockOutM);
+            $leaveHours = $endTime->diffInHours($startTime);
+
+            // جلب الرصيد المتاح لنوع الإجازة
+            $availableBalance = $this->getAvailableLeaveBalance(
+                $dto->employeeId,
+                $dto->leaveTypeId,
+                $dto->companyId,
+            );
+
+            // إذا كانت الإجازة المطلوبة أكبر من الرصيد المتاح نرفض الطلب
+            if ($leaveHours > $availableBalance) {
+                throw new \Exception(
+                    "ساعات الإجازة المطلوبة ({$leaveHours} ساعة) أكبر من الرصيد المتاح ({$availableBalance} ساعة) لهذا النوع."
+                );
+            }
+
+            $leave = $this->leaveRepository->createApplicationFromHourly($dto);
+
+            if (!$leave) {
+                throw new \Exception("فشل في إنشاء طلب الإستئذان للإجازة بـ {$leaveHours} ساعة - الرصيد المتوفر: {$availableBalance} ساعة");
+            }
+
+            // Start approval workflow
+            $this->approvalWorkflow->submitForApproval(
+                'leave_settings',
+                (string)$leave->leave_id,
+                $dto->employeeId,
+                $dto->companyId
+            );
+
+            // Send notifications
+            $this->notificationService->sendSubmissionNotification(
+                'leave_settings',
+                (string)$leave->leave_id,
+                $dto->companyId,
+                StringStatusEnum::SUBMITTED->value,
+                $dto->employeeId
+            );
+
+            // Get employee email and name from already loaded relationships
+            $employeeEmail = $leave->employee->email ?? null;
+            $employeeName = $leave->employee->full_name ?? 'Employee';
+            $leaveTypeName = $leave->leaveType->leave_type_name ?? 'Hourly Leave';
+
+            // Send email notification if employee email exists (dispatched as job)
+            if ($employeeEmail) {
+                SendEmailNotificationJob::dispatch(
+                    new HourSubmitted(
+                        employeeName: $employeeName,
+                        leaveType: $leaveTypeName,
+                        date: $dto->date,
+                        hours: (int)($dto->hours ?? 0),
+                    ),
+                    $employeeEmail
+                );
+            }
+            return $leave;
+        });
+    }
+
+    /**
+     * Create a new leave application
+     * 
+     * @param CreateLeaveApplicationDTO $dto
+     * @return array
+     * @throws \Exception
      */
     public function createApplication(CreateLeaveApplicationDTO $dto): array
     {
@@ -538,19 +634,31 @@ class LeaveService
         $hoursPerDay = 8.0;
 
         // Get active leave types for the company
-        $leaveTypesCollection = $this->leaveTypeRepository->getActiveLeaveTypes($companyId);
+        $leaveTypesData = $this->leaveTypeRepository->getActiveLeaveTypes($companyId);
 
-        // Convert collection to array format expected by the rest of the method
-        $leaveTypes = $leaveTypesCollection->map(function ($constant) {
+        // Handle both array and collection responses
+        $leaveTypes = collect($leaveTypesData['data'] ?? $leaveTypesData)->map(function ($constant) {
+            if (is_array($constant)) {
+                return [
+                    'leave_type_id' => $constant['constants_id'] ?? $constant['leave_type_id'] ?? null,
+                    'leave_type_name' => $constant['category_name'] ?? $constant['leave_type_name'] ?? null,
+                    'leave_type_short_name' => $constant['field_one'] ?? $constant['leave_type_short_name'] ?? null,
+                    'leave_days' => (float) ($constant['field_two'] ?? $constant['leave_days'] ?? 0),
+                    'leave_type_status' => $constant['field_three'] ?? $constant['leave_type_status'] ?? true,
+                    'company_id' => $constant['company_id'] ?? null,
+                ];
+            }
+
+            // Handle object case
             return [
-                'leave_type_id' => $constant->constants_id,
-                'leave_type_name' => $constant->leave_type_name,
-                'leave_type_short_name' => $constant->leave_type_short_name,
-                'leave_days' => $constant->leave_days,
-                'leave_type_status' => $constant->leave_type_status,
-                'company_id' => $constant->company_id,
+                'leave_type_id' => $constant->constants_id ?? $constant->leave_type_id ?? null,
+                'leave_type_name' => $constant->category_name ?? $constant->leave_type_name ?? null,
+                'leave_type_short_name' => $constant->field_one ?? $constant->leave_type_short_name ?? null,
+                'leave_days' => (float) ($constant->field_two ?? $constant->leave_days ?? 0),
+                'leave_type_status' => $constant->field_three ?? $constant->leave_type_status ?? true,
+                'company_id' => $constant->company_id ?? null,
             ];
-        })->toArray();
+        })->filter()->values()->toArray();
 
         if ($leaveTypeId !== null) {
             $leaveTypes = array_values(array_filter($leaveTypes, function (array $type) use ($leaveTypeId) {
@@ -657,18 +765,29 @@ class LeaveService
         $currentYear = (int) date('Y');
 
         // Get active leave types for the company
-        $leaveTypesCollection = $this->leaveTypeRepository->getActiveLeaveTypes($companyId);
+        $leaveTypesData = $this->leaveTypeRepository->getActiveLeaveTypes($companyId);
 
-        // Convert collection to array
-        $leaveTypes = $leaveTypesCollection->map(function ($constant) {
+        // Handle both array and collection responses
+        $leaveTypes = collect($leaveTypesData['data'] ?? $leaveTypesData)->map(function ($constant) {
+            if (is_array($constant)) {
+                return [
+                    'leave_type_id' => $constant['constants_id'] ?? $constant['leave_type_id'] ?? null,
+                    'leave_type_name' => $constant['category_name'] ?? $constant['leave_type_name'] ?? null,
+                    'leave_type_short_name' => $constant['field_one'] ?? $constant['leave_type_short_name'] ?? null,
+                    'leave_days' => (float) ($constant['field_two'] ?? $constant['leave_days'] ?? 0),
+                    'field_one' => $constant['field_one'] ?? null,
+                ];
+            }
+
+            // Handle object case
             return [
-                'leave_type_id' => $constant->constants_id,
-                'leave_type_name' => $constant->leave_type_name,
-                'leave_type_short_name' => $constant->leave_type_short_name,
-                'leave_days' => $constant->leave_days,
-                'field_one' => $constant->field_one,
+                'leave_type_id' => $constant->constants_id ?? $constant->leave_type_id ?? null,
+                'leave_type_name' => $constant->category_name ?? $constant->leave_type_name ?? null,
+                'leave_type_short_name' => $constant->field_one ?? $constant->leave_type_short_name ?? null,
+                'leave_days' => (float) ($constant->field_two ?? $constant->leave_days ?? 0),
+                'field_one' => $constant->field_one ?? null,
             ];
-        })->toArray();
+        })->filter()->values()->toArray();
 
         // Get employee details for assigned_hours
         $employee =  User::find($employeeId);

@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\DTOs\Travel\CreateTravelDTO;
+use App\DTOs\Travel\TravelRequestFilterDTO;
 use App\DTOs\Travel\UpdateTravelDTO;
 use App\Models\Travel;
 use App\Repository\Interface\TravelRepositoryInterface;
@@ -40,20 +41,92 @@ class TravelRepository implements TravelRepositoryInterface
             ->first();
     }
 
-    public function getByCompany(int $companyId, int $perPage = 15): LengthAwarePaginator
+    public function getByCompany(int $companyId, TravelRequestFilterDTO $filters): array
     {
-        return Travel::where('company_id', $companyId)
-            ->with(['employee:user_id,first_name,last_name', 'arrangementType:constants_id,category_name'])
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+        $query = Travel::where('company_id', $companyId);
+        if ($filters->status) {
+            $query->where('status', $filters->status);
+        }
+        if ($filters->fromDate) {
+            $query->where('start_date', '>=', $filters->fromDate);
+        }
+        if ($filters->toDate) {
+            $query->where('end_date', '<=', $filters->toDate);
+        }
+        if ($filters->travelReason) {
+            $query->where('travel_reason', $filters->travelReason);
+        }
+        if ($filters->travelType) {
+            $query->where('travel_type', $filters->travelType);
+        }
+        if ($filters->travelWay) {
+            $query->where('travel_way', $filters->travelWay);
+        }
+        if ($filters->search) {
+            $query->where('visit_place', 'like', "%{$filters->search}%")
+                ->orWhere('visit_purpose', 'like', "%{$filters->search}%")
+                ->orWhereHas('employee', function ($employeeQuery) use ($filters) {
+                    $employeeQuery->where('first_name', 'like', "%{$filters->search}%")
+                        ->orWhere('last_name', 'like', "%{$filters->search}%");
+                });
+        }
+        $query->orderBy("{$filters->orderBy}", $filters->order);
+
+        $query->with(['employee', 'arrangementType:constants_id,category_name']);
+
+        $paginator = $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
+        return [
+            'data' => $paginator->items(),
+            'total' => $paginator->total(),
+            'per_page' => $paginator->perPage(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'from' => $paginator->firstItem(),
+            'to' => $paginator->lastItem(),
+        ];
     }
 
-    public function getByEmployee(int $employeeId, int $perPage = 15): LengthAwarePaginator
+    public function getByEmployee(int $employeeId, TravelRequestFilterDTO $filters): array
     {
-        return Travel::where('employee_id', $employeeId)
-            ->with(['employee:user_id,first_name,last_name', 'arrangementType:constants_id,category_name'])
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+        $query = Travel::where('employee_id', $employeeId);
+        if ($filters->status) {
+            $query->where('status', $filters->status);
+        }
+        if ($filters->fromDate) {
+            $query->where('start_date', '>=', $filters->fromDate);
+        }
+        if ($filters->toDate) {
+            $query->where('end_date', '<=', $filters->toDate);
+        }
+        if ($filters->travelReason) {
+            $query->where('travel_reason', $filters->travelReason);
+        }
+        if ($filters->travelType) {
+            $query->where('travel_type', $filters->travelType);
+        }
+        if ($filters->travelWay) {
+            $query->where('travel_way', $filters->travelWay);
+        }
+        if ($filters->search) {
+            $query->where('visit_place', 'like', "%{$filters->search}%")
+                ->orWhere('visit_purpose', 'like', "%{$filters->search}%")
+                ->orWhereHas('employee', function ($employeeQuery) use ($filters) {
+                    $employeeQuery->where('first_name', 'like', "%{$filters->search}%")
+                        ->orWhere('last_name', 'like', "%{$filters->search}%");
+                });
+        }
+        $query->orderBy("{$filters->orderBy}", $filters->order);
+        $query->with(['employee', 'arrangementType:constants_id,category_name']);
+        $paginator = $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
+        return [
+            'data' => $paginator->items(),
+            'total' => $paginator->total(),
+            'per_page' => $paginator->perPage(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'from' => $paginator->firstItem(),
+            'to' => $paginator->lastItem(),
+        ];
     }
 
     public function approve(int $id): Travel

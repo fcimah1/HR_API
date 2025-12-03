@@ -29,6 +29,11 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             $query->forEmployee($filters->employeeId);
         }
 
+        // Apply employee IDs filter
+        if ($filters->employeeIds !== null && is_array($filters->employeeIds) && !empty($filters->employeeIds)) {
+            $query->whereIn('staff_id', $filters->employeeIds);
+        }
+
         // Apply status filter
         if ($filters->status !== null) {
             $query->where('is_approved', $filters->status);
@@ -47,6 +52,29 @@ class OvertimeRepository implements OvertimeRepositoryInterface
         // Apply month filter
         if ($filters->month) {
             $query->forMonth($filters->month);
+        }
+
+        // Apply search filter
+        if ($filters->search !== null && trim($filters->search) !== '') {
+            $searchTerm = '%' . $filters->search . '%';
+            $query->where(function ($q) use ($searchTerm) {
+                // Search in employee data
+                $q->whereHas('employee', function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('first_name', 'like', $searchTerm)
+                        ->orWhere('last_name', 'like', $searchTerm)
+                        ->orWhere('email', 'like', $searchTerm);
+                });
+                $q->whereHas('approvals.staff', function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('first_name', 'like', $searchTerm)
+                        ->orWhere('last_name', 'like', $searchTerm)
+                        ->orWhere('email', 'like', $searchTerm);
+                });
+                $q->orWhere(function ($q) use ($searchTerm) {
+                    // Search in request reason
+                    $q->orWhere('request_reason', 'like', $searchTerm);
+                    $q->orWhere('overtime_reason', 'like', $searchTerm);
+                });
+            });
         }
 
         // Order by most recent first
@@ -72,10 +100,10 @@ class OvertimeRepository implements OvertimeRepositoryInterface
     public function createRequest(array $data): OvertimeRequest
     {
         Log::info('OvertimeRepository::createRequest', ['data' => $data]);
-        
+
         $request = OvertimeRequest::create($data);
         $request->load(['employee', 'approvals']);
-        
+
         return $request;
     }
 
@@ -88,11 +116,11 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             'request_id' => $request->time_request_id,
             'data' => $data
         ]);
-        
+
         $request->update($data);
         $request->refresh();
         $request->load(['employee', 'approvals']);
-        
+
         return $request;
     }
 
@@ -104,7 +132,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
         Log::info('OvertimeRepository::deleteRequest', [
             'request_id' => $request->time_request_id
         ]);
-        
+
         return $request->delete();
     }
 
@@ -127,7 +155,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
         $request->update(['is_approved' => 1]);
         $request->refresh();
         $request->load(['employee', 'approvals.staff']);
-        
+
         return $request;
     }
 
@@ -138,13 +166,13 @@ class OvertimeRepository implements OvertimeRepositoryInterface
     {
         $request->update([
             'is_approved' => 2,
-            'request_reason' => $request->request_reason 
-                ? $request->request_reason . ' | رفض: ' . $reason 
+            'request_reason' => $request->request_reason
+                ? $request->request_reason . ' | رفض: ' . $reason
                 : 'رفض: ' . $reason
         ]);
         $request->refresh();
         $request->load(['employee', 'approvals.staff']);
-        
+
         return $request;
     }
 
@@ -160,13 +188,13 @@ class OvertimeRepository implements OvertimeRepositoryInterface
                 (SELECT @pv := ?) initialisation
                 WHERE FIND_IN_SET(reporting_manager, @pv)
                 AND LENGTH(@pv := CONCAT(@pv, ',', user_id))";
-        
+
         $subordinates = DB::select($sql, [$managerId]);
         $subordinateIds = array_map(fn($s) => $s->user_id, $subordinates);
-        
+
         // Include the manager's own requests
         $subordinateIds[] = $managerId;
-        
+
         return OvertimeRequest::whereIn('staff_id', $subordinateIds)
             ->forCompany($companyId)
             ->with(['employee', 'approvals.staff'])
@@ -184,11 +212,11 @@ class OvertimeRepository implements OvertimeRepositoryInterface
         // Get subordinates who have this user in their approval chain
         $subordinates = DB::table('ci_erp_users_details')
             ->where('company_id', $companyId)
-            ->where(function($query) use ($userId) {
+            ->where(function ($query) use ($userId) {
                 $query->where('approval_level01', $userId)
-                      ->orWhere('approval_level02', $userId)
-                      ->orWhere('approval_level03', $userId)
-                      ->orWhere('reporting_manager', $userId);
+                    ->orWhere('approval_level02', $userId)
+                    ->orWhere('approval_level03', $userId)
+                    ->orWhere('reporting_manager', $userId);
             })
             ->pluck('user_id')
             ->toArray();
@@ -206,7 +234,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             ->get();
 
         // Filter to only requests where this user should approve next
-        $filtered = $requests->filter(function($request) use ($userId) {
+        $filtered = $requests->filter(function ($request) use ($userId) {
             $employeeDetails = UserDetails::where('user_id', $request->staff_id)->first();
             if (!$employeeDetails) {
                 return false;
@@ -327,10 +355,12 @@ class OvertimeRepository implements OvertimeRepositoryInterface
         // Check if user is in the approval chain or is the reporting manager
         $employeeDetails = UserDetails::where('user_id', $request->staff_id)->first();
         if ($employeeDetails) {
-            if ($employeeDetails->reporting_manager == $user->user_id ||
+            if (
+                $employeeDetails->reporting_manager == $user->user_id ||
                 $employeeDetails->approval_level01 == $user->user_id ||
                 $employeeDetails->approval_level02 == $user->user_id ||
-                $employeeDetails->approval_level03 == $user->user_id) {
+                $employeeDetails->approval_level03 == $user->user_id
+            ) {
                 return true;
             }
         }
@@ -358,7 +388,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
      */
     private function getOvertimeReasonText(int $reason): string
     {
-        return match($reason) {
+        return match ($reason) {
             1 => 'Before Shift',
             2 => 'Work Through Lunch',
             3 => 'After Shift',
@@ -368,4 +398,3 @@ class OvertimeRepository implements OvertimeRepositoryInterface
         };
     }
 }
-

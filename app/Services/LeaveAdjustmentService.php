@@ -53,20 +53,14 @@ class LeaveAdjustmentService
         }
 
         // Create DTO from filter data
-        $filters = LeaveAdjustmentFilterDTO::fromRequest($filterData, $user);
+        $filters = LeaveAdjustmentFilterDTO::fromRequest($filterData);
 
-        $adjustments = $this->leaveAdjustmentRepository->getPaginatedAdjustments($filters);
+        $result = $this->leaveAdjustmentRepository->getPaginatedAdjustments($filters);
 
         return [
             'created_by' => $user->full_name,
             'company_id' => $user->company_id,
-            'data' => $adjustments->items(),
-            'pagination' => [
-                'total' => $adjustments->total(),
-                'per_page' => $adjustments->perPage(),
-                'current_page' => $adjustments->currentPage(),
-                'last_page' => $adjustments->lastPage(),
-            ]
+            ...$result
         ];
     }
 
@@ -98,22 +92,13 @@ class LeaveAdjustmentService
             $filterData['company_id'] = $user->company_id;
         }
 
-        $updatedFilters = LeaveAdjustmentFilterDTO::fromRequest($filterData, $user);
+        $updatedFilters = LeaveAdjustmentFilterDTO::fromRequest($filterData);
 
-        $adjustments = $this->leaveAdjustmentRepository->getPaginatedAdjustments($updatedFilters);
+        $result = $this->leaveAdjustmentRepository->getPaginatedAdjustments($updatedFilters);
 
         return [
-            'data' => $adjustments,
             'created by' => $user->full_name,
-            'pagination' => [
-                'current_page' => $adjustments->currentPage(),
-                'last_page' => $adjustments->lastPage(),
-                'per_page' => $adjustments->perPage(),
-                'total' => $adjustments->total(),
-                'from' => $adjustments->firstItem(),
-                'to' => $adjustments->lastItem(),
-                'has_more_pages' => $adjustments->hasMorePages(),
-            ]
+            ...$result
         ];
     }
     /**

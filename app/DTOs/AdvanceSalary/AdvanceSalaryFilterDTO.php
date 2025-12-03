@@ -14,6 +14,7 @@ class AdvanceSalaryFilterDTO
         public readonly ?string $toDate = null,
         public readonly int $perPage = 15,
         public readonly int $page = 1,
+        public readonly string $search = "",
         public readonly string $sortBy = 'created_at',
         public readonly string $sortDirection = 'desc'
     ) {}
@@ -22,8 +23,17 @@ class AdvanceSalaryFilterDTO
     {
         // Handle status conversion properly
         $status = null;
-        if (isset($data['status'])) {
-            $status = (int) $data['status'];
+        // status can be string (pending/approved/rejected) or int (1/2/3)
+        if (array_key_exists('status', $data) && $data['status'] !== null) {
+            if ($data['status'] === 'approved' || $data['status'] === 2) {
+                $status = 2;
+            } else if ($data['status'] === 'rejected' || $data['status'] === 3) {
+                $status = 3;
+            } else if ($data['status'] === 'pending' || $data['status'] === 1) {
+                $status = 1;
+            } else {
+                $status = null;
+            }
         }
         
         return new self(
@@ -36,6 +46,7 @@ class AdvanceSalaryFilterDTO
             toDate: $data['to_date'] ?? null,
             perPage: (int) ($data['per_page'] ?? 15),
             page: (int) ($data['page'] ?? 1),
+            search: $data['search'] ?? null,
             sortBy: $data['sort_by'] ?? 'created_at',
             sortDirection: $data['sort_direction'] ?? 'desc'
         );
@@ -53,6 +64,7 @@ class AdvanceSalaryFilterDTO
             'to_date' => $this->toDate,
             'per_page' => $this->perPage,
             'page' => $this->page,
+            'search' => $this->search,
             'sort_by' => $this->sortBy,
             'sort_direction' => $this->sortDirection,
         ];

@@ -73,6 +73,39 @@
                             "type": "integer",
                             "default": 15
                         }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by employee name or email",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort_by",
+                        "in": "query",
+                        "description": "Sort by column (created_at, amount, status)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "created_at",
+                                "amount",
+                                "status"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "sort_direction",
+                        "in": "query",
+                        "description": "Sort direction (asc, desc)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
                     }
                 ],
                 "responses": {
@@ -659,6 +692,38 @@
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by employee name or email",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort_by",
+                        "in": "query",
+                        "description": "Sort by column (created_at, status)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "created_at",
+                                "status"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "sort_direction",
+                        "in": "query",
+                        "description": "Sort direction (asc, desc)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
                         }
                     }
                 ],
@@ -2440,6 +2505,63 @@
                 ],
                 "summary": "Get leave adjustments",
                 "operationId": "a5878c3ae38a3b67c87c90127ed908b1",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by employee ID (managers/HR only)",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by status (pending/approved/rejected)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "approved",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "leave_type_id",
+                        "in": "query",
+                        "description": "Filter by leave type ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by employee name or leave type name",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Leave adjustments retrieved successfully"
@@ -2832,6 +2954,23 @@
                             "type": "integer",
                             "default": 15
                         }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by employee name or leave type name",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -2945,11 +3084,6 @@
                                         "type": "boolean",
                                         "example": false
                                     },
-                                    "leave_hours": {
-                                        "description": "عدد ساعات الإجازة",
-                                        "type": "string",
-                                        "example": "8"
-                                    },
                                     "remarks": {
                                         "description": "ملاحظات (اختياري)",
                                         "type": "string",
@@ -3048,6 +3182,162 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/take-hours-off-work": {
+            "post": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Create leave application for just hours",
+                "operationId": "74099b51f74145e37b961d6dc9af3b58",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "leave_type_id",
+                                    "date",
+                                    "clock_in_m",
+                                    "clock_out_m",
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "leave_type_id": {
+                                        "description": "معرف نوع الإجازة",
+                                        "type": "integer",
+                                        "example": 199
+                                    },
+                                    "duty_employee_id": {
+                                        "description": "معرف الموظف البديل (اختياري) - يجب أن يكون من نفس الشركة: 36,37,118,702,703,725,726,744",
+                                        "type": "integer",
+                                        "example": 37
+                                    },
+                                    "date": {
+                                        "description": "تاريخ الإجازة",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-12-01"
+                                    },
+                                    "clock_in_m": {
+                                        "description": "وقت بداية الإجازة",
+                                        "type": "string",
+                                        "example": "01:00 PM"
+                                    },
+                                    "clock_out_m": {
+                                        "description": "وقت نهاية الإجازة",
+                                        "type": "string",
+                                        "example": "02:00 PM"
+                                    },
+                                    "reason": {
+                                        "description": "سبب الإجازة (10 أحرف على الأقل)",
+                                        "type": "string",
+                                        "example": "استراحة للراحة والاستجمام"
+                                    },
+                                    "remarks": {
+                                        "description": "ملاحظات (اختياري)",
+                                        "type": "string",
+                                        "example": "ملاحظات إضافية"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء طلب الإستئذان بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء طلب استئذان بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leaves/employees-for-duty-employee": {
+            "get": {
+                "tags": [
+                    "Leave Management"
+                ],
+                "summary": "Get employees for duty employee",
+                "operationId": "7d1ebd52464ba186e8ed409e256ecf6d",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by employee ID (managers/HR only)",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by employee name, email, or company name",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Employees for duty employee retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Employees for duty employee not found"
                     }
                 },
                 "security": [
@@ -4015,6 +4305,14 @@
                             "type": "integer",
                             "default": 1
                         }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by employee name",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -4936,6 +5234,75 @@
                 ],
                 "summary": "Get list of travel requests",
                 "operationId": "a088cf9b97591f82c08c24a8750e14ba",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by status (pending/approved/rejected)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "approved",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by employee ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "Filter from date (Y-m-d)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2025-01-01"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "Filter to date (Y-m-d)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2025-12-31"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by employee name",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Successful operation"
@@ -5101,35 +5468,6 @@
                 "responses": {
                     "200": {
                         "description": "Travel request status updated successfully"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/travels/search": {
-            "get": {
-                "tags": [
-                    "Travel"
-                ],
-                "summary": "Search travel requests",
-                "operationId": "82661febceec93b7af7bd9fea2e255b8",
-                "parameters": [
-                    {
-                        "name": "query",
-                        "in": "query",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successful operation"
                     }
                 },
                 "security": [
@@ -5711,10 +6049,6 @@
                     "is_half_day": {
                         "description": "Is half day",
                         "type": "boolean"
-                    },
-                    "leave_hours": {
-                        "description": "Leave hours",
-                        "type": "string"
                     },
                     "remarks": {
                         "description": "Remarks",

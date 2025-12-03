@@ -40,6 +40,42 @@ class LeaveAdjustmentController extends Controller
      *     summary="Get leave adjustments",
      *     tags={"Leave Adjustments"},
      *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="employee_id",
+     *         in="query",
+     *         description="Filter by employee ID (managers/HR only)",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="status",
+     *         in="query",
+     *         description="Filter by status (pending/approved/rejected)",
+     *         @OA\Schema(type="string", enum={"pending", "approved", "rejected"})
+     *     ),
+     *     @OA\Parameter(
+     *         name="leave_type_id",
+     *         in="query",
+     *         description="Filter by leave type ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         description="Items per page",
+     *         @OA\Schema(type="integer", default=15)
+     *     ),
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="Page number",
+     *         @OA\Schema(type="integer", default=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search by employee name or leave type name",
+     *         @OA\Schema(type="string")
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Leave adjustments retrieved successfully"
@@ -57,15 +93,14 @@ class LeaveAdjustmentController extends Controller
                     'message' => 'غير مصرح لك بعرض تسويات الإجازات'
                 ], 403);
             }
-            $filters = LeaveAdjustmentFilterDTO::fromRequest($request->all(), $user);
+            $filters = LeaveAdjustmentFilterDTO::fromRequest($request->all());
 
             $result = $this->leaveService->getPaginatedAdjustments($filters, $user);
 
             return response()->json([
                 'success' => true,
                 'message' => 'تم جلب تسويات الإجازات بنجاح',
-                'create_by' => $user->full_name,
-                'company_id' => $user->company_id,
+                'created by' => $user->full_name,
                 ...$result
             ]);
         } catch (\Exception $e) {

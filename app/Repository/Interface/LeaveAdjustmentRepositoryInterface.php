@@ -13,7 +13,7 @@ interface LeaveAdjustmentRepositoryInterface
     /**
      * Get paginated leave adjustments with filters
      */
-    public function getPaginatedAdjustments(LeaveAdjustmentFilterDTO $filters): LengthAwarePaginator;
+    public function getPaginatedAdjustments(LeaveAdjustmentFilterDTO $filters): array;
 
     /**
      * Create a new leave adjustment
@@ -44,12 +44,12 @@ interface LeaveAdjustmentRepositoryInterface
      * Update leave adjustment
      */
     public function updateAdjustment(LeaveAdjustment $adjustment, UpdateLeaveAdjustmentDTO $dto): LeaveAdjustment;
-    
+
     /**
      * Cancel leave adjustment
      */
     public function cancelAdjustment(LeaveAdjustment $adjustment, int $cancelledBy, string $reason): LeaveAdjustment;
-    
+
     /**
      * Find leave adjustment by ID for specific employee
      */

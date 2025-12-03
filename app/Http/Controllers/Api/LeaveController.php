@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\DTOs\Leave\CreateHourlyLeaveDTO;
 use App\Http\Controllers\Controller;
 use App\Services\LeaveService;
 use App\Models\User;
@@ -10,6 +11,7 @@ use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
 use App\Http\Requests\Leave\ApproveLeaveApplicationRequest;
 use App\Http\Requests\Leave\CheckLeaveBalanceRequest;
+use App\Http\Requests\Leave\CreateHourlyLeaveRequest;
 use App\Http\Requests\Leave\CreateLeaveApplicationRequest;
 use App\Http\Requests\Leave\UpdateLeaveApplicationRequest;
 use App\Services\SimplePermissionService;
@@ -28,8 +30,8 @@ class LeaveController extends Controller
     public $simplePermissionService;
     public function __construct(
         private  LeaveService $leaveService,
-        private  SimplePermissionService $permissionService)
-    {
+        private  SimplePermissionService $permissionService
+    ) {
         $this->simplePermissionService = $permissionService;
     }
     /**
@@ -61,6 +63,18 @@ class LeaveController extends Controller
      *         in="query",
      *         description="Items per page",
      *         @OA\Schema(type="integer", default=15)
+     *     ),
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="Page number",
+     *         @OA\Schema(type="integer", default=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search by employee name or leave type name",
+     *         @OA\Schema(type="string")
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -130,7 +144,6 @@ class LeaveController extends Controller
      *             @OA\Property(property="reason", type="string", example="إجازة سنوية للراحة والاستجمام", description="سبب الإجازة (10 أحرف على الأقل)"),
      *             @OA\Property(property="duty_employee_id", type="integer", example=37, description="معرف الموظف البديل (اختياري) - يجب أن يكون من نفس الشركة: 36,37,118,702,703,725,726,744"),
      *             @OA\Property(property="is_half_day", type="boolean", example=false, description="هل الإجازة نصف يوم؟"),
-     *             @OA\Property(property="leave_hours", type="string", example="8", description="عدد ساعات الإجازة"),
      *             @OA\Property(property="remarks", type="string", example="ملاحظات إضافية", description="ملاحظات (اختياري)")
      *         )
      *     ),
@@ -185,14 +198,16 @@ class LeaveController extends Controller
                 $effectiveCompanyId,
                 $user->user_id
             );
-
-            $application = $this->leaveService->createApplication($dto);
-
             Log::info('LeaveController::createApplication', [
-                'success' => true,
+                'dto' => $dto,
                 'created by' => $user->full_name
             ]);
 
+            $application = $this->leaveService->createApplication($dto);
+            Log::info('LeaveController::createApplication', [
+                'application' => $application,
+                'created by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم إنشاء طلب الإجازة بنجاح',
@@ -210,6 +225,173 @@ class LeaveController extends Controller
             ], 500);
         }
     }
+
+
+
+
+    // create leave application for just hours 
+    /**
+     * @OA\Post(
+     *     path="/api/leaves/take-hours-off-work",
+     *     tags={"Leave Management"},
+     *     summary="Create leave application for just hours",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"leave_type_id","date","clock_in_m","clock_out_m","reason"},
+     *             @OA\Property(property="leave_type_id", type="integer", example=199, description="معرف نوع الإجازة"),
+     *             @OA\Property(property="duty_employee_id", type="integer", example=37, description="معرف الموظف البديل (اختياري) - يجب أن يكون من نفس الشركة: 36,37,118,702,703,725,726,744"),
+     *             @OA\Property(property="date", type="string", format="date", example="2025-12-01", description="تاريخ الإجازة"),
+     *             @OA\Property(property="clock_in_m", type="string", example="01:00 PM", description="وقت بداية الإجازة"),
+     *             @OA\Property(property="clock_out_m", type="string", example="02:00 PM", description="وقت نهاية الإجازة"),
+     *             @OA\Property(property="reason", type="string", example="استراحة للراحة والاستجمام", description="سبب الإجازة (10 أحرف على الأقل)"),
+     *             @OA\Property(property="remarks", type="string", example="ملاحظات إضافية", description="ملاحظات (اختياري)")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="تم إنشاء طلب الإستئذان بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم إنشاء طلب استئذان بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     )
+     * )
+     */
+    public function takeHoursOffWork(CreateHourlyLeaveRequest $request)
+    {
+        try {
+            $user = Auth::user();
+            
+            Log::info('LeaveController::takeHoursOffWork', [
+                'user_id' => $user->user_id,
+                'request' => $request->all()
+            ]);
+
+            // Check permission
+            if (!$this->simplePermissionService->checkPermission($user, 'leave3')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بإنشاء طلبات استئذان'
+                ], 403);
+            }
+
+            // Get effective company ID
+            $effectiveCompanyId = $request->attributes->get('effective_company_id');
+
+            // Create DTO from request
+            $dto = CreateHourlyLeaveDTO::fromRequest(
+                $request->validated(),
+                $effectiveCompanyId,
+                $user->user_id
+            );
+
+            // Create the leave application
+            $application = $this->leaveService->createHourlyLeaveApplication($dto);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إنشاء طلب استئذان بنجاح',
+                'data' => $application
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('LeaveController::takeHoursOffWork failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->user_id ?? null
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل في إنشاء طلب استئذان: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    // get employees for duty employee
+    /**
+     * @OA\Get(
+     *     path="/api/leaves/employees-for-duty-employee",
+     *     summary="Get employees for duty employee",
+     *     tags={"Leave Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="employee_id",
+     *         in="query",
+     *         description="Filter by employee ID (managers/HR only)",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search by employee name, email, or company name",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Employees for duty employee retrieved successfully"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Employees for duty employee not found"
+     *     )
+     * )
+     */
+    public function getEmployeesForDutyEmployee(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            // الحصول على عوامل التصفية من الطلب
+            $employeeId = $request->query('employee_id');
+            $search = $request->query('search');
+            if ($user->user_type == 'company') {
+                // مدير الشركة: يرى جميع طلبات شركته
+                $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+                $companyId = $effectiveCompanyId;
+            } else {
+                $companyId = $user->company_id;
+            }
+
+            // الحصول على الموظفين مع تطبيق عوامل التصفية
+            $employees = $this->leaveService->getEmployeesForDutyEmployee(
+                $companyId,
+                $search,
+                $employeeId
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $employees
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('LeaveController::getEmployeesForDutyEmployee failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->user_id ?? null
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل في الحصول على موظفين: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 
     /**
      * @OA\Get(

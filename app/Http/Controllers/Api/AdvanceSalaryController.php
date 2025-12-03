@@ -60,6 +60,24 @@ class AdvanceSalaryController extends Controller
      *         description="Items per page",
      *         @OA\Schema(type="integer", default=15)
      *     ),
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search by employee name or email",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
+     *         name="sort_by",
+     *         in="query",
+     *         description="Sort by column (created_at, amount, status)",
+     *         @OA\Schema(type="string", enum={"created_at", "amount", "status"})
+     *     ),
+     *     @OA\Parameter(
+     *         name="sort_direction",
+     *         in="query",
+     *         description="Sort direction (asc, desc)",
+     *         @OA\Schema(type="string", enum={"asc", "desc"})
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Requests retrieved successfully",
