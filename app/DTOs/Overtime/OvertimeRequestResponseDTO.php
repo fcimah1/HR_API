@@ -76,13 +76,13 @@ class OvertimeRequestResponseDTO
             requestReason: $request->request_reason,
             isApproved: $request->is_approved,
             statusText: $request->status_text,
-            overtimeReason: $request->overtime_reason,
+            overtimeReason: $request->overtime_reason->value, // Extract integer from enum
             overtimeReasonText: $request->overtime_reason_text,
             additionalWorkHours: $request->additional_work_hours,
             straight: $request->straight,
             timeAHalf: $request->time_a_half,
             doubleOvertime: $request->double_overtime,
-            compensationType: $request->compensation_type,
+            compensationType: $request->compensation_type->value, // Extract integer from enum
             compensationTypeText: $request->compensation_type_text,
             compensationBanked: $request->compensation_banked,
             createdAt: $request->created_at,

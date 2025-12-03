@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Enums\OvertimeReasonEnum;
+use App\Enums\CompensationTypeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -43,9 +47,9 @@ class OvertimeRequest extends Model
     protected $casts = [
         'company_id' => 'integer',
         'staff_id' => 'integer',
-        'overtime_reason' => 'integer',
+        'overtime_reason' => OvertimeReasonEnum::class,
         'additional_work_hours' => 'integer',
-        'compensation_type' => 'integer',
+        'compensation_type' => CompensationTypeEnum::class,
         'is_approved' => 'integer',
     ];
 
@@ -154,14 +158,19 @@ class OvertimeRequest extends Model
      */
     public function getOvertimeReasonTextAttribute(): string
     {
-        return match($this->overtime_reason) {
-            1 => 'Before Shift',
-            2 => 'Work Through Lunch',
-            3 => 'After Shift',
-            4 => 'Weekend Work',
-            5 => 'Additional Work',
-            default => 'Unknown',
-        };
+        return $this->overtime_reason instanceof OvertimeReasonEnum 
+            ? $this->overtime_reason->label() 
+            : 'Unknown';
+    }
+
+    /**
+     * Get overtime reason name (e.g., "STANDBY_PAY").
+     */
+    public function getOvertimeReasonNameAttribute(): string
+    {
+        return $this->overtime_reason instanceof OvertimeReasonEnum 
+            ? $this->overtime_reason->name 
+            : 'UNKNOWN';
     }
 
     /**
@@ -169,11 +178,39 @@ class OvertimeRequest extends Model
      */
     public function getCompensationTypeTextAttribute(): string
     {
-        return match($this->compensation_type) {
-            1 => 'Banked',
-            2 => 'Paid',
-            default => 'Unknown',
-        };
+        return $this->compensation_type instanceof CompensationTypeEnum 
+            ? $this->compensation_type->label() 
+            : 'Unknown';
+    }
+
+    /**
+     * Get compensation type name (e.g., "BANKED").
+     */
+    public function getCompensationTypeNameAttribute(): string
+    {
+        return $this->compensation_type instanceof CompensationTypeEnum 
+            ? $this->compensation_type->name 
+            : 'UNKNOWN';
+    }
+
+    /**
+     * Get overtime reason Arabic label.
+     */
+    public function getOvertimeReasonTextArAttribute(): string
+    {
+        return $this->overtime_reason instanceof OvertimeReasonEnum 
+            ? $this->overtime_reason->labelAr() 
+            : 'غير معروف';
+    }
+
+    /**
+     * Get compensation type Arabic label.
+     */
+    public function getCompensationTypeTextArAttribute(): string
+    {
+        return $this->compensation_type instanceof CompensationTypeEnum 
+            ? $this->compensation_type->labelAr() 
+            : 'غير معروف';
     }
 }
 
