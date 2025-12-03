@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AdvanceSalaryController;
 use App\Http\Controllers\Api\LeaveAdjustmentController;
 use App\Http\Controllers\Api\LeaveTypeController;
 use App\Http\Controllers\Api\OvertimeController;
+use App\Http\Controllers\Api\EnumController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -33,6 +34,14 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/user/permissions', [AuthController::class, 'permissions']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
+
+    // Enum helper endpoints - list available enum values for API clients
+    Route::prefix('enums')->group(function () {
+        Route::get('/', [EnumController::class, 'index']);
+        Route::get('/overtime-reasons', [EnumController::class, 'overtimeReasons']);
+        Route::get('/compensation-types', [EnumController::class, 'compensationTypes']);
+        Route::get('/travel-modes', [EnumController::class, 'travelModes']);
+    });
 
     // Employee management
     Route::get('/employees', [EmployeeController::class, 'index']);

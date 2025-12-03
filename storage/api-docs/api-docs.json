@@ -2071,6 +2071,213 @@
                 ]
             }
         },
+        "/api/enums/overtime-reasons": {
+            "get": {
+                "tags": [
+                    "Enums"
+                ],
+                "summary": "Get available overtime reasons",
+                "operationId": "a936dcca10be1508cf4441050bdabd0c",
+                "responses": {
+                    "200": {
+                        "description": "Overtime reasons retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "value": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "STANDBY_PAY"
+                                                    },
+                                                    "label": {
+                                                        "type": "string",
+                                                        "example": "Standby Pay"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/enums/compensation-types": {
+            "get": {
+                "tags": [
+                    "Enums"
+                ],
+                "summary": "Get available compensation types",
+                "operationId": "38636585e230378e14eca957717e745b",
+                "responses": {
+                    "200": {
+                        "description": "Compensation types retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "value": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "BANKED"
+                                                    },
+                                                    "label": {
+                                                        "type": "string",
+                                                        "example": "Banked"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/enums/travel-modes": {
+            "get": {
+                "tags": [
+                    "Enums"
+                ],
+                "summary": "Get available travel modes",
+                "operationId": "2e22dac628d06137f53cf77235ddcfa7",
+                "responses": {
+                    "200": {
+                        "description": "Travel modes retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "value": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "BUS"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/enums": {
+            "get": {
+                "tags": [
+                    "Enums"
+                ],
+                "summary": "Get all available enumerations",
+                "operationId": "a2ae61da7ca951ebf6c3b4c510ddbb25",
+                "responses": {
+                    "200": {
+                        "description": "All enumerations retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "overtime_reasons": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "compensation_types": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "travel_modes": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/holidays": {
             "get": {
                 "tags": [
@@ -4140,7 +4347,12 @@
                                                         "type": "string"
                                                     },
                                                     "overtime_reason": {
-                                                        "type": "integer"
+                                                        "type": "string",
+                                                        "example": "STANDBY_PAY"
+                                                    },
+                                                    "overtime_reason_label": {
+                                                        "type": "string",
+                                                        "example": "Standby Pay"
                                                     },
                                                     "status": {
                                                         "type": "string"
@@ -4218,19 +4430,30 @@
                                         "example": "7:00 PM"
                                     },
                                     "overtime_reason": {
-                                        "description": "سبب العمل الإضافي: 1=ضغط عمل, 2=مشروع عاجل, 3=غياب زميل, 4=حالة طارئة, 5=عمل إضافي",
-                                        "type": "integer",
-                                        "example": 1
+                                        "description": "سبب العمل الإضافي: STANDBY_PAY=انتظار, WORK_THROUGH_LUNCH=عمل خلال الغداء, OUT_OF_TOWN=خارج المدينة, SALARIED_EMPLOYEE=موظف براتب, ADDITIONAL_WORK_HOURS=ساعات إضافية",
+                                        "type": "string",
+                                        "enum": [
+                                            "STANDBY_PAY",
+                                            "WORK_THROUGH_LUNCH",
+                                            "OUT_OF_TOWN",
+                                            "SALARIED_EMPLOYEE",
+                                            "ADDITIONAL_WORK_HOURS"
+                                        ],
+                                        "example": "STANDBY_PAY"
                                     },
                                     "additional_work_hours": {
-                                        "description": "نوع ساعات العمل الإضافية (0-3). مطلوب عند اختيار overtime_reason=5",
+                                        "description": "نوع ساعات العمل الإضافية (0-3). مطلوب عند اختيار overtime_reason=ADDITIONAL_WORK_HOURS",
                                         "type": "integer",
                                         "example": 0
                                     },
                                     "compensation_type": {
-                                        "description": "نوع التعويض: 1=مالي, 2=إجازة بديلة",
-                                        "type": "integer",
-                                        "example": 1
+                                        "description": "نوع التعويض: BANKED=مدخر, PAYOUT=صرف مالي",
+                                        "type": "string",
+                                        "enum": [
+                                            "BANKED",
+                                            "PAYOUT"
+                                        ],
+                                        "example": "BANKED"
                                     },
                                     "request_reason": {
                                         "description": "سبب الطلب (اختياري، حد أقصى 1000 حرف)",
@@ -4340,10 +4563,20 @@
                                                     "type": "string"
                                                 },
                                                 "overtime_reason": {
-                                                    "type": "integer"
+                                                    "type": "string",
+                                                    "example": "STANDBY_PAY"
+                                                },
+                                                "overtime_reason_label": {
+                                                    "type": "string",
+                                                    "example": "Standby Pay"
                                                 },
                                                 "compensation_type": {
-                                                    "type": "integer"
+                                                    "type": "string",
+                                                    "example": "BANKED"
+                                                },
+                                                "compensation_type_label": {
+                                                    "type": "string",
+                                                    "example": "Banked"
                                                 },
                                                 "request_reason": {
                                                     "type": "string"
@@ -4417,16 +4650,27 @@
                                         "example": "7:00 PM"
                                     },
                                     "overtime_reason": {
-                                        "type": "integer",
-                                        "example": 1
+                                        "type": "string",
+                                        "enum": [
+                                            "STANDBY_PAY",
+                                            "WORK_THROUGH_LUNCH",
+                                            "OUT_OF_TOWN",
+                                            "SALARIED_EMPLOYEE",
+                                            "ADDITIONAL_WORK_HOURS"
+                                        ],
+                                        "example": "STANDBY_PAY"
                                     },
                                     "additional_work_hours": {
                                         "type": "integer",
                                         "example": 0
                                     },
                                     "compensation_type": {
-                                        "type": "integer",
-                                        "example": 1
+                                        "type": "string",
+                                        "enum": [
+                                            "BANKED",
+                                            "PAYOUT"
+                                        ],
+                                        "example": "BANKED"
                                     },
                                     "request_reason": {
                                         "type": "string",
@@ -5932,9 +6176,16 @@
                         "example": "7:00 PM"
                     },
                     "overtime_reason": {
-                        "description": "سبب العمل الإضافي (1-5)",
-                        "type": "integer",
-                        "example": 1
+                        "description": "سبب العمل الإضافي",
+                        "type": "string",
+                        "enum": [
+                            "STANDBY_PAY",
+                            "WORK_THROUGH_LUNCH",
+                            "OUT_OF_TOWN",
+                            "SALARIED_EMPLOYEE",
+                            "ADDITIONAL_WORK_HOURS"
+                        ],
+                        "example": "STANDBY_PAY"
                     },
                     "additional_work_hours": {
                         "description": "نوع ساعات العمل (0-3)",
@@ -5942,9 +6193,13 @@
                         "example": 0
                     },
                     "compensation_type": {
-                        "description": "نوع التعويض (1=مالي, 2=إجازة)",
-                        "type": "integer",
-                        "example": 1
+                        "description": "نوع التعويض",
+                        "type": "string",
+                        "enum": [
+                            "BANKED",
+                            "PAYOUT"
+                        ],
+                        "example": "BANKED"
                     },
                     "request_reason": {
                         "description": "سبب الطلب",
@@ -5997,16 +6252,18 @@
                         "example": "7:00 PM"
                     },
                     "overtime_reason": {
-                        "type": "integer",
-                        "example": 1
+                        "description": "STANDBY_PAY, WORK_THROUGH_LUNCH, OUT_OF_TOWN, SALARIED_EMPLOYEE, ADDITIONAL_WORK_HOURS",
+                        "type": "string",
+                        "example": "STANDBY_PAY"
                     },
                     "additional_work_hours": {
                         "type": "integer",
                         "example": 0
                     },
                     "compensation_type": {
-                        "type": "integer",
-                        "example": 1
+                        "description": "BANKED, PAYOUT",
+                        "type": "string",
+                        "example": "BANKED"
                     },
                     "request_reason": {
                         "type": "string",
@@ -6209,6 +6466,10 @@
         {
             "name": "Authentication",
             "description": "User authentication endpoints"
+        },
+        {
+            "name": "Enums",
+            "description": "System enumerations for API requests"
         },
         {
             "name": "Holidays",

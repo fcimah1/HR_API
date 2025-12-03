@@ -296,10 +296,13 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             ->select('overtime_reason', DB::raw('COUNT(*) as count'))
             ->groupBy('overtime_reason')
             ->get()
-            ->map(function ($item) {
+            ->map(function($item) {
+                $reasonValue = $item->overtime_reason instanceof \App\Enums\OvertimeReasonEnum 
+                    ? $item->overtime_reason->value 
+                    : $item->overtime_reason;
                 return [
-                    'reason' => $item->overtime_reason,
-                    'reason_text' => $this->getOvertimeReasonText($item->overtime_reason),
+                    'reason' => $reasonValue,
+                    'reason_text' => $this->getOvertimeReasonText($reasonValue),
                     'count' => $item->count,
                 ];
             })
@@ -310,10 +313,13 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             ->select('compensation_type', DB::raw('COUNT(*) as count'))
             ->groupBy('compensation_type')
             ->get()
-            ->map(function ($item) {
+            ->map(function($item) {
+                $typeValue = $item->compensation_type instanceof \App\Enums\CompensationTypeEnum 
+                    ? $item->compensation_type->value 
+                    : $item->compensation_type;
                 return [
-                    'type' => $item->compensation_type,
-                    'type_text' => $item->compensation_type == 1 ? 'Banked' : 'Paid',
+                    'type' => $typeValue,
+                    'type_text' => $typeValue == 1 ? 'Banked' : 'Payout',
                     'count' => $item->count,
                 ];
             })

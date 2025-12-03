@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
@@ -26,14 +28,16 @@ class OvertimeResource extends JsonResource
             'request_reason' => $this->request_reason,
             'is_approved' => $this->is_approved,
             'status_text' => $this->status_text,
-            'overtime_reason' => $this->overtime_reason,
-            'overtime_reason_text' => $this->overtime_reason_text,
+            'overtime_reason' => $this->overtime_reason_name,
+            'overtime_reason_label' => $this->overtime_reason_text,
+            'overtime_reason_label_ar' => $this->overtime_reason_text_ar,
             'additional_work_hours' => $this->additional_work_hours,
             'straight' => $this->straight,
             'time_a_half' => $this->time_a_half,
             'double_overtime' => $this->double_overtime,
-            'compensation_type' => $this->compensation_type,
-            'compensation_type_text' => $this->compensation_type_text,
+            'compensation_type' => $this->compensation_type_name,
+            'compensation_type_label' => $this->compensation_type_text,
+            'compensation_type_label_ar' => $this->compensation_type_text_ar,
             'compensation_banked' => $this->compensation_banked,
             'created_at' => $this->created_at,
             
