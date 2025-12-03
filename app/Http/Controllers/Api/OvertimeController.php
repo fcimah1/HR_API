@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -84,7 +86,8 @@ class OvertimeController extends Controller
      *                 @OA\Property(property="request_date", type="string", format="date"),
      *                 @OA\Property(property="clock_in", type="string"),
      *                 @OA\Property(property="clock_out", type="string"),
-     *                 @OA\Property(property="overtime_reason", type="integer"),
+     *                 @OA\Property(property="overtime_reason", type="string", example="STANDBY_PAY"),
+     *                 @OA\Property(property="overtime_reason_label", type="string", example="Standby Pay"),
      *                 @OA\Property(property="status", type="string")
      *             )),
      *             @OA\Property(property="pagination", type="object",
@@ -167,8 +170,10 @@ class OvertimeController extends Controller
      *                 @OA\Property(property="request_date", type="string", format="date"),
      *                 @OA\Property(property="clock_in", type="string"),
      *                 @OA\Property(property="clock_out", type="string"),
-     *                 @OA\Property(property="overtime_reason", type="integer"),
-     *                 @OA\Property(property="compensation_type", type="integer"),
+     *                 @OA\Property(property="overtime_reason", type="string", example="STANDBY_PAY"),
+     *                 @OA\Property(property="overtime_reason_label", type="string", example="Standby Pay"),
+     *                 @OA\Property(property="compensation_type", type="string", example="BANKED"),
+     *                 @OA\Property(property="compensation_type_label", type="string", example="Banked"),
      *                 @OA\Property(property="request_reason", type="string"),
      *                 @OA\Property(property="status", type="string")
      *             )
@@ -226,21 +231,23 @@ class OvertimeController extends Controller
      *             @OA\Property(property="clock_out", type="string", example="7:00 PM", description="وقت النهاية (صيغة 12 ساعة مع AM/PM)"),
      *             @OA\Property(
      *                 property="overtime_reason",
-     *                 type="integer",
-     *                 example=1,
-     *                 description="سبب العمل الإضافي: 1=ضغط عمل, 2=مشروع عاجل, 3=غياب زميل, 4=حالة طارئة, 5=عمل إضافي"
+     *                 type="string",
+     *                 example="STANDBY_PAY",
+     *                 enum={"STANDBY_PAY", "WORK_THROUGH_LUNCH", "OUT_OF_TOWN", "SALARIED_EMPLOYEE", "ADDITIONAL_WORK_HOURS"},
+     *                 description="سبب العمل الإضافي: STANDBY_PAY=انتظار, WORK_THROUGH_LUNCH=عمل خلال الغداء, OUT_OF_TOWN=خارج المدينة, SALARIED_EMPLOYEE=موظف براتب, ADDITIONAL_WORK_HOURS=ساعات إضافية"
      *             ),
      *             @OA\Property(
      *                 property="additional_work_hours",
      *                 type="integer",
      *                 example=0,
-     *                 description="نوع ساعات العمل الإضافية (0-3). مطلوب عند اختيار overtime_reason=5"
+     *                 description="نوع ساعات العمل الإضافية (0-3). مطلوب عند اختيار overtime_reason=ADDITIONAL_WORK_HOURS"
      *             ),
      *             @OA\Property(
      *                 property="compensation_type",
-     *                 type="integer",
-     *                 example=1,
-     *                 description="نوع التعويض: 1=مالي, 2=إجازة بديلة"
+     *                 type="string",
+     *                 example="BANKED",
+     *                 enum={"BANKED", "PAYOUT"},
+     *                 description="نوع التعويض: BANKED=مدخر, PAYOUT=صرف مالي"
      *             ),
      *             @OA\Property(property="request_reason", type="string", example="عمل إضافي لإنهاء المشروع", description="سبب الطلب (اختياري، حد أقصى 1000 حرف)"),
      *             @OA\Property(property="employee_id", type="integer", example=37, description="معرف الموظف (للشركة/HR فقط عند الإنشاء نيابة عن موظف)")
@@ -308,9 +315,9 @@ class OvertimeController extends Controller
                 requestMonth: $requestMonth,
                 clockIn: $clockIn24,
                 clockOut: $clockOut24,
-                overtimeReason: $validated['overtime_reason'],
+                overtimeReason: $request->overtime_reason, // Access merged integer value
                 additionalWorkHours: $validated['additional_work_hours'] ?? 0,
-                compensationType: $validated['compensation_type'],
+                compensationType: $request->compensation_type, // Access merged integer value
                 requestReason: $validated['request_reason'] ?? null
             );
 
@@ -359,9 +366,9 @@ class OvertimeController extends Controller
      *             @OA\Property(property="request_date", type="string", format="date", example="2025-11-25"),
      *             @OA\Property(property="clock_in", type="string", example="2:30 PM"),
      *             @OA\Property(property="clock_out", type="string", example="7:00 PM"),
-     *             @OA\Property(property="overtime_reason", type="integer", example=1),
+     *             @OA\Property(property="overtime_reason", type="string", example="STANDBY_PAY", enum={"STANDBY_PAY", "WORK_THROUGH_LUNCH", "OUT_OF_TOWN", "SALARIED_EMPLOYEE", "ADDITIONAL_WORK_HOURS"}),
      *             @OA\Property(property="additional_work_hours", type="integer", example=0),
-     *             @OA\Property(property="compensation_type", type="integer", example=1),
+     *             @OA\Property(property="compensation_type", type="string", example="BANKED", enum={"BANKED", "PAYOUT"}),
      *             @OA\Property(property="request_reason", type="string", example="تحديث السبب")
      *         )
      *     ),
@@ -386,7 +393,16 @@ class OvertimeController extends Controller
         try {
             $validated = $request->validated();
 
-            $dto = UpdateOvertimeRequestDTO::fromRequest($validated);
+            // Create DTO with merged integer values from request object
+            $dto = new UpdateOvertimeRequestDTO(
+                requestDate: $validated['request_date'],
+                clockIn: $validated['clock_in'],
+                clockOut: $validated['clock_out'],
+                overtimeReason: $request->overtime_reason, // Access merged integer value
+                additionalWorkHours: $validated['additional_work_hours'] ?? 0,
+                compensationType: $request->compensation_type, // Access merged integer value
+                requestReason: $validated['request_reason'] ?? null
+            );
             $result = $this->overtimeService->updateRequest($id, $dto, $user);
 
             Log::info('OvertimeController::update success', [
