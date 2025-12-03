@@ -16,6 +16,7 @@ class LeaveApplicationFilterDTO
         public readonly ?int $leaveTypeId = null,
         public readonly ?string $fromDate = null,
         public readonly ?string $toDate = null,
+        public readonly ?string $search = null, // إضافة معامل البحث
         public readonly int $perPage = 15,
         public readonly int $page = 1,
         public readonly string $sortBy = 'created_at',
@@ -48,6 +49,7 @@ class LeaveApplicationFilterDTO
             leaveTypeId: $data['leave_type_id'] ?? null,
             fromDate: $data['from_date'] ?? null,
             toDate: $data['to_date'] ?? null,
+            search: $data['search'] ?? null, // إضافة معامل البحث
             perPage: (int) ($data['per_page'] ?? 15),
             page: (int) ($data['page'] ?? 1),
             sortBy: $data['sort_by'] ?? 'created_at',
@@ -66,6 +68,7 @@ class LeaveApplicationFilterDTO
             'leave_type_id' => $this->leaveTypeId,
             'from_date' => $this->fromDate,
             'to_date' => $this->toDate,
+            'search' => $this->search,
             'per_page' => $this->perPage,
             'page' => $this->page,
             'sort_by' => $this->sortBy,

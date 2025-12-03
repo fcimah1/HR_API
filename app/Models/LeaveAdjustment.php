@@ -66,7 +66,7 @@ class LeaveAdjustment extends Model
      */
     public function employee(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'staff_id', 'user_id');
+        return $this->belongsTo(User::class, 'employee_id', 'user_id');
     }
 
     /**

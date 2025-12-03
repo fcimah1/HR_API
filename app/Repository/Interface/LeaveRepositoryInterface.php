@@ -2,11 +2,12 @@
 
 namespace App\Repository\Interface;
 
+use App\DTOs\Leave\CreateHourlyLeaveDTO;
 use App\DTOs\Leave\LeaveApplicationFilterDTO;
 use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
 use App\Models\LeaveApplication;
-
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -15,12 +16,20 @@ interface LeaveRepositoryInterface
     /**
      * Get paginated leave applications with filters
      */
-    public function getPaginatedApplications(LeaveApplicationFilterDTO $filters): LengthAwarePaginator;
+    public function getPaginatedApplications(LeaveApplicationFilterDTO $filters, User $user): array;
 
     /**
-     * Create a new leave application
+     * Create a new leave application from DTO
      */
     public function createApplication(CreateLeaveApplicationDTO $dto): LeaveApplication;
+
+    /**
+     * Create a new leave application from hourly DTO
+     * 
+     * @param CreateHourlyLeaveDTO $dto
+     * @return LeaveApplication
+     */
+    public function createApplicationFromHourly(CreateHourlyLeaveDTO $dto): LeaveApplication;
 
     /**
      * Find leave application by ID
@@ -58,6 +67,15 @@ interface LeaveRepositoryInterface
     public function getLeaveStatistics(int $companyId): array;
 
 
+    /**
+     * Get active employees for duty employee selection with optional filters
+     * 
+     * @param int $id Company ID
+     * @param string|null $search Optional search term to filter by name, email, or company name
+     * @param int|null $employeeId Optional employee ID to filter by specific employee
+     * @return array
+     */
+    public function getDutyEmployee(int $id, ?string $search = null, ?int $employeeId = null): array;
 
     /**
      * Get total granted leave for an employee

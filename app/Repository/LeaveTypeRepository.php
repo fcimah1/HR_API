@@ -12,9 +12,20 @@ use Illuminate\Support\Collection;
 
 class LeaveTypeRepository implements LeaveTypeRepositoryInterface
 {
-    public function getActiveLeaveTypes(int $companyId): Collection
+    public function getActiveLeaveTypes(int $companyId, array $filters = []): array
     {
-        return ErpConstant::getActiveLeaveTypes($companyId);
+        $query = ErpConstant::query()
+            ->where('company_id', $companyId)
+            ->where('type', ErpConstant::TYPE_LEAVE_TYPE)
+            ->where('field_three', 1);
+        if (isset($filters['search']) && $filters['search'] !== null && trim($filters['search']) !== '') {
+            $searchTerm = '%' . $filters['search'] . '%';
+            $query->where('category_name', 'like', $searchTerm);
+        }
+        $perPage = $filters['per_page'] ?? 10;
+        $paginator = $query->paginate($perPage, ['*'], 'page', $filters['page'] ?? 1);
+
+        return $paginator->toArray();
     }
 
     public function findById(int $id): ?object

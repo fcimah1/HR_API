@@ -11,39 +11,92 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
 {
-   
+
     /**
      * Get paginated leave adjustments with filters
      */
-    public function getPaginatedAdjustments(LeaveAdjustmentFilterDTO $filters): LengthAwarePaginator
-    
+    public function getPaginatedAdjustments(LeaveAdjustmentFilterDTO $filters): array
     {
-        $companyId = $filters->companyId ;
-        $query = LeaveAdjustment::where('company_id', $companyId)->with(['employee', 'dutyEmployee', 'leaveType']);
+        $companyId = $filters->companyId;
+        $query = LeaveAdjustment::where('company_id', $companyId)
+            ->with(['employee', 'dutyEmployee', 'leaveType']);
 
-        // Apply filters
+        // تطبيق فلتر البحث
+        if ($filters->search !== null && trim($filters->search) !== '') {
+            $searchTerm = '%' . $filters->search . '%';
+            $query->where(function ($q) use ($searchTerm) {
+                // البحث في بيانات الموظف
+                $q->whereHas('employee', function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('first_name', 'like', $searchTerm)
+                        ->orWhere('last_name', 'like', $searchTerm)
+                        ->orWhere('email', 'like', $searchTerm);
+                });
+
+                // البحث في بيانات موظف المناوبة
+                $q->orWhereHas('dutyEmployee', function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('first_name', 'like', $searchTerm)
+                        ->orWhere('last_name', 'like', $searchTerm)
+                        ->orWhere('email', 'like', $searchTerm);
+                });
+
+                // البحث في نوع الإجازة
+                $q->orWhereHas('leaveType', function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('category_name', 'like', $searchTerm);
+                });
+
+                // البحث في السبب
+                $q->orWhere('reason_adjustment', 'like', $searchTerm);
+                $q->orWhere('status', 'like', $searchTerm);
+            });
+        }
+
+        // تطبيق الفلاتر الأخرى
         if ($filters->companyName !== null) {
             $query->whereHas('employee', function ($q) use ($filters) {
                 $q->where('company_name', $filters->companyName);
             });
         }
 
+        // فلتر معرف الموظف
         if ($filters->employeeId !== null) {
             $query->where('employee_id', $filters->employeeId);
         }
 
+        // فلتر معرفات الموظفين (للتبعية)
+        if ($filters->employeeIds !== null && is_array($filters->employeeIds) && !empty($filters->employeeIds)) {
+            $query->whereIn('employee_id', $filters->employeeIds);
+        }
+
+        // فلتر الحالة
         if ($filters->status !== null) {
             $query->where('status', $filters->status);
         }
 
+        // فلتر نوع الإجازة
         if ($filters->leaveTypeId !== null) {
             $query->where('leave_type_id', $filters->leaveTypeId);
         }
 
-        // Apply sorting
-        $query->orderBy($filters->sortBy, $filters->sortDirection);
+        // تطبيق الفرز
+        $sortBy = in_array($filters->sortBy, ['created_at', 'adjustment_date', 'status'])
+            ? $filters->sortBy
+            : 'created_at';
 
-        return $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
+        $sortDirection = strtolower($filters->sortDirection) === 'asc' ? 'asc' : 'desc';
+        $query->orderBy($sortBy, $sortDirection);
+
+        // Paginate
+        $paginator = $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
+
+        return [
+            'data' => $paginator->items(),
+            'total' => $paginator->total(),
+            'per_page' => $paginator->perPage(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'from' => $paginator->firstItem(),
+            'to' => $paginator->lastItem(),
+        ];
     }
 
     /**
@@ -53,7 +106,7 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
     {
         $adjustment = LeaveAdjustment::create($dto->toArray());
         $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
-        
+
         return $adjustment;
     }
 

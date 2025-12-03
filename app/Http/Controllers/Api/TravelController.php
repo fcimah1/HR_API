@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\DTOs\Travel\CreateTravelDTO;
 use App\DTOs\Travel\UpdateTravelDTO;
+use App\DTOs\Travel\TravelRequestFilterDTO;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Travel\CreateTravelRequest;
 use App\Http\Requests\Travel\UpdateTravelRequest;
@@ -13,6 +15,7 @@ use App\Services\TravelService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+
 
 class TravelController extends Controller
 {
@@ -31,10 +34,52 @@ class TravelController extends Controller
      *     summary="Get list of travel requests",
      *     tags={"Travel"},
      *     security={{"bearerAuth":{}}},
+     *  @OA\Parameter(
+     *         name="status",
+     *         in="query",
+     *         description="Filter by status (pending/approved/rejected)",
+     *         @OA\Schema(type="string", enum={"pending", "approved", "rejected"})
+     *     ),
+     *     @OA\Parameter(
+     *         name="employee_id",
+     *         in="query",
+     *         description="Filter by employee ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="from_date",
+     *         in="query",
+     *         description="Filter from date (Y-m-d)",
+     *         @OA\Schema(type="string", format="date", example="2025-01-01")
+     *     ),
+     *     @OA\Parameter(
+     *         name="to_date",
+     *         in="query",
+     *         description="Filter to date (Y-m-d)",
+     *         @OA\Schema(type="string", format="date", example="2025-12-31")
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         description="Items per page",
+     *         @OA\Schema(type="integer", default=15)
+     *     ),
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="Page number",
+     *         @OA\Schema(type="integer", default=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search by employee name",
+     *         @OA\Schema(type="string")
+     *     ),
      *     @OA\Response(response=200, description="Successful operation")
      * )
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
             $user = Auth::user();
@@ -45,7 +90,9 @@ class TravelController extends Controller
                     'message' => 'غير مسموح بعرض طلبات السفر'
                 ], 403);
             }
-            $travels = $this->travelService->getTravels($user);
+            $filters = TravelRequestFilterDTO::fromRequest($request->all());
+
+            $travels = $this->travelService->getTravels($user, $filters);
             return response()->json([
                 'success' => true,
                 'message' => 'تم الحصول على طلبات السفر بنجاح',
@@ -298,45 +345,6 @@ class TravelController extends Controller
                 'error' => $e->getMessage(),
                 'created by' => $user->full_name
             ], 500);
-        }
-    }
-
-    /**
-     * @OA\Get(
-     *     path="/api/travels/search",
-     *     summary="Search travel requests",
-     *     tags={"Travel"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="query", in="query", required=true, @OA\Schema(type="string")),
-     *     @OA\Response(response=200, description="Successful operation")
-     * )
-     */
-    public function search(Request $request)
-    {
-        try {
-            $user = Auth::user();
-            $hasPermission = $this->permissionService->checkPermission($user, 'travel1');
-            if (!$hasPermission) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'غير مسموح بالبحث في طلبات السفر'
-                ], 403);
-            }
-
-            $query = $request->input('query', '');
-            $travels = $this->travelService->searchTravels($user, $query);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'تم البحث بنجاح',
-                'data' => $travels
-            ]);
-        } catch (\Exception $e) {
-            Log::error('TravelController::search failed', [
-                'error' => $e->getMessage(),
-                'user' => $user->full_name ?? 'unknown'
-            ]);
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 }

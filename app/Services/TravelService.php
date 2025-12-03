@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\DTOs\Travel\CreateTravelDTO;
+use App\DTOs\Travel\TravelRequestFilterDTO;
 use App\DTOs\Travel\UpdateTravelDTO;
 use App\Http\Requests\Travel\UpdateTravelStatusRequest;
 use App\Mail\Travel\TravelSubmitted;
@@ -301,14 +302,14 @@ class TravelService
         });
     }
 
-    public function getTravels(User $user, array $filters = [])
+    public function getTravels(User $user, TravelRequestFilterDTO $filters)
     {
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
         if ($user->user_type === 'company') {
-            return $this->travelRepository->getByCompany($effectiveCompanyId);
+            return $this->travelRepository->getByCompany($effectiveCompanyId, $filters);
         } else {
-            return $this->travelRepository->getByEmployee($user->user_id);
+            return $this->travelRepository->getByEmployee($user->user_id, $filters);
         }
     }
 
@@ -328,22 +329,5 @@ class TravelService
         }
 
         return $travel;
-    }
-
-    public function searchTravels(User $user, string $query)
-    {
-        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-
-        $travels = $this->travelRepository->search($effectiveCompanyId, $query);
-        if ($travels->isEmpty()) {
-            throw new \Exception('لا يوجد طلبات سفر');
-        }
-        if ($user->user_type === 'company') {
-            return $travels;
-        } else {
-            return $travels->filter(function ($travel) use ($user) {
-                return $travel->employee_id === $user->user_id;
-            });
-        }
     }
 }

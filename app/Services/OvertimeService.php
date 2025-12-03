@@ -46,6 +46,7 @@ class OvertimeService
             fromDate: $filters->fromDate,
             toDate: $filters->toDate,
             month: $filters->month,
+            search: $filters->search,
             companyId: $effectiveCompanyId,
             perPage: $filters->perPage,
             page: $filters->page
@@ -61,6 +62,7 @@ class OvertimeService
                 fromDate: $filters->fromDate,
                 toDate: $filters->toDate,
                 month: $filters->month,
+                search: $filters->search,
                 companyId: $effectiveCompanyId,
                 perPage: $filters->perPage,
                 page: $filters->page

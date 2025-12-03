@@ -73,6 +73,12 @@ class OvertimeController extends Controller
      *         description="Page number",
      *         @OA\Schema(type="integer", default=1)
      *     ),
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search by employee name",
+     *         @OA\Schema(type="string")
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Overtime requests retrieved successfully",

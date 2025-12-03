@@ -23,7 +23,6 @@ use Illuminate\Support\Facades\Log;
  *     @OA\Property(property="reason", type="string", description="Reason for leave"),
  *     @OA\Property(property="duty_employee_id", type="integer", description="Duty employee ID"),
  *     @OA\Property(property="is_half_day", type="boolean", description="Is half day"),
- *     @OA\Property(property="leave_hours", type="string", description="Leave hours"),
  *     @OA\Property(property="remarks", type="string", description="Remarks")
  * )
  */
@@ -75,7 +74,6 @@ class CreateLeaveApplicationRequest extends FormRequest
             'reason' => 'required|string|max:1000|min:10',
             'duty_employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
             'is_half_day' => 'nullable|boolean',
-            'leave_hours' => 'nullable|string|max:100',
             'remarks' => 'nullable|string|max:1000',
         ];
     }
@@ -111,7 +109,6 @@ class CreateLeaveApplicationRequest extends FormRequest
             'reason' => 'سبب الإجازة',
             'duty_employee_id' => 'الموظف البديل',
             'is_half_day' => 'نصف يوم',
-            'leave_hours' => 'ساعات الإجازة',
             'remarks' => 'ملاحظات',
         ];
     }

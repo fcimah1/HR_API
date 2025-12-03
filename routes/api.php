@@ -58,8 +58,10 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
 
     // Leave Management with Simple Permission Checks
     Route::middleware('simple.permission:hr_leave')->group(function () {
+        Route::get('/leaves/employees-for-duty-employee', [LeaveController::class, 'getEmployeesForDutyEmployee']);
         Route::get('/leaves/applications', [LeaveController::class, 'getApplications']);
         Route::post('/leaves/applications', [LeaveController::class, 'createApplication']);
+        Route::post('/leaves/take-hours-off-work', [LeaveController::class, 'takeHoursOffWork']);
         Route::delete('/leaves/applications/{id}/cancel', [LeaveController::class, 'cancelApplication']);
         Route::put('/leaves/applications/{id}', [LeaveController::class, 'updateApplication']);
         Route::get('/leaves/applications/{id}', [LeaveController::class, 'showApplication']);

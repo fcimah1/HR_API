@@ -23,6 +23,14 @@ class HolidayRepository implements HolidayRepositoryInterface
             $query->betweenDates($filters['start_date'], $filters['end_date']);
         }
 
+        if ($filters['search'] !== null && trim($filters['search']) !== '') {
+            $searchTerm = '%' . $filters['search'] . '%';
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('event_name', 'like', $searchTerm)
+                    ->orWhere('description', 'like', $searchTerm);
+            });
+        }
+
         $perPage = $filters['per_page'] ?? 20;
         return $query->paginate($perPage);
     }

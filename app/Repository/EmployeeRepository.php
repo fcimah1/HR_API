@@ -25,7 +25,18 @@ class EmployeeRepository implements EmployeeRepositoryInterface
         
         // Load details relationship
         $query->with('details');
-        
+
+        if ($filters->search !== null && trim($filters->search) !== '') {
+            $searchTerm = '%' . $filters->search . '%';
+            $query->where(function ($q) use ($searchTerm) {
+                // البحث في بيانات الموظف
+                $q->whereHas('details', function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('first_name', 'like', $searchTerm)
+                        ->orWhere('last_name', 'like', $searchTerm)
+                        ->orWhere('email', 'like', $searchTerm);
+                });
+            });
+        }
         $this->applyFilters($query, $filters);
         $this->applySorting($query, $filters);
 

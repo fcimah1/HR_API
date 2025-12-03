@@ -48,6 +48,24 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
             $query->where('created_at', '<=', $filters->toDate);
         }
 
+if ($filters->search !== null && trim($filters->search) !== '') {
+            $searchTerm = '%' . $filters->search . '%';
+            $query->where(function ($q) use ($searchTerm) {
+                // البحث في بيانات الموظف
+                $q->whereHas('employee', function ($subQuery) use ($searchTerm) {
+                    $subQuery->where('first_name', 'like', $searchTerm)
+                        ->orWhere('last_name', 'like', $searchTerm)
+                        ->orWhere('email', 'like', $searchTerm);
+                });
+
+                // البحث في الموظفين الذين قاموا بالموافقة (nested relationship)
+                $q->orWhereHas('approvals.staff', function ($approvalQuery) use ($searchTerm) {
+                    $approvalQuery->where('first_name', 'like', $searchTerm)
+                        ->orWhere('last_name', 'like', $searchTerm);
+                });
+            });
+        }
+
         // Apply sorting
         $query->orderBy($filters->sortBy, $filters->sortDirection);
 

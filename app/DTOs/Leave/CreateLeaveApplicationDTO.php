@@ -12,26 +12,35 @@ class CreateLeaveApplicationDTO
         public readonly int $leaveTypeId,
         public readonly string $fromDate,
         public readonly string $toDate,
+        public readonly ?string $particularDate = null,  
         public readonly string $reason,
         public readonly ?int $dutyEmployeeId = null,
         public readonly ?bool $isHalfDay = false,
-        public readonly ?string $leaveHours = null,
-        public readonly ?string $remarks = null
+        public readonly ?int $leaveHours = null,
+        public readonly ?string $remarks = null,
+        public readonly ?string $leaveMonth = null,
+        public readonly ?string $leaveYear = null,  
+        public readonly ?int $status = null,
     ) {}
 
     public static function fromRequest(array $data, int $companyId, int $employeeId): self
     {
+        //get leave hours from calculate from_date and to_date
+        $fromDate = new \DateTime($data['from_date']);
+        $toDate = new \DateTime($data['to_date']);
+        $leaveHours = $fromDate->diff($toDate)->days + 1;
         return new self(
             companyId: $companyId,
             employeeId: $employeeId,
             leaveTypeId: $data['leave_type_id'],
             fromDate: $data['from_date'],
             toDate: $data['to_date'],
+            particularDate: $data['particular_date'] ?? null,
             reason: $data['reason'],
             dutyEmployeeId: $data['duty_employee_id'] ?? null,
             isHalfDay: $data['is_half_day'] ?? false,
-            leaveHours: $data['leave_hours'] ?? null,
-            remarks: $data['remarks'] ?? null
+            leaveHours: $leaveHours,
+            remarks: $data['remarks'] ?? null,  
         );
     }
 
@@ -45,6 +54,7 @@ class CreateLeaveApplicationDTO
             'leave_type_id' => $this->leaveTypeId,
             'from_date' => $this->fromDate,
             'to_date' => $this->toDate,
+            'particular_date' => $this->particularDate,
             'reason' => $this->reason,
             'duty_employee_id' => $this->dutyEmployeeId,
             'is_half_day' => $this->isHalfDay,
