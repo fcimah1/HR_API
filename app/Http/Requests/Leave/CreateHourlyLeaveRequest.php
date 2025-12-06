@@ -48,7 +48,22 @@ class CreateHourlyLeaveRequest extends FormRequest
                 }
             ],
             'duty_employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
-            'date' => 'required|date|after_or_equal:today',
+            'date' => [
+                'required',
+                'date',
+                'after_or_equal:today',
+                function ($attribute, $value, $fail) use ($user) {
+                    $permissionService = app(\App\Services\SimplePermissionService::class);
+                    $companyId = $permissionService->getEffectiveCompanyId($user);
+                    
+                    // التحقق من عدم وجود استئذان آخر في نفس التاريخ
+                    $hourlyLeaveRepository = app(\App\Repository\Interface\HourlyLeaveRepositoryInterface::class);
+                    
+                    if ($hourlyLeaveRepository->hasHourlyLeaveOnDate($user->user_id, $value, $companyId)) {
+                        $fail('يوجد لديك استئذان مسجل بالفعل في هذا التاريخ. لا يمكن تسجيل طلب آخر في نفس اليوم.');
+                    }
+                }
+            ],
             'clock_in_m' => 'required|date_format:h:i A',
             'clock_out_m' => 'required|date_format:h:i A|after:clock_in_m',
             'reason' => 'required|string|min:10|max:1000',

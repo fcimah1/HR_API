@@ -30,6 +30,8 @@ use App\Repository\NotificationStatusRepository;
 use App\Repository\NotificationApprovalRepository;
 use App\Repository\Interface\HolidayRepositoryInterface;
 use App\Repository\HolidayRepository;
+use App\Repository\Interface\HourlyLeaveRepositoryInterface;
+use App\Repository\HourlyLeaveRepository;
 use Laravel\Passport\Passport;
 use Laravel\Telescope\TelescopeServiceProvider;
 
@@ -57,6 +59,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Holiday repository
         $this->app->singleton(HolidayRepositoryInterface::class, HolidayRepository::class);
+
+        // Hourly Leave repository
+        $this->app->singleton(HourlyLeaveRepositoryInterface::class, HourlyLeaveRepository::class);
 
         if ($this->app->environment('local') && class_exists(TelescopeServiceProvider::class)) {
             $this->app->register(TelescopeServiceProvider::class);

@@ -1,0 +1,110 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class HourlyLeaveResource extends JsonResource
+{
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'leave_id' => $this->leave_id,
+            'company_id' => $this->company_id,
+            'employee_id' => $this->employee_id,
+            'employee_name' => $this->when(
+                $this->relationLoaded('employee'),
+                fn() => $this->employee ? ($this->employee->first_name . ' ' . $this->employee->last_name) : 'غير محدد'
+            ),
+            'leave_type_id' => $this->leave_type_id,
+            'leave_type_name' => $this->when(
+                $this->relationLoaded('leaveType'),
+                fn() => $this->leaveType ? $this->leaveType->category_name : 'غير محدد'
+            ),
+            'date' => $this->from_date, // نفس التاريخ للبداية والنهاية
+            'from_date' => $this->from_date,
+            'to_date' => $this->to_date,
+            'particular_date' => $this->particular_date,
+            'leave_hours' => $this->leave_hours,
+            'leave_month' => $this->leave_month,
+            'leave_year' => $this->leave_year,
+            'reason' => $this->reason,
+            'duty_employee_id' => $this->duty_employee_id,
+            'duty_employee_name' => $this->when(
+                $this->relationLoaded('dutyEmployee') && $this->dutyEmployee,
+                fn() => $this->dutyEmployee->first_name . ' ' . $this->dutyEmployee->last_name
+            ),
+            'remarks' => $this->remarks,
+            'status' => $this->status,
+            'status_text' => $this->getStatusText($this->status),
+            'created_at' => $this->created_at,
+            
+            // معلومات الموظف إذا كانت محملة
+            'employee' => $this->when($this->relationLoaded('employee'), function () {
+                return $this->employee ? [
+                    'user_id' => $this->employee->user_id,
+                    'first_name' => $this->employee->first_name,
+                    'last_name' => $this->employee->last_name,
+                    'email' => $this->employee->email,
+                    'full_name' => $this->employee->full_name,
+                ] : null;
+            }),
+            
+            // معلومات الموظف البديل إذا كانت محملة
+            'duty_employee' => $this->when($this->relationLoaded('dutyEmployee'), function () {
+                return $this->dutyEmployee ? [
+                    'user_id' => $this->dutyEmployee->user_id,
+                    'first_name' => $this->dutyEmployee->first_name,
+                    'last_name' => $this->dutyEmployee->last_name,
+                    'email' => $this->dutyEmployee->email,
+                    'full_name' => $this->dutyEmployee->full_name,
+                ] : null;
+            }),
+            
+            // معلومات نوع الإجازة إذا كانت محملة
+            'leave_type' => $this->when($this->relationLoaded('leaveType'), function () {
+                return $this->leaveType ? [
+                    'constants_id' => $this->leaveType->constants_id,
+                    'category_name' => $this->leaveType->category_name,
+                    'field_one' => $this->leaveType->field_one,
+                    'field_two' => $this->leaveType->field_two,
+                    'field_three' => $this->leaveType->field_three,
+                ] : null;
+            }),
+            
+            // معلومات الموافقات إذا كانت محملة
+            'approvals' => $this->when($this->relationLoaded('approvals'), function () {
+                return $this->approvals->map(function ($approval) {
+                    return [
+                        'staff_approval_id' => $approval->staff_approval_id,
+                        'staff_id' => $approval->staff_id,
+                        'staff_name' => $approval->staff ? $approval->staff->full_name : null,
+                        'status' => $approval->status,
+                        'approval_level' => $approval->approval_level,
+                        'updated_at' => $approval->updated_at,
+                    ];
+                });
+            }),
+        ];
+    }
+
+    /**
+     * الحصول على نص الحالة
+     */
+    private function getStatusText($status): string
+    {
+        return match ($status) {
+            1 => 'pending',
+            2 => 'approved',
+            3 => 'rejected',
+            default => 'pending',
+        };
+    }
+}
+
