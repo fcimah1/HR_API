@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -90,9 +93,12 @@ class AuthController extends Controller
 
         // Delete old tokens
         $user->tokens()->delete();
+        $tokenResult = $user->createToken('HR-API-Token');
+        $token = $tokenResult->accessToken;
+        $tokenResult->token->expires_at = now()->addMinutes(15);
+        $tokenResult->token->save();
 
-        // Create new token with Passport
-        $token = $user->createToken('HR-API-Token')->accessToken;
+        $refreshToken = $this->createRefreshToken($user, $tokenResult->token->id);
 
         // Get user permissions and role data
         $permissionData = $user->sendPermissionsWithUserDetails();
@@ -102,18 +108,169 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
-            'token' => $token,
+            'access_token' => $token,
+            'refresh_token' => $refreshToken,
+            'expires_in_minutes' => $tokenResult->token->expires_at->diffInMinutes(now()), // in minutes
             'user' => $user,
-            'permissions' => $permissionData['permissions'],
-            'role' => [
-                'role_id' => $permissionData['role_id'],
-                'role_name' => $permissionData['role_name'],
-                'role_access' => $permissionData['role_access'],
-            ]
+            'permissionData' => $permissionData,
+
         ]);
     }
 
-    // Registration is disabled - Users must be created by admin/HR through employee management
+
+/**
+ * @OA\Post(
+ *     path="/api/refresh",
+ *     summary="Refresh the access token",
+ *     tags={"Authentication"},
+ *     @OA\RequestBody(
+ *         required=true,
+ *         @OA\JsonContent(
+ *             required={"refresh_token"},
+ *             @OA\Property(property="refresh_token", type="string", example="refresh_token_here")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Refresh token successful",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="success", type="boolean", example=true),
+ *             @OA\Property(property="access_token", type="string", example="new_access_token_here"),
+ *             @OA\Property(property="refresh_token", type="string", example="new_refresh_token_here"),
+ *             @OA\Property(property="expires_in", type="integer", example=900)
+ *         )
+ *     )
+ * )
+ */
+    public function refresh(Request $request)
+    {
+        $request->validate([
+            'refresh_token' => 'required|string'
+        ]);
+
+        // البحث عن refresh token
+        $refreshToken = DB::table('oauth_refresh_tokens')
+            ->where('id', $request->refresh_token)
+            ->where('revoked', 0)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$refreshToken) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Refresh token غير صالح أو منتهي الصلاحية'
+            ], 401);
+        }
+
+        // إلغاء التوكن القديم
+        DB::table('oauth_access_tokens')
+            ->where('id', $refreshToken->access_token_id)
+            ->update(['revoked' => 1]);
+
+        // إلغاء refresh token الحالي
+        DB::table('oauth_refresh_tokens')
+            ->where('id', $refreshToken->id)
+            ->update(['revoked' => 1]);
+
+        // الحصول على معرف المستخدم من جدول oauth_access_tokens
+        $accessToken = DB::table('oauth_access_tokens')
+            ->where('id', $refreshToken->access_token_id)
+            ->first();
+            
+        if (!$accessToken) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لم يتم العثور على بيانات المستخدم المرتبطة بهذا التوكن'
+            ], 401);
+        }
+
+        $userId = $accessToken->user_id;
+        $user = User::find($userId);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'المستخدم غير موجود'
+            ], 404);
+        }
+
+        // إنشاء توكن جديد
+        $tokenResult = $user->createToken('HR-API-Token');
+        $token = $tokenResult->accessToken;
+        $tokenResult->token->expires_at = now()->addDays(1);
+        $tokenResult->token->save();
+
+        // Get user permissions and role data
+        $permissionData = $user->sendPermissionsWithUserDetails();
+        // إنشاء refresh token جديد
+        $newRefreshToken = $this->createRefreshToken($user, $tokenResult->token->id);
+
+        return response()->json([
+            'success' => true,
+            'token' => $token,
+            'refresh_token' => $newRefreshToken,
+            'expires_in_minutes' => $tokenResult->token->expires_at->diffInMinutes(now()),
+            'user' => $user,
+            'permissionData' => $permissionData,
+        ]);
+    }
+
+
+    /**
+     * إنشاء refresh token
+     */
+    private function createRefreshToken($user, $accessTokenId = null)
+    {
+        $refreshToken = Str::random(80);
+        
+        // إذا لم يتم تمرير accessTokenId ولم يكن هناك توكن للمستخدم
+        if (!$accessTokenId && !$user->token()) {
+            throw new \Exception('No access token available for the user');
+        }
+        
+        DB::table('oauth_refresh_tokens')->insert([
+            'id' => $refreshToken,
+            'access_token_id' => $accessTokenId ?: $user->token()->id,
+            'revoked' => 0, // استخدم 0 بدلاً من false
+            'expires_at' => now()->addDays(30)->format('Y-m-d H:i:s')
+            // تمت إزالة created_at و updated_at
+        ]);
+        
+        return $refreshToken;
+    }   
+
+    /**
+     * @OA\Get(
+     *     path="/api/companies",
+     *     summary="Get companies",
+     *     tags={"Authentication"},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Companies retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="companies", type="array", @OA\Items(type="string"))
+     *         )
+     *     )
+     * )
+     */
+    public function getCompanies()
+    {
+        $companies = User::whereNotNull('company_name')
+            ->distinct()
+            ->pluck('company_name')
+            ->filter()
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'companies' => $companies
+        ]);
+    }
+
+
+
+        // Registration is disabled - Users must be created by admin/HR through employee management
 
     /**
      * @OA\Post(
@@ -208,73 +365,6 @@ class AuthController extends Controller
             'role_id' => $permissionData['role_id'],
             'role_name' => $permissionData['role_name'],
             'role_access' => $permissionData['role_access'],
-        ]);
-    }
-
-    /**
-     * @OA\Post(
-     *     path="/api/refresh",
-     *     summary="Refresh token",
-     *     tags={"Authentication"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Response(
-     *         response=200,
-     *         description="Token refreshed successfully",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="Token refreshed"),
-     *             @OA\Property(property="token", type="string", example="2|xyz789...")
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=401,
-     *         description="Unauthenticated"
-     *     )
-     * )
-     */
-    public function refresh(Request $request)
-    {
-        $user = $request->user();
-
-        // Revoke current token
-        $request->user()->token()->revoke();
-
-        // Create new token with Passport
-        $token = $user->createToken('HR-API-Token')->accessToken;
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Token refreshed',
-            'token' => $token
-        ]);
-    }
-
-    /**
-     * @OA\Get(
-     *     path="/api/companies",
-     *     summary="Get list of companies",
-     *     tags={"Authentication"},
-     *     @OA\Response(
-     *         response=200,
-     *         description="Companies retrieved successfully",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="companies", type="array", @OA\Items(type="string"))
-     *         )
-     *     )
-     * )
-     */
-    public function getCompanies()
-    {
-        $companies = User::whereNotNull('company_name')
-            ->distinct()
-            ->pluck('company_name')
-            ->filter()
-            ->values();
-
-        return response()->json([
-            'success' => true,
-            'companies' => $companies
         ]);
     }
 }

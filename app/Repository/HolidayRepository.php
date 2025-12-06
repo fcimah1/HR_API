@@ -16,15 +16,18 @@ class HolidayRepository implements HolidayRepositoryInterface
         $query = Holiday::byCompany($companyId)->orderBy('start_date', 'desc');
 
         if (isset($filters['is_publish'])) {
-            $query->where('is_publish', $filters['is_publish']);
+            // تحويل القيمة إلى 1 أو 0 بناءً على القيمة البوليانية
+            $isPublish = filter_var($filters['is_publish'], FILTER_VALIDATE_BOOLEAN);
+            $query->where('is_publish', $isPublish ? 1 : 0);
         }
 
         if (isset($filters['start_date']) && isset($filters['end_date'])) {
             $query->betweenDates($filters['start_date'], $filters['end_date']);
         }
 
-        if ($filters['search'] !== null && trim($filters['search']) !== '') {
-            $searchTerm = '%' . $filters['search'] . '%';
+        // معالجة معامل البحث
+        if (!empty($filters['search'])) {
+            $searchTerm = '%' . trim($filters['search']) . '%';
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('event_name', 'like', $searchTerm)
                     ->orWhere('description', 'like', $searchTerm);

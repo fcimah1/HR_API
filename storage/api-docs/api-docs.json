@@ -1142,6 +1142,97 @@
                 }
             }
         },
+        "/api/refresh": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Refresh the access token",
+                "operationId": "f6409cd8d794404a6410b0767432b0f4",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "refresh_token"
+                                ],
+                                "properties": {
+                                    "refresh_token": {
+                                        "type": "string",
+                                        "example": "refresh_token_here"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Refresh token successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "access_token": {
+                                            "type": "string",
+                                            "example": "new_access_token_here"
+                                        },
+                                        "refresh_token": {
+                                            "type": "string",
+                                            "example": "new_refresh_token_here"
+                                        },
+                                        "expires_in": {
+                                            "type": "integer",
+                                            "example": 900
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/companies": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Get companies",
+                "operationId": "6c3679fb2ed69b5696ffa0929dc0a076",
+                "responses": {
+                    "200": {
+                        "description": "Companies retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "companies": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/logout": {
             "post": {
                 "tags": [
@@ -1267,82 +1358,6 @@
                         "bearerAuth": []
                     }
                 ]
-            }
-        },
-        "/api/refresh": {
-            "post": {
-                "tags": [
-                    "Authentication"
-                ],
-                "summary": "Refresh token",
-                "operationId": "f6409cd8d794404a6410b0767432b0f4",
-                "responses": {
-                    "200": {
-                        "description": "Token refreshed successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Token refreshed"
-                                        },
-                                        "token": {
-                                            "type": "string",
-                                            "example": "2|xyz789..."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthenticated"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/companies": {
-            "get": {
-                "tags": [
-                    "Authentication"
-                ],
-                "summary": "Get list of companies",
-                "operationId": "6c3679fb2ed69b5696ffa0929dc0a076",
-                "responses": {
-                    "200": {
-                        "description": "Companies retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "companies": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                }
             }
         },
         "/api/employees": {
@@ -2289,21 +2304,57 @@
                     {
                         "name": "per_page",
                         "in": "query",
+                        "description": "عدد العناصر في كل صفحة",
+                        "required": false,
                         "schema": {
-                            "type": "integer"
+                            "type": "integer",
+                            "default": 20
                         }
                     },
                     {
                         "name": "is_publish",
                         "in": "query",
+                        "description": "تصفية حسب حالة النشر (true/false)",
+                        "required": false,
                         "schema": {
-                            "type": "integer"
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث في أسماء الأحداث والوصف (بالعربية والإنجليزية)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Holidays retrieved"
+                        "description": "تم جلب العطلات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -2489,6 +2540,583 @@
                 "responses": {
                     "200": {
                         "description": "Holiday check result"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/hourly-leaves": {
+            "get": {
+                "tags": [
+                    "Hourly Leave Management"
+                ],
+                "summary": "الحصول على قائمة طلبات الإستئذان بالساعات",
+                "operationId": "eecc3d0700f1d0ad9a22ef1cf6543b2c",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "فلترة حسب معرف الموظف (للمديرين/HR فقط)",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "فلترة حسب الحالة (pending/approved/rejected)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "approved",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "leave_type_id",
+                        "in": "query",
+                        "description": "فلترة حسب نوع الإجازة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "فلترة من تاريخ",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "فلترة إلى تاريخ",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "البحث في اسم الموظف أو نوع الإجازة",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب طلبات الإستئذان بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب طلبات الإستئذان بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Hourly Leave Management"
+                ],
+                "summary": "إنشاء طلب إستئذان بالساعات",
+                "operationId": "fe0f0fe8d9e0ec8aaafa2cd75ab0ea49",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "leave_type_id",
+                                    "date",
+                                    "clock_in_m",
+                                    "clock_out_m",
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "leave_type_id": {
+                                        "description": "معرف نوع الإجازة",
+                                        "type": "integer",
+                                        "example": 199
+                                    },
+                                    "duty_employee_id": {
+                                        "description": "معرف الموظف البديل (اختياري) - يجب أن يكون من نفس الشركة: 36,37,118,702,703,725,726,744",
+                                        "type": "integer",
+                                        "example": 37
+                                    },
+                                    "date": {
+                                        "description": "تاريخ الإجازة",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-12-01"
+                                    },
+                                    "clock_in_m": {
+                                        "description": "وقت بداية الإجازة",
+                                        "type": "string",
+                                        "example": "01:00 PM"
+                                    },
+                                    "clock_out_m": {
+                                        "description": "وقت نهاية الإجازة",
+                                        "type": "string",
+                                        "example": "02:00 PM"
+                                    },
+                                    "reason": {
+                                        "description": "سبب الإجازة (10 أحرف على الأقل)",
+                                        "type": "string",
+                                        "example": "استراحة للراحة والاستجمام"
+                                    },
+                                    "remarks": {
+                                        "description": "ملاحظات (اختياري)",
+                                        "type": "string",
+                                        "example": "ملاحظات إضافية"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء طلب الإستئذان بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء طلب استئذان بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/hourly-leaves/{id}": {
+            "get": {
+                "tags": [
+                    "Hourly Leave Management"
+                ],
+                "summary": "الحصول على تفاصيل طلب إستئذان بالساعات",
+                "operationId": "72ad850300e67ad2fbde361efa55b5d1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب تفاصيل الطلب بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الطلب غير موجود"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Hourly Leave Management"
+                ],
+                "summary": "تحديث طلب إستئذان بالساعات",
+                "operationId": "0a70fb58b9b021cfbd53b49d8ba207e4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "date": {
+                                        "description": "تاريخ الإجازة",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-12-01"
+                                    },
+                                    "clock_in_m": {
+                                        "description": "وقت بداية الإجازة",
+                                        "type": "string",
+                                        "example": "01:00 PM"
+                                    },
+                                    "clock_out_m": {
+                                        "description": "وقت نهاية الإجازة",
+                                        "type": "string",
+                                        "example": "02:00 PM"
+                                    },
+                                    "reason": {
+                                        "description": "سبب الإجازة (10 أحرف على الأقل)",
+                                        "type": "string",
+                                        "example": "استراحة للراحة والاستجمام"
+                                    },
+                                    "duty_employee_id": {
+                                        "description": "معرف الموظف البديل (اختياري)",
+                                        "type": "integer",
+                                        "example": 37
+                                    },
+                                    "remarks": {
+                                        "description": "ملاحظات (اختياري)",
+                                        "type": "string",
+                                        "example": "ملاحظات إضافية"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث طلب الإستئذان بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث طلب الإستئذان بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/hourly-leaves/{id}/cancel": {
+            "delete": {
+                "tags": [
+                    "Hourly Leave Management"
+                ],
+                "summary": "إلغاء طلب إستئذان بالساعات",
+                "description": "إلغاء طلب إستئذان بالساعات عن طريق وضع علامة كرفض. يبقى الطلب في قاعدة البيانات لأغراض التدقيق مع حالة 'rejected' وملاحظات تشير إلى أنه تم إلغاؤه من قبل الموظف.",
+                "operationId": "27435b298c302e901d43d19f970a9534",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "معرف طلب الإستئذان للإلغاء",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 123
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "reason": {
+                                        "description": "سبب الإلغاء (اختياري)",
+                                        "type": "string",
+                                        "example": "سبب الإلغاء"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم إلغاء طلب الإستئذان بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إلغاء طلب الإستئذان بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "طلب الإستئذان غير موجود أو لا يمكن إلغاؤه",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "طلب الإستئذان غير موجود أو لا يمكن إلغاؤه"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "لا يمكن إلغاء طلب تمت معالجته",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "لا يمكن إلغاء طلب تم الموافقة عليه مسبقاً"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/hourly-leaves/{id}/approve-or-reject": {
+            "post": {
+                "tags": [
+                    "Hourly Leave Management"
+                ],
+                "summary": "الموافقة على أو رفض طلب إستئذان بالساعات (للمديرين/HR فقط)",
+                "description": "الموافقة على أو رفض طلب إستئذان بالساعات",
+                "operationId": "a1f79180e396cdc71c08720bce7a23cf",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "action"
+                                ],
+                                "properties": {
+                                    "action": {
+                                        "description": "الإجراء: approve للموافقة أو reject للرفض",
+                                        "type": "string",
+                                        "enum": [
+                                            "approve",
+                                            "reject"
+                                        ]
+                                    },
+                                    "remarks": {
+                                        "description": "ملاحظات (اختياري)",
+                                        "type": "string",
+                                        "example": "موافق على الطلب"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تمت معالجة الطلب بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -3191,122 +3819,6 @@
                 ]
             }
         },
-        "/api/leaves/take-hours-off-work": {
-            "post": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Create leave application for just hours",
-                "operationId": "74099b51f74145e37b961d6dc9af3b58",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "leave_type_id",
-                                    "date",
-                                    "clock_in_m",
-                                    "clock_out_m",
-                                    "reason"
-                                ],
-                                "properties": {
-                                    "leave_type_id": {
-                                        "description": "معرف نوع الإجازة",
-                                        "type": "integer",
-                                        "example": 199
-                                    },
-                                    "duty_employee_id": {
-                                        "description": "معرف الموظف البديل (اختياري) - يجب أن يكون من نفس الشركة: 36,37,118,702,703,725,726,744",
-                                        "type": "integer",
-                                        "example": 37
-                                    },
-                                    "date": {
-                                        "description": "تاريخ الإجازة",
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2025-12-01"
-                                    },
-                                    "clock_in_m": {
-                                        "description": "وقت بداية الإجازة",
-                                        "type": "string",
-                                        "example": "01:00 PM"
-                                    },
-                                    "clock_out_m": {
-                                        "description": "وقت نهاية الإجازة",
-                                        "type": "string",
-                                        "example": "02:00 PM"
-                                    },
-                                    "reason": {
-                                        "description": "سبب الإجازة (10 أحرف على الأقل)",
-                                        "type": "string",
-                                        "example": "استراحة للراحة والاستجمام"
-                                    },
-                                    "remarks": {
-                                        "description": "ملاحظات (اختياري)",
-                                        "type": "string",
-                                        "example": "ملاحظات إضافية"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "تم إنشاء طلب الإستئذان بنجاح",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تم إنشاء طلب استئذان بنجاح"
-                                        },
-                                        "data": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string"
-                                        },
-                                        "errors": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
         "/api/leaves/employees-for-duty-employee": {
             "get": {
                 "tags": [
@@ -3831,8 +4343,39 @@
                 "tags": [
                     "Leave Type Management"
                 ],
-                "summary": "Get available leave types",
+                "summary": "Get all leave types with search and pagination",
                 "operationId": "df58840be7999bb0a9e0b06c5922a215",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search term for leave type name or description",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Number of items per page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Leave types retrieved successfully",
@@ -3845,32 +4388,53 @@
                                             "example": true
                                         },
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "properties": {
-                                                    "leave_type_id": {
-                                                        "type": "integer",
-                                                        "example": 1
-                                                    },
-                                                    "leave_type_name": {
-                                                        "type": "string",
-                                                        "example": "إجازة سنوية"
-                                                    },
-                                                    "leave_type_short_name": {
-                                                        "type": "string",
-                                                        "example": "سنوية"
-                                                    },
-                                                    "leave_days": {
-                                                        "type": "integer",
-                                                        "example": 30
-                                                    },
-                                                    "leave_type_status": {
-                                                        "type": "boolean",
-                                                        "example": true
+                                            "properties": {
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "leave_type_id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "leave_type_name": {
+                                                                "type": "string",
+                                                                "example": "إجازة سنوية"
+                                                            },
+                                                            "yearly_breakdown_days": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "yearly_breakdown_hours": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     }
                                                 },
-                                                "type": "object"
-                                            }
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                }
+                                            },
+                                            "type": "object"
                                         }
                                     },
                                     "type": "object"
@@ -6474,6 +7038,10 @@
         {
             "name": "Holidays",
             "description": "Public holidays management"
+        },
+        {
+            "name": "Hourly Leave Management",
+            "description": "إدارة طلبات الإستئذان بالساعات"
         },
         {
             "name": "Leave Adjustments",

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\LeaveController;
+use App\Http\Controllers\Api\HourlyLeaveController;
 use App\Http\Controllers\Api\AdvanceSalaryController;
 use App\Http\Controllers\Api\LeaveAdjustmentController;
 use App\Http\Controllers\Api\LeaveTypeController;
@@ -26,6 +27,7 @@ use Illuminate\Support\Facades\Route;
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/companies', [AuthController::class, 'getCompanies']);
+Route::post('/refresh', [AuthController::class, 'refresh']);
 
 
 // Protected routes with simple company isolation
@@ -33,7 +35,6 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/user/permissions', [AuthController::class, 'permissions']);
-    Route::post('/refresh', [AuthController::class, 'refresh']);
 
     // Enum helper endpoints - list available enum values for API clients
     Route::prefix('enums')->group(function () {
@@ -70,10 +71,14 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('/leaves/employees-for-duty-employee', [LeaveController::class, 'getEmployeesForDutyEmployee']);
         Route::get('/leaves/applications', [LeaveController::class, 'getApplications']);
         Route::post('/leaves/applications', [LeaveController::class, 'createApplication']);
-        Route::post('/leaves/take-hours-off-work', [LeaveController::class, 'takeHoursOffWork']);
         Route::delete('/leaves/applications/{id}/cancel', [LeaveController::class, 'cancelApplication']);
         Route::put('/leaves/applications/{id}', [LeaveController::class, 'updateApplication']);
         Route::get('/leaves/applications/{id}', [LeaveController::class, 'showApplication']);
+
+        // Hourly Leave Management
+        route::apiResource('/hourly-leaves', HourlyLeaveController::class);
+        Route::delete('/hourly-leaves/{id}/cancel', [HourlyLeaveController::class, 'cancel']);
+        Route::post('/hourly-leaves/{id}/approve-or-reject', [HourlyLeaveController::class, 'approveOrReject']);
 
         Route::get('/leaves/adjustments', [LeaveAdjustmentController::class, 'getAdjustments']);
         Route::post('/leaves/adjustments', [LeaveAdjustmentController::class, 'createAdjustment']);

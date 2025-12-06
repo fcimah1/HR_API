@@ -16,8 +16,11 @@ class AuthServiceProvider extends ServiceProvider
         // لو أردت تحريك أو تحديد مسار المفاتيح
         Passport::loadKeysFrom(storage_path('oauth'));
 
-        // صلاحية التوكينات (اختياري)
-        Passport::tokensExpireIn(now()->addDays(15));
-        Passport::refreshTokensExpireIn(now()->addDays(30));
+
+        // مدة صلاحية Access Token (15 دقيقة)
+        Passport::tokensExpireIn(now()->addMinutes(15));
+        
+        // مدة صلاحية Refresh Token (7 أيام)
+        Passport::refreshTokensExpireIn(now()->addDays(7));
     }
 }

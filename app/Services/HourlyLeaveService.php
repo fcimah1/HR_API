@@ -1,0 +1,480 @@
+<?php
+
+namespace App\Services;
+
+use App\DTOs\Leave\CreateHourlyLeaveDTO;
+use App\DTOs\Leave\HourlyLeaveFilterDTO;
+use App\DTOs\Leave\CancelHourlyLeaveDTO;
+use App\DTOs\Leave\ApproveOrRejectHourlyLeaveDTO;
+use App\DTOs\Leave\UpdateHourlyLeaveDTO;
+use App\Models\LeaveApplication;
+use App\Models\User;
+use App\Repository\Interface\HourlyLeaveRepositoryInterface;
+use App\Services\SimplePermissionService;
+use App\Services\NotificationService;
+use App\Services\ApprovalWorkflowService;
+use App\Enums\StringStatusEnum;
+use App\Jobs\SendEmailNotificationJob;
+use App\Mail\Leave\HourSubmitted;
+use App\Mail\Leave\LeaveApproved;
+use App\Mail\Leave\LeaveRejected;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+class HourlyLeaveService
+{
+    public function __construct(
+        protected HourlyLeaveRepositoryInterface $hourlyLeaveRepository,
+        protected SimplePermissionService $permissionService,
+        protected NotificationService $notificationService,
+        protected ApprovalWorkflowService $approvalWorkflow,
+    ) {}
+
+    /**
+     * الحصول على قائمة طلبات الإستئذان بالساعات مع التصفية
+     */
+    public function getPaginatedHourlyLeaves(HourlyLeaveFilterDTO $filters, User $user): array
+    {
+        // إنشاء filters جديد بناءً على صلاحيات المستخدم
+        $filterData = $filters->toArray();
+
+        // التحقق من نوع المستخدم (company أو staff فقط)
+        if ($user->user_type == 'company') {
+            // مدير الشركة: يرى جميع طلبات شركته
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $filterData['company_id'] = $effectiveCompanyId;
+        } else {
+            // موظف (staff): يرى طلباته + طلبات الموظفين التابعين له
+            $subordinateIds = $this->getSubordinateEmployeeIds($user->user_id);
+
+            if (!empty($subordinateIds)) {
+                // لديه موظفين تابعين: طلباته + طلبات التابعين
+                $subordinateIds[] = $user->user_id; // إضافة نفسه
+                $filterData['employee_ids'] = $subordinateIds;
+                $filterData['company_id'] = $user->company_id;
+            } else {
+                // ليس لديه موظفين تابعين: طلباته فقط
+                $filterData['employee_id'] = $user->user_id;
+                $filterData['company_id'] = $user->company_id;
+            }
+        }
+
+        // إنشاء DTO جديد مع البيانات المحدثة
+        $updatedFilters = HourlyLeaveFilterDTO::fromRequest($filterData);
+
+        $applications = $this->hourlyLeaveRepository->getPaginatedHourlyLeaves($updatedFilters, $user);
+
+        return $applications;
+    }
+
+    /**
+     * الحصول على جميع معرفات الموظفين التابعين باستخدام هيكل التقارير المتكرر
+     */
+    private function getSubordinateEmployeeIds(int $managerId): array
+    {
+        $db = DB::connection()->getPdo();
+
+        // استعلام متكرر للحصول على جميع التابعين (نفس منطق CodeIgniter)
+        $sql = "SELECT user_id
+                FROM (SELECT * FROM `ci_erp_users_details` ORDER BY user_id) reporting_manager,
+                     (SELECT @pv := :manager_id) initialisation
+                WHERE FIND_IN_SET(reporting_manager, @pv)
+                AND LENGTH(@pv := CONCAT(@pv, ',', user_id))";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute(['manager_id' => $managerId]);
+        $results = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+
+        return array_map('intval', $results);
+    }
+
+    /**
+     * الحصول على طلب إستئذان بالساعات بواسطة المعرف
+     */
+    public function getHourlyLeaveById(int $id, ?int $companyId = null, ?int $userId = null, ?User $user = null): ?LeaveApplication
+    {
+        $user = $user ?? Auth::user();
+
+        if (is_null($companyId) && is_null($userId)) {
+            throw new \InvalidArgumentException('يجب توفير معرف الشركة أو معرف المستخدم');
+        }
+
+        // البحث عن الطلب بواسطة معرف الشركة (للمستخدمين من نوع company/admins)
+        if ($companyId !== null) {
+            $application = $this->hourlyLeaveRepository->findHourlyLeaveById($id, $companyId);
+            return $application;
+        }
+
+        // البحث عن الطلب بواسطة معرف المستخدم (للموظفين العاديين)
+        if ($userId !== null) {
+            $application = $this->hourlyLeaveRepository->findHourlyLeaveForEmployee($id, $userId);
+            return $application;
+        }
+
+        return null;
+    }
+
+    /**
+     * إنشاء طلب إستئذان بالساعات
+     */
+    public function createHourlyLeave(CreateHourlyLeaveDTO $dto): object
+    {
+        return DB::transaction(function () use ($dto) {
+            Log::info('HourlyLeaveService::createHourlyLeave', [
+                'employee_id' => $dto->employeeId,
+                'leave_type_id' => $dto->leaveTypeId,
+                'date' => $dto->date,
+                'clock_in_m' => $dto->clockInM,
+                'clock_out_m' => $dto->clockOutM
+            ]);
+
+            // حساب ساعات الإجازة
+            $startTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockInM);
+            $endTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockOutM);
+            $leaveHours = $endTime->diffInHours($startTime);
+
+            // التحقق من أن الساعات أقل من 8 (استئذان وليس إجازة كاملة)
+            if ($leaveHours >= 8) {
+                throw new \Exception(
+                    "لا يمكن تسجيل استئذان لـ {$leaveHours} ساعة. الاستئذان يجب أن يكون أقل من 8 ساعات. للـ 8 ساعات أو أكثر، يرجى استخدام طلب إجازة عادية."
+                );
+            }
+
+            // التحقق من عدم وجود استئذان آخر في نفس التاريخ
+            if ($this->hourlyLeaveRepository->hasHourlyLeaveOnDate($dto->employeeId, $dto->date, $dto->companyId)) {
+                throw new \Exception(
+                    'يوجد لديك استئذان مسجل بالفعل في هذا التاريخ. لا يمكن تسجيل طلب آخر في نفس اليوم.'
+                );
+            }
+
+            // جلب الرصيد المتاح لنوع الإجازة
+            $availableBalance = $this->getAvailableLeaveBalance(
+                $dto->employeeId,
+                $dto->leaveTypeId,
+                $dto->companyId,
+            );
+
+            // إذا كانت الإجازة المطلوبة أكبر من الرصيد المتاح نرفض الطلب
+            if ($leaveHours > $availableBalance) {
+                throw new \Exception(
+                    "ساعات الإجازة المطلوبة ({$leaveHours} ساعة) أكبر من الرصيد المتاح ({$availableBalance} ساعة) لهذا النوع."
+                );
+            }
+
+            $leave = $this->hourlyLeaveRepository->createHourlyLeave($dto);
+
+            if (!$leave) {
+                throw new \Exception("فشل في إنشاء طلب الإستئذان للإجازة بـ {$leaveHours} ساعة - الرصيد المتوفر: {$availableBalance} ساعة");
+            }
+
+            // بدء سير عمل الموافقة
+            $this->approvalWorkflow->submitForApproval(
+                'leave_settings',
+                (string)$leave->leave_id,
+                $dto->employeeId,
+                $dto->companyId
+            );
+
+            // إرسال الإشعارات
+            $this->notificationService->sendSubmissionNotification(
+                'leave_settings',
+                (string)$leave->leave_id,
+                $dto->companyId,
+                StringStatusEnum::SUBMITTED->value,
+                $dto->employeeId
+            );
+
+            // الحصول على بريد الموظف واسمه من العلاقات المحملة مسبقًا
+            $employeeEmail = $leave->employee->email ?? null;
+            $employeeName = $leave->employee->full_name ?? 'Employee';
+            $leaveTypeName = $leave->leaveType->leave_type_name ?? 'Hourly Leave';
+
+            // إرسال إشعار بريد إلكتروني إذا كان بريد الموظف موجودًا (يتم إرساله كـ job)
+            if ($employeeEmail) {
+                SendEmailNotificationJob::dispatch(
+                    new HourSubmitted(
+                        employeeName: $employeeName,
+                        leaveType: $leaveTypeName,
+                        date: $dto->date,
+                        hours: (int)($dto->leaveHours ?? 0),
+                    ),
+                    $employeeEmail
+                );
+            }
+            return $leave;
+        });
+    }
+
+    /**
+     * إلغاء طلب إستئذان بالساعات
+     */
+    public function cancelHourlyLeave(int $id, User $user): bool
+    {
+        return DB::transaction(function () use ($id, $user) {
+            Log::info('HourlyLeaveService::cancelHourlyLeave - Transaction started', [
+                'application_id' => $id,
+                'user_id' => $user->user_id
+            ]);
+
+            // الحصول على معرف الشركة الفعلي
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // البحث عن الطلب في نفس الشركة
+            $application = $this->hourlyLeaveRepository->findHourlyLeaveById($id, $effectiveCompanyId);
+
+            if (!$application) {
+                throw new \Exception('الطلب غير موجود');
+            }
+
+            // التحقق من الصلاحيات:
+            // 1. الموظف صاحب الطلب يمكنه إلغاء طلباته المعلقة فقط
+            // 2. المدير/الشركة يمكنهم إلغاء أي طلب (معلق أو موافق عليه)
+            $isOwner = $application->employee_id === $user->user_id;
+
+            if (!$isOwner) {
+                throw new \Exception('ليس لديك صلاحية لإلغاء هذا الطلب');
+            }
+
+            // الموظف العادي يمكنه إلغاء الطلبات المعلقة فقط
+            if ($isOwner && $application->status !== LeaveApplication::STATUS_PENDING) {
+                throw new \Exception('لا يمكن إلغاء الطلب بعد المراجعة');
+            }
+
+            // وضع علامة كرفض (يحتفظ بالسجل في قاعدة البيانات)
+            $cancelReason = 'تم إلغاء الطلب من قبل الموظف';
+            $this->hourlyLeaveRepository->cancelHourlyLeave($application, $user->user_id, $cancelReason);
+
+            Log::info('HourlyLeaveService::cancelHourlyLeave - Transaction committed', [
+                'application_id' => $id
+            ]);
+
+            // إرسال إشعار للإلغاء (باستخدام إشعار مخصص لإشعار المديرين)
+            // نُشعر مديري الشركة/المسؤولين
+            $this->notificationService->sendSubmissionNotification(
+                'leave_settings',
+                (string)$id,
+                $effectiveCompanyId,
+                StringStatusEnum::REJECTED->value,
+                $application->employee_id // معرف المرسل
+            );
+
+            return true;
+        });
+    }
+
+    /**
+     * الموافقة على أو رفض طلب إستئذان بالساعات
+     */
+    public function approveOrRejectHourlyLeave(int $id, ApproveOrRejectHourlyLeaveDTO $dto): object
+    {
+        return DB::transaction(function () use ($id, $dto) {
+            Log::info('HourlyLeaveService::approveOrRejectHourlyLeave - Transaction started', [
+                'application_id' => $id,
+                'action' => $dto->action
+            ]);
+
+            // الحصول على معرف الشركة الفعلي
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId(Auth::user());
+
+            // البحث عن الطلب في نفس الشركة
+            $application = $this->hourlyLeaveRepository->findHourlyLeaveById($id, $effectiveCompanyId);
+
+            if (!$application) {
+                throw new \Exception('الطلب غير موجود');
+            }
+
+            // التحقق من أن الطلب لم يتم معالجته مسبقًا
+            if ($application->status !== LeaveApplication::STATUS_PENDING) {
+                throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
+            }
+
+            if ($dto->action === 'approve') {
+                // الموافقة على الطلب
+                $processedApplication = $this->hourlyLeaveRepository->approveHourlyLeave(
+                    $application,
+                    $dto->processedBy,
+                    $dto->remarks
+                );
+
+                if (!$processedApplication) {
+                    throw new \Exception('فشل في الموافقة على الطلب');
+                }
+
+                // إرسال إشعار الموافقة
+                $this->notificationService->sendApprovalNotification(
+                    'leave_settings',
+                    (string)$processedApplication->leave_id,
+                    $effectiveCompanyId,
+                    StringStatusEnum::APPROVED->value,
+                    $dto->processedBy,  // معرف الموافق
+                    null, // مستوى الموافقة (افتراضي)
+                    $processedApplication->employee_id // معرف المرسل
+                );
+
+                // إرسال بريد الموافقة
+                $employeeEmail = $processedApplication->employee->email ?? null;
+                $employeeName = $processedApplication->employee->full_name ?? 'Employee';
+                $leaveTypeName = $processedApplication->leaveType->leave_type_name ?? 'Hourly Leave';
+
+                // إرسال بريد الموافقة (يتم إرساله كـ job)
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new LeaveApproved(
+                            employeeName: $employeeName,
+                            leaveType: $leaveTypeName,
+                            startDate: $processedApplication->from_date,
+                            endDate: $processedApplication->to_date,
+                            remarks: $dto->remarks
+                        ),
+                        $employeeEmail
+                    );
+                }
+
+                return $processedApplication;
+            } else {
+                // رفض الطلب
+                $reason = $dto->remarks ?? 'تم رفض الطلب';
+                $processedApplication = $this->hourlyLeaveRepository->rejectHourlyLeave(
+                    $application,
+                    $dto->processedBy,
+                    $reason
+                );
+
+                if (!$processedApplication) {
+                    throw new \Exception('فشل في رفض الطلب');
+                }
+
+                // إرسال إشعار الرفض
+                $this->notificationService->sendApprovalNotification(
+                    'leave_settings',
+                    (string)$processedApplication->leave_id,
+                    $effectiveCompanyId,
+                    StringStatusEnum::REJECTED->value,
+                    $dto->processedBy,  // معرف الرافض
+                    null, // مستوى الموافقة (افتراضي)
+                    $processedApplication->employee_id // معرف المرسل
+                );
+
+                // إرسال بريد الرفض
+                $employeeEmail = $processedApplication->employee->email ?? null;
+                $employeeName = $processedApplication->employee->full_name ?? 'Employee';
+                $leaveTypeName = $processedApplication->leaveType->leave_type_name ?? 'Hourly Leave';
+
+                // إرسال بريد الرفض (يتم إرساله كـ job)
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new LeaveRejected(
+                            employeeName: $employeeName,
+                            leaveType: $leaveTypeName,
+                            startDate: $processedApplication->from_date,
+                            endDate: $processedApplication->to_date,
+                            reason: $reason
+                        ),
+                        $employeeEmail
+                    );
+                }
+
+                return $processedApplication;
+            }
+        });
+    }
+
+    /**
+     * تحديث طلب إستئذان بالساعات
+     */
+    public function updateHourlyLeave(int $id, UpdateHourlyLeaveDTO $dto, User $user): LeaveApplication
+    {
+        return DB::transaction(function () use ($id, $dto, $user) {
+            // الحصول على معرف الشركة الفعلي
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // البحث عن الطلب في نفس الشركة
+            $application = $this->hourlyLeaveRepository->findHourlyLeaveById($id, $effectiveCompanyId);
+
+            if (!$application) {
+                throw new \Exception('الطلب غير موجود');
+            }
+
+            // التحقق من صلاحية التعديل
+            $isOwner = $application->employee_id === $user->user_id;
+
+            if (!$isOwner) {
+                throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+            }
+
+            // التحقق من أن الطلب يمكن تحديثه (فقط الطلبات المعلقة)
+            if ($application->status !== LeaveApplication::STATUS_PENDING) {
+                throw new \Exception('لا يمكن تعديل الطلب بعد المراجعة');
+            }
+
+            // التحقق من الساعات إذا تم تحديث الأوقات
+            if ($dto->clockInM !== null && $dto->clockOutM !== null && $dto->date !== null) {
+                $startTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockInM);
+                $endTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockOutM);
+                $leaveHours = $endTime->diffInHours($startTime);
+
+                // التحقق من أن الساعات أقل من 8
+                if ($leaveHours >= 8) {
+                    throw new \Exception(
+                        "لا يمكن تسجيل استئذان لـ {$leaveHours} ساعة. الاستئذان يجب أن يكون أقل من 8 ساعات."
+                    );
+                }
+
+                // التحقق من عدم وجود استئذان آخر في نفس التاريخ (باستثناء الطلب الحالي)
+                $existingLeave = LeaveApplication::where('company_id', $effectiveCompanyId)
+                    ->where('employee_id', $user->user_id)
+                    ->whereColumn('from_date', 'to_date')
+                    ->where('from_date', $dto->date)
+                    ->where('leave_hours', '>', 0)
+                    ->where('leave_hours', '<', 8)
+                    ->whereIn('status', [1, 2])
+                    ->where('leave_id', '!=', $id)
+                    ->exists();
+
+                if ($existingLeave) {
+                    throw new \Exception(
+                        'يوجد لديك استئذان مسجل بالفعل في هذا التاريخ. لا يمكن تسجيل طلب آخر في نفس اليوم.'
+                    );
+                }
+            }
+
+            // تحديث الطلب
+            $updatedApplication = $this->hourlyLeaveRepository->updateHourlyLeave($application, $dto);
+
+            Log::info('HourlyLeaveService::updateHourlyLeave', [
+                'application_id' => $updatedApplication->leave_id,
+                'updated_by' => $user->full_name
+            ]);
+
+            return $updatedApplication;
+        });
+    }
+
+    /**
+     * الحصول على الرصيد المتاح للإجازة للموظف
+     */
+    private function getAvailableLeaveBalance(int $employeeId, int $leaveTypeId, int $companyId): float
+    {
+        // استخدام LeaveRepository للحصول على الرصيد
+        $leaveRepository = app(\App\Repository\Interface\LeaveRepositoryInterface::class);
+        
+        // 1. الحصول على إجازة ممنوحة إجمالية
+        $totalGranted = $leaveRepository->getTotalGrantedLeave(
+            $employeeId,
+            $leaveTypeId,
+            $companyId
+        );
+
+        // 2. الحصول على إجازة مستخدمة إجمالية
+        $totalUsed = $leaveRepository->getTotalUsedLeave(
+            $employeeId,
+            $leaveTypeId,
+            $companyId
+        );
+
+        // 3. حساب الرصيد المتاح
+        return max(0, $totalGranted - $totalUsed);
+    }
+}
+

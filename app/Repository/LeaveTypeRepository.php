@@ -16,8 +16,7 @@ class LeaveTypeRepository implements LeaveTypeRepositoryInterface
     {
         $query = ErpConstant::query()
             ->where('company_id', $companyId)
-            ->where('type', ErpConstant::TYPE_LEAVE_TYPE)
-            ->where('field_three', 1);
+            ->where('type', ErpConstant::TYPE_LEAVE_TYPE);
         if (isset($filters['search']) && $filters['search'] !== null && trim($filters['search']) !== '') {
             $searchTerm = '%' . $filters['search'] . '%';
             $query->where('category_name', 'like', $searchTerm);
@@ -107,9 +106,6 @@ class LeaveTypeRepository implements LeaveTypeRepositoryInterface
         }
 
         // Deactivate by setting field_three to 0 (inactive)
-        return $leaveType->update([
-            'field_three' => 0,
-            'updated_at' => now()->format('Y-m-d H:i:s'),
-        ]);
+        return $leaveType->delete();
     }
 }

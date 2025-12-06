@@ -32,9 +32,36 @@ class HolidayController extends Controller
      *     summary="Get holidays list",
      *     tags={"Holidays"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="per_page", in="query", @OA\Schema(type="integer")),
-     *     @OA\Parameter(name="is_publish", in="query", @OA\Schema(type="integer")),
-     *     @OA\Response(response=200, description="Holidays retrieved")
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=20),
+     *         description="عدد العناصر في كل صفحة"
+     *     ),
+     *     @OA\Parameter(
+     *         name="is_publish",
+     *         in="query",
+     *         required=false,
+     *         @OA\Schema(type="boolean"),
+     *         description="تصفية حسب حالة النشر (true/false)"
+     *     ),
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         required=false,
+     *         @OA\Schema(type="string"),
+     *         description="بحث في أسماء الأحداث والوصف (بالعربية والإنجليزية)"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم جلب العطلات بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object")),
+     *             @OA\Property(property="pagination", type="object")
+     *         )
+     *     )
      * )
      */
     public function index(Request $request)
@@ -43,10 +70,19 @@ class HolidayController extends Controller
             $user = Auth::user();
             $companyId = $this->permissionService->getEffectiveCompanyId($user);
 
+            // معالجة معاملات التصفية
             $filters = [
                 'per_page' => (int)$request->query('per_page', 20),
-                'is_publish' => $request->query('is_publish'),
+                'is_publish' => $request->has('is_publish') ? 
+                    filter_var($request->query('is_publish'), FILTER_VALIDATE_BOOLEAN) : 
+                    null,
+                'search' => $request->query('search')
             ];
+
+            // إزالة القيم الفارغة من المصفوفة
+            $filters = array_filter($filters, function($value) {
+                return $value !== null && $value !== '';
+            });
 
             $holidays = $this->holidayService->getHolidays($companyId, $filters);
 
