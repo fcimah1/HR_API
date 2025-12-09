@@ -41,7 +41,7 @@ class LeaveController extends Controller
      *     @OA\Parameter(
      *         name="employee_id",
      *         in="query",
-     *         description="Filter by employee ID (managers/HR only)",
+     *         description="Filter by employee ID (for managers/HR only)",
      *         @OA\Schema(type="integer")
      *     ),
      *     @OA\Parameter(
@@ -57,9 +57,27 @@ class LeaveController extends Controller
      *         @OA\Schema(type="integer")
      *     ),
      *     @OA\Parameter(
+     *         name="from_date",
+     *         in="query",
+     *         description="Filter from date",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="to_date",
+     *         in="query",
+     *         description="Filter to date",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search in employee name or leave type",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
      *         name="per_page",
      *         in="query",
-     *         description="Items per page",
+     *         description="Number of items per page",
      *         @OA\Schema(type="integer", default=15)
      *     ),
      *     @OA\Parameter(
@@ -68,28 +86,112 @@ class LeaveController extends Controller
      *         description="Page number",
      *         @OA\Schema(type="integer", default=1)
      *     ),
-     *     @OA\Parameter(
-     *         name="search",
-     *         in="query",
-     *         description="Search by employee name or leave type name",
-     *         @OA\Schema(type="string")
-     *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Leave applications retrieved successfully",
+     *         description="Applications retrieved successfully",
      *         @OA\JsonContent(
+     *             type="object",
      *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="data", type="array", @OA\Items(
-     *                 @OA\Property(property="leave_id", type="integer"),
-     *                 @OA\Property(property="employee_name", type="string"),
-     *                 @OA\Property(property="leave_type_name", type="string"),
-     *                 @OA\Property(property="from_date", type="string", format="date"),
-     *                 @OA\Property(property="to_date", type="string", format="date"),
-     *                 @OA\Property(property="duration_days", type="integer"),
-     *                 @OA\Property(property="reason", type="string"),
-     *                 @OA\Property(property="status_text", type="string")
-     *             )),
-     *             @OA\Property(property="pagination", type="object")
+     *             @OA\Property(property="message", type="string", example="تم جلب طلبات الإجازات بنجاح"),
+     *             @OA\Property(property="created by", type="string", example="أحمد علي"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="leave_id", type="integer", example=123),
+     *                     @OA\Property(property="employee_id", type="integer", example=37),
+     *                     @OA\Property(property="duty_employee_id", type="integer", nullable=true, example=118),
+     *                     @OA\Property(property="leave_type_id", type="integer", example=323),
+     *                     @OA\Property(property="from_date", type="string", format="date", example="2025-12-01"),
+     *                     @OA\Property(property="to_date", type="string", format="date", example="2025-12-07"),
+     *                     @OA\Property(property="leave_hours", type="number", format="float", nullable=true, example=64.0),
+     *                     @OA\Property(property="is_half_day", type="boolean", nullable=true, example=false),
+     *                     @OA\Property(property="status", type="string", enum={"pending","approved","rejected"}, example="pending"),
+     *                     @OA\Property(property="reason", type="string", example="إجازة سنوية"),
+     *                     @OA\Property(property="remarks", type="string", nullable=true, example="ملاحظات"),
+     *                     @OA\Property(property="company_id", type="integer", example=36),
+     *                     @OA\Property(property="created_at", type="string", format="date-time", example="2025-12-01 08:30:00"),
+     *                     @OA\Property(property="updated_at", type="string", format="date-time", example="2025-12-01 08:30:00"),
+     *                     @OA\Property(
+     *                         property="employee",
+     *                         type="object",
+     *                         @OA\Property(property="user_id", type="integer", example=37),
+     *                         @OA\Property(property="full_name", type="string", example="محمد أحمد"),
+     *                         @OA\Property(property="email", type="string", example="m.ahmed@example.com")
+     *                     ),
+     *                     @OA\Property(
+     *                         property="dutyEmployee",
+     *                         type="object",
+     *                         nullable=true,
+     *                         @OA\Property(property="user_id", type="integer", example=118),
+     *                         @OA\Property(property="full_name", type="string", example="خالد سالم"),
+     *                         @OA\Property(property="email", type="string", example="k.salem@example.com")
+     *                     ),
+     *                     @OA\Property(
+     *                         property="leaveType",
+     *                         type="object",
+     *                         @OA\Property(property="constants_id", type="integer", example=323),
+     *                         @OA\Property(property="category_name", type="string", example="سنوية"),
+     *                         @OA\Property(property="field_two", type="number", example=21, description="عدد الأيام")
+     *                     ),
+     *                     @OA\Property(
+     *                         property="approvals",
+     *                         type="array",
+     *                         @OA\Items(
+     *                             type="object",
+     *                             @OA\Property(property="status", type="string", example="approved"),
+     *                             @OA\Property(property="remarks", type="string", nullable=true, example="موافق"),
+     *                             @OA\Property(property="created_at", type="string", format="date-time", example="2025-12-02 09:00:00"),
+     *                             @OA\Property(
+     *                                 property="staff",
+     *                                 type="object",
+     *                                 @OA\Property(property="user_id", type="integer", example=55),
+     *                                 @OA\Property(property="full_name", type="string", example="مدير القسم"),
+     *                                 @OA\Property(property="email", type="string", example="manager@example.com")
+     *                             )
+     *                         )
+     *                     )
+     *                 )
+     *             ),
+     *             @OA\Property(property="total", type="integer", example=120),
+     *             @OA\Property(property="per_page", type="integer", example=15),
+     *             @OA\Property(property="current_page", type="integer", example=1),
+     *             @OA\Property(property="last_page", type="integer", example=8),
+     *             @OA\Property(property="from", type="integer", example=1),
+     *             @OA\Property(property="to", type="integer", example=15)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض طلبات الإجازات")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string")
      *         )
      *     )
      * )
@@ -136,13 +238,16 @@ class LeaveController extends Controller
      *         required=true,
      *         @OA\JsonContent(
      *             required={"leave_type_id","from_date","to_date","reason"},
+     *             @OA\Property(property="employee_id", type="integer", example=37, description="معرف الموظف المستهدف (اختياري). إذا لم يتم تحديده، سيكون الطلب للمستخدم الحالي. للطلب لموظف آخر، يجب أن يكون لديك مستوى هرمي أعلى في نفس القسم."),
      *             @OA\Property(property="leave_type_id", type="integer", example=323, description="معرف نوع الإجازة - استخدم 311-316 أو 194,195,199,320-323"),
      *             @OA\Property(property="from_date", type="string", format="date", example="2025-12-01", description="تاريخ بداية الإجازة"),
      *             @OA\Property(property="to_date", type="string", format="date", example="2025-12-07", description="تاريخ نهاية الإجازة"),
-     *             @OA\Property(property="reason", type="string", example="إجازة سنوية للراحة والاستجمام", description="سبب الإجازة (10 أحرف على الأقل)"),
+     *             @OA\Property(property="reason", type="string", example="إجازة سنوية للراحة والاستجمام", description="سبب الإجازة"),
      *             @OA\Property(property="duty_employee_id", type="integer", example=37, description="معرف الموظف البديل (اختياري) - يجب أن يكون من نفس الشركة: 36,37,118,702,703,725,726,744"),
      *             @OA\Property(property="is_half_day", type="boolean", example=false, description="هل الإجازة نصف يوم؟"),
-     *             @OA\Property(property="remarks", type="string", example="ملاحظات إضافية", description="ملاحظات (اختياري)")
+     *             @OA\Property(property="remarks", type="string", example="ملاحظات إضافية", description="ملاحظات (اختياري)"),
+     *             @OA\Property(property="is_deducted", type="integer", enum={"0","1"}, example=1, description="هل تخصم من الرصيد؟ 0=لا، 1=نعم"),
+     *             @OA\Property(property="place", type="integer", enum={"0","1"}, example=0, description="مكان الإجازة: 0=خارج الشركة، 1=داخل الشركة")
      *         )
      *     ),
      *     @OA\Response(
@@ -155,14 +260,30 @@ class LeaveController extends Controller
      *         )
      *     ),
      *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بإنشاء طلبات الإجازات")
+     *         )
+     *     ),
+     *     @OA\Response(
      *         response=422,
      *         description="Validation error",
      *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="The given data was invalid."),
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
      *             @OA\Property(property="errors", type="object",
      *                 @OA\Property(property="leave_type_id", type="array", @OA\Items(type="string", example="نوع الإجازة غير متاح لشركتك")),
      *                 @OA\Property(property="duty_employee_id", type="array", @OA\Items(type="string", example="الموظف البديل يجب أن يكون من نفس الشركة ونشط")),
-     *                 @OA\Property(property="reason", type="array", @OA\Items(type="string", example="سبب الإجازة يجب أن يكون 10 أحرف على الأقل"))
+     *                 @OA\Property(property="reason", type="array", @OA\Items(type="string", example="سبب الإجازة مطلوب"))
      *             )
      *         )
      *     ),
@@ -171,8 +292,7 @@ class LeaveController extends Controller
      *         description="Server error",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string"),
-     *             @OA\Property(property="error", type="string")
+     *             @OA\Property(property="message", type="string", example="فشل في إنشاء طلب الإجازة")
      *         )
      *     )
      * )
@@ -191,21 +311,27 @@ class LeaveController extends Controller
             // الحصول على معرف الشركة الفعلي من attributes
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
 
+            // استخدام employee_id من الطلب إذا تم تحديده، وإلا استخدام المستخدم الحالي
+            $targetEmployeeId = $request->validated()['employee_id'] ?? $user->user_id;
+            Log::info('LeaveController::createApplication', [
+                'success' => true,
+                'dto' => $request->validated(),
+                'employee_id' => $targetEmployeeId,
+                'requested_by' => $user->full_name
+            ]);
             $dto = CreateLeaveApplicationDTO::fromRequest(
                 $request->validated(),
                 $effectiveCompanyId,
-                $user->user_id
+                $targetEmployeeId,  // الموظف المستهدف (قد يكون مختلف عن creator)
+                $user->user_id      // createdBy - من يقوم بإنشاء الطلب
             );
             Log::info('LeaveController::createApplication', [
+                'success' => true,
                 'dto' => $dto,
-                'created by' => $user->full_name
+                'employee_id' => $targetEmployeeId,
+                'requested_by' => $user->full_name
             ]);
-
             $application = $this->leaveService->createApplication($dto);
-            Log::info('LeaveController::createApplication', [
-                'application' => $application,
-                'created by' => $user->full_name
-            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم إنشاء طلب الإجازة بنجاح',
@@ -224,79 +350,6 @@ class LeaveController extends Controller
         }
     }
 
-
-    // get employees for duty employee
-    /**
-     * @OA\Get(
-     *     path="/api/leaves/employees-for-duty-employee",
-     *     summary="Get employees for duty employee",
-     *     tags={"Leave Management"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="employee_id",
-     *         in="query",
-     *         description="Filter by employee ID (managers/HR only)",
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Parameter(
-     *         name="search",
-     *         in="query",
-     *         description="Search by employee name, email, or company name",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Employees for duty employee retrieved successfully"
-     *     ),
-     *     @OA\Response(
-     *         response=404,
-     *         description="Employees for duty employee not found"
-     *     )
-     * )
-     */
-    public function getEmployeesForDutyEmployee(Request $request)
-    {
-        try {
-            $user = Auth::user();
-
-            // الحصول على عوامل التصفية من الطلب
-            $employeeId = $request->query('employee_id');
-            $search = $request->query('search');
-            if ($user->user_type == 'company') {
-                // مدير الشركة: يرى جميع طلبات شركته
-                $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-                $companyId = $effectiveCompanyId;
-            } else {
-                $companyId = $user->company_id;
-            }
-
-            // الحصول على الموظفين مع تطبيق عوامل التصفية
-            $employees = $this->leaveService->getEmployeesForDutyEmployee(
-                $companyId,
-                $search,
-                $employeeId
-            );
-
-            return response()->json([
-                'success' => true,
-                'data' => $employees
-            ], 200);
-
-        } catch (\Exception $e) {
-            Log::error('LeaveController::getEmployeesForDutyEmployee failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'user_id' => $user->user_id ?? null
-            ]);
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'فشل في الحصول على موظفين: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-
     /**
      * @OA\Get(
      *     path="/api/leaves/applications/{id}",
@@ -307,15 +360,88 @@ class LeaveController extends Controller
      *         name="id",
      *         in="path",
      *         required=true,
+     *         description="Leave application ID",
      *         @OA\Schema(type="integer")
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Leave application retrieved successfully"
+     *         description="Leave application retrieved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب تفاصيل طلب الإجازة بنجاح"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="leave_id", type="integer", example=123),
+     *                 @OA\Property(property="employee_id", type="integer", example=37),
+     *                 @OA\Property(property="duty_employee_id", type="integer", nullable=true, example=118),
+     *                 @OA\Property(property="leave_type_id", type="integer", example=323),
+     *                 @OA\Property(property="from_date", type="string", format="date", example="2025-12-01"),
+     *                 @OA\Property(property="to_date", type="string", format="date", example="2025-12-07"),
+     *                 @OA\Property(property="leave_hours", type="number", format="float", nullable=true, example=64.0),
+     *                 @OA\Property(property="is_half_day", type="boolean", nullable=true, example=false),
+     *                 @OA\Property(property="status", type="string", enum={"pending","approved","rejected"}, example="pending"),
+     *                 @OA\Property(property="reason", type="string", example="إجازة سنوية"),
+     *                 @OA\Property(property="remarks", type="string", nullable=true, example="ملاحظات"),
+     *                 @OA\Property(property="company_id", type="integer", example=36),
+     *                 @OA\Property(property="created_at", type="string", format="date-time", example="2025-12-01 08:30:00"),
+     *                 @OA\Property(property="updated_at", type="string", format="date-time", example="2025-12-01 08:30:00"),
+     *                 @OA\Property(
+     *                     property="employee",
+     *                     type="object",
+     *                     @OA\Property(property="user_id", type="integer", example=37),
+     *                     @OA\Property(property="full_name", type="string", example="محمد أحمد"),
+     *                     @OA\Property(property="email", type="string", example="m.ahmed@example.com")
+     *                 ),
+     *                 @OA\Property(
+     *                     property="dutyEmployee",
+     *                     type="object",
+     *                     nullable=true,
+     *                     @OA\Property(property="user_id", type="integer", example=118),
+     *                     @OA\Property(property="full_name", type="string", example="خالد سالم"),
+     *                     @OA\Property(property="email", type="string", example="k.salem@example.com")
+     *                 ),
+     *                 @OA\Property(
+     *                     property="leaveType",
+     *                     type="object",
+     *                     @OA\Property(property="constants_id", type="integer", example=323),
+     *                     @OA\Property(property="category_name", type="string", example="سنوية"),
+     *                     @OA\Property(property="field_two", type="number", example=21, description="عدد الأيام")
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض تفاصيل طلبات الإجازات")
+     *         )
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="Leave application not found"
+     *         description="Leave application not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="طلب الإجازة غير موجود")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في جلب تفاصيل طلب الإجازة")
+     *         )
      *     )
      * )
      */
@@ -336,16 +462,25 @@ class LeaveController extends Controller
             // الحصول على معرف الشركة الفعلي من attributes
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
 
-            $application = $this->leaveService->getApplicationById($id, $effectiveCompanyId);
+            $application = $this->leaveService->getApplicationById(
+                $id, 
+                $effectiveCompanyId, 
+                $user->user_id, // إضافة user_id للموظفين
+                $user
+            );
 
             if (!$application) {
-                Log::info('LeaveController::showApplication', [
-                    'success' => false,
-                    'created by' => $user->full_name
+                Log::info('LeaveController::showApplication - Application not found or no permission', [
+                    'application_id' => $id,
+                    'user_id' => $user->user_id,
+                    'user_type' => $user->user_type,
+                    'user_name' => $user->full_name,
+                    'effective_company_id' => $effectiveCompanyId
                 ]);
+                
                 return response()->json([
                     'success' => false,
-                    'message' => 'طلب الإجازة غير موجود'
+                    'message' => 'طلب الإجازة غير موجود أو ليس لديك صلاحية لعرضه'
                 ], 404);
             }
 
@@ -361,12 +496,25 @@ class LeaveController extends Controller
         } catch (\Exception $e) {
             Log::error('LeaveController::showApplication failed', [
                 'error' => $e->getMessage(),
-                'created by' => $user->full_name
+                'application_id' => $id ?? null,
+                'user_id' => $user->user_id ?? null,
+                'user_type' => $user->user_type ?? null,
+                'user_name' => $user->full_name ?? null,
+                'trace' => $e->getTraceAsString()
             ]);
+            
+            // Handle specific model not found error
+            if (str_contains($e->getMessage(), 'No query results for model')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'طلب الإجازة غير موجود'
+                ], 404);
+            }
+            
             return response()->json([
                 'success' => false,
                 'message' => 'خطأ في جلب طلب الإجازة',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'حدث خطأ داخلي'
             ], 500);
         }
     }
@@ -381,19 +529,65 @@ class LeaveController extends Controller
      *         name="id",
      *         in="path",
      *         required=true,
+     *         description="Leave application ID",
      *         @OA\Schema(type="integer")
      *     ),
      *     @OA\RequestBody(
      *         @OA\JsonContent(
-     *             @OA\Property(property="from_date", type="string", format="date"),
-     *             @OA\Property(property="to_date", type="string", format="date"),
-     *             @OA\Property(property="reason", type="string"),
-     *             @OA\Property(property="remarks", type="string")
+     *             @OA\Property(property="from_date", type="string", format="date", example="2025-12-01"),
+     *             @OA\Property(property="to_date", type="string", format="date", example="2025-12-07"),
+     *             @OA\Property(property="reason", type="string", example="سبب معدل للإجازة"),
+     *             @OA\Property(property="remarks", type="string", example="ملاحظات معدلة")
      *         )
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Leave application updated successfully"
+     *         description="Leave application updated successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تحديث طلب الإجازة بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بتعديل طلبات الإجازات")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Leave application not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="طلب الإجازة غير موجود")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في تحديث طلب الإجازة")
+     *         )
      *     )
      * )
      */
@@ -480,6 +674,24 @@ class LeaveController extends Controller
      *     @OA\Response(
      *         response=401,
      *         description="Unauthorized - Invalid or missing token"
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission to cancel applications",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بإلغاء طلبات الإجازات")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal Server Error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في إلغاء طلب الإجازة")
+     *         )
      *     )
      * )
      */
@@ -548,7 +760,71 @@ class LeaveController extends Controller
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Leave application approved or rejected successfully"
+     *         description="Leave application approved or rejected successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم الموافقة على طلب الإجازة بنجاح"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 description="Updated leave application details"
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Bad Request - Invalid action or already processed application",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="تم الموافقة على هذا الطلب مسبقاً أو تم رفضه")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission to approve/reject",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="ليس لديك صلاحية للموافقة على طلب هذا الموظف")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Not Found - Leave application not found",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="طلب الإجازة غير موجود")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation Error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="The given data was invalid"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal Server Error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في مراجعة طلب الإجازة"),
+     *             @OA\Property(property="error", type="string", example="حدث خطأ داخلي")
+     *         )
      *     )
      * )
      */
@@ -556,8 +832,11 @@ class LeaveController extends Controller
     {
         $user = Auth::user();
         try {
-            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave7');
-            if (!$isUserHasThisPermission) {
+            // Check permissions - either leave7 (full approval) or leave2 (view + hierarchy approval)
+            $hasFullApprovalPermission = $this->simplePermissionService->checkPermission($user, 'leave7');
+            $hasViewPermission = $this->simplePermissionService->checkPermission($user, 'leave2');
+            
+            if (!$hasFullApprovalPermission && !$hasViewPermission) {
                 return response()->json([
                     'success' => false,
                     'message' => 'غير مصرح لك بمراجعة طلبات الإجازات'
@@ -620,11 +899,43 @@ class LeaveController extends Controller
                 'error' => $e->getMessage(),
                 'created by' => $user->full_name
             ]);
+            
+            // Handle specific permission/authorization errors
+            if (str_contains($e->getMessage(), 'صلاحية') || 
+                str_contains($e->getMessage(), 'ليس لديك') ||
+                str_contains($e->getMessage(), 'permission')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ], 403);
+            }
+            
+            // Handle specific not found errors
+            if (str_contains($e->getMessage(), 'غير موجود') ||
+                str_contains($e->getMessage(), 'لم يتم العثور')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ], 404);
+            }
+            
+            // Handle business logic errors (already processed, invalid status, etc.)
+            if (str_contains($e->getMessage(), 'تم الموافقة') ||
+                str_contains($e->getMessage(), 'تم رفض') ||
+                str_contains($e->getMessage(), 'مسبقاً') ||
+                str_contains($e->getMessage(), 'لا يمكن') ||
+                str_contains($e->getMessage(), 'فشل في الموافقة') ||
+                str_contains($e->getMessage(), 'فشل في رفض')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ], 400);
+            }
+            
             return response()->json([
                 'success' => false,
                 'message' => 'فشل في مراجعة طلب الإجازة',
-                'error' => $e->getMessage(),
-                'created by' => $user->full_name
+                'error' => config('app.debug') ? $e->getMessage() : 'حدث خطأ داخلي'
             ], 500);
         }
     }
@@ -762,7 +1073,38 @@ class LeaveController extends Controller
      *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="Leave statistics retrieved successfully"
+     *         description="Leave statistics retrieved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object"),
+     *             @OA\Property(property="created by", type="string", example="Mohamed Ahmed")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission to view statistics",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض الإحصائيات")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal Server Error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في عرض الإحصائيات")
+     *         )
      *     )
      * )
      */
@@ -852,7 +1194,28 @@ class LeaveController extends Controller
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="Employee not found"
+     *         description="Employee not found",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="الموظف غير موجود")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal Server Error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="حدث خطأ أثناء جلب الإحصائيات الشهرية")
+     *         )
      *     )
      * )
      */
@@ -917,6 +1280,59 @@ class LeaveController extends Controller
                 'success' => false,
                 'message' => 'حدث خطأ أثناء جلب الإحصائيات الشهرية',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/leaves/enums",
+     *     summary="Get leave enums as string and numeric values",
+     *     tags={"Leave Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="statuses", type="array", @OA\Items(type="string"))
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal Server Error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="حدث خطأ أثناء جلب حالات القوائم")
+     *         )
+     *     )
+     * )
+     */
+    public function getLeaveEnums()
+    {
+        try {
+            $enums = $this->leaveService->getLeaveEnums();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم جلب قوائم حالات الإجازات بنجاح',
+                'data' => $enums
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب حالات القوائم',
+                'error' => $e->getMessage()
             ], 500);
         }
     }

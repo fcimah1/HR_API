@@ -47,6 +47,7 @@ class UpdateHourlyLeaveRequest extends FormRequest
             'date.after_or_equal' => 'يجب أن يكون تاريخ الإستئذان بعد أو يساوي تاريخ اليوم',
             'clock_in_m.required_with' => 'وقت بداية الإستئذان مطلوب عند تحديد وقت النهاية',
             'clock_in_m.date_format' => 'تنسيق وقت غير صحيح. استخدم التنسيق: 01:00 PM',
+            'clock_in_m.after_or_equal' => 'وقت بداية الإستئذان يجب أن يكون بعد أو يساوي الوقت الحالي',
             'clock_out_m.required_with' => 'وقت نهاية الإستئذان مطلوب عند تحديد وقت البداية',
             'clock_out_m.date_format' => 'تنسيق وقت غير صحيح. استخدم التنسيق: 02:00 PM',
             'clock_out_m.after' => 'وقت النهاية يجب أن يكون بعد وقت البداية',

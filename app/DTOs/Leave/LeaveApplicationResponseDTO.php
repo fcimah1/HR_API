@@ -2,6 +2,8 @@
 
 namespace App\DTOs\Leave;
 
+use App\Enums\DeductedStatus;
+use App\Enums\LeavePlaceEnum;
 use App\Models\LeaveApplication;
 
 class LeaveApplicationResponseDTO
@@ -17,6 +19,10 @@ class LeaveApplicationResponseDTO
         public readonly string $toDate,
         public readonly int $durationDays,
         public readonly string $reason,
+        public readonly string $leaveMonth,
+        public readonly string $leaveYear,
+        public readonly string $isDeducted,
+        public readonly string $placeType,
         public readonly ?int $dutyEmployeeId,
         public readonly ?string $dutyEmployeeName,
         public readonly ?bool $isHalfDay,
@@ -69,6 +75,17 @@ class LeaveApplicationResponseDTO
                 $application->leaveType->category_name : 'غير محدد',
             fromDate: $application->from_date,
             toDate: $application->to_date,
+            leaveMonth: $application->leave_month,
+            leaveYear: $application->leave_year,
+            // تحويل قيم Enums إلى نصوص لتتوافق مع نوع البيانات المتوقعة (string)
+            // عرض حالة الخصم كقيمة نصية عربية بدلاً من الرقم
+            isDeducted: $application->is_deducted === 1
+                ? DeductedStatus::DEDUCTED->labelAr()
+                : DeductedStatus::NOT_DEDUCTED->labelAr(),
+            // عرض مكان الإجازة كقيمة نصية عربية بدلاً من الرقم
+            placeType: $application->place === 1
+                ? LeavePlaceEnum::INSIDE->labelAr()
+                : LeavePlaceEnum::OUTSIDE->labelAr(),
             durationDays: self::calculateDuration($application->from_date, $application->to_date),
             reason: $application->reason,
             dutyEmployeeId: $application->duty_employee_id,
@@ -127,12 +144,18 @@ class LeaveApplicationResponseDTO
             'from_date' => $this->fromDate,
             'to_date' => $this->toDate,
             'duration_days' => $this->durationDays,
+            'is_deducted' => $this->isDeducted,
+            'deducted_text' => $this->isDeducted === 1 ? DeductedStatus::DEDUCTED->labelAr() : DeductedStatus::NOT_DEDUCTED->labelAr(),
+            'place_type' => $this->placeType,
+            'place_text' => $this->placeType === 1 ? LeavePlaceEnum::INSIDE->labelAr() : LeavePlaceEnum::OUTSIDE->labelAr(),
             'reason' => $this->reason,
             'duty_employee_id' => $this->dutyEmployeeId,
             'duty_employee_name' => $this->dutyEmployeeName,
             'is_half_day' => $this->isHalfDay,
             'leave_hours' => $this->leaveHours,
             'remarks' => $this->remarks,
+            'is_deducted_text' => $this->isDeducted === DeductedStatus::DEDUCTED->value ? DeductedStatus::DEDUCTED->labelAr() : DeductedStatus::NOT_DEDUCTED->labelAr(),
+            'place_text' => $this->placeType === LeavePlaceEnum::INSIDE->value ? LeavePlaceEnum::INSIDE->labelAr() : LeavePlaceEnum::OUTSIDE->labelAr(),
             'status' => $this->status,
             'status_text' => $this->statusText,
             'created_at' => $this->createdAt,

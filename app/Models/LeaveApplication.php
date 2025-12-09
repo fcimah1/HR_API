@@ -35,9 +35,13 @@ class LeaveApplication extends Model
         'status',
         'is_half_day',
         'leave_attachment',
+        'is_deducted',
+        'place',
         'created_at',
     ];
-    protected $allowedFields = ['leave_id', 'company_id', 'employee_id', 'leave_type_id', 'from_date', 'to_date', 'particular_date', 'leave_hours', 'reason', 'leave_month', 'leave_year', 'remarks', 'status', 'is_half_day', 'leave_attachment', 'created_at', 'duty_employee_id'];
+    protected $allowedFields = ['leave_id', 'company_id', 'employee_id', 'leave_type_id', 'from_date',
+     'to_date', 'particular_date', 'leave_hours', 'reason', 'leave_month', 'leave_year', 'remarks',
+      'status', 'is_half_day', 'leave_attachment', 'created_at', 'duty_employee_id', 'is_deducted', 'place'];
 
     /**
      * The attributes that should be cast.
@@ -49,6 +53,8 @@ class LeaveApplication extends Model
         'employee_id' => 'integer',
         'duty_employee_id' => 'integer',
         'leave_type_id' => 'integer',
+        'is_deducted' => 'boolean',
+        'place' => 'boolean',
     ];
 
 
@@ -62,6 +68,17 @@ class LeaveApplication extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'employee_id', 'user_id');
+    }
+
+    // get all leave types for this company
+    public static function leave_types($companyId)
+    {
+        return ErpConstant::where('type', 'leave_type')
+            ->when($companyId, function($query) use ($companyId) {
+                $query->where('company_id', $companyId);
+            })
+            ->select(['constants_id', 'company_id', 'type', 'category_name'])
+            ->get();
     }
 
     /**

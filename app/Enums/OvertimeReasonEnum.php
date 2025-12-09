@@ -48,9 +48,8 @@ enum OvertimeReasonEnum: int
         return array_map(
             fn(self $case) => [
                 'value' => $case->value,
-                'name' => $case->name,
-                'label' => $case->label(),
-                'label_ar' => $case->labelAr(),
+                'case_name' => $case->name,
+                'case_name_ar' => $case->labelAr(),
             ],
             self::cases()
         );

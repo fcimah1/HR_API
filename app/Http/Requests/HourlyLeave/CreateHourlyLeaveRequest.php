@@ -1,7 +1,9 @@
 <?php
 
-namespace App\Http\Requests\Leave;
+namespace App\Http\Requests\HourlyLeave;
 
+use App\Enums\DeductedStatus;
+use App\Enums\LeavePlaceEnum;
 use App\Models\ErpConstant;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -26,6 +28,11 @@ class CreateHourlyLeaveRequest extends FormRequest
         $user = Auth::user();
         
         return [
+            'employee_id' => [
+                'nullable',
+                'integer',
+                new \App\Rules\CanRequestForEmployee(),
+            ],
             'leave_type_id' => [
                 'required',
                 'integer',
@@ -39,15 +46,18 @@ class CreateHourlyLeaveRequest extends FormRequest
                             $query->where('company_id', $companyId)
                                   ->orWhere('company_id', 0);
                         })
-                        ->where('field_three', '1')
-                        ->exists();
-                    
+                        ->first();
+
                     if (!$leaveType) {
                         $fail('نوع الإجازة غير متاح لشركتك');
                     }
                 }
             ],
-            'duty_employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
+            'duty_employee_id' => [
+                'nullable',
+                'integer',
+                new \App\Rules\ValidDutyEmployee(),
+            ],
             'date' => [
                 'required',
                 'date',
@@ -66,8 +76,13 @@ class CreateHourlyLeaveRequest extends FormRequest
             ],
             'clock_in_m' => 'required|date_format:h:i A',
             'clock_out_m' => 'required|date_format:h:i A|after:clock_in_m',
-            'reason' => 'required|string|min:10|max:1000',
+            ''=> '',
+            'reason' => 'required|string',
             'remarks' => 'nullable|string|max:1000',
+            'is_half_day' => 'nullable|boolean',
+            'remarks' => 'nullable|string|max:1000',
+            'is_deducted' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, DeductedStatus::cases())),
+            'place' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, LeavePlaceEnum::cases())),
         ];
     }
 
@@ -77,6 +92,7 @@ class CreateHourlyLeaveRequest extends FormRequest
     public function messages(): array
     {
         return [
+            
             'leave_type_id.required' => 'نوع الإجازة مطلوب',
             'duty_employee_id.exists' => 'الموظف البديل يجب أن يكون من نفس الشركة ونشط',
             'date.required' => 'تاريخ الإستئذان مطلوب',
@@ -88,8 +104,13 @@ class CreateHourlyLeaveRequest extends FormRequest
             'clock_out_m.date_format' => 'تنسيق وقت غير صحيح. استخدم التنسيق: 02:00 PM',
             'clock_out_m.after' => 'وقت النهاية يجب أن يكون بعد وقت البداية',
             'reason.required' => 'سبب الإستئذان مطلوب',
-            'reason.min' => 'يجب أن يكون سبب الإستئذان 10 أحرف على الأقل',
             'reason.max' => 'لا يمكن أن يتجاوز سبب الإستئذان 1000 حرف',
+            'remarks.max' => 'لا يمكن أن يتجاوز الملاحظات 1000 حرف',
+            'is_half_day.boolean' => 'يجب أن يكون إجابة Half Day boolean',
+            'is_deducted.boolean' => 'يجب أن يكون إجابة Deducted boolean',
+            'place.boolean' => 'يجب أن يكون إجابة Place boolean',
+            'is_deducted.in' => 'يجب أن يكون إجابة Deducted من القيم: ' . implode(',', array_map(fn($c) => $c->value, DeductedStatus::cases())),
+            'place.in' => 'يجب أن يكون إجابة Place من القيم: ' . implode(',', array_map(fn($c) => $c->value, LeavePlaceEnum::cases())),
         ];
     }
 
@@ -100,10 +121,10 @@ class CreateHourlyLeaveRequest extends FormRequest
     {
         $response = response()->json([
             'success' => false,
-            'message' => 'فشل التحقق من صحة البيانات',
+            'message' => 'فشل التحقق من البيانات',
             'errors' => $validator->errors()
         ], 422);
-
+        
         throw new HttpResponseException($response);
     }
 }

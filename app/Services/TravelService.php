@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Log;
 use App\Services\SimplePermissionService;
 use App\Jobs\SendEmailNotificationJob;
 use App\Enums\StringStatusEnum;
+use App\Enums\TravelModeEnum;
 
 class TravelService
 {
@@ -26,6 +27,14 @@ class TravelService
         protected NotificationService $notificationService,
         protected ApprovalWorkflowService $approvalWorkflow,
     ) {}
+
+    public function getTravelEnums(): array
+    {
+        return [
+            'statuses' => StringStatusEnum::toArray(),
+            'travel_modes' => TravelModeEnum::toArray(),
+        ];
+    }
 
     public function createTravel(CreateTravelDTO $dto): object
     {

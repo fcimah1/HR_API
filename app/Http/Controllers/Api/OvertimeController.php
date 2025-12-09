@@ -85,26 +85,101 @@ class OvertimeController extends Controller
      *         response=200,
      *         description="Overtime requests retrieved successfully",
      *         @OA\JsonContent(
+     *             type="object",
      *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="data", type="array", @OA\Items(
-     *                 @OA\Property(property="time_request_id", type="integer"),
-     *                 @OA\Property(property="employee_name", type="string"),
-     *                 @OA\Property(property="request_date", type="string", format="date"),
-     *                 @OA\Property(property="clock_in", type="string"),
-     *                 @OA\Property(property="clock_out", type="string"),
-     *                 @OA\Property(property="overtime_reason", type="string", example="STANDBY_PAY"),
-     *                 @OA\Property(property="overtime_reason_label", type="string", example="Standby Pay"),
-     *                 @OA\Property(property="status", type="string")
-     *             )),
-     *             @OA\Property(property="pagination", type="object",
-     *                 @OA\Property(property="total", type="integer"),
-     *                 @OA\Property(property="per_page", type="integer"),
-     *                 @OA\Property(property="current_page", type="integer"),
-     *                 @OA\Property(property="last_page", type="integer")
+     *             @OA\Property(property="message", type="string", example="تم جلب طلبات العمل الإضافي بنجاح"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="time_request_id", type="integer", example=1205),
+     *                     @OA\Property(property="company_id", type="integer", example=36),
+     *                     @OA\Property(property="staff_id", type="integer", example=37),
+     *                     @OA\Property(property="request_date", type="string", format="date", example="2025-11-25"),
+     *                     @OA\Property(property="request_month", type="string", example="2025-11"),
+     *                     @OA\Property(property="clock_in", type="string", example="2025-11-25 14:30:00"),
+     *                     @OA\Property(property="clock_out", type="string", example="2025-11-25 19:00:00"),
+     *                     @OA\Property(property="overtime_reason", type="integer", example=1),
+     *                     @OA\Property(property="additional_work_hours", type="integer", example=0),
+     *                     @OA\Property(property="compensation_type", type="integer", example=1),
+     *                     @OA\Property(property="request_reason", type="string", nullable=true, example="عمل إضافي لإنهاء المشروع"),
+     *                     @OA\Property(property="straight", type="number", format="float", example=1.5),
+     *                     @OA\Property(property="time_a_half", type="number", format="float", example=2.0),
+     *                     @OA\Property(property="double_overtime", type="number", format="float", example=1.0),
+     *                     @OA\Property(property="total_hours", type="string", example="04:30"),
+     *                     @OA\Property(property="compensation_banked", type="number", format="float", example=2.25),
+     *                     @OA\Property(property="is_approved", type="integer", example=0, description="0=pending,1=approved,2=rejected"),
+     *                     @OA\Property(property="created_at", type="string", format="date-time", example="2025-11-25 20:10:00"),
+     *                     @OA\Property(
+     *                         property="employee",
+     *                         type="object",
+     *                         @OA\Property(property="user_id", type="integer", example=37),
+     *                         @OA\Property(property="full_name", type="string", example="محمد أحمد"),
+     *                         @OA\Property(property="email", type="string", example="m.ahmed@example.com")
+     *                     ),
+     *                     @OA\Property(
+     *                         property="approvals",
+     *                         type="array",
+     *                         @OA\Items(
+     *                             type="object",
+     *                             @OA\Property(property="status", type="integer", example=1),
+     *                             @OA\Property(property="approval_level", type="integer", example=1),
+     *                             @OA\Property(property="updated_at", type="string", format="date-time", example="2025-11-25 21:00:00"),
+     *                             @OA\Property(
+     *                                 property="staff",
+     *                                 type="object",
+     *                                 @OA\Property(property="user_id", type="integer", example=55),
+     *                                 @OA\Property(property="full_name", type="string", example="مدير القسم")
+     *                             )
+     *                         )
+     *                     )
+     *                 )
+     *             ),
+     *             @OA\Property(
+     *                 property="pagination",
+     *                 type="object",
+     *                 @OA\Property(property="total", type="integer", example=42),
+     *                 @OA\Property(property="per_page", type="integer", example=15),
+     *                 @OA\Property(property="current_page", type="integer", example=1),
+     *                 @OA\Property(property="last_page", type="integer", example=3),
+     *                 @OA\Property(property="from", type="integer", example=1),
+     *                 @OA\Property(property="to", type="integer", example=15)
      *             )
      *         )
      *     ),
-     *     @OA\Response(response=403, description="Unauthorized")
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Unauthorized",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض طلبات العمل الإضافي")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")
+     *         )
+     *     )
      * )
      */
     public function index(Request $request)
@@ -268,8 +343,38 @@ class OvertimeController extends Controller
      *             @OA\Property(property="data", type="object")
      *         )
      *     ),
-     *     @OA\Response(response=403, description="Unauthorized"),
-     *     @OA\Response(response=422, description="Validation error")
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Unauthorized",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بإنشاء طلبات عمل إضافي")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في إنشاء طلب العمل الإضافي")
+     *         )
+     *     )
      * )
      */
     public function store(CreateOvertimeRequestRequest $request)
@@ -830,6 +935,49 @@ class OvertimeController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'فشل في جلب الإحصائيات',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/overtime/enums",
+     *     summary="Get overtime enums",
+     *     description="Returns enums for overtime requests including travel modes and reasons",
+     *     tags={"Overtime Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Enums retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="travel_modes", type="array",
+     *                     @OA\Items(type="string")
+     *                 ),
+     *                 @OA\Property(property="reasons", type="array",
+     *                     @OA\Items(type="string")
+     *                 )
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function getEnums()
+    {
+        try {
+            $enums = $this->overtimeService->getOvertimeEnums();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم جلب قوائم حالات العمل الإضافي بنجاح',
+                'data' => $enums
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب حالات القوائم',
                 'error' => $e->getMessage()
             ], 500);
         }

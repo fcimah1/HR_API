@@ -6,7 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+// No logging on validation failures for adjustments to avoid noisy logs
 
 
 /**
@@ -85,11 +85,6 @@ class CreateLeaveAdjustmentRequest extends FormRequest
     
     protected function failedValidation(Validator $validator)
     {
-        Log::warning('فشل التحقق من صحة طلب إنشاء تسوية إجازة', [
-            'errors' => $validator->errors()->toArray(),
-            'input' => $this->all()
-        ]);
-
         throw new HttpResponseException(response()->json([
             'success' => false,
             'message' => 'فشل التحقق من صحة طلب إنشاء تسوية إجازة',

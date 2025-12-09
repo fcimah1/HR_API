@@ -44,31 +44,52 @@ class TravelRepository implements TravelRepositoryInterface
     public function getByCompany(int $companyId, TravelRequestFilterDTO $filters): array
     {
         $query = Travel::where('company_id', $companyId);
+        
         if ($filters->status) {
             $query->where('status', $filters->status);
         }
-        if ($filters->fromDate) {
-            $query->where('start_date', '>=', $filters->fromDate);
+        
+        // Handle date range filter
+        if ($filters->fromDate || $filters->toDate) {
+            if ($filters->fromDate && $filters->toDate) {
+                // Find travels that overlap with the given date range
+                $query->where(function($q) use ($filters) {
+                    $q->whereBetween('start_date', [$filters->fromDate, $filters->toDate])
+                      ->orWhereBetween('end_date', [$filters->fromDate, $filters->toDate])
+                      ->orWhere(function($q) use ($filters) {
+                          $q->where('start_date', '<=', $filters->fromDate)
+                            ->where('end_date', '>=', $filters->toDate);
+                      });
+                });
+            } elseif ($filters->fromDate) {
+                $query->where('end_date', '>=', $filters->fromDate);
+            } elseif ($filters->toDate) {
+                $query->where('start_date', '<=', $filters->toDate);
+            }
         }
-        if ($filters->toDate) {
-            $query->where('end_date', '<=', $filters->toDate);
-        }
+        
         if ($filters->travelReason) {
             $query->where('travel_reason', $filters->travelReason);
         }
+        
         if ($filters->travelType) {
             $query->where('travel_type', $filters->travelType);
         }
+        
         if ($filters->travelWay) {
             $query->where('travel_way', $filters->travelWay);
         }
+        
         if ($filters->search) {
-            $query->where('visit_place', 'like', "%{$filters->search}%")
-                ->orWhere('visit_purpose', 'like', "%{$filters->search}%")
-                ->orWhereHas('employee', function ($employeeQuery) use ($filters) {
-                    $employeeQuery->where('first_name', 'like', "%{$filters->search}%")
-                        ->orWhere('last_name', 'like', "%{$filters->search}%");
-                });
+            $searchTerm = "%{$filters->search}%";
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('visit_place', 'like', $searchTerm)
+                  ->orWhere('visit_purpose', 'like', $searchTerm)
+                  ->orWhereHas('employee', function ($employeeQuery) use ($searchTerm) {
+                      $employeeQuery->where('first_name', 'like', $searchTerm)
+                                  ->orWhere('last_name', 'like', $searchTerm);
+                  });
+            });
         }
         $query->orderBy("{$filters->orderBy}", $filters->order);
 
@@ -89,31 +110,52 @@ class TravelRepository implements TravelRepositoryInterface
     public function getByEmployee(int $employeeId, TravelRequestFilterDTO $filters): array
     {
         $query = Travel::where('employee_id', $employeeId);
+        
         if ($filters->status) {
             $query->where('status', $filters->status);
         }
-        if ($filters->fromDate) {
-            $query->where('start_date', '>=', $filters->fromDate);
+        
+        // Handle date range filter
+        if ($filters->fromDate || $filters->toDate) {
+            if ($filters->fromDate && $filters->toDate) {
+                // Find travels that overlap with the given date range
+                $query->where(function($q) use ($filters) {
+                    $q->whereBetween('start_date', [$filters->fromDate, $filters->toDate])
+                      ->orWhereBetween('end_date', [$filters->fromDate, $filters->toDate])
+                      ->orWhere(function($q) use ($filters) {
+                          $q->where('start_date', '<=', $filters->fromDate)
+                            ->where('end_date', '>=', $filters->toDate);
+                      });
+                });
+            } elseif ($filters->fromDate) {
+                $query->where('end_date', '>=', $filters->fromDate);
+            } elseif ($filters->toDate) {
+                $query->where('start_date', '<=', $filters->toDate);
+            }
         }
-        if ($filters->toDate) {
-            $query->where('end_date', '<=', $filters->toDate);
-        }
+        
         if ($filters->travelReason) {
             $query->where('travel_reason', $filters->travelReason);
         }
+        
         if ($filters->travelType) {
             $query->where('travel_type', $filters->travelType);
         }
+        
         if ($filters->travelWay) {
             $query->where('travel_way', $filters->travelWay);
         }
+        
         if ($filters->search) {
-            $query->where('visit_place', 'like', "%{$filters->search}%")
-                ->orWhere('visit_purpose', 'like', "%{$filters->search}%")
-                ->orWhereHas('employee', function ($employeeQuery) use ($filters) {
-                    $employeeQuery->where('first_name', 'like', "%{$filters->search}%")
-                        ->orWhere('last_name', 'like', "%{$filters->search}%");
-                });
+            $searchTerm = "%{$filters->search}%";
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('visit_place', 'like', $searchTerm)
+                  ->orWhere('visit_purpose', 'like', $searchTerm)
+                  ->orWhereHas('employee', function ($employeeQuery) use ($searchTerm) {
+                      $employeeQuery->where('first_name', 'like', $searchTerm)
+                                  ->orWhere('last_name', 'like', $searchTerm);
+                  });
+            });
         }
         $query->orderBy("{$filters->orderBy}", $filters->order);
         $query->with(['employee', 'arrangementType:constants_id,category_name']);
@@ -151,36 +193,78 @@ class TravelRepository implements TravelRepositoryInterface
 
         return $travel;
     }
+public function hasOverlappingTravel(int $employeeId, string $startDate, string $endDate, ?int $excludeTravelId = null): bool
+{
+    // تحويل التواريخ المدخلة إلى كائنات Carbon
+    $startDateObj = \Carbon\Carbon::parse($startDate)->startOfDay();
+    $endDateObj = \Carbon\Carbon::parse($endDate)->endOfDay();
+    
+    // جلب جميع طلبات السفر للموظف (للتصحيح)
+    $allTravels = Travel::where('employee_id', $employeeId)
+        ->select(['travel_id', 'start_date', 'end_date', 'status'])
+        ->get();
+    
+    Log::info('All travels for employee', [
+        'employee_id' => $employeeId,
+        'total_travels' => $allTravels->count(),
+        'travels' => $allTravels->toArray()
+    ]);
+    
+    // جلب طلبات السفر المعلقة والمقبولة فقط
+    $existingTravels = Travel::where('employee_id', $employeeId)
+        ->whereIn('status', [0, 1, 2]) // 0: Pending (old format), 1: Pending (new format), 2: Approved
+        ->when($excludeTravelId, function($q) use ($excludeTravelId) {
+            $q->where('travel_id', '!=', $excludeTravelId);
+        })
+        ->select(['travel_id', 'start_date', 'end_date', 'status'])
+        ->get();
+    
+    Log::info('Filtered travels for overlap check', [
+        'employee_id' => $employeeId,
+        'filtered_count' => $existingTravels->count(),
+        'status_filter' => [0, 1, 2], // 0: Pending (old), 1: Pending (new), 2: Approved
+        'travels' => $existingTravels->toArray()
+    ]);
 
-    public function hasOverlappingTravel(int $employeeId, string $startDate, string $endDate, ?int $excludeTravelId = null): bool
-    {
-        $query = Travel::where('employee_id', $employeeId)
-            ->whereIn('status', [Travel::STATUS_PENDING, Travel::STATUS_APPROVED]) // Only check pending and approved
-            ->where(function ($q) use ($startDate, $endDate) {
-                // Two date ranges overlap if: (start1 <= end2) AND (end1 >= start2)
-                // Use DATE() to compare only date part, ignoring time
-                $q->whereRaw('DATE(start_date) <= ?', [$endDate])
-                    ->whereRaw('DATE(end_date) >= ?', [$startDate]);
-            });
-
-        // Exclude current travel when updating
-        if ($excludeTravelId) {
-            $query->where('travel_id', '!=', $excludeTravelId);
+    // تحقق من التداخل يدوياً
+    foreach ($existingTravels as $travel) {
+        try {
+            $travelStart = \Carbon\Carbon::parse($travel->start_date)->startOfDay();
+            $travelEnd = \Carbon\Carbon::parse($travel->end_date)->endOfDay();
+            
+            // التحقق من التداخل بين الفترتين
+            if ($startDateObj->lte($travelEnd) && $endDateObj->gte($travelStart)) {
+                Log::info('Travel overlap detected', [
+                    'employee_id' => $employeeId,
+                    'new_start' => $startDateObj->toDateString(),
+                    'new_end' => $endDateObj->toDateString(),
+                    'existing_id' => $travel->travel_id,
+                    'existing_start' => $travelStart->toDateString(),
+                    'existing_end' => $travelEnd->toDateString(),
+                    'existing_status' => $travel->status
+                ]);
+                return true;
+            }
+        } catch (\Exception $e) {
+            Log::error('Error checking travel overlap', [
+                'travel_id' => $travel->travel_id ?? null,
+                'error' => $e->getMessage(),
+                'start_date' => $travel->start_date ?? null,
+                'end_date' => $travel->end_date ?? null
+            ]);
         }
-
-        $count = $query->count();
-        Log::info('TravelRepository::hasOverlappingTravel', [
-            'employee_id' => $employeeId,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
-            'exclude_id' => $excludeTravelId,
-            'overlapping_count' => $count,
-            'sql' => $query->toSql(),
-            'bindings' => $query->getBindings()
-        ]);
-
-        return $count > 0;
     }
+    
+    // تسجيل حالة عدم وجود تداخل
+    Log::info('No travel overlap found', [
+        'employee_id' => $employeeId,
+        'start_date' => $startDateObj->toDateString(),
+        'end_date' => $endDateObj->toDateString(),
+        'existing_travels_count' => $existingTravels->count()
+    ]);
+    
+    return false;
+}
 
     public function search(int $companyId, string $query, int $perPage = 15): LengthAwarePaginator
     {

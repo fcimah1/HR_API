@@ -137,4 +137,87 @@ class SimplePermissionService
         $effectiveCompanyId = $this->getEffectiveCompanyId($user);
         return $query->where($companyColumn, $effectiveCompanyId);
     }
+
+    /**
+     * الحصول على المستوى الهرمي للمستخدم
+     */
+    public function getUserHierarchyLevel(User $user): ?int
+    {
+        return $user->getHierarchyLevel();
+    }
+
+    /**
+     * الحصول على معرف القسم للمستخدم
+     */
+    public function getUserDepartmentId(User $user): ?int
+    {
+        return $user->user_details?->department_id;
+    }
+
+    /**
+     * التحقق إذا كان المستخدم يمكنه رؤية طلبات موظف آخر
+     * بناءً على المستوى الهرمي والقسم
+     */
+    public function canViewEmployeeRequests(User $manager, User $employee): bool
+    {
+        // يجب أن يكون من نفس الشركة
+        if ($manager->company_id !== $employee->company_id) {
+            return false;
+        }
+
+        // مدير الشركة يرى الجميع
+        if ($this->isCompanyOwner($manager)) {
+            return true;
+        }
+
+        // التحقق من المستوى الهرمي
+        $managerLevel = $this->getUserHierarchyLevel($manager);
+        $employeeLevel = $this->getUserHierarchyLevel($employee);
+
+        if ($managerLevel === null || $employeeLevel === null) {
+            return false;
+        }
+
+        // يجب أن يكون المدير في مستوى أعلى (رقم أقل)
+        if ($managerLevel >= $employeeLevel) {
+            return false;
+        }
+
+        // التحقق من نفس القسم
+        $managerDepartment = $this->getUserDepartmentId($manager);
+        $employeeDepartment = $this->getUserDepartmentId($employee);
+
+        if ($managerDepartment === null || $employeeDepartment === null) {
+            return false;
+        }
+
+        return $managerDepartment === $employeeDepartment;
+    }
+
+    /**
+     * فلترة الموظفين حسب المستوى الهرمي والقسم
+     */
+    public function filterSubordinates($query, User $manager)
+    {
+        if ($this->isCompanyOwner($manager)) {
+            // مدير الشركة يرى جميع موظفي الشركة
+            return $query->where('company_id', $manager->user_id);
+        }
+
+        $managerLevel = $this->getUserHierarchyLevel($manager);
+        $managerDepartment = $this->getUserDepartmentId($manager);
+
+        if ($managerLevel === null || $managerDepartment === null) {
+            return $query->whereRaw('1 = 0'); // لا يعرض أي شيء
+        }
+
+        return $query
+            ->where('company_id', $manager->company_id)
+            ->whereHas('user_details', function($q) use ($managerDepartment) {
+                $q->where('department_id', $managerDepartment);
+            })
+            ->whereHas('user_details.designation', function($q) use ($managerLevel) {
+                $q->where('hierarchy_level', '>', $managerLevel);
+            });
+    }
 }

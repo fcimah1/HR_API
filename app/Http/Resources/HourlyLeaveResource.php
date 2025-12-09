@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\DeductedStatus;
+use App\Enums\LeavePlaceEnum;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -27,9 +29,8 @@ class HourlyLeaveResource extends JsonResource
                 $this->relationLoaded('leaveType'),
                 fn() => $this->leaveType ? $this->leaveType->category_name : 'غير محدد'
             ),
-            'date' => $this->from_date, // نفس التاريخ للبداية والنهاية
-            'from_date' => $this->from_date,
-            'to_date' => $this->to_date,
+            'clock_in_m' => $this->from_date,
+            'clock_out_m' => $this->to_date,
             'particular_date' => $this->particular_date,
             'leave_hours' => $this->leave_hours,
             'leave_month' => $this->leave_month,
@@ -41,6 +42,11 @@ class HourlyLeaveResource extends JsonResource
                 fn() => $this->dutyEmployee->first_name . ' ' . $this->dutyEmployee->last_name
             ),
             'remarks' => $this->remarks,
+            'is_half_day' => $this->is_half_day,
+            'is_deducted' => $this->is_deducted,
+            'is_deducted_text' => $this->is_deducted ? DeductedStatus::DEDUCTED->labelAr() : DeductedStatus::NOT_DEDUCTED->labelAr(),
+            'place' => $this->place,
+            'place_text' => $this->place ? LeavePlaceEnum::INSIDE->labelAr() : LeavePlaceEnum::OUTSIDE->labelAr(),
             'status' => $this->status,
             'status_text' => $this->getStatusText($this->status),
             'created_at' => $this->created_at,

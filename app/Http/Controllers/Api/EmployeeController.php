@@ -10,15 +10,128 @@ use App\Http\Requests\Employee\CreateEmployeeRequest;
 use App\Http\Requests\Employee\UpdateEmployeeRequest;
 use App\Models\User;
 use App\Services\EmployeeService;
+use App\Services\SimplePermissionService;
 use Carbon\Exceptions\Exception;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class EmployeeController extends Controller
 {
     public function __construct(
-        private readonly EmployeeService $employeeService
+        private readonly EmployeeService $employeeService,
+        private readonly SimplePermissionService $permissionService
     ) {}
+
+    
+    // get employees for duty employee
+    /**
+     * @OA\Get(
+     *     path="/api/employees/employees-for-duty-employee",
+     *     summary="Get employees for duty employee",
+     *     tags={"Employee Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="employee_id",
+     *         in="query",
+     *         description="Filter by employee ID (managers/HR only)",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search by employee name, email, or company name",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Employees for duty employee retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object"))
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission to view employees",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض الموظفين")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal Server Error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في الحصول على الموظفين")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Employees for duty employee not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="لم يتم العثور على موظفين")
+     *         )
+     *     )
+     * )
+     */
+    public function getEmployeesForDutyEmployee(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            // الحصول على عوامل التصفية من الطلب
+            $employeeId = $request->query('employee_id');
+            $search = $request->query('search');
+            if ($user->user_type == 'company') {
+                // مدير الشركة: يرى جميع طلبات شركته
+                $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+                $companyId = $effectiveCompanyId;
+                $departmentId = null;
+            } else {
+                $companyId = $user->company_id;
+                $departmentId = $user->user_details->department_id;
+            }
+
+            // الحصول على الموظفين مع تطبيق عوامل التصفية
+            $employees = $this->employeeService->getEmployeesForDutyEmployee(
+                $companyId,
+                $search,
+                $employeeId,
+                $departmentId
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $employees
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getEmployeesForDutyEmployee failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->user_id ?? null
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل في الحصول على موظفين: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+
+
     /**
      * @OA\Get(
      *     path="/api/employees",
@@ -50,9 +163,61 @@ class EmployeeController extends Controller
      *         response=200,
      *         description="Employees retrieved successfully",
      *         @OA\JsonContent(
+     *             type="object",
      *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="data", type="array", @OA\Items(type="object")),
-     *             @OA\Property(property="pagination", type="object")
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="user_id", type="integer", example=37),
+     *                     @OA\Property(property="first_name", type="string", example="محمد"),
+     *                     @OA\Property(property="last_name", type="string", example="أحمد"),
+     *                     @OA\Property(property="full_name", type="string", example="محمد أحمد"),
+     *                     @OA\Property(property="email", type="string", example="m.ahmed@example.com"),
+     *                     @OA\Property(property="username", type="string", example="m.ahmed"),
+     *                     @OA\Property(property="user_type", type="string", example="employee"),
+     *                     @OA\Property(property="user_role_id", type="integer", nullable=true, example=4),
+     *                     @OA\Property(property="contact_number", type="string", nullable=true, example="0555555555"),
+     *                     @OA\Property(property="gender", type="string", nullable=true, example="male"),
+     *                     @OA\Property(property="profile_photo", type="string", nullable=true, example="/uploads/profile.jpg"),
+     *                     @OA\Property(property="is_active", type="boolean", example=true),
+     *                     @OA\Property(property="is_logged_in", type="boolean", example=false),
+     *                     @OA\Property(property="last_login_date", type="string", nullable=true, example="2025-11-30 10:22:00"),
+     *                     @OA\Property(property="created_at", type="string", example="2025-05-01 08:00:00"),
+     *                     @OA\Property(
+     *                         property="address",
+     *                         type="object",
+     *                         @OA\Property(property="address_1", type="string", nullable=true),
+     *                         @OA\Property(property="address_2", type="string", nullable=true),
+     *                         @OA\Property(property="city", type="string", nullable=true),
+     *                         @OA\Property(property="state", type="string", nullable=true),
+     *                         @OA\Property(property="zipcode", type="string", nullable=true),
+     *                         @OA\Property(property="country", type="string", nullable=true)
+     *                     ),
+     *                     @OA\Property(
+     *                         property="details",
+     *                         type="object",
+     *                         nullable=true,
+     *                         @OA\Property(property="employee_id", type="string", nullable=true, example="EMP-1001"),
+     *                         @OA\Property(property="department_id", type="integer", nullable=true, example=12),
+     *                         @OA\Property(property="designation_id", type="integer", nullable=true, example=5),
+     *                         @OA\Property(property="basic_salary", type="number", nullable=true, example=5000),
+     *                         @OA\Property(property="date_of_joining", type="string", nullable=true, example="2023-01-15")
+     *                     )
+     *                 )
+     *             ),
+     *             @OA\Property(
+     *                 property="pagination",
+     *                 type="object",
+     *                 @OA\Property(property="current_page", type="integer", example=1),
+     *                 @OA\Property(property="last_page", type="integer", example=10),
+     *                 @OA\Property(property="per_page", type="integer", example=15),
+     *                 @OA\Property(property="total", type="integer", example=150),
+     *                 @OA\Property(property="from", type="integer", example=1),
+     *                 @OA\Property(property="to", type="integer", example=15),
+     *                 @OA\Property(property="has_more_pages", type="boolean", example=true)
+     *             )
      *         )
      *     ),
      *     @OA\Response(
@@ -292,8 +457,20 @@ class EmployeeController extends Controller
      *         response=200,
      *         description="Active employees",
      *         @OA\JsonContent(
+     *             type="object",
      *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="data", type="array", @OA\Items(type="object"))
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object")),
+     *             @OA\Property(
+     *                 property="pagination",
+     *                 type="object",
+     *                 @OA\Property(property="current_page", type="integer", example=1),
+     *                 @OA\Property(property="last_page", type="integer", example=5),
+     *                 @OA\Property(property="per_page", type="integer", example=50),
+     *                 @OA\Property(property="total", type="integer", example=230),
+     *                 @OA\Property(property="from", type="integer", example=1),
+     *                 @OA\Property(property="to", type="integer", example=50),
+     *                 @OA\Property(property="has_more_pages", type="boolean", example=true)
+     *             )
      *         )
      *     )
      * )
@@ -333,8 +510,20 @@ class EmployeeController extends Controller
      *         response=200,
      *         description="Inactive employees",
      *         @OA\JsonContent(
+     *             type="object",
      *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="data", type="array", @OA\Items(type="object"))
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object")),
+     *             @OA\Property(
+     *                 property="pagination",
+     *                 type="object",
+     *                 @OA\Property(property="current_page", type="integer", example=1),
+     *                 @OA\Property(property="last_page", type="integer", example=5),
+     *                 @OA\Property(property="per_page", type="integer", example=50),
+     *                 @OA\Property(property="total", type="integer", example=40),
+     *                 @OA\Property(property="from", type="integer", example=1),
+     *                 @OA\Property(property="to", type="integer", example=40),
+     *                 @OA\Property(property="has_more_pages", type="boolean", example=false)
+     *             )
      *         )
      *     )
      * )

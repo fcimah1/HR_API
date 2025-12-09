@@ -19,9 +19,8 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
     {
         $companyId = $filters->companyId;
         
-        // فلتر طلبات الإستئذان بالساعات (where from_date = to_date and leave_hours > 0 and < 8)
+        // فلتر طلبات الإجازة (leave_hours > 0 & leave_hours < 8)
         $query = LeaveApplication::where('company_id', $companyId)
-            ->whereColumn('from_date', 'to_date') // نفس التاريخ
             ->where('leave_hours', '>', 0) // ساعات أكبر من صفر
             ->where('leave_hours', '<', 8) // ساعات أقل من 8
             ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
@@ -113,7 +112,6 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
     public function findHourlyLeaveById(int $id, int $companyId): ?LeaveApplication
     {
         return LeaveApplication::where('company_id', $companyId)
-            ->whereColumn('from_date', 'to_date') // نفس التاريخ
             ->where('leave_hours', '>', 0) // ساعات أكبر من صفر
             ->where('leave_hours', '<', 8) // ساعات أقل من 8
             ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff'])
@@ -126,8 +124,8 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
     public function findHourlyLeaveForEmployee(int $id, int $employeeId): ?LeaveApplication
     {
         return LeaveApplication::where('employee_id', $employeeId)
-            ->whereColumn('from_date', 'to_date')
-            ->where('leave_hours', '>', 0)
+            ->where('leave_hours', '>', 0) 
+            ->where('leave_hours', '<',8)
             ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff'])
             ->find($id);
     }
@@ -198,8 +196,7 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
     {
         return LeaveApplication::where('company_id', $companyId)
             ->where('employee_id', $employeeId)
-            ->whereColumn('from_date', 'to_date') // نفس التاريخ
-            ->where('from_date', $date) // نفس التاريخ المطلوب
+            ->where('particular_date', $date) // نفس التاريخ المطلوب
             ->where('leave_hours', '>', 0) // ساعات أكبر من صفر
             ->where('leave_hours', '<', 8) // ساعات أقل من 8
             ->whereIn('status', [1, 2, 3]) // pending أو approved أو rejected 

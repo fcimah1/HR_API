@@ -74,7 +74,84 @@ class AttendanceController extends Controller
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Attendance records retrieved successfully"
+     *         description="Attendance records retrieved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب سجلات الحضور بنجاح"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="time_attendance_id", type="integer", example=1012),
+     *                     @OA\Property(property="company_id", type="integer", example=36),
+     *                     @OA\Property(property="employee_id", type="integer", example=37),
+     *                     @OA\Property(property="attendance_date", type="string", format="date", example="2025-12-01"),
+     *                     @OA\Property(property="clock_in", type="string", example="2025-12-01 08:30:00"),
+     *                     @OA\Property(property="clock_out", type="string", nullable=true, example="2025-12-01 17:00:00"),
+     *                     @OA\Property(property="total_work", type="string", example="08:30"),
+     *                     @OA\Property(property="total_rest", type="string", nullable=true, example="00:30"),
+     *                     @OA\Property(property="attendance_status", type="string", example="Present"),
+     *                     @OA\Property(property="status", type="string", example="Pending"),
+     *                     @OA\Property(property="work_from_home", type="integer", example=0),
+     *                     @OA\Property(property="lunch_break_in", type="string", nullable=true, example="2025-12-01 12:30:00"),
+     *                     @OA\Property(property="lunch_break_out", type="string", nullable=true, example="2025-12-01 13:00:00"),
+     *                     @OA\Property(
+     *                         property="employee",
+     *                         type="object",
+     *                         nullable=true,
+     *                         @OA\Property(property="user_id", type="integer", example=37),
+     *                         @OA\Property(property="first_name", type="string", example="محمد"),
+     *                         @OA\Property(property="last_name", type="string", example="أحمد"),
+     *                         @OA\Property(property="email", type="string", example="m.ahmed@example.com")
+     *                     )
+     *                 )
+     *             ),
+     *             @OA\Property(
+     *                 property="pagination",
+     *                 type="object",
+     *                 @OA\Property(property="current_page", type="integer", example=1),
+     *                 @OA\Property(property="last_page", type="integer", example=12),
+     *                 @OA\Property(property="per_page", type="integer", example=20),
+     *                 @OA\Property(property="total", type="integer", example=231),
+     *                 @OA\Property(property="from", type="integer", example=1),
+     *                 @OA\Property(property="to", type="integer", example=20),
+     *                 @OA\Property(property="has_more_pages", type="boolean", example=true)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض سجلات الحضور")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")
+     *         )
      *     )
      * )
      */
@@ -109,15 +186,45 @@ class AttendanceController extends Controller
      *     tags={"Attendance Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
+     *         required=true,
      *         @OA\JsonContent(
-     *             @OA\Property(property="latitude", type="string", example="24.7136"),
-     *             @OA\Property(property="longitude", type="string", example="46.6753"),
-     *             @OA\Property(property="work_from_home", type="boolean", example=false)
+     *             @OA\Property(property="latitude", type="string", example="24.7136", description="موقع الموظف - خط العرض"),
+     *             @OA\Property(property="longitude", type="string", example="46.6753", description="موقع الموظف - خط الطول"),
+     *             @OA\Property(property="work_from_home", type="boolean", example=false, description="العمل من المنزل")
      *         )
      *     ),
      *     @OA\Response(
      *         response=201,
-     *         description="Clock in successful"
+     *         description="Clock in successful",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تسجيل الحضور بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في تسجيل الحضور")
+     *         )
      *     )
      * )
      */
@@ -165,14 +272,44 @@ class AttendanceController extends Controller
      *     tags={"Attendance Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
+     *         required=true,
      *         @OA\JsonContent(
-     *             @OA\Property(property="latitude", type="string", example="24.7136"),
-     *             @OA\Property(property="longitude", type="string", example="46.6753")
+     *             @OA\Property(property="latitude", type="string", example="24.7136", description="موقع الموظف - خط العرض"),
+     *             @OA\Property(property="longitude", type="string", example="46.6753", description="موقع الموظف - خط الطول")
      *         )
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Clock out successful"
+     *         description="Clock out successful",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تسجيل الانصراف بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في تسجيل الانصراف")
+     *         )
      *     )
      * )
      */

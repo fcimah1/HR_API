@@ -36,19 +36,15 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/user/permissions', [AuthController::class, 'permissions']);
 
-    // Enum helper endpoints - list available enum values for API clients
-    Route::prefix('enums')->group(function () {
-        Route::get('/', [EnumController::class, 'index']);
-        Route::get('/overtime-reasons', [EnumController::class, 'overtimeReasons']);
-        Route::get('/compensation-types', [EnumController::class, 'compensationTypes']);
-        Route::get('/travel-modes', [EnumController::class, 'travelModes']);
-    });
-
     // Employee management
     Route::get('/employees', [EmployeeController::class, 'index']);
     Route::get('/employees/stats', [EmployeeController::class, 'stats']);
     Route::get('/employees/search', [EmployeeController::class, 'search']);
     Route::get('/employees/by-type/{type}', [EmployeeController::class, 'getByType']);
+    
+    // Employees for duty employee - no permissions required (must come before /employees/{id})
+    Route::get('/employees/employees-for-duty-employee', [EmployeeController::class, 'getEmployeesForDutyEmployee']);
+    
     Route::get('/employees/{id}', [EmployeeController::class, 'show']);
 
     // Employee filters and exports
@@ -66,9 +62,10 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::delete('/employees/{id}', [EmployeeController::class, 'destroy']);
 
 
+
     // Leave Management with Simple Permission Checks
     Route::middleware('simple.permission:hr_leave')->group(function () {
-        Route::get('/leaves/employees-for-duty-employee', [LeaveController::class, 'getEmployeesForDutyEmployee']);
+        Route::get('/leaves/enums', [LeaveController::class, 'getLeaveEnums']);
         Route::get('/leaves/applications', [LeaveController::class, 'getApplications']);
         Route::post('/leaves/applications', [LeaveController::class, 'createApplication']);
         Route::delete('/leaves/applications/{id}/cancel', [LeaveController::class, 'cancelApplication']);
@@ -76,10 +73,12 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('/leaves/applications/{id}', [LeaveController::class, 'showApplication']);
 
         // Hourly Leave Management
+        Route::get('/hourly-leaves/enums', [HourlyLeaveController::class, 'getEnums']);
         route::apiResource('/hourly-leaves', HourlyLeaveController::class);
         Route::delete('/hourly-leaves/{id}/cancel', [HourlyLeaveController::class, 'cancel']);
         Route::post('/hourly-leaves/{id}/approve-or-reject', [HourlyLeaveController::class, 'approveOrReject']);
 
+        Route::get('/leaves/enums', [LeaveAdjustmentController::class, 'getLeaveAdjustmentsEnums']);
         Route::get('/leaves/adjustments', [LeaveAdjustmentController::class, 'getAdjustments']);
         Route::post('/leaves/adjustments', [LeaveAdjustmentController::class, 'createAdjustment']);
         Route::delete('/leaves/adjustments/{id}/cancel', [LeaveAdjustmentController::class, 'cancelAdjustment']);
@@ -119,6 +118,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
 
 
     // Overtime Management
+    Route::get('/overtime/enums', [OvertimeController::class, 'getEnums']);
     Route::get('/overtime/requests', [OvertimeController::class, 'index']);
     Route::post('/overtime/requests', [OvertimeController::class, 'store']);
     Route::get('/overtime/requests/pending', [OvertimeController::class, 'pending']);
@@ -165,6 +165,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
 
     // Travel Management
     Route::middleware('simple.permission:hr_travel')->group(function () {
+        Route::get('/travels/enums', [App\Http\Controllers\Api\TravelController::class, 'getEnums']);
         Route::get('/travels', [App\Http\Controllers\Api\TravelController::class, 'index']);
         Route::post('/travels', [App\Http\Controllers\Api\TravelController::class, 'storeTravel']);
         Route::get('/travels/search', [App\Http\Controllers\Api\TravelController::class, 'search']);
