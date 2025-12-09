@@ -10,6 +10,7 @@ use App\Http\Requests\LeaveAdjustment\CreateLeaveAdjustmentRequest;
 use App\Http\Requests\LeaveAdjustment\UpdateLeaveAdjustmentRequest;
 use App\Http\Requests\LeaveAdjustment\ApproveLeaveAdjustmentRequest;
 use App\Services\LeaveAdjustmentService;
+use App\Services\LeaveService;
 use App\Services\SimplePermissionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,7 +29,10 @@ class LeaveAdjustmentController extends Controller
     public $simplePermissionService;
     public function __construct(
         private readonly LeaveAdjustmentService $leaveService,
-        private readonly SimplePermissionService $permissionService
+        private readonly SimplePermissionService $permissionService,
+        private readonly LeaveService $leaveServices,
+
+
     ) {
         $this->simplePermissionService = $permissionService;
     }
@@ -78,7 +82,90 @@ class LeaveAdjustmentController extends Controller
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Leave adjustments retrieved successfully"
+     *         description="Leave adjustments retrieved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب تسويات الإجازات بنجاح"),
+     *             @OA\Property(property="created by", type="string", example="محمد علي"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="adjustment_id", type="integer", example=501),
+     *                     @OA\Property(property="company_id", type="integer", example=36),
+     *                     @OA\Property(property="employee_id", type="integer", example=37),
+     *                     @OA\Property(property="duty_employee_id", type="integer", nullable=true, example=118),
+     *                     @OA\Property(property="leave_type_id", type="integer", example=323),
+     *                     @OA\Property(property="adjust_hours", type="number", format="float", example=8.0),
+     *                     @OA\Property(property="reason_adjustment", type="string", example="تسوية رصيد سنوية"),
+     *                     @OA\Property(property="status", type="integer", enum={0,1,2}, example=0),
+     *                     @OA\Property(property="created_at", type="string", format="date-time", example="2025-12-01 08:30:00"),
+     *                     @OA\Property(property="adjustment_date", type="string", format="date", example="2025-12-01"),
+     *                     @OA\Property(
+     *                         property="employee",
+     *                         type="object",
+     *                         @OA\Property(property="user_id", type="integer", example=37),
+     *                         @OA\Property(property="full_name", type="string", example="محمد أحمد"),
+     *                         @OA\Property(property="email", type="string", example="m.ahmed@example.com")
+     *                     ),
+     *                     @OA\Property(
+     *                         property="dutyEmployee",
+     *                         type="object",
+     *                         nullable=true,
+     *                         @OA\Property(property="user_id", type="integer", example=118),
+     *                         @OA\Property(property="full_name", type="string", example="خالد سالم"),
+     *                         @OA\Property(property="email", type="string", example="k.salem@example.com")
+     *                     ),
+     *                     @OA\Property(
+     *                         property="leaveType",
+     *                         type="object",
+     *                         @OA\Property(property="constants_id", type="integer", example=323),
+     *                         @OA\Property(property="category_name", type="string", example="سنوية"),
+     *                         @OA\Property(property="field_two", type="number", example=21, description="عدد الأيام")
+     *                     )
+     *                 )
+     *             ),
+     *             @OA\Property(property="total", type="integer", example=75),
+     *             @OA\Property(property="per_page", type="integer", example=15),
+     *             @OA\Property(property="current_page", type="integer", example=1),
+     *             @OA\Property(property="last_page", type="integer", example=5),
+     *             @OA\Property(property="from", type="integer", example=1),
+     *             @OA\Property(property="to", type="integer", example=15)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض تسويات الإجازات")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")
+     *         )
      *     )
      * )
      */
@@ -135,7 +222,45 @@ class LeaveAdjustmentController extends Controller
      *     ),
      *     @OA\Response(
      *         response=201,
-     *         description="Leave adjustment created successfully"
+     *         description="Leave adjustment created successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم إنشاء طلب التسوية بنجاح"),
+     *             @OA\Property(property="created by", type="string"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بإنشاء تسويات الإجازات")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في إنشاء طلب التسوية")
+     *         )
      *     )
      * )
      */
@@ -437,7 +562,47 @@ class LeaveAdjustmentController extends Controller
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Leave adjustment retrieved successfully"
+     *         description="Leave adjustment retrieved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="adjustment_id", type="integer", example=501),
+     *                 @OA\Property(property="company_id", type="integer", example=36),
+     *                 @OA\Property(property="employee_id", type="integer", example=37),
+     *                 @OA\Property(property="duty_employee_id", type="integer", nullable=true, example=118),
+     *                 @OA\Property(property="leave_type_id", type="integer", example=323),
+     *                 @OA\Property(property="adjust_hours", type="number", format="float", example=8.0),
+     *                 @OA\Property(property="reason_adjustment", type="string", example="تسوية رصيد سنوية"),
+     *                 @OA\Property(property="status", type="integer", enum={0,1,2}, example=0),
+     *                 @OA\Property(property="created_at", type="string", format="date-time", example="2025-12-01 08:30:00"),
+     *                 @OA\Property(property="adjustment_date", type="string", format="date", example="2025-12-01"),
+     *                 @OA\Property(
+     *                     property="employee",
+     *                     type="object",
+     *                     @OA\Property(property="user_id", type="integer", example=37),
+     *                     @OA\Property(property="full_name", type="string", example="محمد أحمد"),
+     *                     @OA\Property(property="email", type="string", example="m.ahmed@example.com")
+     *                 ),
+     *                 @OA\Property(
+     *                     property="dutyEmployee",
+     *                     type="object",
+     *                     nullable=true,
+     *                     @OA\Property(property="user_id", type="integer", example=118),
+     *                     @OA\Property(property="full_name", type="string", example="خالد سالم"),
+     *                     @OA\Property(property="email", type="string", example="k.salem@example.com")
+     *                 ),
+     *                 @OA\Property(
+     *                     property="leaveType",
+     *                     type="object",
+     *                     @OA\Property(property="constants_id", type="integer", example=323),
+     *                     @OA\Property(property="category_name", type="string", example="سنوية"),
+     *                     @OA\Property(property="field_two", type="number", example=21, description="عدد الأيام")
+     *                 )
+     *             )
+     *         )
      *     ),
      *     @OA\Response(
      *         response=404,
@@ -477,6 +642,44 @@ class LeaveAdjustmentController extends Controller
                 'success' => false,
                 'message' => $e->getMessage()
             ], $e->getMessage() === 'تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة' ? 404 : 500);
+        }
+    }
+
+    
+    /**
+     * @OA\Get(
+     *     path="/api/leave-adjustments/enums",
+     *     summary="Get leave enums as string and numeric values",
+     *     tags={"Leave Adjustments"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="statuses", type="array", @OA\Items(type="string"))
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function getLeaveAdjustmentsEnums()
+    {
+        try {
+            $enums = $this->leaveServices->getLeaveEnums();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم جلب قوائم حالات الإجازات بنجاح',
+                'data' => $enums
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب حالات القوائم',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 }

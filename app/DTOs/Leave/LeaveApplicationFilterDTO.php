@@ -12,6 +12,7 @@ class LeaveApplicationFilterDTO
         public readonly ?int $companyId = null,
         public readonly ?int $employeeId = null,
         public readonly ?array $employeeIds = null,
+        public readonly ?array $hierarchyLevels = null, // إضافة فلترة المستويات الهرمية
         public readonly ?int $status = null, // 1 for pending, 2 for approved, 3 for rejected
         public readonly ?int $leaveTypeId = null,
         public readonly ?string $fromDate = null,
@@ -45,6 +46,7 @@ class LeaveApplicationFilterDTO
             companyId: $data['company_id'] ?? null,
             employeeId: $data['employee_id'] ?? null,
             employeeIds: $data['employee_ids'] ?? null,
+            hierarchyLevels: $data['hierarchy_levels'] ?? null, // إضافة فلترة المستويات الهرمية
             status: $status,
             leaveTypeId: $data['leave_type_id'] ?? null,
             fromDate: $data['from_date'] ?? null,
@@ -64,6 +66,7 @@ class LeaveApplicationFilterDTO
             'company_id' => $this->companyId,
             'employee_id' => $this->employeeId,
             'employee_ids' => $this->employeeIds,
+            'hierarchy_levels' => $this->hierarchyLevels, // إضافة فلترة المستويات الهرمية
             'status' => $this->status,
             'leave_type_id' => $this->leaveTypeId,
             'from_date' => $this->fromDate,

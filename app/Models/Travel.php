@@ -59,6 +59,17 @@ class Travel extends Model
     }
 
     /**
+     * الحصول على جميع أنواع الترتيب المتاحة للتحقق من الصحة
+     */
+    public static function getArrangementTypes(): array
+    {
+        // جلب أنواع الترتيب من قاعدة البيانات
+        return \App\Models\ErpConstant::where('type', 'travel_type')
+            ->pluck('constants_id')
+            ->toArray();
+    }
+
+    /**
      * Get the approvals for this travel request
      */
     public function approvals()

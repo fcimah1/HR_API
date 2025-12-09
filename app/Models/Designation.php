@@ -32,6 +32,7 @@ class Designation extends Model
     protected $fillable = [
         'department_id',
         'company_id',
+        'hierarchy_level',
         'designation_name',
         'description',
         'created_at',
@@ -44,6 +45,7 @@ class Designation extends Model
         'designation_id' => 'integer',
         'department_id' => 'integer',
         'company_id' => 'integer',
+        'hierarchy_level' => 'integer',
     ];
 
     /**

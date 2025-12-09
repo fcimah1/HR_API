@@ -84,18 +84,40 @@ class AdvanceSalaryController extends Controller
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="تم جلب الطلبات بنجاح"),
-     *             @OA\Property(property="data", type="array", @OA\Items(
-     *                 @OA\Property(property="advance_salary_id", type="integer"),
-     *                 @OA\Property(property="employee_name", type="string"),
-     *                 @OA\Property(property="salary_type", type="string"),
-     *                 @OA\Property(property="salary_type_text", type="string"),
-     *                 @OA\Property(property="month_year", type="string"),
-     *                 @OA\Property(property="advance_amount", type="number"),
-     *                 @OA\Property(property="monthly_installment", type="number"),
-     *                 @OA\Property(property="remaining_amount", type="number"),
-     *                 @OA\Property(property="status_text", type="string")
-     *             )),
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object")),
      *             @OA\Property(property="pagination", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض الطلبات")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")
      *         )
      *     )
      * )
@@ -149,8 +171,36 @@ class AdvanceSalaryController extends Controller
      *         )
      *     ),
      *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بإنشاء طلبات")
+     *         )
+     *     ),
+     *     @OA\Response(
      *         response=422,
-     *         description="Validation error"
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في إنشاء الطلب")
+     *         )
      *     )
      * )
      */

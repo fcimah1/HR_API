@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Travel;
 
+use App\Enums\TravelModeEnum;
+use App\Models\Travel;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
@@ -41,36 +43,49 @@ class CreateTravelRequest extends FormRequest
             'end_date' => 'required|date|after_or_equal:start_date',
             'visit_purpose' => 'required|string|max:255',
             'visit_place' => 'required|string|max:255',
-            'travel_mode' => 'required|integer|in:1,2,3,4,5',
-            'arrangement_type' => 'required|integer|exists:ci_erp_constants,constants_id',
+            'travel_type_id' => 'required|integer|exists:ci_erp_constants,constants_id',
+            'travel_mode' => 'required|integer|in:'.implode(',', array_column(TravelModeEnum::toArray(), 'value')),
+            'arrangement_type' => 'required|integer|in:'.implode(',', Travel::getArrangementTypes()),
             'expected_budget' => 'required|numeric|min:0',
             'actual_budget' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'associated_goals' => 'nullable|array',
             'associated_goals.*' => 'integer',
+            'remarks' => 'nullable|string',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'start_date.date' => 'Start date must be a valid date.',
-            'end_date.date' => 'End date must be a valid date.',
-            'end_date.after_or_equal' => 'End date must be on or after start date.',
-            'visit_purpose.string' => 'Visit purpose must be a string.',
-            'visit_purpose.max' => 'Visit purpose must be less than or equal to 255 characters.',
-            'visit_place.string' => 'Visit place must be a string.',
-            'visit_place.max' => 'Visit place must be less than or equal to 255 characters.',
-            'travel_mode.integer' => 'Travel mode must be an integer.',
-            'travel_mode.in' => 'Travel mode must be between 1 and 5.',
-            'arrangement_type.integer' => 'Arrangement type must be an integer.',
-            'expected_budget.numeric' => 'Expected budget must be a number.',
-            'expected_budget.min' => 'Expected budget must be greater than or equal to 0.',
-            'actual_budget.numeric' => 'Actual budget must be a number.',
-            'actual_budget.min' => 'Actual budget must be greater than or equal to 0.',
-            'description.string' => 'Description must be a string.',
-            'associated_goals.array' => 'Associated goals must be an array.',
-            'associated_goals.*.integer' => 'Associated goals must be an array of integers.',
+            'start_date.date' => 'تاريخ البداية يجب أن يكون تاريخاً صالحاً.',
+            'start_date.after_or_equal' => 'تاريخ البداية يجب أن يكون اليوم أو بعده.',
+            'end_date.date' => 'تاريخ النهاية يجب أن يكون تاريخاً صالحاً.',
+            'end_date.after_or_equal' => 'تاريخ النهاية يجب أن يكون في نفس تاريخ البداية أو بعده.',
+            'visit_purpose.string' => 'غرض الزيارة يجب أن يكون نصاً.',
+            'visit_purpose.max' => 'غرض الزيارة يجب أن يكون 255 حرفاً أو أقل.',
+            'visit_place.string' => 'مكان الزيارة يجب أن يكون نصاً.',
+            'visit_place.max' => 'مكان الزيارة يجب أن يكون 255 حرفاً أو أقل.',
+            'travel_type_id.required' => 'نوع السفر مطلوب.',
+            'travel_type_id.integer' => 'نوع السفر يجب أن يكون رقماً.',
+            'travel_type_id.exists' => 'نوع السفر المحدد غير موجود.',
+            'travel_mode.required' => 'وضع السفر مطلوب.',
+            'travel_mode.integer' => 'وضع السفر يجب أن يكون رقماً.',
+            'travel_mode.in' => 'وضع السفر المحدد غير صالح.',
+            'arrangement_type.required' => 'نوع الترتيب مطلوب.',
+            'arrangement_type.integer' => 'نوع الترتيب يجب أن يكون رقماً.',
+            'arrangement_type.in' => 'نوع الترتيب المحدد غير صالح.',
+            'expected_budget.required' => 'الميزانية المتوقعة مطلوبة.',
+            'expected_budget.numeric' => 'الميزانية المتوقعة يجب أن تكون رقماً.',
+            'expected_budget.min' => 'الميزانية المتوقعة يجب أن تكون 0 أو أكثر.',
+            'actual_budget.required' => 'الميزانية الفعلية مطلوبة.',
+            'actual_budget.numeric' => 'الميزانية الفعلية يجب أن تكون رقماً.',
+            'actual_budget.min' => 'الميزانية الفعلية يجب أن تكون 0 أو أكثر.',
+            'description.string' => 'الوصف يجب أن يكون نصاً.',
+            'associated_goals.array' => 'الأهداف المرتبطة يجب أن تكون مصفوفة.',
+            'associated_goals.*.integer' => 'الأهداف المرتبطة يجب أن تكون أرقاماً.',
+            'remarks.string' => 'الملاحظات يجب أن تكون نصاً.',
+            'employee_id.exists' => 'الموظف المحدد غير موجود.',
         ];
     }
 

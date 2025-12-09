@@ -23,13 +23,6 @@ interface LeaveRepositoryInterface
      */
     public function createApplication(CreateLeaveApplicationDTO $dto): LeaveApplication;
 
-    /**
-     * Create a new leave application from hourly DTO
-     * 
-     * @param CreateHourlyLeaveDTO $dto
-     * @return LeaveApplication
-     */
-    public function createApplicationFromHourly(CreateHourlyLeaveDTO $dto): LeaveApplication;
 
     /**
      * Find leave application by ID
@@ -67,15 +60,6 @@ interface LeaveRepositoryInterface
     public function getLeaveStatistics(int $companyId): array;
 
 
-    /**
-     * Get active employees for duty employee selection with optional filters
-     * 
-     * @param int $id Company ID
-     * @param string|null $search Optional search term to filter by name, email, or company name
-     * @param int|null $employeeId Optional employee ID to filter by specific employee
-     * @return array
-     */
-    public function getDutyEmployee(int $id, ?string $search = null, ?int $employeeId = null): array;
 
     /**
      * Get total granted leave for an employee

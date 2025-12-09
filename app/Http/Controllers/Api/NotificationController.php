@@ -44,7 +44,58 @@ class NotificationController extends Controller
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Notifications retrieved successfully"
+     *         description="Notifications retrieved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="notification_status_id", type="integer", example=1001),
+     *                     @OA\Property(property="module_option", type="string", example="leave_settings"),
+     *                     @OA\Property(property="module_status", type="integer", example=0, description="0=pending,1=approved,2=rejected"),
+     *                     @OA\Property(property="module_key_id", type="string", example="325"),
+     *                     @OA\Property(property="staff_id", type="integer", example=37),
+     *                     @OA\Property(property="is_read", type="integer", example=0),
+     *                     @OA\Property(
+     *                         property="staff",
+     *                         type="object",
+     *                         nullable=true,
+     *                         @OA\Property(property="user_id", type="integer", example=37),
+     *                         @OA\Property(property="full_name", type="string", example="محمد أحمد"),
+     *                         @OA\Property(property="email", type="string", example="m.ahmed@example.com")
+     *                     )
+     *                 )
+     *             ),
+     *             @OA\Property(
+     *                 property="pagination",
+     *                 type="object",
+     *                 @OA\Property(property="current_page", type="integer", example=1),
+     *                 @OA\Property(property="last_page", type="integer", example=5),
+     *                 @OA\Property(property="per_page", type="integer", example=20),
+     *                 @OA\Property(property="total", type="integer", example=87),
+     *                 @OA\Property(property="from", type="integer", example=1),
+     *                 @OA\Property(property="to", type="integer", example=20),
+     *                 @OA\Property(property="has_more_pages", type="boolean", example=true)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")
+     *         )
      *     )
      * )
      */

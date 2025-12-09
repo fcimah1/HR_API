@@ -41,11 +41,18 @@ class User extends Authenticatable
             $this->load('staffRole');
         }
 
+        // Load user_details with department and designation if not already loaded
+        if (!$this->relationLoaded('user_details')) {
+            $this->load(['user_details.department', 'user_details.designation']);
+        }
+
         return [
             'permissions' => $this->getUserPermissions(),
             'role_id' => $this->user_role_id,
             'role_name' => $this->staffRole?->role_name ?? null,
             'role_access' => $this->staffRole?->role_access ?? null,
+            'department_name' => $this->user_details?->department?->department_name ?? null,
+            'designation_name' => $this->user_details?->designation?->designation_name ?? null,
         ];
     }
 
@@ -121,6 +128,15 @@ class User extends Authenticatable
     public function user_details(): HasOne
     {
         return $this->hasOne(UserDetails::class, 'user_id', 'user_id');
+    }
+
+    /**
+     * Get user department
+     */
+    
+    public function user_department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'user_id', 'user_id');
     }
 
 
@@ -354,4 +370,111 @@ class User extends Authenticatable
     {
         return $this->staffRole->role_access ?? 0;
     }
+
+    /**
+     * Get hierarchy level of the user from their designation
+     */
+    public function getHierarchyLevel(): ?int
+    {
+        // Get hierarchy level from designation through user_details
+        $level = $this->user_details?->designation?->hierarchy_level;
+        
+        // If no hierarchy level found and user is staff, assign default level 5 (lowest)
+        if ($level === null && $this->user_type === 'staff') {
+            return 5;
+        }
+        
+        return $level;
+    }
+
+    /**
+     * Check if user can make requests for another employee
+     * Based on hierarchy level, department, and reporting manager
+     * 
+     * @param User $employee The employee to check permission for
+     * @return bool
+     */
+    public function canMakeRequestFor(User $employee): bool
+    {
+        // If requester has no hierarchy level, deny
+        if ($this->getHierarchyLevel() === null) {
+            return false;
+        }
+
+        // If target employee has no hierarchy level, deny
+        if ($employee->getHierarchyLevel() === null) {
+            return false;
+        }
+
+        // Must be from same company
+        if ($this->company_id !== $employee->company_id) {
+            return false;
+        }
+
+        // Load user details if not loaded
+        if (!$this->relationLoaded('user_details')) {
+            $this->load('user_details');
+        }
+        if (!$employee->relationLoaded('user_details')) {
+            $employee->load('user_details');
+        }
+
+        // Must be from same department
+        if (!$this->user_details || !$employee->user_details) {
+            return false;
+        }
+
+        if ($this->user_details->department_id !== $employee->user_details->department_id) {
+            return false;
+        }
+
+        // Check if requester is the reporting manager OR has higher hierarchy level
+        $isReportingManager = $this->user_id === $employee->user_details->reporting_manager;
+        $hasHigherHierarchy = $this->getHierarchyLevel() < $employee->getHierarchyLevel();
+
+        return $isReportingManager || $hasHigherHierarchy;
+    }
+
+    /**
+     * Get employees that this user can make requests for
+     * Filters by same company, same department, and lower hierarchy level
+     * 
+     * @return Builder
+     */
+    public function getSubordinatesQuery(): Builder
+    {
+        if ($this->getHierarchyLevel() === null) {
+            return self::query()->whereRaw('1 = 0'); // Return empty query
+        }
+
+        // Load user details if not loaded
+        if (!$this->relationLoaded('user_details')) {
+            $this->load('user_details');
+        }
+
+        if (!$this->user_details) {
+            return self::query()->whereRaw('1 = 0'); // Return empty query
+        }
+
+        return self::query()
+            ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
+            ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
+            ->where('ci_erp_users.company_id', $this->company_id)
+            ->where('ci_erp_users_details.department_id', $this->user_details->department_id)
+            ->where(function ($query) {
+                // Either reporting to this user OR has lower hierarchy level
+                $query->where('ci_erp_users_details.reporting_manager', $this->user_id)
+                    ->orWhere(function ($q) {
+                        $q->where('ci_designations.hierarchy_level', '>', $this->getHierarchyLevel())
+                            ->whereNotNull('ci_designations.hierarchy_level');
+                    });
+            })
+            ->where('ci_erp_users.is_active', 1)
+            ->select('ci_erp_users.*');
+    }
+
+ 
+
+    
+
 }

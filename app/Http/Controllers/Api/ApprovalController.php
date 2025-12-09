@@ -38,7 +38,39 @@ class ApprovalController extends Controller
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Pending approvals retrieved"
+     *         description="Pending approvals retrieved",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="approval_id", type="integer", example=4521),
+     *                     @OA\Property(property="module_option", type="string", example="leave_settings"),
+     *                     @OA\Property(property="module_key_id", type="string", example="325"),
+     *                     @OA\Property(property="status", type="integer", example=0, description="0=pending,1=approved,2=rejected"),
+     *                     @OA\Property(property="approval_level", type="integer", example=1)
+     *                 )
+     *             ),
+     *             @OA\Property(property="count", type="integer", example=5)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")
+     *         )
      *     )
      * )
      */
@@ -82,14 +114,51 @@ class ApprovalController extends Controller
      *         required=true,
      *         @OA\JsonContent(
      *             required={"module_option", "module_key_id", "status"},
-     *             @OA\Property(property="module_option", type="string"),
-     *             @OA\Property(property="module_key_id", type="string"),
-     *             @OA\Property(property="status", type="string", enum={"approve", "reject"})
+     *             @OA\Property(property="module_option", type="string", example="leave", description="نوع الطلب (leave, travel, etc)"),
+     *             @OA\Property(property="module_key_id", type="string", example="123", description="معرف الطلب"),
+     *             @OA\Property(property="status", type="string", enum={"approve", "reject"}, example="approve", description="الحالة: موافقة أو رفض"),
+     *             @OA\Property(property="remarks", type="string", example="موافق", description="ملاحظات (اختياري)")
      *         )
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Approval processed"
+     *         description="Approval processed",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission to approve",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="ليس لديك صلاحية للموافقة على هذا الطلب")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في معالجة الموافقة")
+     *         )
      *     )
      * )
      */
@@ -152,7 +221,26 @@ class ApprovalController extends Controller
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Approval history retrieved"
+     *         description="Approval history retrieved",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="approval_id", type="integer", example=9876),
+     *                     @OA\Property(property="staff_id", type="integer", example=37),
+     *                     @OA\Property(property="staff_name", type="string", example="محمد أحمد"),
+     *                     @OA\Property(property="status", type="integer", example=1, description="1=approved,2=rejected"),
+     *                     @OA\Property(property="status_text", type="string", example="موافق"),
+     *                     @OA\Property(property="approval_level", type="integer", example=2),
+     *                     @OA\Property(property="updated_at", type="string", format="date-time", example="2025-12-02 09:00:00")
+     *                 )
+     *             ),
+     *             @OA\Property(property="count", type="integer", example=3)
+     *         )
      *     )
      * )
      */

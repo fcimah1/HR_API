@@ -2,14 +2,15 @@
 
 namespace App\Http\Requests\Leave;
 
+use App\Enums\DeductedStatus;
+use App\Enums\LeavePlaceEnum;
 use App\Models\ErpConstant;
 use App\Models\LeaveApplication;
-use App\Models\User;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+// No logging on validation failures to avoid noisy log output
 
 /**
  * @OA\Schema(
@@ -44,8 +45,13 @@ class CreateLeaveApplicationRequest extends FormRequest
     public function rules(): array
     {
         $user = Auth::user();
-        
+
         return [
+            'employee_id' => [
+                'nullable',
+                'integer',
+                new \App\Rules\CanRequestForEmployee(),
+            ],
             'leave_type_id' => [
                 'required',
                 'integer',
@@ -53,31 +59,36 @@ class CreateLeaveApplicationRequest extends FormRequest
                     // استخدام SimplePermissionService للحصول على معرف الشركة الفعلي
                     $permissionService = app(\App\Services\SimplePermissionService::class);
                     $companyId = $permissionService->getEffectiveCompanyId($user);
-                    
+
                     // التحقق من وجود نوع الإجازة
                     $leaveType =  ErpConstant::where('constants_id', $value)
                         ->where('type',  ErpConstant::TYPE_LEAVE_TYPE)
-                        ->where(function($query) use ($companyId) {
+                        ->where(function ($query) use ($companyId) {
                             $query->where('company_id', $companyId)
-                                  ->orWhere('company_id', 0); // الأنواع العامة
+                                ->orWhere('company_id', 0); // الأنواع العامة
                         })
-                        ->where('field_three', '1') // نشط
-                        ->exists();
-                    
+                        ->first();
+                        // Intentionally not logging here to avoid noise in logs
+
                     if (!$leaveType) {
                         $fail('نوع الإجازة غير متاح لشركتك');
                     }
                 }
             ],
-            'from_date' => 'required|date',
+            'from_date' => 'required|date|after_or_equal:today',
             'to_date' => 'required|date|after_or_equal:from_date',
-            'reason' => 'required|string|max:1000|min:10',
-            'duty_employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
+            'reason' => 'required|string|max:1000',
+            'duty_employee_id' => [
+                'nullable',
+                'integer',
+                new \App\Rules\ValidDutyEmployee(),
+            ],
             'is_half_day' => 'nullable|boolean',
             'remarks' => 'nullable|string|max:1000',
+            'is_deducted' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, DeductedStatus::cases())),
+            'place' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, LeavePlaceEnum::cases())),
         ];
     }
-
     /**
      * Get custom messages for validator errors.
      */
@@ -88,12 +99,13 @@ class CreateLeaveApplicationRequest extends FormRequest
             'leave_type_id.exists' => 'نوع الإجازة المحدد غير صحيح',
             'from_date.required' => 'تاريخ بداية الإجازة مطلوب',
             'from_date.date' => 'تاريخ بداية الإجازة غير صحيح',
+            'from_date.after_or_equal' => 'تاريخ بداية الإجازة يجب أن يكون بعد أو يساوي تاريخ اليوم',
             'to_date.required' => 'تاريخ نهاية الإجازة مطلوب',
             'to_date.after_or_equal' => 'تاريخ نهاية الإجازة يجب أن يكون بعد أو يساوي تاريخ البداية',
             'reason.required' => 'سبب الإجازة مطلوب',
-            'reason.min' => 'سبب الإجازة يجب أن يكون على الأقل 10 أحرف',
             'reason.max' => 'سبب الإجازة لا يجب أن يتجاوز 1000 حرف',
-            'duty_employee_id.exists' => 'الموظف البديل المحدد غير صحيح',
+            'is_deducted.in' => 'حالة الإجازة يجب أن تكون صحيحة',
+            'place.in' => 'مكان الإجازة يجب أن يكون صحيح'
         ];
     }
 
@@ -110,6 +122,8 @@ class CreateLeaveApplicationRequest extends FormRequest
             'duty_employee_id' => 'الموظف البديل',
             'is_half_day' => 'نصف يوم',
             'remarks' => 'ملاحظات',
+            'is_deducted' => 'حالة الإجازة',
+            'place' => 'مكان الإجازة',
         ];
     }
 
@@ -119,55 +133,37 @@ class CreateLeaveApplicationRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            // التحقق من الموظف البديل
-            if ($this->filled('duty_employee_id')) {
-                $user = $this->user();
-                $permissionService = app(\App\Services\SimplePermissionService::class);
-                $effectiveCompanyId = $permissionService->getEffectiveCompanyId($user);
-                
-                $dutyEmployee =  User::where('user_id', $this->duty_employee_id)
-                    ->where('company_id', $effectiveCompanyId)
-                    ->where('is_active', true)
-                    ->exists();
-
-                if (!$dutyEmployee) {
-                    $validator->errors()->add('duty_employee_id', 'الموظف البديل يجب أن يكون من نفس الشركة ونشط');
-                }
-            }
-
-            // Check maximum leave duration (e.g., 30 days)
+            // Check for overlapping leave dates
             if ($this->filled(['from_date', 'to_date'])) {
                 $fromDate = new \DateTime($this->from_date);
                 $toDate = new \DateTime($this->to_date);
-                $duration = $toDate->diff($fromDate)->days + 1;
-
-                // if ($duration > 30) {
-                //     $validator->errors()->add('to_date', 'مدة الإجازة لا يجب أن تتجاوز 30 يوماً');
-                // }
 
                 $user = $this->user();
                 $permissionService = app(\App\Services\SimplePermissionService::class);
                 $effectiveCompanyId = $permissionService->getEffectiveCompanyId($user);
+
+                // Get the target employee ID (from request or current user)
+                $targetEmployeeId = $this->employee_id ?? $user->user_id;
 
                 $from = $fromDate->format('Y-m-d');
                 $to = $toDate->format('Y-m-d');
 
-                $hasOverlap = LeaveApplication::where('employee_id', $user->user_id)
+                $hasOverlap = LeaveApplication::where('employee_id', $targetEmployeeId)
                     ->where('company_id', $effectiveCompanyId)
                     ->where(function ($query) use ($from, $to) {
                         $query->where(function ($q) use ($from, $to) {
                             $q->where('from_date', '<=', $to)
-                              ->where('to_date', '>=', $from);
+                                ->where('to_date', '>=', $from);
                         })
-                        ->orWhere(function ($q) use ($from, $to) {
-                            $q->whereNotNull('particular_date')
-                              ->whereBetween('particular_date', [$from, $to]);
-                        });
+                            ->orWhere(function ($q) use ($from, $to) {
+                                $q->whereNotNull('particular_date')
+                                    ->whereBetween('particular_date', [$from, $to]);
+                            });
                     })
                     ->exists();
 
                 if ($hasOverlap) {
-                    $validator->errors()->add('from_date', $from. ' لقد قدمت طلب إجازة في هذه الفترة');
+                    $validator->errors()->add('from_date', $from . ' لقد قدمت طلب إجازة في هذه الفترة');
                 }
             }
         });
@@ -175,11 +171,6 @@ class CreateLeaveApplicationRequest extends FormRequest
 
     protected function failedValidation(Validator $validator)
     {
-        Log::warning('فشل إنشاء طلب إجازة', [
-            'errors' => $validator->errors()->toArray(),
-            'input' => $this->all()
-        ]);
-
         throw new HttpResponseException(response()->json([
             'success' => false,
             'message' => 'فشل إنشاء طلب إجازة',

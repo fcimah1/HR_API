@@ -42,13 +42,15 @@ class AuthController extends Controller
      *             @OA\Property(property="message", type="string", example="Login successful"),
      *             @OA\Property(property="token", type="string", example="1|abc123..."),
      *             @OA\Property(property="user", type="object"),
-     *             @OA\Property(property="permissions", type="array", @OA\Items(type="string"), example={"dashboard_view", "employees_manage", "reports_view"}),
      *             @OA\Property(
-     *                 property="role",
+     *                 property="permissionData",
      *                 type="object",
+     *                 @OA\Property(property="permissions", type="array", @OA\Items(type="string"), example={"dashboard_view", "employees_manage", "reports_view"}),
      *                 @OA\Property(property="role_id", type="integer", example=1),
      *                 @OA\Property(property="role_name", type="string", example="Administrator"),
-     *                 @OA\Property(property="role_access", type="integer", example=1)
+     *                 @OA\Property(property="role_access", type="integer", example=1),
+     *                 @OA\Property(property="department_name", type="string", example="Information Technology"),
+     *                 @OA\Property(property="designation_name", type="string", example="Software Engineer")
      *             )
      *         )
      *     ),
@@ -76,7 +78,7 @@ class AuthController extends Controller
                 ->orWhere('email', $request->username);
         })
             ->where('company_name', $request->company_name)
-            ->with('user_details')
+            ->with(['user_details.department', 'user_details.designation'])
             ->first();
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([

@@ -174,4 +174,31 @@ class EmployeeService
         return false;
     }
 
+
+    
+
+    /**
+     * Get active employees for duty employee selection with optional filters
+     * Returns list of active employees in the specified company and optionally same department
+     * 
+     * @param int $companyId
+     * @param string|null $search Optional search term to filter by name, email, or company name
+     * @param int|null $employeeId Optional employee ID to filter by specific employee
+     * @param int|null $departmentId Optional department ID to filter by same department
+     * @return array
+     */
+    public function getEmployeesForDutyEmployee(int $companyId, ?string $search = null, ?int $employeeId = null, ?int $departmentId = null): array
+    {
+
+        $employees = $this->employeeRepository->getDutyEmployee(
+            $companyId,
+            $search,
+            $employeeId,
+            $departmentId
+        );
+
+        return $employees;
+    }
+
+
 }

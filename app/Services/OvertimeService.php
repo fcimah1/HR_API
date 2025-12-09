@@ -13,6 +13,8 @@ use App\Services\SimplePermissionService;
 use App\Services\ApprovalService;
 use App\Services\OvertimeCalculationService;
 use App\Enums\StringStatusEnum;
+use App\Enums\OvertimeReasonEnum;
+use App\Enums\CompensationTypeEnum;
 use App\Jobs\SendEmailNotificationJob;
 use App\Mail\Overtime\OvertimeSubmitted;
 use App\Mail\Overtime\OvertimeApproved;
@@ -70,6 +72,18 @@ class OvertimeService
         }
 
         return $this->overtimeRepository->getPaginatedRequests($modifiedFilters, $user);
+    }
+
+    /**
+     * Get overtime enums
+     */
+    public function getOvertimeEnums(): array
+    {
+        return [
+            'statuses' => StringStatusEnum::toArray(),
+            'reasons' => OvertimeReasonEnum::toArray(),
+            'compensation_types' => CompensationTypeEnum::toArray(),
+        ];
     }
 
     /**

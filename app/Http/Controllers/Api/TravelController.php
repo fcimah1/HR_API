@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\DTOs\Travel\CreateTravelDTO;
 use App\DTOs\Travel\UpdateTravelDTO;
 use App\DTOs\Travel\TravelRequestFilterDTO;
-
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Travel\CreateTravelRequest;
 use App\Http\Requests\Travel\UpdateTravelRequest;
 use App\Http\Requests\Travel\UpdateTravelStatusRequest;
+use App\Http\Resources\TravelResource;
 use App\Services\SimplePermissionService;
 use App\Services\TravelService;
 use Illuminate\Http\Request;
@@ -73,10 +73,62 @@ class TravelController extends Controller
      *     @OA\Parameter(
      *         name="search",
      *         in="query",
-     *         description="Search by employee name",
+     *         description="Search term for filtering travel requests",
      *         @OA\Schema(type="string")
      *     ),
-     *     @OA\Response(response=200, description="Successful operation")
+     *     @OA\Response(
+     *         response=200,
+     *         description="List of travel requests",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/TravelResource")),
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب طلبات السفر بنجاح"),
+     *             @OA\Property(property="created_by", type="string", example="أحمد علي"),
+     *             @OA\Property(
+     *                 property="pagination",
+     *                 type="object",
+     *                 @OA\Property(property="total", type="integer", example=120),
+     *                 @OA\Property(property="per_page", type="integer", example=15),
+     *                 @OA\Property(property="current_page", type="integer", example=1),
+     *                 @OA\Property(property="last_page", type="integer", example=8),
+     *                 @OA\Property(property="from", type="integer", example=1),
+     *                 @OA\Property(property="to", type="integer", example=15)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض طلبات السفر")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")
+     *         )
+     *     )
      * )
      */
     public function index(Request $request)
@@ -84,19 +136,30 @@ class TravelController extends Controller
         try {
             $user = Auth::user();
             $hasPermission = $this->permissionService->checkPermission($user, 'travel1');
+            
             if (!$hasPermission) {
                 return response()->json([
                     'success' => false,
                     'message' => 'غير مسموح بعرض طلبات السفر'
                 ], 403);
             }
-            $filters = TravelRequestFilterDTO::fromRequest($request->all());
 
-            $travels = $this->travelService->getTravels($user, $filters);
-            return response()->json([
+            $filters = TravelRequestFilterDTO::fromRequest($request->all());
+            $result = $this->travelService->getTravels($user, $filters);
+
+            // استخدام TravelResource::collection() لتحويل البيانات
+            return TravelResource::collection($result['data'])->additional([
                 'success' => true,
-                'message' => 'تم الحصول على طلبات السفر بنجاح',
-                'data' => $travels
+                'message' => 'تم جلب طلبات السفر بنجاح',
+                'created_by' => $user->full_name ?? null,
+                'pagination' => [
+                    'total' => $result['total'],
+                    'per_page' => $result['per_page'],
+                    'current_page' => $result['current_page'],
+                    'last_page' => $result['last_page'],
+                    'from' => $result['from'],
+                    'to' => $result['to'],
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('TravelController::index failed', [
@@ -120,9 +183,65 @@ class TravelController extends Controller
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(ref="#/components/schemas/CreateTravelRequest")
+     *         @OA\JsonContent(
+     *             required={"start_date","end_date","visit_purpose","visit_place","travel_type_id","travel_mode","arrangement_type","expected_budget","actual_budget"},
+     *             @OA\Property(property="employee_id", type="integer", example=1, description="معرف الموظف (اختياري)"),
+     *             @OA\Property(property="start_date", type="string", format="date", example="2025-12-01", description="تاريخ بداية السفر"),
+     *             @OA\Property(property="end_date", type="string", format="date", example="2025-12-05", description="تاريخ نهاية السفر"),
+     *             @OA\Property(property="visit_purpose", type="string", example="سفر عمل لمؤتمر", description="غرض الزيارة"),
+     *             @OA\Property(property="visit_place", type="string", example="الرياض", description="مكان الزيارة"),
+     *             @OA\Property(property="travel_type_id", type="integer", example=1, description="معرف نوع السفر"),
+     *             @OA\Property(property="travel_mode", type="integer", example=1, description="وضع السفر (1-5)"),
+     *             @OA\Property(property="arrangement_type", type="integer", example=1, description="نوع الترتيب"),
+     *             @OA\Property(property="expected_budget", type="number", format="float", example=1000.00, description="الميزانية المتوقعة"),
+     *             @OA\Property(property="actual_budget", type="number", format="float", example=900.00, description="الميزانية الفعلية"),
+     *             @OA\Property(property="description", type="string", example="وصف الرحلة", description="وصف (اختياري)"),
+     *             @OA\Property(property="associated_goals", type="array", @OA\Items(type="integer"), example={1,2}, description="الأهداف المرتبطة (اختياري)"),
+     *             @OA\Property(property="remarks", type="string", example="ملاحظات إضافية", description="ملاحظات (اختياري)")
+     *         )
      *     ),
-     *     @OA\Response(response=201, description="Travel request created successfully")
+     *     @OA\Response(
+     *         response=201,
+     *         description="Travel request created successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="created_by", type="string"),
+     *             @OA\Property(property="message", type="string", example="تم إنشاء طلب السفر بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بإنشاء طلبات السفر")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في إنشاء طلب السفر")
+     *         )
+     *     )
      * )
      */
     public function storeTravel(CreateTravelRequest $request)
@@ -178,8 +297,52 @@ class TravelController extends Controller
      *     summary="Get travel request details",
      *     tags={"Travel"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
-     *     @OA\Response(response=200, description="Successful operation")
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Travel request ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", ref="#/components/schemas/TravelResource")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض تفاصيل طلبات السفر")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Travel request not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="طلب السفر غير موجود")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في الحصول على طلب السفر")
+     *         )
+     *     )
      * )
      */
     public function showTravel(int $id, Request $request)
@@ -214,12 +377,78 @@ class TravelController extends Controller
      *     summary="Update travel request",
      *     tags={"Travel"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Travel request ID",
+     *         @OA\Schema(type="integer")
+     *     ),
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(ref="#/components/schemas/UpdateTravelRequest")
+     *         @OA\JsonContent(
+     *             @OA\Property(property="start_date", type="string", format="date", example="2025-12-01"),
+     *             @OA\Property(property="end_date", type="string", format="date", example="2025-12-05"),
+     *             @OA\Property(property="visit_purpose", type="string", example="سفر عمل معدل"),
+     *             @OA\Property(property="visit_place", type="string", example="الرياض"),
+     *             @OA\Property(property="travel_mode", type="integer", example=1),
+     *             @OA\Property(property="arrangement_type", type="integer", example=1),
+     *             @OA\Property(property="expected_budget", type="number", format="float", example=1000.00),
+     *             @OA\Property(property="actual_budget", type="number", format="float", example=900.00),
+     *             @OA\Property(property="description", type="string", example="وصف معدل"),
+     *             @OA\Property(property="associated_goals", type="array", @OA\Items(type="integer"), example={1,2}),
+     *             @OA\Property(property="remarks", type="string", example="ملاحظات معدلة")
+     *         )
      *     ),
-     *     @OA\Response(response=200, description="Travel request updated successfully")
+     *     @OA\Response(
+     *         response=200,
+     *         description="Travel request updated successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تحديث طلب السفر بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بتعديل طلبات السفر")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Travel request not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="طلب السفر غير موجود")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في تحديث طلب السفر")
+     *         )
+     *     )
      * )
      */
     public function updateTravel(UpdateTravelRequest $request, $id)
@@ -249,11 +478,55 @@ class TravelController extends Controller
     /**
      * @OA\Delete(
      *     path="/api/travels/{id}",
-     *     summary="Delete travel request",
+     *     summary="Cancel travel request",
      *     tags={"Travel"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
-     *     @OA\Response(response=200, description="Travel request deleted successfully")
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Travel request ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Travel request cancelled successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم إلغاء طلب السفر بنجاح")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بإلغاء طلبات السفر")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Travel request not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="طلب السفر غير موجود")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في إلغاء طلب السفر")
+     *         )
+     *     )
      * )
      */
     public function cancelTravel($id)
@@ -280,15 +553,70 @@ class TravelController extends Controller
      *     summary="Approve or Reject travel request",
      *     tags={"Travel"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Parameter(
-     *         name="action",
-     *         in="query",
+     *         name="id",
+     *         in="path",
      *         required=true,
-     *         @OA\Schema(type="string", enum={"approve", "reject"}),
-     *         description="Action to perform on the travel request"
+     *         description="Travel request ID",
+     *         @OA\Schema(type="integer")
      *     ),
-     *     @OA\Response(response=200, description="Travel request status updated successfully")
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"action"},
+     *             @OA\Property(property="action", type="string", enum={"approve", "reject"}, example="approve", description="Action to perform: approve or reject"),
+     *             @OA\Property(property="remarks", type="string", example="موافق على السفر", description="Remarks for approval/rejection (optional)")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Travel request status updated successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تحديث حالة طلب السفر بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بالموافقة على طلبات السفر")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Travel request not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="طلب السفر غير موجود")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في تحديث حالة طلب السفر")
+     *         )
+     *     )
      * )
      */
 
@@ -344,6 +672,34 @@ class TravelController extends Controller
                 'message' => 'فشل في مراجعة طلب السفر',
                 'error' => $e->getMessage(),
                 'created by' => $user->full_name
+            ], 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/travels/enums",
+     *     summary="Get travel enums",
+     *     tags={"Travel"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(response=200, description="Travel enums retrieved successfully")
+     * )
+     */
+    public function getEnums()
+    {
+        try {
+            $enums = $this->travelService->getTravelEnums();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم جلب قوائم السفر بنجاح',
+                'data' => $enums
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب القوائم',
+                'error' => $e->getMessage()
             ], 500);
         }
     }

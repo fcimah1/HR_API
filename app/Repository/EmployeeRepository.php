@@ -256,4 +256,69 @@ class EmployeeRepository implements EmployeeRepositoryInterface
             ->where('company_id', $companyId)
             ->first();
     }
+
+    
+    /**
+     * Get active duty employees with optional search
+     *
+     * @param int $id Company ID
+     * @param string|null $search Optional search term to filter users by name, email, or company name
+     * @param int|null $employeeId Optional employee ID to filter by specific employee
+     * @param int|null $departmentId Optional department ID to filter by same department
+     * @return array
+     */
+    public function getDutyEmployee(int $id, ?string $search = null, ?int $employeeId = null, ?int $departmentId = null): array
+    {
+        $query = User::where('company_id', $id)
+            ->where('is_active', 1);
+
+        // Filter by employee_id if provided
+        if ($employeeId !== null) {
+            $query->where('user_id', $employeeId);
+        }
+
+        // Filter by department_id if provided
+        if ($departmentId !== null) {
+            $query->whereHas('user_details', function($q) use ($departmentId) {
+                $q->where('department_id', $departmentId);
+            });
+        }
+
+        // Add search condition if search term is provided
+        if ($search) {
+            $searchTerm = "%{$search}%";
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('first_name', 'LIKE', $searchTerm)
+                 ->orWhere('last_name', 'LIKE', $searchTerm)
+                 ->orWhere('email', 'LIKE', $searchTerm)
+                 ->orWhere('company_name', 'LIKE', $searchTerm)
+                 ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$searchTerm]);
+            });
+        }
+
+        return $query->select([
+                'company_id',
+                'user_id',
+                'email',
+                'first_name',
+                'last_name',
+                'company_name',
+                DB::raw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) as full_name")
+            ])
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'user_id' => $user->user_id,
+                    'company_id' => $user->company_id,
+                    'full_name' => trim($user->first_name . ' ' . $user->last_name),
+                    'email' => $user->email,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'company_name' => $user->company_name,
+                ];
+            })
+            ->toArray();
+    }
 }

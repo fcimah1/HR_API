@@ -30,8 +30,8 @@ class UpdateHourlyLeaveDTO
         $data = [];
 
         if ($this->date !== null) {
-            $data['from_date'] = $this->date;
-            $data['to_date'] = $this->date;
+            $data['from_date'] = $this->clockInM;
+            $data['to_date'] = $this->clockOutM;
             $data['particular_date'] = $this->date;
             $fromDate = new \DateTime($this->date);
             $data['leave_month'] = $fromDate->format('m');
@@ -42,7 +42,14 @@ class UpdateHourlyLeaveDTO
             // حساب ساعات الإجازة
             $startTime = \Carbon\Carbon::parse($this->date . ' ' . $this->clockInM);
             $endTime = \Carbon\Carbon::parse($this->date . ' ' . $this->clockOutM);
-            $leaveHours = $endTime->diffInHours($startTime);
+            
+            // التحقق من أن وقت النهاية بعد وقت البداية
+            if ($endTime <= $startTime) {
+                $leaveHours = 0; // أو يمكن إرجاع قيمة سالبة للإشارة للخطأ
+            } else {
+                $leaveHours = $startTime->diffInMinutes(date: $endTime) / 60;
+            }
+            
             $data['leave_hours'] = $leaveHours;
         }
 

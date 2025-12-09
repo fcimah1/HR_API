@@ -2,12 +2,11 @@
 
 namespace App\Enums;
 
-enum StringStatusEnum: string
+enum LeavePlaceEnum: string
 {
-    case PENDING = 'pending';
-    case APPROVED = 'approved';
-    case REJECTED = 'rejected';
-    case SUBMITTED = 'submitted';
+    // 0 => outside 1 => inside
+    case OUTSIDE = '0';
+    case INSIDE = '1';
 
     /**
      * Get human-readable label for API responses (English)
@@ -15,10 +14,8 @@ enum StringStatusEnum: string
     public function label(): string
     {
         return match($this) {
-            self::PENDING => 'Pending',
-            self::APPROVED => 'Approved',
-            self::REJECTED => 'Rejected',
-            self::SUBMITTED => 'Submitted',
+            self::OUTSIDE => '0',
+            self::INSIDE => '1',
         };
     }
 
@@ -28,10 +25,8 @@ enum StringStatusEnum: string
     public function labelAr(): string
     {
         return match($this) {
-            self::PENDING => 'قيد الانتظار',
-            self::APPROVED => 'مقبول',
-            self::REJECTED => 'مرفوض',
-            self::SUBMITTED => 'تم التقديم',
+            self::OUTSIDE => 'خارجى ',
+            self::INSIDE => 'داخلى',
         };
     }
 

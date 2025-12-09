@@ -70,4 +70,17 @@ interface EmployeeRepositoryInterface
      * Get employee with details
      */
     public function getEmployeeWithDetails(int $employeeId, int $companyId): ?User;
+
+
+    /**
+     * Get active duty employees with optional search
+     *
+     * @param int $id Company ID
+     * @param string|null $search Optional search term to filter users by name, email, or company name
+     * @param int|null $employeeId Optional employee ID to filter by specific employee
+     * @param int|null $departmentId Optional department ID to filter by same department
+     * @return array
+     */
+    public function getDutyEmployee(int $id, ?string $search = null, ?int $employeeId = null, ?int $departmentId = null): array;
+
 }

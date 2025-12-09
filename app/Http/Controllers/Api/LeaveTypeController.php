@@ -63,18 +63,40 @@ class LeaveTypeController extends Controller
  *         description="Leave types retrieved successfully",
  *         @OA\JsonContent(
  *             @OA\Property(property="success", type="boolean", example=true),
- *             @OA\Property(property="data", type="object",
- *                 @OA\Property(property="data", type="array", @OA\Items(
- *                     @OA\Property(property="leave_type_id", type="integer", example=1),
- *                     @OA\Property(property="leave_type_name", type="string", example="إجازة سنوية"),
- *                     @OA\Property(property="yearly_breakdown_days", type="array", @OA\Items(type="string")),
- *                     @OA\Property(property="yearly_breakdown_hours", type="array", @OA\Items(type="string"))
- *                 )),
- *                 @OA\Property(property="current_page", type="integer", example=1),
- *                 @OA\Property(property="total", type="integer", example=10),
- *                 @OA\Property(property="per_page", type="integer", example=15),
- *                 @OA\Property(property="last_page", type="integer", example=1)
- *             )
+ *             @OA\Property(property="message", type="string", example="تم جلب أنواع الإجازات بنجاح"),
+ *             @OA\Property(property="data", type="object")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=401,
+ *         description="Unauthenticated",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="message", type="string", example="Unauthenticated")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=403,
+ *         description="Forbidden",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="success", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض أنواع الإجازات")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=422,
+ *         description="Validation error",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="success", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string"),
+ *             @OA\Property(property="errors", type="object")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=500,
+ *         description="Server error",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="success", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")
  *         )
  *     )
  * )

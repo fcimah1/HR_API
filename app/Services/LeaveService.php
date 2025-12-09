@@ -7,6 +7,9 @@ use App\DTOs\Leave\LeaveApplicationFilterDTO;
 use App\DTOs\Leave\CreateLeaveApplicationDTO;
 use App\DTOs\Leave\UpdateLeaveApplicationDTO;
 use App\DTOs\Leave\LeaveApplicationResponseDTO;
+use App\Enums\DeductedStatus;
+use App\Enums\LeavePlaceEnum;
+use App\Enums\NumericalStatusEnum;
 use App\Http\Requests\Leave\ApproveLeaveApplicationRequest;
 use App\Models\LeaveApplication;
 use App\Models\User;
@@ -52,7 +55,7 @@ class LeaveService
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
         } else {
-            // موظف (staff): يرى طلباته + طلبات الموظفين التابعين له
+            // موظف (staff): يرى طلباته + طلبات الموظفين التابعين له في نفس القسم
             $subordinateIds = $this->getSubordinateEmployeeIds($user->user_id);
 
             if (!empty($subordinateIds)) {
@@ -60,6 +63,13 @@ class LeaveService
                 $subordinateIds[] = $user->user_id; // إضافة نفسه
                 $filterData['employee_ids'] = $subordinateIds;
                 $filterData['company_id'] = $user->company_id;
+                
+                // إضافة فلترة المستويات الهرمية للموظفين التابعين
+                $hierarchyLevels = $this->permissionService->getUserHierarchyLevel($user);
+                if ($hierarchyLevels !== null) {
+                    // جلب المستويات الأعلى من مستوى المدير
+                    $filterData['hierarchy_levels'] = range($hierarchyLevels + 1, 5);
+                }
             } else {
                 // ليس لديه موظفين تابعين: طلباته فقط
                 $filterData['employee_id'] = $user->user_id;
@@ -77,127 +87,100 @@ class LeaveService
 
     /**
      * Get all subordinate employee IDs using recursive reporting structure
+     * Filters by same department and lower hierarchy levels
      * 
      * @param int $managerId
      * @return array
      */
     private function getSubordinateEmployeeIds(int $managerId): array
     {
-        $db = DB::connection()->getPdo();
+        // Get manager's department and hierarchy level
+        $manager = DB::table('ci_erp_users_details')
+            ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
+            ->where('ci_erp_users_details.user_id', $managerId)
+            ->first(['ci_erp_users_details.department_id', 'ci_designations.hierarchy_level']);
 
-        // Recursive query to get all subordinates (same as CodeIgniter)
-        $sql = "SELECT user_id
-                FROM (SELECT * FROM `ci_erp_users_details` ORDER BY user_id) reporting_manager,
-                     (SELECT @pv := :manager_id) initialisation
-                WHERE FIND_IN_SET(reporting_manager, @pv)
-                AND LENGTH(@pv := CONCAT(@pv, ',', user_id))";
+        if (!$manager) {
+            return [];
+        }
 
-        $stmt = $db->prepare($sql);
-        $stmt->execute(['manager_id' => $managerId]);
-        $results = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+        // Get employees in same department with lower hierarchy levels
+        $subordinates = DB::table('ci_erp_users_details')
+            ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
+            ->join('ci_erp_users', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
+            ->where('ci_erp_users_details.department_id', $manager->department_id)
+            ->where('ci_designations.hierarchy_level', '>', $manager->hierarchy_level)
+            ->where('ci_designations.hierarchy_level', '!=', 1) // Exclude highest level if needed
+            ->where('ci_erp_users.is_active', 1)
+            ->pluck('ci_erp_users_details.user_id')
+            ->toArray();
 
-        return array_map('intval', $results);
+        return array_map('intval', $subordinates);
     }
 
     /**
-     * Get active employees for duty employee selection with optional filters
-     * Returns list of active employees in the specified company
+     * Get hierarchy levels of subordinate employees
+     * Filters by same department and lower hierarchy levels
      * 
-     * @param int $companyId
-     * @param string|null $search Optional search term to filter by name, email, or company name
-     * @param int|null $employeeId Optional employee ID to filter by specific employee
+     * @param int $managerId
      * @return array
      */
-    public function getEmployeesForDutyEmployee(int $companyId, ?string $search = null, ?int $employeeId = null): array
+    private function getSubordinateHierarchyLevels(int $managerId): array
     {
-        
-        $employees = $this->leaveRepository->getDutyEmployee(
-            $companyId,
-            $search,
-            $employeeId
-        );
+        // Get manager's department and hierarchy level
+        $manager = DB::table('ci_erp_users_details')
+            ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
+            ->where('ci_erp_users_details.user_id', $managerId)
+            ->first(['ci_erp_users_details.department_id', 'ci_designations.hierarchy_level']);
 
-        return $employees;
+        if (!$manager) {
+            return [];
+        }
+
+        // Get hierarchy levels of employees in same department with lower levels
+        $hierarchyLevels = DB::table('ci_erp_users_details')
+            ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
+            ->where('ci_erp_users_details.department_id', $manager->department_id)
+            ->where('ci_designations.hierarchy_level', '>', $manager->hierarchy_level)
+            ->whereNotNull('ci_designations.hierarchy_level')
+            ->pluck('ci_designations.hierarchy_level')
+            ->unique()
+            ->toArray();
+
+        return array_map('intval', $hierarchyLevels);
     }
 
     /**
-     * Create a new hourly leave application
-     * @param \App\DTOs\Leave\CreateHourlyLeaveDTO $dto
-     * @return object
-     * @throws \Exception
+     * الحصول على قوائم Enums الخاصة بالإجازات
+     * 
+     * @return array
      */
-    public function createHourlyLeaveApplication(CreateHourlyLeaveDTO $dto): object
+    public function getLeaveEnums(): array
     {
-        return DB::transaction(function () use ($dto) {
-            Log::info('LeaveService::createHourlyLeaveApplication', [
-                'employee_id' => $dto->employeeId,
-                'leave_type_id' => $dto->leaveTypeId,
-                'date' => $dto->date,
-                'clock_in_m' => $dto->clockInM,
-                'clock_out_m' => $dto->clockOutM
-            ]);
-
-            // Calculate leave hours
-            $startTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockInM);
-            $endTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockOutM);
-            $leaveHours = $endTime->diffInHours($startTime);
-
-            // جلب الرصيد المتاح لنوع الإجازة
-            $availableBalance = $this->getAvailableLeaveBalance(
-                $dto->employeeId,
-                $dto->leaveTypeId,
-                $dto->companyId,
-            );
-
-            // إذا كانت الإجازة المطلوبة أكبر من الرصيد المتاح نرفض الطلب
-            if ($leaveHours > $availableBalance) {
-                throw new \Exception(
-                    "ساعات الإجازة المطلوبة ({$leaveHours} ساعة) أكبر من الرصيد المتاح ({$availableBalance} ساعة) لهذا النوع."
-                );
-            }
-
-            $leave = $this->leaveRepository->createApplicationFromHourly($dto);
-
-            if (!$leave) {
-                throw new \Exception("فشل في إنشاء طلب الإستئذان للإجازة بـ {$leaveHours} ساعة - الرصيد المتوفر: {$availableBalance} ساعة");
-            }
-
-            // Start approval workflow
-            $this->approvalWorkflow->submitForApproval(
-                'leave_settings',
-                (string)$leave->leave_id,
-                $dto->employeeId,
-                $dto->companyId
-            );
-
-            // Send notifications
-            $this->notificationService->sendSubmissionNotification(
-                'leave_settings',
-                (string)$leave->leave_id,
-                $dto->companyId,
-                StringStatusEnum::SUBMITTED->value,
-                $dto->employeeId
-            );
-
-            // Get employee email and name from already loaded relationships
-            $employeeEmail = $leave->employee->email ?? null;
-            $employeeName = $leave->employee->full_name ?? 'Employee';
-            $leaveTypeName = $leave->leaveType->leave_type_name ?? 'Hourly Leave';
-
-            // Send email notification if employee email exists (dispatched as job)
-            if ($employeeEmail) {
-                SendEmailNotificationJob::dispatch(
-                    new HourSubmitted(
-                        employeeName: $employeeName,
-                        leaveType: $leaveTypeName,
-                        date: $dto->date,
-                        hours: (int)($dto->hours ?? 0),
-                    ),
-                    $employeeEmail
-                );
-            }
-            return $leave;
-        });
+        $user = Auth::user();
+        
+        // استخدام effective company_id إذا كان company_id للمستخدم هو 0
+        $companyId = $user->company_id;
+        if ($user->company_id === 0) {
+            // استخدام permission service للحصول على effective company id
+            $permissionService = app(SimplePermissionService::class);
+            $companyId = $permissionService->getEffectiveCompanyId($user);
+        }
+        
+        Log::info('Getting leave types for user', [
+            'user_id' => $user->user_id ?? null,
+            'user_company_id' => $user->company_id,
+            'effective_company_id' => $companyId
+        ]);
+        
+        $leavetypes = LeaveApplication::leave_types($companyId);
+        return [
+            'statuses_string' => StringStatusEnum::toArray(),
+            'statuses_numeric' => NumericalStatusEnum::toArray(),
+            'deducted_status' => DeductedStatus::toArray(),
+            'leave_place' => LeavePlaceEnum::toArray(),
+            'leave_types' => $leavetypes
+        ];
     }
 
     /**
@@ -223,6 +206,7 @@ class LeaveService
                 $requestedHours = $days * 8.0; // 8 ساعات لليوم الواحد
             }
 
+
             // جلب الرصيد المتاح لنوع الإجازة
             $availableBalance = $this->getAvailableLeaveBalance(
                 $dto->employeeId,
@@ -237,11 +221,53 @@ class LeaveService
                 );
             }
 
+            // التحقق من صلاحيات المستوى الهرمي إذا كان الطلب لموظف آخر
+            // Check hierarchy permissions if request is for another employee
+            if ($dto->createdBy && $dto->employeeId !== $dto->createdBy) {
+                $requester = User::find($dto->createdBy);
+                $targetEmployee = User::find($dto->employeeId);
+
+                if (!$requester || !$targetEmployee) {
+                    throw new \Exception('المستخدم أو الموظف المستهدف غير موجود');
+                }
+
+                // Company users can create requests for any employee in their company
+                if ($requester->user_type === 'company') {
+                    if ($requester->user_id !== $targetEmployee->company_id) {
+                        throw new \Exception('الموظف يجب أن يكون من نفس الشركة');
+                    }
+                    Log::info('Company user creating leave for employee - allowed', [
+                        'requester_id' => $requester->user_id,
+                        'requester_type' => $requester->user_type,
+                        'employee_id' => $targetEmployee->user_id,
+                    ]);
+                } else if ($requester->user_type === 'staff') {
+                    // For staff users: check hierarchy level, department, and reporting manager
+                    if ($requester->company_id !== $targetEmployee->company_id) {
+                        throw new \Exception('الموظف يجب أن يكون من نفس الشركة');
+                    }
+
+                    // Check hierarchy: requester must have LOWER level number (higher authority)
+                    // Example: Level 2 can create for Level 3,4,5 but NOT for Level 1,2
+                    // If the requester is not the target employee, check hierarchy level
+                    if ($requester->user_id != $targetEmployee->user_id && $requester->hierarchy_level >= $targetEmployee->hierarchy_level) {
+                        throw new \Exception(
+                            'ليس لديك صلاحية لتقديم طلب لهذا الموظف. ' .
+                                'يجب أن تكون في مستوى هرمي أعلى (رقم أقل) من الموظف المستهدف.'
+                        );
+                    }
+                }
+            }
+
             $leave = $this->leaveRepository->createApplication($dto);
 
             if (!$leave) {
                 throw new \Exception('Failed to create leave application');
             }
+
+            // Update leave_hours with calculated requested hours
+            $leave->update(['leave_hours' => $requestedHours]);
+
             // Get employee email and name from already loaded relationships
             $employeeEmail = $leave->employee->email ?? null;
             $employeeName = $leave->employee->full_name ?? 'Employee';
@@ -300,6 +326,7 @@ class LeaveService
      * @param int $id Application ID
      * @param int|null $companyId Company ID (for company users/admins)
      * @param int|null $userId User ID (for regular employees)
+     * @param User|null $user User object
      * @return array|null
      * @throws \Exception
      */
@@ -311,31 +338,66 @@ class LeaveService
             throw new \InvalidArgumentException('يجب توفير معرف الشركة أو معرف المستخدم');
         }
 
-        // Find application by company ID (for company users/admins)
-        if ($companyId !== null) {
-            $application = $this->leaveRepository->findApplicationInCompany($id, $companyId);
+        // Company users can see all applications in their company
+        if ($user->user_type === 'company') {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $application = $this->leaveRepository->findApplicationInCompany($id, $effectiveCompanyId);
 
             if ($application) {
                 return LeaveApplicationResponseDTO::fromModel($application)->toArray();
             }
-        }
+        } 
+        // Staff users: check hierarchy permissions
+        else {
+            // First, try to find by user ID (own requests) - but only if this is actually the user's own request
+            if ($userId !== null) {
+                try {
+                    $application = $this->leaveRepository->findApplicationForEmployee($id, $userId);
 
-        // Find application by user ID (for regular employees)
-        if ($userId !== null) {
-            $application = $this->leaveRepository->findApplicationForEmployee($id, $userId);
+                    if ($application) {
+                        return LeaveApplicationResponseDTO::fromModel($application)->toArray();
+                    }
+                } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+                    // This is not the user's own request, continue to check hierarchy permissions
+                    Log::info('LeaveService::getApplicationById - Not user own request, checking hierarchy', [
+                        'application_id' => $id,
+                        'user_id' => $userId
+                    ]);
+                }
+            }
+
+            // Then, try to find in company and check hierarchy permissions
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $application = $this->leaveRepository->findApplicationInCompany($id, $effectiveCompanyId);
 
             if ($application) {
-                return LeaveApplicationResponseDTO::fromModel($application)->toArray();
+                // Check if user can view this employee's requests based on hierarchy
+                $employee = User::find($application->employee_id);
+                if ($employee) {
+                    $canView = $this->permissionService->canViewEmployeeRequests($user, $employee);
+                    
+                    Log::info('LeaveService::getApplicationById - Hierarchy check', [
+                        'application_id' => $id,
+                        'application_employee_id' => $application->employee_id,
+                        'requester_id' => $user->user_id,
+                        'requester_type' => $user->user_type,
+                        'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                        'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'requester_department' => $this->permissionService->getUserDepartmentId($user),
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee),
+                        'can_view' => $canView
+                    ]);
+                    
+                    if ($canView) {
+                        return LeaveApplicationResponseDTO::fromModel($application)->toArray();
+                    }
+                }
             }
         }
 
         return null;
     }
 
-
-    /**
-     * Update leave application with permission check
-     */
     /**
      * Update leave application with permission check
      */
@@ -355,8 +417,20 @@ class LeaveService
 
             // التحقق من صلاحية التعديل
             $isOwner = $application->employee_id === $user->user_id;
-
-            if (!$isOwner) {
+            $isCompany = $user->user_type === 'company';
+            $isHigherLevel = false;
+            
+            // التحقق من المستوى الأعلى إذا كان المستخدم موظفاً
+            if (!$isCompany && $user->employee) {
+                $isHigherLevel = $user->employee->hierarchy_level < $application->employee->hierarchy_level;
+            }
+            
+            if (!$isOwner && !$isCompany && !$isHigherLevel) {
+                Log::error('Unauthorized update attempt', [
+                    'isowner' => $isOwner,
+                    '$isHigh' => $isHigherLevel,
+                    'iscompany' => $isCompany
+                ]);
                 throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
             }
 
@@ -480,6 +554,24 @@ class LeaveService
                 throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
             }
 
+            // Check hierarchy permissions for staff users
+            if ($user->user_type !== 'company') {
+                $employee = User::find($application->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::warning('LeaveService::approveApplication - Hierarchy permission denied', [
+                        'application_id' => $id,
+                        'requester_id' => $user->user_id,
+                        'requester_type' => $user->user_type,
+                        'employee_id' => $application->employee_id,
+                        'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                        'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'requester_department' => $this->permissionService->getUserDepartmentId($user),
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية للموافقة على طلب هذا الموظف');
+                }
+            }
+
             // Get the remarks from the validated request
             $validated = $request->validated();
             $remarks = $validated['remarks'] ?? null;
@@ -546,6 +638,25 @@ class LeaveService
 
             if ($application->status !== LeaveApplication::STATUS_PENDING) {
                 throw new \Exception('لا يمكن رفض طلب تم الموافقة عليه مسبقاً');
+            }
+
+            // Check hierarchy permissions for staff users
+            $rejectingUser = User::find($rejectedBy);
+            if ($rejectingUser && $rejectingUser->user_type !== 'company') {
+                $employee = User::find($application->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($rejectingUser, $employee)) {
+                    Log::warning('LeaveService::rejectApplication - Hierarchy permission denied', [
+                        'application_id' => $id,
+                        'rejecting_user_id' => $rejectedBy,
+                        'rejecting_user_type' => $rejectingUser->user_type,
+                        'employee_id' => $application->employee_id,
+                        'rejecting_user_level' => $this->permissionService->getUserHierarchyLevel($rejectingUser),
+                        'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'rejecting_user_department' => $this->permissionService->getUserDepartmentId($rejectingUser),
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لرفض طلب هذا الموظف');
+                }
             }
 
             $rejectedApplication = $this->leaveRepository->rejectApplication($application, $rejectedBy, $reason);

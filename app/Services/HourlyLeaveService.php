@@ -7,6 +7,9 @@ use App\DTOs\Leave\HourlyLeaveFilterDTO;
 use App\DTOs\Leave\CancelHourlyLeaveDTO;
 use App\DTOs\Leave\ApproveOrRejectHourlyLeaveDTO;
 use App\DTOs\Leave\UpdateHourlyLeaveDTO;
+use App\Enums\DeductedStatus;
+use App\Enums\LeavePlaceEnum;
+use App\Enums\NumericalStatusEnum;
 use App\Models\LeaveApplication;
 use App\Models\User;
 use App\Repository\Interface\HourlyLeaveRepositoryInterface;
@@ -45,8 +48,8 @@ class HourlyLeaveService
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
         } else {
-            // موظف (staff): يرى طلباته + طلبات الموظفين التابعين له
-            $subordinateIds = $this->getSubordinateEmployeeIds($user->user_id);
+            // موظف (staff): يرى طلباته + طلبات الموظفين التابعين له بناءً على المستويات الهرمية والقسم
+            $subordinateIds = $this->getSubordinateEmployeeIds($user);
 
             if (!empty($subordinateIds)) {
                 // لديه موظفين تابعين: طلباته + طلبات التابعين
@@ -69,24 +72,25 @@ class HourlyLeaveService
     }
 
     /**
-     * الحصول على جميع معرفات الموظفين التابعين باستخدام هيكل التقارير المتكرر
+     * الحصول على جميع معرفات الموظفين التابعين باستخدام المستويات الهرمية والقسم
      */
-    private function getSubordinateEmployeeIds(int $managerId): array
+    private function getSubordinateEmployeeIds(User $manager): array
     {
-        $db = DB::connection()->getPdo();
+        // الحصول على جميع الموظفين في نفس الشركة
+        $allEmployees = User::where('company_id', $manager->company_id)
+            ->where('user_type', 'staff')
+            ->get();
 
-        // استعلام متكرر للحصول على جميع التابعين (نفس منطق CodeIgniter)
-        $sql = "SELECT user_id
-                FROM (SELECT * FROM `ci_erp_users_details` ORDER BY user_id) reporting_manager,
-                     (SELECT @pv := :manager_id) initialisation
-                WHERE FIND_IN_SET(reporting_manager, @pv)
-                AND LENGTH(@pv := CONCAT(@pv, ',', user_id))";
+        $subordinateIds = [];
+        
+        foreach ($allEmployees as $employee) {
+            // التحقق إذا كان المدير يمكنه عرض طلبات هذا الموظف
+            if ($this->permissionService->canViewEmployeeRequests($manager, $employee)) {
+                $subordinateIds[] = $employee->user_id;
+            }
+        }
 
-        $stmt = $db->prepare($sql);
-        $stmt->execute(['manager_id' => $managerId]);
-        $results = $stmt->fetchAll(\PDO::FETCH_COLUMN);
-
-        return array_map('intval', $results);
+        return $subordinateIds;
     }
 
     /**
@@ -103,6 +107,29 @@ class HourlyLeaveService
         // البحث عن الطلب بواسطة معرف الشركة (للمستخدمين من نوع company/admins)
         if ($companyId !== null) {
             $application = $this->hourlyLeaveRepository->findHourlyLeaveById($id, $companyId);
+            
+            // Check hierarchy permissions for staff users
+            if ($user && $user->user_type !== 'company') {
+                // Allow users to view their own requests
+                if ($application->employee_id === $user->user_id) {
+                    return $application;
+                }
+                
+                $employee = User::find($application->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::warning('HourlyLeaveService::getHourlyLeaveById - Hierarchy permission denied', [
+                        'application_id' => $id,
+                        'requester_id' => $user->user_id,
+                        'requester_type' => $user->user_type,
+                        'employee_id' => $application->employee_id,
+                        'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                        'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'requester_department' => $this->permissionService->getUserDepartmentId($user),
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                    ]);
+                    return null;
+                }
+            }
             return $application;
         }
 
@@ -289,6 +316,25 @@ class HourlyLeaveService
                 throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
             }
 
+            // Check hierarchy permissions for staff users
+            $user = Auth::user();
+            if ($user->user_type !== 'company') {
+                $employee = User::find($application->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::warning('HourlyLeaveService::approveOrRejectHourlyLeave - Hierarchy permission denied', [
+                        'application_id' => $id,
+                        'requester_id' => $user->user_id,
+                        'requester_type' => $user->user_type,
+                        'employee_id' => $application->employee_id,
+                        'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                        'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'requester_department' => $this->permissionService->getUserDepartmentId($user),
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لمراجعة طلب هذا الموظف');
+                }
+            }
+
             if ($dto->action === 'approve') {
                 // الموافقة على الطلب
                 $processedApplication = $this->hourlyLeaveRepository->approveHourlyLeave(
@@ -399,8 +445,22 @@ class HourlyLeaveService
             // التحقق من صلاحية التعديل
             $isOwner = $application->employee_id === $user->user_id;
 
-            if (!$isOwner) {
-                throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+            // Check hierarchy permissions for staff users (non-owners)
+            if (!$isOwner && $user->user_type !== 'company') {
+                $employee = User::find($application->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::warning('HourlyLeaveService::updateHourlyLeave - Hierarchy permission denied', [
+                        'application_id' => $id,
+                        'requester_id' => $user->user_id,
+                        'requester_type' => $user->user_type,
+                        'employee_id' => $application->employee_id,
+                        'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                        'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'requester_department' => $this->permissionService->getUserDepartmentId($user),
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لتعديل طلب هذا الموظف');
+                }
             }
 
             // التحقق من أن الطلب يمكن تحديثه (فقط الطلبات المعلقة)
@@ -412,6 +472,12 @@ class HourlyLeaveService
             if ($dto->clockInM !== null && $dto->clockOutM !== null && $dto->date !== null) {
                 $startTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockInM);
                 $endTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockOutM);
+                
+                // التحقق من أن وقت النهاية بعد وقت البداية
+                if ($endTime <= $startTime) {
+                    throw new \Exception('وقت النهاية يجب أن يكون بعد وقت البداية');
+                }
+                
                 $leaveHours = $endTime->diffInHours($startTime);
 
                 // التحقق من أن الساعات أقل من 8
@@ -424,8 +490,7 @@ class HourlyLeaveService
                 // التحقق من عدم وجود استئذان آخر في نفس التاريخ (باستثناء الطلب الحالي)
                 $existingLeave = LeaveApplication::where('company_id', $effectiveCompanyId)
                     ->where('employee_id', $user->user_id)
-                    ->whereColumn('from_date', 'to_date')
-                    ->where('from_date', $dto->date)
+                    ->where('particular_date', $dto->date)
                     ->where('leave_hours', '>', 0)
                     ->where('leave_hours', '<', 8)
                     ->whereIn('status', [1, 2])
@@ -475,6 +540,34 @@ class HourlyLeaveService
 
         // 3. حساب الرصيد المتاح
         return max(0, $totalGranted - $totalUsed);
+    }
+
+    public function getHourlyLeaveEnums(): array
+    {
+        $user = Auth::user();
+        
+        // استخدام effective company_id إذا كان company_id للمستخدم هو 0
+        $companyId = $user->company_id;
+        if ($user->company_id === 0) {
+            // استخدام permission service للحصول على effective company id
+            $permissionService = app(SimplePermissionService::class);
+            $companyId = $permissionService->getEffectiveCompanyId($user);
+        }
+        
+        Log::info('Getting leave types for user', [
+            'user_id' => $user->user_id ?? null,
+            'user_company_id' => $user->company_id,
+            'effective_company_id' => $companyId
+        ]);
+        
+        $leavetypes = LeaveApplication::leave_types($companyId);
+        return [
+            'statuses_string' => StringStatusEnum::toArray(),
+            'statuses_numeric' => NumericalStatusEnum::toArray(),
+            'leave_types' => $leavetypes,
+            'leave_place' => LeavePlaceEnum::toArray(),
+            'deducted_status' => DeductedStatus::toArray(),
+        ];
     }
 }
 

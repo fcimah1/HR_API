@@ -34,7 +34,7 @@ class CreateTravelDTO
             expected_budget: $request->input('expected_budget'),
             actual_budget: $request->input('actual_budget'),
             description: $request->input('description'),
-            associated_goals: $request->input('associated_goals') ? implode(',', $request->input('associated_goals')) : null,
+            associated_goals: $request->input('associated_goals') ? json_encode($request->input('associated_goals')) : null,
             status: 0,
             added_by: $addedBy,
             company_id: $companyId
