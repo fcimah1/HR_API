@@ -41,24 +41,29 @@ class CreateOvertimeRequestRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'request_date' => ['required', 'date', 'date_format:Y-m-d'],
+            'request_date' => 'required|date|date_format:Y-m-d|after_or_equal:today',
             'clock_in' => ['required', 'date_format:g:i A'],
             'clock_out' => ['required', 'date_format:g:i A', 'after:clock_in'],
             'overtime_reason' => ['required', 'string', function ($attribute, $value, $fail) {
                 $validNames = array_column(OvertimeReasonEnum::cases(), 'name');
                 if (!in_array($value, $validNames, true)) {
-                    $fail('The selected overtime reason is invalid.');
+                    $fail('سبب العمل الإضافي المحدد غير صالح. القيم المسموحة هي: ' . implode(', ', $validNames));
                 }
             }],
             'additional_work_hours' => ['nullable', 'integer', Rule::in([0, 1, 2, 3])],
             'compensation_type' => ['required', 'string', function ($attribute, $value, $fail) {
                 $validNames = array_column(CompensationTypeEnum::cases(), 'name');
                 if (!in_array($value, $validNames, true)) {
-                    $fail('The selected compensation type is invalid.');
+                    $fail('نوع التعويض المحدد غير صالح. القيم المسموحة هي: ' . implode(', ', $validNames));
                 }
             }],
             'request_reason' => ['nullable', 'string', 'max:1000'],
-            'employee_id' => ['nullable', 'integer', 'exists:ci_erp_users,user_id'], // For company/HR creating on behalf
+            'employee_id' => [
+                'nullable',
+                'integer',
+                new \App\Rules\CanRequestForEmployee(),
+            ],
+
         ];
     }
 
@@ -68,20 +73,26 @@ class CreateOvertimeRequestRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'request_date.required' => 'تاريخ الطلب مطلوب',
-            'request_date.date' => 'تاريخ الطلب يجب أن يكون تاريخ صحيح',
-            'clock_in.required' => 'وقت البداية مطلوب',
-            'clock_in.date_format' => 'وقت البداية يجب أن يكون بصيغة 12 ساعة (مثال: 2:30 PM)',
-            'clock_out.required' => 'وقت النهاية مطلوب',
-            'clock_out.date_format' => 'وقت النهاية يجب أن يكون بصيغة 12 ساعة (مثال: 5:00 PM)',
-            'clock_out.after' => 'وقت النهاية يجب أن يكون بعد وقت البداية',
-            'overtime_reason.required' => 'سبب العمل الإضافي مطلوب',
-            'overtime_reason.in' => 'سبب العمل الإضافي غير صحيح',
-            'additional_work_hours.in' => 'نوع ساعات العمل الإضافية غير صحيح',
-            'compensation_type.required' => 'نوع التعويض مطلوب',
-            'compensation_type.in' => 'نوع التعويض غير صحيح',
-            'request_reason.max' => 'السبب يجب ألا يتجاوز 1000 حرف',
+            'request_date.required' => 'حقل تاريخ الطلب مطلوب',
+            'request_date.date' => 'حقل تاريخ الطلب يجب أن يكون تاريخاً صالحاً',
+            'request_date.date_format' => 'حقل تاريخ الطلب يجب أن يكون بصيغة Y-m-d',
+            'request_date.after_or_equal' => 'حقل تاريخ الطلب يجب أن يكون تاريخ اليوم أو تاريخ مستقبلي',
+            'clock_in.required' => 'حقل وقت البداية مطلوب',
+            'clock_in.date_format' => 'حقل وقت البداية يجب أن يكون بصيغة g:i A (مثال: 2:30 PM)',
+            'clock_out.required' => 'حقل وقت النهاية مطلوب',
+            'clock_out.date_format' => 'حقل وقت النهاية يجب أن يكون بصيغة g:i A (مثال: 7:00 PM)',
+            'clock_out.after' => 'حقل وقت النهاية يجب أن يكون بعد وقت البداية',
+            'overtime_reason.required' => 'حقل سبب العمل الإضافي مطلوب',
+            'overtime_reason.string' => 'حقل سبب العمل الإضافي يجب أن يكون نصاً',
+            'additional_work_hours.integer' => 'حقل ساعات العمل الإضافية يجب أن يكون رقماً',
+            'additional_work_hours.in' => 'قيمة حقل ساعات العمل الإضافية غير صالحة',
+            'compensation_type.required' => 'حقل نوع التعويض مطلوب',
+            'compensation_type.string' => 'حقل نوع التعويض يجب أن يكون نصاً',
+            'request_reason.string' => 'حقل سبب الطلب يجب أن يكون نصاً',
+            'request_reason.max' => 'حقل سبب الطلب يجب ألا يزيد عن 1000 حرف',
+            'employee_id.integer' => 'حقل معرف الموظف يجب أن يكون رقماً',
             'employee_id.exists' => 'الموظف المحدد غير موجود',
+            'employee_id.can_request_for_employee' => 'لا يمكنك إنشاء طلب لهذا الموظف',
         ];
     }
 

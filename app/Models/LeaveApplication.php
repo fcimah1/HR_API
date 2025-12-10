@@ -89,6 +89,15 @@ class LeaveApplication extends Model
         return $this->belongsTo(User::class, 'duty_employee_id', 'user_id');
     }
 
+
+     // get all leave types names
+    public function allLeaveTypeNameByCompanyId(int $companyId){
+         return \App\Models\ErpConstant::where('type', 'leave_type')
+            ->where('company_id', $companyId)
+            ->pluck('category_name','constants_id')
+            ->toArray();
+    }
+
     /**
      * Get the leave type
      */

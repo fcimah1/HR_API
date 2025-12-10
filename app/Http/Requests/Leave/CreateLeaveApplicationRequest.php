@@ -10,6 +10,8 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+
 // No logging on validation failures to avoid noisy log output
 
 /**
@@ -69,11 +71,19 @@ class CreateLeaveApplicationRequest extends FormRequest
                         })
                         ->first();
                         // Intentionally not logging here to avoid noise in logs
-
-                    if (!$leaveType) {
-                        $fail('نوع الإجازة غير متاح لشركتك');
+                $leaveModel = new LeaveApplication();
+                $validTypes = $leaveModel->allLeaveTypeNameByCompanyId($companyId);
+                Log::info('Valid types: ' . json_encode($validTypes));
+                
+                // Check if the leave type ID exists in the valid types
+                if (!array_key_exists($value, $validTypes)) {
+                    $validList = [];
+                    foreach ($validTypes as $id => $name) {
+                        $validList[] = "[{$id} : ({$name})]";
                     }
+                    $fail('نوع الإجازة المحدد غير صالح. القيم المسموحة هي: ' . implode(', ', $validList));
                 }
+            }
             ],
             'from_date' => 'required|date|after_or_equal:today',
             'to_date' => 'required|date|after_or_equal:from_date',

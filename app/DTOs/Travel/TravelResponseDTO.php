@@ -2,6 +2,8 @@
 
 namespace App\DTOs\Travel;
 
+use App\Enums\NumericalStatusEnum;
+use App\Enums\TravelModeEnum;
 use App\Models\Travel;
 
 class TravelResponseDTO
@@ -13,7 +15,7 @@ class TravelResponseDTO
         public readonly string $employeeName,
         public readonly string $startDate,
         public readonly string $endDate,
-        public readonly ?string $associatedGoals,
+        public readonly ?array $associatedGoals,
         public readonly string $visitPurpose,
         public readonly string $visitPlace,
         public readonly int $travelMode,
@@ -40,9 +42,7 @@ class TravelResponseDTO
         if (!$travel->relationLoaded('approvals')) {
             $travel->load('approvals.staff');
         }
-        if (!$travel->relationLoaded('arrangementType')) {
-            $travel->load('arrangementType');
-        }
+        // Don't load arrangementType to avoid object nesting
 
         $employee = $travel->employee ? [
             'user_id' => $travel->employee->user_id,
@@ -93,22 +93,22 @@ class TravelResponseDTO
     private static function getTravelModeText(int $mode): string
     {
         return match ($mode) {
-            1 => 'Bus',
-            2 => 'Train',
-            3 => 'Plane',
-            4 => 'Taxi',
-            5 => 'Rental Car',
-            default => 'Unknown',
+            TravelModeEnum::BUS->value => 'Bus',
+            TravelModeEnum::TRAIN->value => 'Train',
+            TravelModeEnum::PLANE->value => 'Plane',
+            TravelModeEnum::TAXI->value => 'Taxi',
+            TravelModeEnum::RENTAL_CAR->value => 'Rental Car',
+            default => TravelModeEnum::BUS->value,
         };
     }
 
     private static function getStatusText(int $status): string
     {
         return match ($status) {
-            0 => 'Pending',
-            1 => 'Approved',
-            2 => 'Rejected',
-            default => 'Unknown',
+            NumericalStatusEnum::PENDING->value => 'Pending',
+            NumericalStatusEnum::APPROVED->value => 'Approved',
+            NumericalStatusEnum::REJECTED->value => 'Rejected',
+            default => NumericalStatusEnum::PENDING->value,
         };
     }
 

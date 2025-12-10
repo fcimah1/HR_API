@@ -12,16 +12,16 @@ use Illuminate\Support\Facades\Log;
  *     schema="UpdateTravelRequest",
  *     type="object",
  *     title="Update Travel Request",
- *     @OA\Property(property="start_date", type="string", format="date", description="Start date of travel"),
- *     @OA\Property(property="end_date", type="string", format="date", description="End date of travel"),
- *     @OA\Property(property="visit_purpose", type="string", description="Purpose of the visit"),
- *     @OA\Property(property="visit_place", type="string", description="Place of visit"),
- *     @OA\Property(property="travel_mode", type="integer", description="Mode of travel (1-5)"),
- *     @OA\Property(property="arrangement_type", type="integer", description="Type of arrangement"),
- *     @OA\Property(property="expected_budget", type="number", format="float", description="Expected budget"),
- *     @OA\Property(property="actual_budget", type="number", format="float", description="Actual budget"),
- *     @OA\Property(property="description", type="string", description="Description"),
- *     @OA\Property(property="associated_goals", type="array", @OA\Items(type="integer"), description="List of associated goal IDs")
+ *     @OA\Property(property="start_date", type="string", format="date", description="تاريخ البداية"),
+ *     @OA\Property(property="end_date", type="string", format="date", description="تاريخ النهاية"),
+ *     @OA\Property(property="visit_purpose", type="string", description="غرض الزيارة"),
+ *     @OA\Property(property="visit_place", type="string", description="مكان الزيارة"),
+ *     @OA\Property(property="travel_mode", type="integer", description="وضع السفر (1-5)"),
+ *     @OA\Property(property="arrangement_type", type="integer", description="نوع ترتيب السفر"),
+ *     @OA\Property(property="expected_budget", type="number", format="float", description="الميزانية المتوقعة"),
+ *     @OA\Property(property="actual_budget", type="number", format="float", description="الميزانية الفعلية"),
+ *     @OA\Property(property="description", type="string", description="الوصف"),
+ *     @OA\Property(property="associated_goals", type="array", @OA\Items(type="string"), description="الأهداف المرتبطة (مصفوفة نصوص أو نص مفصول بفواصل)")
  * )
  */
 class UpdateTravelRequest extends FormRequest
@@ -31,60 +31,66 @@ class UpdateTravelRequest extends FormRequest
         return Auth::check();
     }
 
+    public function all($keys = null)
+    {
+        $data = parent::all($keys);
+        return $data;
+    }
+
     public function rules(): array
     {
         return [
-            'start_date' => 'sometimes|date',
-            'end_date' => 'sometimes|date|after_or_equal:start_date',
-            'visit_purpose' => 'sometimes|string|max:255',
-            'visit_place' => 'sometimes|string|max:255',
-            'travel_mode' => 'sometimes|integer|in:1,2,3,4,5',
-            'arrangement_type' => 'sometimes|integer|exists:ci_erp_constants,constants_id',
-            'expected_budget' => 'sometimes|numeric|min:0',
-            'actual_budget' => 'sometimes|numeric|min:0',
+            'start_date' => 'sometimes|required|date',
+            'end_date' => 'sometimes|required|date|after_or_equal:start_date',
+            'visit_purpose' => 'sometimes|required|string|max:255',
+            'visit_place' => 'sometimes|required|string|max:255',
+            'travel_mode' => 'sometimes|required|integer|in:1,2,3,4,5',
+            'arrangement_type' => 'sometimes|required|integer',
+            'expected_budget' => 'sometimes|required|numeric|min:0',
+            'actual_budget' => 'sometimes|required|numeric|min:0',
             'description' => 'nullable|string',
-            'associated_goals' => 'nullable|array',
-            'associated_goals.*' => 'integer',
+            'associated_goals' => 'nullable|array|string',
+            'associated_goals.*' => 'string',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'start_date.date' => 'Start date must be a valid date.',
-            'end_date.date' => 'End date must be a valid date.',
-            'end_date.after_or_equal' => 'End date must be on or after start date.',
-            'visit_purpose.string' => 'Visit purpose must be a string.',
-            'visit_purpose.max' => 'Visit purpose must be less than or equal to 255 characters.',
-            'visit_place.string' => 'Visit place must be a string.',
-            'visit_place.max' => 'Visit place must be less than or equal to 255 characters.',
-            'travel_mode.integer' => 'Travel mode must be an integer.',
-            'travel_mode.in' => 'Travel mode must be between 1 and 5.',
-            'arrangement_type.integer' => 'Arrangement type must be an integer.',
-            'arrangement_type.exists' => 'Arrangement type must exist.',
-            'expected_budget.numeric' => 'Expected budget must be a number.',
-            'expected_budget.min' => 'Expected budget must be greater than or equal to 0.',
-            'actual_budget.numeric' => 'Actual budget must be a number.',
-            'actual_budget.min' => 'Actual budget must be greater than or equal to 0.',
-            'description.string' => 'Description must be a string.',
-            'associated_goals.array' => 'Associated goals must be an array.',
-            'associated_goals.*.integer' => 'Associated goals must be an array of integers.',
+            'start_date.date' => 'تاريخ البداية يجب أن يكون تاريخًا صالحًا.',
+            'end_date.date' => 'تاريخ النهاية يجب أن يكون تاريخًا صالحًا.',
+            'end_date.after_or_equal' => 'تاريخ النهاية يجب أن يكون على أو بعد تاريخ البداية.',
+            'visit_purpose.string' => 'غرض الزيارة يجب أن يكون سلسلة نصية.',
+            'visit_purpose.max' => 'غرض الزيارة يجب أن يكون أقل من أو يساوي 255 حرفًا.',
+            'visit_place.string' => 'مكان الزيارة يجب أن يكون سلسلة نصية.',
+            'visit_place.max' => 'مكان الزيارة يجب أن يكون أقل من أو يساوي 255 حرفًا.',
+            'travel_mode.integer' => 'وضع السفر يجب أن يكون عددًا صحيحًا.',
+            'travel_mode.in' => 'وضع السفر يجب أن يكون بين 1 و 5.',
+            'arrangement_type.integer' => 'نوع ترتيب السفر يجب أن يكون عددًا صحيحًا.',
+            'arrangement_type.exists' => 'نوع ترتيب السفر المحدد غير موجود.',
+            'expected_budget.numeric' => 'الميزانية المتوقعة يجب أن تكون رقمًا.',
+            'expected_budget.min' => 'الميزانية المتوقعة يجب أن تكون أكبر من أو تساوي 0.',
+            'actual_budget.numeric' => 'الميزانية الفعلية يجب أن تكون رقمًا.',
+            'actual_budget.min' => 'الميزانية الفعلية يجب أن تكون أكبر من أو تساوي 0.',
+            'description.string' => 'الوصف يجب أن يكون سلسلة نصية.',
+            'associated_goals.string' => 'الأهداف المرتبطة يجب أن تكون نصاً.',
+            'associated_goals.*.string' => 'جميع الأهداف يجب أن تكون نصاً.',
         ];
     }
 
     public function attributes(): array
     {
         return [
-            'start_date' => 'Start Date',
-            'end_date' => 'End Date',
-            'visit_purpose' => 'Visit Purpose',
-            'visit_place' => 'Visit Place',
-            'travel_mode' => 'Travel Mode',
-            'arrangement_type' => 'Arrangement Type',
-            'expected_budget' => 'Expected Budget',
-            'actual_budget' => 'Actual Budget',
-            'description' => 'Description',
-            'associated_goals' => 'Associated Goals',
+            'start_date' => 'تاريخ البداية',
+            'end_date' => 'تاريخ النهاية',
+            'visit_purpose' => 'غرض الزيارة',
+            'visit_place' => 'مكان الزيارة',
+            'travel_mode' => 'وضع السفر',
+            'arrangement_type' => 'نوع ترتيب السفر',
+            'expected_budget' => 'الميزانية المتوقعة',
+            'actual_budget' => 'الميزانية الفعلية',
+            'description' => 'الوصف',
+            'associated_goals' => 'الأهداف المرتبطة',
         ];
     }
 

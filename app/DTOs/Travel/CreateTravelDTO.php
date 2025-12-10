@@ -2,6 +2,11 @@
 
 namespace App\DTOs\Travel;
 
+use App\Enums\NumericalStatusEnum;
+use App\Enums\TravelModeEnum;
+use App\Enums\TravelStatusEnum;
+use App\Models\Travel;
+
 class CreateTravelDTO
 {
     public function __construct(
@@ -15,8 +20,8 @@ class CreateTravelDTO
         public float $expected_budget,
         public float $actual_budget,
         public ?string $description = null,
-        public ?string $associated_goals = null,
-        public int $status = 0,
+        public ?array $associated_goals = null,
+        public int $status = TravelStatusEnum::PENDING->value,
         public ?int $added_by = null,
         public ?int $company_id = null
     ) {}
@@ -34,8 +39,10 @@ class CreateTravelDTO
             expected_budget: $request->input('expected_budget'),
             actual_budget: $request->input('actual_budget'),
             description: $request->input('description'),
-            associated_goals: $request->input('associated_goals') ? json_encode($request->input('associated_goals')) : null,
-            status: 0,
+            associated_goals: is_string($request->input('associated_goals')) 
+                ? explode(',', $request->input('associated_goals'))
+                : $request->input('associated_goals'),
+            status: TravelStatusEnum::PENDING->value,
             added_by: $addedBy,
             company_id: $companyId
         );
