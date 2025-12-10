@@ -307,6 +307,7 @@ class OvertimeController extends Controller
      *         required=true,
      *         @OA\JsonContent(
      *             required={"request_date", "clock_in", "clock_out", "overtime_reason", "compensation_type"},
+     *             @OA\Property(property="employee_id", type="integer", example=37, description="معرف الموظف (للشركة/HR فقط عند الإنشاء نيابة عن موظف)")
      *             @OA\Property(property="request_date", type="string", format="date", example="2025-11-25", description="تاريخ الطلب (يجب أن يكون بصيغة Y-m-d)"),
      *             @OA\Property(property="clock_in", type="string", example="2:30 PM", description="وقت البداية (صيغة 12 ساعة مع AM/PM)"),
      *             @OA\Property(property="clock_out", type="string", example="7:00 PM", description="وقت النهاية (صيغة 12 ساعة مع AM/PM)"),
@@ -331,7 +332,6 @@ class OvertimeController extends Controller
      *                 description="نوع التعويض: BANKED=مدخر, PAYOUT=صرف مالي"
      *             ),
      *             @OA\Property(property="request_reason", type="string", example="عمل إضافي لإنهاء المشروع", description="سبب الطلب (اختياري، حد أقصى 1000 حرف)"),
-     *             @OA\Property(property="employee_id", type="integer", example=37, description="معرف الموظف (للشركة/HR فقط عند الإنشاء نيابة عن موظف)")
      *         )
      *     ),
      *     @OA\Response(

@@ -9419,23 +9419,21 @@
                         }
                     },
                     {
-                        "name": "from_date",
+                        "name": "start_date",
                         "in": "query",
                         "description": "Filter from date (Y-m-d)",
                         "schema": {
                             "type": "string",
-                            "format": "date",
-                            "example": "2025-01-01"
+                            "format": "date"
                         }
                     },
                     {
-                        "name": "to_date",
+                        "name": "end_date",
                         "in": "query",
                         "description": "Filter to date (Y-m-d)",
                         "schema": {
                             "type": "string",
-                            "format": "date",
-                            "example": "2025-12-31"
+                            "format": "date"
                         }
                     },
                     {
@@ -9622,11 +9620,11 @@
                         "application/json": {
                             "schema": {
                                 "required": [
+                                    "employee_id",
                                     "start_date",
                                     "end_date",
                                     "visit_purpose",
                                     "visit_place",
-                                    "travel_type_id",
                                     "travel_mode",
                                     "arrangement_type",
                                     "expected_budget",
@@ -9636,19 +9634,19 @@
                                     "employee_id": {
                                         "description": "معرف الموظف (اختياري)",
                                         "type": "integer",
-                                        "example": 1
+                                        "example": 755
                                     },
                                     "start_date": {
                                         "description": "تاريخ بداية السفر",
                                         "type": "string",
                                         "format": "date",
-                                        "example": "2025-12-01"
+                                        "example": "2026-01-01"
                                     },
                                     "end_date": {
                                         "description": "تاريخ نهاية السفر",
                                         "type": "string",
                                         "format": "date",
-                                        "example": "2025-12-05"
+                                        "example": "2026-01-03"
                                     },
                                     "visit_purpose": {
                                         "description": "غرض الزيارة",
@@ -9660,20 +9658,15 @@
                                         "type": "string",
                                         "example": "الرياض"
                                     },
-                                    "travel_type_id": {
-                                        "description": "معرف نوع السفر",
-                                        "type": "integer",
-                                        "example": 1
-                                    },
                                     "travel_mode": {
-                                        "description": "وضع السفر (1-5)",
+                                        "description": "طريقة السفر (1-5)",
                                         "type": "integer",
                                         "example": 1
                                     },
                                     "arrangement_type": {
-                                        "description": "نوع الترتيب",
+                                        "description": "نوع ترتيب السفر",
                                         "type": "integer",
-                                        "example": 1
+                                        "example": 335
                                     },
                                     "expected_budget": {
                                         "description": "الميزانية المتوقعة",
@@ -9696,11 +9689,11 @@
                                         "description": "الأهداف المرتبطة (اختياري)",
                                         "type": "array",
                                         "items": {
-                                            "type": "integer"
+                                            "type": "string"
                                         },
                                         "example": [
-                                            1,
-                                            2
+                                            "هدف 1",
+                                            "هدف 2"
                                         ]
                                     },
                                     "remarks": {
@@ -10013,13 +10006,14 @@
                                         "example": "وصف معدل"
                                     },
                                     "associated_goals": {
+                                        "description": "الأهداف المرتبطة (اختياري)",
                                         "type": "array",
                                         "items": {
-                                            "type": "integer"
+                                            "type": "string"
                                         },
                                         "example": [
-                                            1,
-                                            2
+                                            "هدف 1",
+                                            "هدف 2"
                                         ]
                                     },
                                     "remarks": {
@@ -11493,51 +11487,55 @@
                         "type": "integer"
                     },
                     "start_date": {
-                        "description": "Start date of travel",
+                        "description": "تاريخ البداية",
                         "type": "string",
                         "format": "date"
                     },
                     "end_date": {
-                        "description": "End date of travel",
+                        "description": "تاريخ النهاية",
                         "type": "string",
                         "format": "date"
                     },
                     "visit_purpose": {
-                        "description": "Purpose of the visit",
+                        "description": "غرض الزيارة",
                         "type": "string"
                     },
                     "visit_place": {
-                        "description": "Place of visit",
+                        "description": "مكان الزيارة",
                         "type": "string"
                     },
                     "travel_mode": {
-                        "description": "Mode of travel (1-5)",
+                        "description": "وضع السفر (1-5)",
                         "type": "integer"
                     },
                     "arrangement_type": {
-                        "description": "Type of arrangement",
+                        "description": "نوع ترتيب السفر",
                         "type": "integer"
                     },
                     "expected_budget": {
-                        "description": "Expected budget",
+                        "description": "الميزانية المتوقعة",
                         "type": "number",
                         "format": "float"
                     },
                     "actual_budget": {
-                        "description": "Actual budget",
+                        "description": "الميزانية الفعلية",
                         "type": "number",
                         "format": "float"
                     },
                     "description": {
-                        "description": "Description",
+                        "description": "الوصف",
                         "type": "string"
                     },
                     "associated_goals": {
-                        "description": "List of associated goal IDs",
+                        "description": "الأهداف المرتبطة (مصفوفة نصوص أو نص مفصول بفواصل)",
                         "type": "array",
                         "items": {
-                            "type": "integer"
+                            "type": "string"
                         }
+                    },
+                    "remarks": {
+                        "description": "ملاحظات",
+                        "type": "string"
                     }
                 },
                 "type": "object"
@@ -11546,50 +11544,50 @@
                 "title": "Update Travel Request",
                 "properties": {
                     "start_date": {
-                        "description": "Start date of travel",
+                        "description": "تاريخ البداية",
                         "type": "string",
                         "format": "date"
                     },
                     "end_date": {
-                        "description": "End date of travel",
+                        "description": "تاريخ النهاية",
                         "type": "string",
                         "format": "date"
                     },
                     "visit_purpose": {
-                        "description": "Purpose of the visit",
+                        "description": "غرض الزيارة",
                         "type": "string"
                     },
                     "visit_place": {
-                        "description": "Place of visit",
+                        "description": "مكان الزيارة",
                         "type": "string"
                     },
                     "travel_mode": {
-                        "description": "Mode of travel (1-5)",
+                        "description": "وضع السفر (1-5)",
                         "type": "integer"
                     },
                     "arrangement_type": {
-                        "description": "Type of arrangement",
+                        "description": "نوع ترتيب السفر",
                         "type": "integer"
                     },
                     "expected_budget": {
-                        "description": "Expected budget",
+                        "description": "الميزانية المتوقعة",
                         "type": "number",
                         "format": "float"
                     },
                     "actual_budget": {
-                        "description": "Actual budget",
+                        "description": "الميزانية الفعلية",
                         "type": "number",
                         "format": "float"
                     },
                     "description": {
-                        "description": "Description",
+                        "description": "الوصف",
                         "type": "string"
                     },
                     "associated_goals": {
-                        "description": "List of associated goal IDs",
+                        "description": "الأهداف المرتبطة (مصفوفة نصوص أو نص مفصول بفواصل)",
                         "type": "array",
                         "items": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 },
@@ -11644,13 +11642,13 @@
                         "type": "string",
                         "example": "Business meeting"
                     },
-                    "travel_type": {
+                    "travel_mode": {
                         "type": "integer",
                         "example": 1
                     },
-                    "travel_way": {
+                    "arrangement_type": {
                         "type": "integer",
-                        "example": 2
+                        "example": 1
                     },
                     "status": {
                         "type": "integer",

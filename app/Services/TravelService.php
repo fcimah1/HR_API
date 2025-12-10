@@ -18,6 +18,8 @@ use App\Services\SimplePermissionService;
 use App\Jobs\SendEmailNotificationJob;
 use App\Enums\StringStatusEnum;
 use App\Enums\TravelModeEnum;
+use App\Enums\TravelStatusEnum;
+use App\Models\Travel;
 
 class TravelService
 {
@@ -26,19 +28,41 @@ class TravelService
         protected SimplePermissionService $permissionService,
         protected NotificationService $notificationService,
         protected ApprovalWorkflowService $approvalWorkflow,
+        protected Travel $travel
     ) {}
 
     public function getTravelEnums(): array
     {
+        // get arrangement type of travel
+        $arrangementTypes = $this->travel->allArrangementTypeName();
+
         return [
-            'statuses' => StringStatusEnum::toArray(),
+            'statuses' => TravelStatusEnum::toArray(),
             'travel_modes' => TravelModeEnum::toArray(),
+            'arrangement_types_names' => $arrangementTypes,
         ];
     }
 
-    public function createTravel(CreateTravelDTO $dto): object
+    public function createTravel(CreateTravelDTO $dto, User $user): object
     {
-        return DB::transaction(function () use ($dto) {
+        return DB::transaction(function () use ($dto, $user) {
+
+            // Check hierarchy permissions for staff users creating for other employees
+            if ($user->user_type !== 'company' && $dto->employee_id !== $user->user_id) {
+                $employee = User::find($dto->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::warning('TravelService::createTravel - Hierarchy permission denied', [
+                        'requester_id' => $user->user_id,
+                        'requester_type' => $user->user_type,
+                        'target_employee_id' => $dto->employee_id,
+                        'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                        'target_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'requester_department' => $this->permissionService->getUserDepartmentId($user),
+                        'target_department' => $this->permissionService->getUserDepartmentId($employee)
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لإنشاء طلب سفر لهذا الموظف');
+                }
+            }
 
             if ($this->travelRepository->hasOverlappingTravel($dto->employee_id, $dto->start_date, $dto->end_date)) {
                 throw new \Exception('يوجد طلب سفر آخر لنفس الموظف في نفس الفترة الزمنية أو فترة متداخلة معها');
@@ -106,12 +130,26 @@ class TravelService
                 throw new \Exception('الطلب غير موجود');
             }
 
-            // Check permissions (only owner or company can update, and usually only if pending)
+            // Check permissions (only owner, company, or managers can update, and usually only if pending)
             $isOwner = $travel->employee_id === $user->user_id;
-            $isCompany = $user->user_type === 'company'; // Or check role
+            $isCompany = $user->user_type === 'company';
 
+            // If not owner or company, check hierarchy permissions
             if (!$isOwner && !$isCompany) {
-                throw new \Exception('غير مسموح بتحديث طلب سفر الموظف');
+                $employee = User::find($travel->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::warning('TravelService::updateTravel - Hierarchy permission denied', [
+                        'travel_id' => $id,
+                        'requester_id' => $user->user_id,
+                        'requester_type' => $user->user_type,
+                        'travel_employee_id' => $travel->employee_id,
+                        'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                        'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'requester_department' => $this->permissionService->getUserDepartmentId($user),
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لتحديث طلب سفر هذا الموظف');
+                }
             }
 
             if ($travel->status == 1) {
@@ -132,6 +170,7 @@ class TravelService
 
             $this->travelRepository->update($travel, $dto);
 
+         
             // Send email notification
             $employeeEmail = $travel->employee->email ?? null;
             $employeeName = $travel->employee->full_name ?? 'Employee';
@@ -228,6 +267,24 @@ class TravelService
                 throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
             }
 
+            // Check hierarchy permissions for staff users
+            if ($user->user_type !== 'company') {
+                $employee = User::find($travel->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::warning('TravelService::approveTravel - Hierarchy permission denied', [
+                        'travel_id' => $id,
+                        'requester_id' => $user->user_id,
+                        'requester_type' => $user->user_type,
+                        'employee_id' => $travel->employee_id,
+                        'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                        'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'requester_department' => $this->permissionService->getUserDepartmentId($user),
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية للموافقة على طلب هذا الموظف');
+                }
+            }
+
             $travel = $this->travelRepository->approve($id);
 
             // Send approval notification
@@ -277,6 +334,24 @@ class TravelService
                 throw new \Exception('تم رفض هذا الطلب مسبقاً أو تم الموافقة عليه');
             }
 
+            // Check hierarchy permissions for staff users
+            if ($user->user_type !== 'company') {
+                $employee = User::find($travel->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::warning('TravelService::rejectTravel - Hierarchy permission denied', [
+                        'travel_id' => $id,
+                        'requester_id' => $user->user_id,
+                        'requester_type' => $user->user_type,
+                        'employee_id' => $travel->employee_id,
+                        'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                        'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'requester_department' => $this->permissionService->getUserDepartmentId($user),
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لرفض طلب هذا الموظف');
+                }
+            }
+
             $travel = $this->travelRepository->reject($id);
 
             // Send rejection notification
@@ -318,7 +393,71 @@ class TravelService
         if ($user->user_type === 'company') {
             return $this->travelRepository->getByCompany($effectiveCompanyId, $filters);
         } else {
-            return $this->travelRepository->getByEmployee($user->user_id, $filters);
+            // Staff users: check hierarchy permissions
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            
+            // Check if user can view other employees' requests (has subordinates)
+            $canViewOthers = false;
+            $subordinateIds = [];
+            
+            try {
+                // Get all employees in the company except the user
+                $allEmployees = User::where('company_id', $effectiveCompanyId)
+                    ->where('user_id', '!=', $user->user_id)
+                    ->get();
+                
+                foreach ($allEmployees as $employee) {
+                    Log::info('getTravels - Checking employee permission', [
+                        'user_id' => $user->user_id,
+                        'employee_id' => $employee->user_id,
+                        'employee_name' => $employee->full_name,
+                        'can_view' => $this->permissionService->canViewEmployeeRequests($user, $employee)
+                    ]);
+                    
+                    if ($this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                        $canViewOthers = true;
+                        $subordinateIds[] = $employee->user_id;
+                    }
+                }
+                
+                // Always include the current user's own requests
+                $subordinateIds[] = $user->user_id;
+                
+                Log::info('getTravels - Permission check results', [
+                    'user_id' => $user->user_id,
+                    'can_view_others' => $canViewOthers,
+                    'subordinate_ids' => $subordinateIds
+                ]);
+            } catch (\Exception $e) {
+                $canViewOthers = false;
+                $subordinateIds = [];
+            }
+            
+            if ($canViewOthers && !empty($subordinateIds)) {
+                // Manager: get requests for employees they can view (subordinates only)
+                $newFilters = new TravelRequestFilterDTO(
+                    employeeId: null, // Don't filter by specific employee
+                    employeeIds: $subordinateIds, // Only subordinate employees
+                    status: $filters->status,
+                    travelMode: $filters->travelMode,
+                    arrangementType: $filters->arrangementType,
+                    startDate: $filters->startDate,
+                    endDate: $filters->endDate,
+                    month: $filters->month,
+                    companyId: $effectiveCompanyId,
+                    hierarchyLevels: null, // Not needed since we filter by specific IDs
+                    search: $filters->search,
+                    perPage: $filters->perPage,
+                    page: $filters->page,
+                    orderBy: $filters->orderBy,
+                    order: $filters->order,
+                );
+                
+                return $this->travelRepository->getByCompany($effectiveCompanyId, $newFilters);
+            } else {
+                // Regular employee: only own requests
+                return $this->travelRepository->getByEmployee($user->user_id, $filters);
+            }
         }
     }
 
@@ -333,8 +472,21 @@ class TravelService
 
         // Check if user is owner or has permission to view
         if ($user->user_type !== 'company' && $travel->employee_id !== $user->user_id) {
-            // Add more granular permission checks here if needed (e.g. manager view)
-            throw new \Exception('غير مسموح بعرض طلب سفر الموظف');
+            // Check hierarchy permissions
+            $employee = User::find($travel->employee_id);
+            if ($employee && !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::warning('TravelService::getTravel - Hierarchy permission denied', [
+                    'travel_id' => $id,
+                    'requester_id' => $user->user_id,
+                    'requester_type' => $user->user_type,
+                    'employee_id' => $travel->employee_id,
+                    'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                    'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                    'requester_department' => $this->permissionService->getUserDepartmentId($user),
+                    'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                ]);
+                throw new \Exception('غير مسموح بعرض طلب سفر هذا الموظف');
+            }
         }
 
         return $travel;

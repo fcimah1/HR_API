@@ -40,25 +40,10 @@ class OvertimeService
     {
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-        // Apply company filter
-        $modifiedFilters = new OvertimeRequestFilterDTO(
-            employeeId: $filters->employeeId,
-            status: $filters->status,
-            overtimeReason: $filters->overtimeReason,
-            fromDate: $filters->fromDate,
-            toDate: $filters->toDate,
-            month: $filters->month,
-            search: $filters->search,
-            companyId: $effectiveCompanyId,
-            perPage: $filters->perPage,
-            page: $filters->page
-        );
-
-        // If regular staff, show only their own requests
-        $userType = strtolower(trim($user->user_type ?? ''));
-        if ($userType === 'staff' && !$filters->employeeId) {
+        if ($user->user_type === 'company') {
+            // Company users: get all requests
             $modifiedFilters = new OvertimeRequestFilterDTO(
-                employeeId: $user->user_id,
+                employeeId: $filters->employeeId,
                 status: $filters->status,
                 overtimeReason: $filters->overtimeReason,
                 fromDate: $filters->fromDate,
@@ -69,6 +54,62 @@ class OvertimeService
                 perPage: $filters->perPage,
                 page: $filters->page
             );
+        } else {
+            // Staff users: check hierarchy permissions
+            $canViewOthers = false;
+            $subordinateIds = [];
+            
+            try {
+                // Get all employees in the company except the user
+                $allEmployees = User::where('company_id', $effectiveCompanyId)
+                    ->where('user_id', '!=', $user->user_id)
+                    ->get();
+                
+                foreach ($allEmployees as $employee) {
+                    if ($this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                        $canViewOthers = true;
+                        $subordinateIds[] = $employee->user_id;
+                    }
+                }
+                
+                // Always include the current user's own requests
+                $subordinateIds[] = $user->user_id;
+                
+            } catch (\Exception $e) {
+                $canViewOthers = false;
+                $subordinateIds = [$user->user_id];
+            }
+            
+            if ($canViewOthers && !empty($subordinateIds)) {
+                // Manager: get requests for employees they can view
+                $modifiedFilters = new OvertimeRequestFilterDTO(
+                    employeeId: null, // Don't filter by specific employee
+                    employeeIds: $subordinateIds, // Add subordinate IDs
+                    status: $filters->status,
+                    overtimeReason: $filters->overtimeReason,
+                    fromDate: $filters->fromDate,
+                    toDate: $filters->toDate,
+                    month: $filters->month,
+                    search: $filters->search,
+                    companyId: $effectiveCompanyId,
+                    perPage: $filters->perPage,
+                    page: $filters->page
+                );
+            } else {
+                // Regular employee: only own requests
+                $modifiedFilters = new OvertimeRequestFilterDTO(
+                    employeeId: $user->user_id,
+                    status: $filters->status,
+                    overtimeReason: $filters->overtimeReason,
+                    fromDate: $filters->fromDate,
+                    toDate: $filters->toDate,
+                    month: $filters->month,
+                    search: $filters->search,
+                    companyId: $effectiveCompanyId,
+                    perPage: $filters->perPage,
+                    page: $filters->page
+                );
+            }
         }
 
         return $this->overtimeRepository->getPaginatedRequests($modifiedFilters, $user);
@@ -96,6 +137,14 @@ class OvertimeService
                 'user_id' => $user->user_id,
                 'staff_id' => $dto->staffId
             ]);
+
+            // Check hierarchical permissions for staff users creating requests for others
+            if ($user->user_type !== 'company' && $dto->staffId !== $user->user_id) {
+                $employee = User::find($dto->staffId);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    throw new \Exception('ليس لديك صلاحية لإنشاء طلب عمل إضافي لهذا الموظف');
+                }
+            }
 
             // Validate against shift
             $this->calculationService->validateAgainstShift(
@@ -216,9 +265,15 @@ class OvertimeService
                 throw new \Exception('الطلب غير موجود');
             }
 
-            // Only owner can update
-            if ($request->staff_id !== $user->user_id) {
-                throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+            // Check hierarchical permissions (owner, company, or authorized managers can update)
+            $isOwner = $request->staff_id === $user->user_id;
+            $isCompany = $user->user_type === 'company';
+            
+            if (!$isOwner && !$isCompany) {
+                $employee = User::find($request->staff_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+                }
             }
 
             // Can only update pending requests
@@ -290,9 +345,15 @@ class OvertimeService
             throw new \Exception('الطلب غير موجود');
         }
 
-        // Only owner can delete
-        if ($request->staff_id !== $user->user_id) {
-            throw new \Exception('ليس لديك صلاحية لحذف هذا الطلب');
+        // Check hierarchical permissions (owner, company, or authorized managers can delete)
+        $isOwner = $request->staff_id === $user->user_id;
+        $isCompany = $user->user_type === 'company';
+        
+        if (!$isOwner && !$isCompany) {
+            $employee = User::find($request->staff_id);
+            if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                throw new \Exception('ليس لديك صلاحية لحذف هذا الطلب');
+            }
         }
 
         // Can only delete pending requests
@@ -554,11 +615,12 @@ class OvertimeService
             throw new \Exception('الطلب غير موجود');
         }
 
-        // Check if user can access this request
-        $canAccess = $this->overtimeRepository->canUserAccessRequest($user, $request);
-
-        if (!$canAccess) {
-            throw new \Exception('ليس لديك صلاحية لعرض هذا الطلب');
+        // Check hierarchical permissions
+        if ($user->user_type !== 'company' && $request->staff_id !== $user->user_id) {
+            $employee = User::find($request->staff_id);
+            if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                throw new \Exception('ليس لديك صلاحية لعرض هذا الطلب');
+            }
         }
 
         return OvertimeRequestResponseDTO::fromModel($request);

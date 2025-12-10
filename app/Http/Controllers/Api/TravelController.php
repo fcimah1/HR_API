@@ -47,16 +47,16 @@ class TravelController extends Controller
      *         @OA\Schema(type="integer")
      *     ),
      *     @OA\Parameter(
-     *         name="from_date",
+     *         name="start_date",
      *         in="query",
      *         description="Filter from date (Y-m-d)",
-     *         @OA\Schema(type="string", format="date", example="2025-01-01")
+     *         @OA\Schema(type="string", format="date")
      *     ),
      *     @OA\Parameter(
-     *         name="to_date",
+     *         name="end_date",
      *         in="query",
      *         description="Filter to date (Y-m-d)",
-     *         @OA\Schema(type="string", format="date", example="2025-12-31")
+     *         @OA\Schema(type="string", format="date")
      *     ),
      *     @OA\Parameter(
      *         name="per_page",
@@ -184,19 +184,18 @@ class TravelController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"start_date","end_date","visit_purpose","visit_place","travel_type_id","travel_mode","arrangement_type","expected_budget","actual_budget"},
-     *             @OA\Property(property="employee_id", type="integer", example=1, description="معرف الموظف (اختياري)"),
-     *             @OA\Property(property="start_date", type="string", format="date", example="2025-12-01", description="تاريخ بداية السفر"),
-     *             @OA\Property(property="end_date", type="string", format="date", example="2025-12-05", description="تاريخ نهاية السفر"),
+     *             required={"employee_id", "start_date","end_date","visit_purpose","visit_place","travel_mode","arrangement_type","expected_budget","actual_budget"},
+     *             @OA\Property(property="employee_id", type="integer", example=755, description="معرف الموظف (اختياري)"),
+     *             @OA\Property(property="start_date", type="string", format="date", example="2026-01-01", description="تاريخ بداية السفر"),
+     *             @OA\Property(property="end_date", type="string", format="date", example="2026-01-03", description="تاريخ نهاية السفر"),
      *             @OA\Property(property="visit_purpose", type="string", example="سفر عمل لمؤتمر", description="غرض الزيارة"),
      *             @OA\Property(property="visit_place", type="string", example="الرياض", description="مكان الزيارة"),
-     *             @OA\Property(property="travel_type_id", type="integer", example=1, description="معرف نوع السفر"),
-     *             @OA\Property(property="travel_mode", type="integer", example=1, description="وضع السفر (1-5)"),
-     *             @OA\Property(property="arrangement_type", type="integer", example=1, description="نوع الترتيب"),
+     *             @OA\Property(property="travel_mode", type="integer", example=1, description="طريقة السفر (1-5)"),
+     *             @OA\Property(property="arrangement_type", type="integer", example=335, description="نوع ترتيب السفر"),
      *             @OA\Property(property="expected_budget", type="number", format="float", example=1000.00, description="الميزانية المتوقعة"),
      *             @OA\Property(property="actual_budget", type="number", format="float", example=900.00, description="الميزانية الفعلية"),
      *             @OA\Property(property="description", type="string", example="وصف الرحلة", description="وصف (اختياري)"),
-     *             @OA\Property(property="associated_goals", type="array", @OA\Items(type="integer"), example={1,2}, description="الأهداف المرتبطة (اختياري)"),
+     *             @OA\Property(property="associated_goals", type="array", @OA\Items(type="string"), example={"هدف 1","هدف 2"}, description="الأهداف المرتبطة (اختياري)"),
      *             @OA\Property(property="remarks", type="string", example="ملاحظات إضافية", description="ملاحظات (اختياري)")
      *         )
      *     ),
@@ -268,13 +267,13 @@ class TravelController extends Controller
             }
 
             $dto = CreateTravelDTO::fromRequest($request, $employeeId, $effectiveCompanyId, $user->user_id);
-            $travel = $this->travelService->createTravel($dto);
+            $travel = $this->travelService->createTravel($dto, $user);
 
             return response()->json([
                 'success' => true,
                 'created_by' => $user->full_name,
                 'message' => 'تم إنشاء طلب السفر بنجاح',
-                'data' => $travel
+                'data' => new TravelResource($travel)
             ], 201);
         } catch (\Exception $e) {
             Log::error('TravelController::store failed', [
@@ -396,7 +395,7 @@ class TravelController extends Controller
      *             @OA\Property(property="expected_budget", type="number", format="float", example=1000.00),
      *             @OA\Property(property="actual_budget", type="number", format="float", example=900.00),
      *             @OA\Property(property="description", type="string", example="وصف معدل"),
-     *             @OA\Property(property="associated_goals", type="array", @OA\Items(type="integer"), example={1,2}),
+     *             @OA\Property(property="associated_goals", type="array", @OA\Items(type="string"), example={"هدف 1","هدف 2"}, description="الأهداف المرتبطة (اختياري)"),
      *             @OA\Property(property="remarks", type="string", example="ملاحظات معدلة")
      *         )
      *     ),
@@ -462,9 +461,33 @@ class TravelController extends Controller
                     'message' => 'غير مصرح لك بتعديل طلبات السفر'
                 ], 403);
             }
-            $dto = UpdateTravelDTO::fromRequest($request);
+            // Debug: Log the request before creating DTO
+            Log::info('TravelController::updateTravel - Request data', [
+                'request_all' => $request->all(),
+                'request_json' => $request->json()->all(),
+                'request_content' => $request->getContent()
+            ]);
+            
+            // Try to parse JSON manually if Laravel fails
+            $content = $request->getContent();
+            
+            // Fix common JSON syntax errors - add quotes to unquoted values in arrays
+            $content = preg_replace('/\[\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\]/', '["$1", "$2"]', $content);
+            $content = preg_replace('/\[\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\]/', '["$1"]', $content);
+            
+            $jsonData = json_decode($content, true);
+            
+            if (json_last_error() !== JSON_ERROR_NONE) {
+
+                throw new \Exception('Invalid JSON format - ' . json_last_error_msg()); 
+            }
+            
+            
+            // Create a new request with the fixed data
+            $fixedRequest = new Request($jsonData);
+            $dto = UpdateTravelDTO::fromRequest($fixedRequest);
             $travel = $this->travelService->updateTravel($id, $dto, Auth::user());
-            return response()->json(['success' => true, 'message' => 'تم تحديث طلب السفر بنجاح', 'data' => $travel]);
+            return response()->json(['success' => true, 'message' => 'تم تحديث طلب السفر بنجاح', 'data' => new TravelResource($travel)]);
         } catch (\Exception $e) {
             Log::error('TravelController::update failed', [
                 'error' => $e->getMessage(),
