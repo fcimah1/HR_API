@@ -352,4 +352,119 @@ class AttendanceService
 
         return sprintf('%02d:%02d', $hours, $minutes);
     }
+
+    /**
+     * تسجيل البصمة من جهاز البصمة
+     * Biometric punch from fingerprint device
+     * 
+     * @param int $companyId رقم الشركة
+     * @param int $branchId رقم الفرع
+     * @param string $employeeId رقم الموظف في جهاز البصمة
+     * @param string $punchTime وقت البصمة
+     * @return array
+     */
+    public function biometricPunch(int $companyId, int $branchId, string $employeeId, string $punchTime): array
+    {
+        return DB::transaction(function () use ($companyId, $branchId, $employeeId, $punchTime) {
+            // 1. البحث عن الموظف باستخدام المفتاح المركب
+            $userDetails = \App\Models\UserDetails::byBiometricId($companyId, $branchId, $employeeId)->first();
+
+            if (!$userDetails) {
+                Log::warning('Biometric punch - Employee not found', [
+                    'company_id' => $companyId,
+                    'branch_id' => $branchId,
+                    'employee_id' => $employeeId,
+                ]);
+                throw new \Exception('الموظف غير موجود في النظام');
+            }
+
+            $userId = $userDetails->user_id;
+            $punchDate = date('Y-m-d', strtotime($punchTime));
+            $punchTimeOnly = date('H:i:s', strtotime($punchTime));
+
+            // 2. البحث عن سجل الحضور لهذا اليوم
+            $attendance = $this->attendanceRepository->findTodayAttendance($userId, $punchDate);
+
+            // 3. تحديد نوع البصمة
+            if (!$attendance) {
+                // لا يوجد سجل = حضور
+                Log::info('Biometric clock in', [
+                    'user_id' => $userId,
+                    'punch_time' => $punchTime,
+                ]);
+
+                $dto = new CreateAttendanceDTO(
+                    companyId: $companyId,
+                    employeeId: $userId,
+                    attendanceDate: $punchDate,
+                    clockIn: $punchTime,
+                    clockInIpAddress: 'biometric',
+                    clockInLatitude: null,
+                    clockInLongitude: null,
+                    shiftId: $userDetails->office_shift_id ?? 0,
+                    workFromHome: 0,
+                );
+
+                $attendance = $this->attendanceRepository->clockIn($dto);
+
+                return [
+                    'success' => true,
+                    'type' => 'clock_in',
+                    'message' => 'تم تسجيل الحضور بنجاح',
+                    'data' => [
+                        'user_id' => $userId,
+                        'employee_id' => $employeeId,
+                        'punch_time' => $punchTime,
+                        'attendance_id' => $attendance->time_attendance_id,
+                    ]
+                ];
+            }
+
+            // يوجد سجل حضور
+            if ($attendance->clock_out) {
+                // الموظف سجل الحضور والانصراف بالفعل
+                Log::warning('Biometric punch - Already clocked out', [
+                    'user_id' => $userId,
+                    'punch_time' => $punchTime,
+                ]);
+                throw new \Exception('تم تسجيل الحضور والانصراف لهذا اليوم بالفعل');
+            }
+
+            // 4. تسجيل الانصراف
+            Log::info('Biometric clock out', [
+                'user_id' => $userId,
+                'punch_time' => $punchTime,
+            ]);
+
+            $totalWork = $this->calculateTotalWorkHours(
+                $attendance->clock_in,
+                $punchTime,
+                $attendance->lunch_breakin,
+                $attendance->lunch_breakout
+            );
+
+            $dto = new UpdateAttendanceDTO(
+                clockOut: $punchTime,
+                clockOutIpAddress: 'biometric',
+                clockOutLatitude: null,
+                clockOutLongitude: null,
+                totalWork: $totalWork,
+            );
+
+            $updatedAttendance = $this->attendanceRepository->clockOut($attendance, $dto);
+
+            return [
+                'success' => true,
+                'type' => 'clock_out',
+                'message' => 'تم تسجيل الانصراف بنجاح',
+                'data' => [
+                    'user_id' => $userId,
+                    'employee_id' => $employeeId,
+                    'punch_time' => $punchTime,
+                    'attendance_id' => $updatedAttendance->time_attendance_id,
+                    'total_work' => $totalWork,
+                ]
+            ];
+        });
+    }
 }

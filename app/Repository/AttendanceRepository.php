@@ -146,7 +146,7 @@ class AttendanceRepository implements AttendanceRepositoryInterface
     /**
      * Find today's attendance for an employee
      */
-    public function findTodayAttendance(int $employeeId, string $date = null): ?Attendance
+    public function findTodayAttendance(string|int $employeeId, ?string $date = null): ?Attendance
     {
         $date = $date ?? now()->format('Y-m-d');
 
@@ -251,7 +251,7 @@ class AttendanceRepository implements AttendanceRepositoryInterface
     /**
      * Check if employee has clocked in today
      */
-    public function hasClockedInToday(int $employeeId, string $date = null): bool
+    public function hasClockedInToday(string|int $employeeId, ?string $date = null): bool
     {
         return $this->findTodayAttendance($employeeId, $date) !== null;
     }
