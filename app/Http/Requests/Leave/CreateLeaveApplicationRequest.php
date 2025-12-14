@@ -91,7 +91,7 @@ class CreateLeaveApplicationRequest extends FormRequest
             'duty_employee_id' => [
                 'nullable',
                 'integer',
-                new \App\Rules\ValidDutyEmployee(),
+                new \App\Rules\ValidDutyEmployee($this->employee_id ?? $user->user_id),
             ],
             'is_half_day' => 'nullable|boolean',
             'remarks' => 'nullable|string|max:1000',

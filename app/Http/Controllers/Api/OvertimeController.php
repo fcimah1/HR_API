@@ -306,8 +306,9 @@ class OvertimeController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
+     *             type="object",
      *             required={"request_date", "clock_in", "clock_out", "overtime_reason", "compensation_type"},
-     *             @OA\Property(property="employee_id", type="integer", example=37, description="معرف الموظف (للشركة/HR فقط عند الإنشاء نيابة عن موظف)")
+     *             @OA\Property(property="employee_id", type="integer", example=37, description="معرف الموظف (للشركة/HR فقط عند الإنشاء نيابة عن موظف)"),
      *             @OA\Property(property="request_date", type="string", format="date", example="2025-11-25", description="تاريخ الطلب (يجب أن يكون بصيغة Y-m-d)"),
      *             @OA\Property(property="clock_in", type="string", example="2:30 PM", description="وقت البداية (صيغة 12 ساعة مع AM/PM)"),
      *             @OA\Property(property="clock_out", type="string", example="7:00 PM", description="وقت النهاية (صيغة 12 ساعة مع AM/PM)"),
@@ -396,8 +397,8 @@ class OvertimeController extends Controller
             $userType = strtolower(trim($user->user_type ?? ''));
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             
-            if ($userType === 'company' && isset($validated['employee_id'])) {
-                // Company creating on behalf of employee
+            if (($userType === 'company' || $userType === 'staff') && isset($validated['employee_id'])) {
+                // Company or staff creating on behalf of employee (with hierarchy validation)
                 $staffId = $validated['employee_id'];
                 $companyId = $effectiveCompanyId;
             } else {
@@ -867,78 +868,78 @@ class OvertimeController extends Controller
         }
     }
 
-    /**
-     * @OA\Get(
-     *     path="/api/overtime/stats",
-     *     summary="Get overtime statistics",
-     *     description="Returns overtime statistics including total hours, approved/rejected counts",
-     *     tags={"Overtime Management"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="from_date",
-     *         in="query",
-     *         description="Start date for statistics (Y-m-d)",
-     *         @OA\Schema(type="string", format="date", example="2025-01-01")
-     *     ),
-     *     @OA\Parameter(
-     *         name="to_date",
-     *         in="query",
-     *         description="End date for statistics (Y-m-d)",
-     *         @OA\Schema(type="string", format="date", example="2025-12-31")
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Statistics retrieved successfully",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="data", type="object",
-     *                 @OA\Property(property="total_requests", type="integer"),
-     *                 @OA\Property(property="approved_requests", type="integer"),
-     *                 @OA\Property(property="rejected_requests", type="integer"),
-     *                 @OA\Property(property="pending_requests", type="integer"),
-     *                 @OA\Property(property="total_hours", type="number"),
-     *                 @OA\Property(property="approved_hours", type="number")
-     *             )
-     *         )
-     *     ),
-     *     @OA\Response(response=403, description="Unauthorized - Manager/HR role required")
-     * )
-     */
-    public function stats(Request $request)
-    {
-        $user = Auth::user();
+    // /**
+    //  * @OA\Get(
+    //  *     path="/api/overtime/stats",
+    //  *     summary="Get overtime statistics",
+    //  *     description="Returns overtime statistics including total hours, approved/rejected counts",
+    //  *     tags={"Overtime Management"},
+    //  *     security={{"bearerAuth":{}}},
+    //  *     @OA\Parameter(
+    //  *         name="from_date",
+    //  *         in="query",
+    //  *         description="Start date for statistics (Y-m-d)",
+    //  *         @OA\Schema(type="string", format="date", example="2025-01-01")
+    //  *     ),
+    //  *     @OA\Parameter(
+    //  *         name="to_date",
+    //  *         in="query",
+    //  *         description="End date for statistics (Y-m-d)",
+    //  *         @OA\Schema(type="string", format="date", example="2025-12-31")
+    //  *     ),
+    //  *     @OA\Response(
+    //  *         response=200,
+    //  *         description="Statistics retrieved successfully",
+    //  *         @OA\JsonContent(
+    //  *             @OA\Property(property="success", type="boolean", example=true),
+    //  *             @OA\Property(property="data", type="object",
+    //  *                 @OA\Property(property="total_requests", type="integer"),
+    //  *                 @OA\Property(property="approved_requests", type="integer"),
+    //  *                 @OA\Property(property="rejected_requests", type="integer"),
+    //  *                 @OA\Property(property="pending_requests", type="integer"),
+    //  *                 @OA\Property(property="total_hours", type="number"),
+    //  *                 @OA\Property(property="approved_hours", type="number")
+    //  *             )
+    //  *         )
+    //  *     ),
+    //  *     @OA\Response(response=403, description="Unauthorized - Manager/HR role required")
+    //  * )
+    //  */
+    // public function stats(Request $request)
+    // {
+    //     $user = Auth::user();
         
-        try {
-            $hasPermission = $this->permissionService->checkPermission($user, 'overtime_req1');
-            if (!$hasPermission) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'غير مصرح لك بعرض إحصائيات العمل الإضافي'
-                ], 403);
-            }
+    //     try {
+    //         $hasPermission = $this->permissionService->checkPermission($user, 'overtime_req1');
+    //         if (!$hasPermission) {
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => 'غير مصرح لك بعرض إحصائيات العمل الإضافي'
+    //             ], 403);
+    //         }
 
-            $fromDate = $request->get('from_date');
-            $toDate = $request->get('to_date');
+    //         $fromDate = $request->get('from_date');
+    //         $toDate = $request->get('to_date');
 
-            $stats = $this->overtimeService->getStats($user, $fromDate, $toDate);
+    //         $stats = $this->overtimeService->getStats($user, $fromDate, $toDate);
 
-            return response()->json([
-                'success' => true,
-                'data' => $stats->toArray()
-            ]);
-        } catch (\Exception $e) {
-            Log::error('OvertimeController::stats failed', [
-                'error' => $e->getMessage(),
-                'user_id' => $user->user_id
-            ]);
+    //         return response()->json([
+    //             'success' => true,
+    //             'data' => $stats->toArray()
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         Log::error('OvertimeController::stats failed', [
+    //             'error' => $e->getMessage(),
+    //             'user_id' => $user->user_id
+    //         ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'فشل في جلب الإحصائيات',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'فشل في جلب الإحصائيات',
+    //             'error' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
 
     /**
      * @OA\Get(

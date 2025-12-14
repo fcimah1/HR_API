@@ -11,6 +11,13 @@ use Illuminate\Support\Facades\Log;
 
 class ValidDutyEmployee implements ValidationRule
 {
+    protected ?int $targetEmployeeId;
+
+    public function __construct(?int $targetEmployeeId = null)
+    {
+        $this->targetEmployeeId = $targetEmployeeId;
+    }
+
     /**
      * Run the validation rule.
      *
@@ -20,9 +27,18 @@ class ValidDutyEmployee implements ValidationRule
     {
         $user = Auth::user();
 
+        // Use target employee ID if provided, otherwise fallback to auth user's ID
+        $employeeIdToCheck = $this->targetEmployeeId ?? $user->user_id;
+
         // Get effective company ID
         $permissionService = app(\App\Services\SimplePermissionService::class);
         $effectiveCompanyId = $permissionService->getEffectiveCompanyId($user);
+
+        // التحقق من أن الموظف البديل ليس هو نفس صاحب الطلب
+        if ((int)$value === (int)$employeeIdToCheck) {
+            $fail('لا يمكن اختيار نفس الموظف صاحب الطلب كموظف بديل');
+            return;
+        }
 
         $dutyEmployee = User::where('user_id', $value)
             ->where('company_id', $effectiveCompanyId)
@@ -38,17 +54,17 @@ class ValidDutyEmployee implements ValidationRule
             $fail('الموظف البديل يجب أن يكون موظفاً');
             return;
         }
-    
+
         // For staff users: check department as well
         // جلب معرف القسم من جدول تفاصيل المستخدم مع التحقق من معرف الشركة
         $userDepartmentId = null;
-        
+
         // محاولة جلب القسم من جدول ci_erp_users_details
         $userDetails = DB::table('ci_erp_users_details')
             ->where('user_id', $user->user_id)
             ->where('company_id', $effectiveCompanyId)
             ->first(['department_id']);
-            
+
         if ($userDetails && isset($userDetails->department_id)) {
             $userDepartmentId = $userDetails->department_id;
             $source = 'user_details';
@@ -57,14 +73,14 @@ class ValidDutyEmployee implements ValidationRule
             // يمكنك تعديل هذا الجزء بناءً على هيكل قاعدة البيانات الخاص بك
             $userDepartmentId = 165; // القيمة الافتراضية بناءً على السجلات السابقة
             $source = 'default';
-            
+
             Log::warning('User department not found, using default', [
                 'user_id' => $user->user_id,
                 'company_id' => $effectiveCompanyId,
                 'default_department_id' => $userDepartmentId
             ]);
         }
-        
+
         // تسجيل معلومات التشخيص
         Log::info('User Department Check', [
             'user_id' => $user->user_id,
@@ -73,7 +89,7 @@ class ValidDutyEmployee implements ValidationRule
             'source' => $source,
             'details' => $userDetails ?? null
         ]);
-        
+
         if (!$userDepartmentId) {
             $fail('لم يتم العثور على معلومات القسم للمستخدم الحالي. الرجاء التأكد من إكمال بيانات الملف الشخصي.');
             return;

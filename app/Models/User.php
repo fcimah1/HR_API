@@ -53,6 +53,7 @@ class User extends Authenticatable
             'role_access' => $this->staffRole?->role_access ?? null,
             'department_name' => $this->user_details?->department?->department_name ?? null,
             'designation_name' => $this->user_details?->designation?->designation_name ?? null,
+            'hierarchy_level'  => $this->user_details?->designation?->hierarchy_level ?? null,
         ];
     }
 
@@ -101,7 +102,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
-        'staff_role', // Hide staff_role relationship from JSON responses
+        'staffRole', // Hide staffRole relationship from JSON responses
+        'staff_role', // Alias for backward compatibility
     ];
 
     /**
@@ -133,7 +135,7 @@ class User extends Authenticatable
     /**
      * Get user department
      */
-    
+
     public function user_department(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'user_id', 'user_id');
@@ -168,7 +170,7 @@ class User extends Authenticatable
         // Get permissions from role_resources
         $permissions = array_filter(explode(',', $this->staffRole->role_resources ?? ''));
 
-        return array_values($permissions); // Re-index array
+        return array_values(array_unique($permissions)); // Re-index array and remove duplicates
     }
 
 
@@ -378,12 +380,12 @@ class User extends Authenticatable
     {
         // Get hierarchy level from designation through user_details
         $level = $this->user_details?->designation?->hierarchy_level;
-        
+
         // If no hierarchy level found and user is staff, assign default level 5 (lowest)
         if ($level === null && $this->user_type === 'staff') {
             return 5;
         }
-        
+
         return $level;
     }
 
@@ -472,9 +474,4 @@ class User extends Authenticatable
             ->where('ci_erp_users.is_active', 1)
             ->select('ci_erp_users.*');
     }
-
- 
-
-    
-
 }

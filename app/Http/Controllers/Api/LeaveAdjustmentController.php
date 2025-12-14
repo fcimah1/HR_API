@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\LeaveAdjustment\CreateLeaveAdjustmentRequest;
 use App\Http\Requests\LeaveAdjustment\UpdateLeaveAdjustmentRequest;
 use App\Http\Requests\LeaveAdjustment\ApproveLeaveAdjustmentRequest;
+use App\Models\User;
 use App\Services\LeaveAdjustmentService;
 use App\Services\LeaveService;
 use App\Services\SimplePermissionService;
@@ -173,6 +174,8 @@ class LeaveAdjustmentController extends Controller
     {
         try {
             $user = Auth::user();
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
             $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment');
             if (!$isUserHasThisPermission) {
                 return response()->json([
@@ -180,8 +183,26 @@ class LeaveAdjustmentController extends Controller
                     'message' => 'غير مصرح لك بعرض تسويات الإجازات'
                 ], 403);
             }
-            $filters = LeaveAdjustmentFilterDTO::fromRequest($request->all());
 
+            // التحقق من صلاحيات المستوى الهرمي عند طلب موظف آخر
+            if ($request->has('employee_id') && $request->input('employee_id') != $user->user_id) {
+                $targetEmployee = User::find($request->input('employee_id'));
+                if (!$targetEmployee) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'الموظف المطلوب غير موجود'
+                    ], 404);
+                }
+
+                if (!$this->permissionService->canViewEmployeeRequests($user, $targetEmployee)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'ليس لديك صلاحية لعرض تسويات هذا الموظف'
+                    ], 403);
+                }
+            }
+
+            $filters = LeaveAdjustmentFilterDTO::fromRequest($request->all());
             $result = $this->leaveService->getPaginatedAdjustments($filters, $user);
 
             return response()->json([
@@ -191,10 +212,11 @@ class LeaveAdjustmentController extends Controller
                 ...$result
             ]);
         } catch (\Exception $e) {
-            Log::error('LeaveController::getAdjustments', [
-                'success' => false,
-                'message' => $e->getMessage(),
-                'create_by' => $user->full_name
+            Log::error('LeaveAdjustmentController::getAdjustments', [
+                'error' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'company_id' => $effectiveCompanyId ?? null,
+                'created_by' => $user->full_name
             ]);
             return response()->json([
                 'success' => false,
@@ -213,6 +235,7 @@ class LeaveAdjustmentController extends Controller
      *         required=true,
      *         @OA\JsonContent(
      *             required={"leave_type_id","adjust_hours","reason_adjustment"},
+     *             @OA\Property(property="employee_id", type="integer", example=755),
      *             @OA\Property(property="leave_type_id", type="integer", example=1),
      *             @OA\Property(property="adjust_hours", type="string", example="8"),
      *             @OA\Property(property="reason_adjustment", type="string", example="تسوية إجازة متراكمة"),
@@ -266,9 +289,10 @@ class LeaveAdjustmentController extends Controller
      */
     public function createAdjustment(CreateLeaveAdjustmentRequest $request)
     {
-
         try {
             $user = Auth::user();
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
             $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment1');
             if (!$isUserHasThisPermission) {
                 return response()->json([
@@ -276,13 +300,30 @@ class LeaveAdjustmentController extends Controller
                     'message' => 'غير مصرح لك بإنشاء تسويات الإجازات'
                 ], 403);
             }
-            // الحصول على معرف الشركة الفعلي من attributes
-            $effectiveCompanyId = $request->attributes->get('effective_company_id');
+
+            // التحقق من صلاحيات المستوى الهرمي عند إنشاء لموظف آخر
+            $validated = $request->validated();
+            if (isset($validated['employee_id']) && $validated['employee_id'] != $user->user_id) {
+                $targetEmployee = User::find($validated['employee_id']);
+                if (!$targetEmployee) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'الموظف المطلوب غير موجود'
+                    ], 404);
+                }
+
+                if (!$this->permissionService->canViewEmployeeRequests($user, $targetEmployee)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'ليس لديك صلاحية لإنشاء تسويات لهذا الموظف'
+                    ], 403);
+                }
+            }
 
             $dto = CreateLeaveAdjustmentDTO::fromRequest(
-                $request->validated(),
+                $validated,
                 $effectiveCompanyId,
-                $user->user_id
+                $validated['employee_id'] ?? $user->user_id
             );
 
             $adjustment = $this->leaveService->createAdjust($dto);
@@ -294,10 +335,10 @@ class LeaveAdjustmentController extends Controller
                 'data' => $adjustment
             ], 201);
         } catch (\Exception $e) {
-            Log::error('LeaveController::createAdjustment failed', [
+            Log::error('LeaveAdjustmentController::createAdjustment failed', [
                 'error' => $e->getMessage(),
                 'user_id' => $user->user_id,
-                'company_id' => $effectiveCompanyId,
+                'company_id' => $effectiveCompanyId ?? null,
                 'created_by' => $user->full_name
             ]);
             return response()->json([
@@ -345,22 +386,45 @@ class LeaveAdjustmentController extends Controller
     {
         try {
             $user = Auth::user();
-            $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment4');
-            if (!$isUserHasThisPermission) {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // Check permissions - either leave_adjustment4 (full approval) or leave_adjustment (view + hierarchy approval)
+            $hasFullApprovalPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment4');
+            $hasViewPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment');
+
+            if (!$hasFullApprovalPermission && !$hasViewPermission) {
                 return response()->json([
                     'success' => false,
                     'message' => 'غير مصرح لك بمراجعة الطلبات'
                 ], 403);
             }
 
-            // استخدام المعرف الفعلي للشركة لدعم مالك الشركة
-            $companyId = $this->permissionService->getEffectiveCompanyId($user);
+            // التحقق من وجود التسوية والصلاحيات الهرمية
+            $adjustment = $this->leaveService->showLeaveAdjustment($id, $effectiveCompanyId);
+            if (!$adjustment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة'
+                ], 404);
+            }
+
+            // التحقق من صلاحيات المستوى الهرمي إذا لم يكن صاحب شركة
+            if ($user->user_type !== 'company' && $adjustment->employee_id !== $user->user_id) {
+                $employee = User::find($adjustment->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'ليس لديك صلاحية لمراجعة هذه التسوية'
+                    ], 403);
+                }
+            }
+
             $action = $request->input('action'); // approve or reject
 
             if ($action === 'approve') {
                 $adjustment = $this->leaveService->approveAdjustment(
                     $id,
-                    $companyId,
+                    $effectiveCompanyId,
                     $user->user_id
                 );
 
@@ -376,7 +440,7 @@ class LeaveAdjustmentController extends Controller
 
                 $adjustment = $this->leaveService->rejectAdjustment(
                     $id,
-                    $companyId,
+                    $effectiveCompanyId,
                     $user->user_id,
                     $remarks
                 );
@@ -391,6 +455,8 @@ class LeaveAdjustmentController extends Controller
         } catch (\Exception $e) {
             Log::error('LeaveAdjustmentController::approveAdjustment failed', [
                 'error' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'company_id' => $effectiveCompanyId ?? null,
                 'created by' => $user->full_name
             ]);
             return response()->json([
@@ -454,9 +520,10 @@ class LeaveAdjustmentController extends Controller
      */
     public function updateAdjustment(UpdateLeaveAdjustmentRequest $request, int $id)
     {
-
         try {
             $user = Auth::user();
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
             $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment2');
             if (!$isUserHasThisPermission) {
                 return response()->json([
@@ -464,8 +531,9 @@ class LeaveAdjustmentController extends Controller
                     'message' => 'غير مصرح لك بتعديل تسويات الإجازات'
                 ], 403);
             }
+
             $dto = UpdateLeaveAdjustmentDTO::fromRequest($request->validated());
-            $adjustment = $this->leaveService->updateAdjustment($id, $dto, $user->user_id);
+            $adjustment = $this->leaveService->updateAdjustment($id, $dto, $user);
 
             return response()->json([
                 'success' => true,
@@ -473,8 +541,10 @@ class LeaveAdjustmentController extends Controller
                 'data' => $adjustment->toArray()
             ]);
         } catch (\Exception $e) {
-            Log::error('LeaveController::updateAdjustment failed', [
+            Log::error('LeaveAdjustmentController::updateAdjustment failed', [
                 'error' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'company_id' => $effectiveCompanyId ?? null,
                 'created by' => $user->full_name
             ]);
             return response()->json([
@@ -519,9 +589,10 @@ class LeaveAdjustmentController extends Controller
      */
     public function cancelAdjustment(int $id)
     {
-
         try {
             $user = Auth::user();
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
             $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment3');
             if (!$isUserHasThisPermission) {
                 return response()->json([
@@ -529,15 +600,18 @@ class LeaveAdjustmentController extends Controller
                     'message' => 'غير مصرح لك بإلغاء تسويات الإجازات'
                 ], 403);
             }
-            $this->leaveService->cancelAdjustment($id, $user->user_id);
+
+            $this->leaveService->cancelAdjustment($id, $user);
 
             return response()->json([
                 'success' => true,
                 'message' => 'تم إلغاء تسوية الإجازة بنجاح'
             ]);
         } catch (\Exception $e) {
-            Log::error('LeaveController::cancelAdjustment failed', [
+            Log::error('LeaveAdjustmentController::cancelAdjustment failed', [
                 'error' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'company_id' => $effectiveCompanyId ?? null,
                 'created by' => $user->full_name
             ]);
             return response()->json([
@@ -614,6 +688,7 @@ class LeaveAdjustmentController extends Controller
     {
         try {
             $user = Auth::user();
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
             // التحقق من الصلاحيات
             $isUserHasThisPermission = $this->simplePermissionService->checkPermission($user, 'leave_adjustment');
@@ -624,10 +699,7 @@ class LeaveAdjustmentController extends Controller
                 ], 403);
             }
 
-            // الحصول على معرف الشركة الفعلي
-            $effectiveCompanyId = $request->attributes->get('effective_company_id');
-
-            $adjustment = $this->leaveService->showLeaveAdjustment($id, $effectiveCompanyId);
+            $adjustment = $this->leaveService->showLeaveAdjustment($id, $effectiveCompanyId, $user);
 
             return response()->json([
                 'success' => true,
@@ -636,6 +708,8 @@ class LeaveAdjustmentController extends Controller
         } catch (\Exception $e) {
             Log::error('LeaveAdjustmentController::showLeaveAdjustment failed', [
                 'error' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'company_id' => $effectiveCompanyId ?? null,
                 'created by' => $user->full_name ?? 'unknown'
             ]);
             return response()->json([
@@ -645,7 +719,7 @@ class LeaveAdjustmentController extends Controller
         }
     }
 
-    
+
     /**
      * @OA\Get(
      *     path="/api/leave-adjustments/enums",

@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\AdvanceSalary;
 
+use App\Enums\oneTimeDeduct;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class UpdateAdvanceSalaryRequest extends FormRequest
 {
@@ -26,9 +29,9 @@ class UpdateAdvanceSalaryRequest extends FormRequest
                 'regex:/^\d{4}-(0[1-9]|1[0-2])$/', // Format: YYYY-MM
             ],
             'advance_amount' => 'sometimes|numeric|min:1|max:999999',
-            'one_time_deduct' => 'sometimes|string|in:0,1',
+            'one_time_deduct' => 'sometimes|string|in:' . oneTimeDeduct::TRUE->value . ',' . oneTimeDeduct::FALSE->value,
             'monthly_installment' => 'sometimes|numeric|min:0|max:999999',
-            'reason' => 'sometimes|string|min:10|max:1000',
+            'reason' => 'sometimes|string|max:1000',
         ];
     }
 
@@ -43,10 +46,10 @@ class UpdateAdvanceSalaryRequest extends FormRequest
             'advance_amount.min' => 'المبلغ يجب أن يكون أكبر من صفر',
             'advance_amount.max' => 'المبلغ يجب ألا يتجاوز 999,999',
             'one_time_deduct.in' => 'خصم لمرة واحدة يجب أن يكون نعم أو لا',
+            'one_time_deduct.required' => 'خصم لمرة واحدة مطلوب',
             'monthly_installment.numeric' => 'القسط الشهري يجب أن يكون رقماً',
             'monthly_installment.min' => 'القسط الشهري يجب أن يكون صفر أو أكبر',
             'monthly_installment.max' => 'القسط الشهري يجب ألا يتجاوز 999,999',
-            'reason.min' => 'السبب يجب أن يكون على الأقل 10 أحرف',
             'reason.max' => 'السبب لا يجب أن يتجاوز 1000 حرف',
         ];
     }
@@ -86,7 +89,7 @@ class UpdateAdvanceSalaryRequest extends FormRequest
                 try {
                     $requestDate = new \DateTime($this->month_year . '-01');
                     $currentDate = new \DateTime(date('Y-m-01'));
-                    
+
                     if ($requestDate < $currentDate) {
                         $validator->errors()->add('month_year', 'لا يمكن تعديل الطلب لشهر سابق');
                     }
@@ -100,7 +103,7 @@ class UpdateAdvanceSalaryRequest extends FormRequest
                 if ($this->one_time_deduct === '1') {
                     $advanceAmount = (float) $this->advance_amount;
                     $monthlyInstallment = (float) $this->monthly_installment;
-                    
+
                     if ($monthlyInstallment != $advanceAmount) {
                         $validator->errors()->add('monthly_installment', 'عند اختيار خصم لمرة واحدة، يجب أن يساوي القسط الشهري المبلغ الإجمالي');
                     }
@@ -108,5 +111,31 @@ class UpdateAdvanceSalaryRequest extends FormRequest
             }
         });
     }
-}
 
+    /**
+     * Handle a failed validation attempt.
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        $response = response()->json([
+            'success' => false,
+            'message' => 'فشل التحقق من البيانات',
+            'errors' => $validator->errors()
+        ], 422);
+
+        throw new HttpResponseException($response);
+    }
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation()
+    {
+        if ($this->has('one_time_deduct') && $this->input('one_time_deduct') == oneTimeDeduct::TRUE->value) {
+            if ($this->has('advance_amount')) {
+                $this->merge([
+                    'monthly_installment' => $this->input('advance_amount')
+                ]);
+            }
+        }
+    }
+}

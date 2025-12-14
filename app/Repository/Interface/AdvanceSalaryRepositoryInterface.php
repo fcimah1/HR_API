@@ -25,10 +25,18 @@ interface AdvanceSalaryRepositoryInterface
      */
     public function findAdvance(int $id): ?AdvanceSalary;
 
-    /**
-     * Find advance salary/loan by ID for specific company
-     */
+
     public function findAdvanceInCompany(int $id, int $companyId): ?AdvanceSalary;
+
+    /**
+     * Find advance salary/loan by Employee ID for specific company
+     */
+    public function findApprovedAdvanceInCompany(int $employeeId, int $companyId): ?AdvanceSalary;
+
+    /**
+     * Find advance salary/loan by Employee ID for specific company
+     */
+    public function findPendingAdvanceInCompany(int $employeeId, int $companyId): ?AdvanceSalary;
 
     /**
      * Find advance salary/loan by ID for specific employee
@@ -66,4 +74,3 @@ interface AdvanceSalaryRepositoryInterface
      */
     public function markAsDeducted(AdvanceSalary $advance): AdvanceSalary;
 }
-

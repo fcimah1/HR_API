@@ -100,39 +100,32 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Advance Salary & Loan Management
-    Route::get('/advances', [AdvanceSalaryController::class, 'index']);
-    Route::post('/advances', [AdvanceSalaryController::class, 'store']);
-
-    // Manager/HR only endpoints for advance salary/loan management (must come before {id} routes)
-    Route::middleware('role:company,admin,hr,manager')->group(function () {
+    Route::middleware('simple.permission:hradvance_salary')->group(function () {
+        Route::get('/advances', [AdvanceSalaryController::class, 'index']);
+        Route::post('/advances', [AdvanceSalaryController::class, 'store']);
         Route::get('/advances/stats', [AdvanceSalaryController::class, 'stats']);
         Route::post('/advances/{id}/approve', [AdvanceSalaryController::class, 'approve']);
+        Route::delete('/advances/{id}/cancel', [AdvanceSalaryController::class, 'cancel']);
+        Route::get('/advances/{id}', [AdvanceSalaryController::class, 'show']);
+        Route::put('/advances/{id}', [AdvanceSalaryController::class, 'update']);
     });
 
-    // Note: More specific routes must come before general ones
-    Route::delete('/advances/{id}/cancel', [AdvanceSalaryController::class, 'cancel']);
-    Route::get('/advances/{id}', [AdvanceSalaryController::class, 'show']);
-    Route::put('/advances/{id}', [AdvanceSalaryController::class, 'update']);
-
-    // Leave Type Management
 
 
     // Overtime Management
-    Route::get('/overtime/enums', [OvertimeController::class, 'getEnums']);
-    Route::get('/overtime/requests', [OvertimeController::class, 'index']);
-    Route::post('/overtime/requests', [OvertimeController::class, 'store']);
-    Route::get('/overtime/requests/pending', [OvertimeController::class, 'pending']);
-    Route::get('/overtime/requests/team', [OvertimeController::class, 'team']);
-    Route::get('/overtime/requests/{id}', [OvertimeController::class, 'show']);
-    Route::put('/overtime/requests/{id}', [OvertimeController::class, 'update']);
-    Route::delete('/overtime/requests/{id}', [OvertimeController::class, 'destroy']);
-
-    // Manager/HR approval endpoints for overtime
-    Route::middleware('role:company,admin,hr,manager')->group(function () {
+    Route::middleware('simple.permission:overtime_req1')->group(function () {
+        Route::get('/overtime/requests', [OvertimeController::class, 'index']);
+        Route::post('/overtime/requests', [OvertimeController::class, 'store']);
+        Route::get('/overtime/requests/{id}', [OvertimeController::class, 'show']);
+        Route::put('/overtime/requests/{id}', [OvertimeController::class, 'update']);
+        Route::delete('/overtime/requests/{id}', [OvertimeController::class, 'destroy']);
         Route::post('/overtime/requests/{id}/approve', [OvertimeController::class, 'approve']);
         Route::post('/overtime/requests/{id}/reject', [OvertimeController::class, 'reject']);
-        Route::get('/overtime/stats', [OvertimeController::class, 'stats']);
     });
+    Route::get('/overtime/enums', [OvertimeController::class, 'getEnums']);
+    Route::get('/overtime/requests/pending', [OvertimeController::class, 'pending']);
+    Route::get('/overtime/requests/team', [OvertimeController::class, 'team']);
+    // Route::get('/overtime/stats', [OvertimeController::class, 'stats']);
 
     // System Logs
     Route::middleware('role:company')->group(function () {

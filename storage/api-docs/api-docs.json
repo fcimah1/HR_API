@@ -62,7 +62,7 @@
                         "description": "Filter by month and year (format: YYYY-MM)",
                         "schema": {
                             "type": "string",
-                            "example": "2025-11"
+                            "example": ""
                         }
                     },
                     {
@@ -235,6 +235,7 @@
                         "application/json": {
                             "schema": {
                                 "required": [
+                                    "employee_id",
                                     "salary_type",
                                     "month_year",
                                     "advance_amount",
@@ -243,6 +244,11 @@
                                     "reason"
                                 ],
                                 "properties": {
+                                    "employee_id": {
+                                        "description": "معرف الموظف",
+                                        "type": "integer",
+                                        "example": 755
+                                    },
                                     "salary_type": {
                                         "description": "نوع الطلب: قرض أو سلفة",
                                         "type": "string",
@@ -5048,6 +5054,10 @@
                                     "reason_adjustment"
                                 ],
                                 "properties": {
+                                    "employee_id": {
+                                        "type": "integer",
+                                        "example": 755
+                                    },
                                     "leave_type_id": {
                                         "type": "integer",
                                         "example": 1
@@ -8452,6 +8462,11 @@
                                     "compensation_type"
                                 ],
                                 "properties": {
+                                    "employee_id": {
+                                        "description": "معرف الموظف (للشركة/HR فقط عند الإنشاء نيابة عن موظف)",
+                                        "type": "integer",
+                                        "example": 37
+                                    },
                                     "request_date": {
                                         "description": "تاريخ الطلب (يجب أن يكون بصيغة Y-m-d)",
                                         "type": "string",
@@ -8498,11 +8513,6 @@
                                         "description": "سبب الطلب (اختياري، حد أقصى 1000 حرف)",
                                         "type": "string",
                                         "example": "عمل إضافي لإنهاء المشروع"
-                                    },
-                                    "employee_id": {
-                                        "description": "معرف الموظف (للشركة/HR فقط عند الإنشاء نيابة عن موظف)",
-                                        "type": "integer",
-                                        "example": 37
                                     }
                                 },
                                 "type": "object"
@@ -9162,87 +9172,6 @@
                     },
                     "422": {
                         "description": "Validation error or request already processed"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/overtime/stats": {
-            "get": {
-                "tags": [
-                    "Overtime Management"
-                ],
-                "summary": "Get overtime statistics",
-                "description": "Returns overtime statistics including total hours, approved/rejected counts",
-                "operationId": "7c51c8c2489ce6436ab487d7532fd899",
-                "parameters": [
-                    {
-                        "name": "from_date",
-                        "in": "query",
-                        "description": "Start date for statistics (Y-m-d)",
-                        "schema": {
-                            "type": "string",
-                            "format": "date",
-                            "example": "2025-01-01"
-                        }
-                    },
-                    {
-                        "name": "to_date",
-                        "in": "query",
-                        "description": "End date for statistics (Y-m-d)",
-                        "schema": {
-                            "type": "string",
-                            "format": "date",
-                            "example": "2025-12-31"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Statistics retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "total_requests": {
-                                                    "type": "integer"
-                                                },
-                                                "approved_requests": {
-                                                    "type": "integer"
-                                                },
-                                                "rejected_requests": {
-                                                    "type": "integer"
-                                                },
-                                                "pending_requests": {
-                                                    "type": "integer"
-                                                },
-                                                "total_hours": {
-                                                    "type": "number"
-                                                },
-                                                "approved_hours": {
-                                                    "type": "number"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Unauthorized - Manager/HR role required"
                     }
                 },
                 "security": [

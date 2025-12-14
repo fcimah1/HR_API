@@ -13,6 +13,7 @@ class OvertimeRequestFilterDTO
         public readonly ?string $toDate = null,
         public readonly ?string $month = null, // Format: YYYY-MM
         public readonly ?int $companyId = null,
+        public readonly ?array $hierarchyLevels = null, // For hierarchy filtering
         public readonly ?string $search = '',
         public readonly int $perPage = 15,
         public readonly int $page = 1,
@@ -32,6 +33,7 @@ class OvertimeRequestFilterDTO
             toDate: $params['to_date'] ?? null,
             month: $params['month'] ?? null,
             companyId: isset($params['company_id']) ? (int) $params['company_id'] : null,
+            hierarchyLevels: $params['hierarchy_levels'] ?? null,
             search: $params['search'] ?? '',
             perPage: isset($params['per_page']) ? (int) $params['per_page'] : 15,
             page: isset($params['page']) ? (int) $params['page'] : 1,
@@ -64,6 +66,7 @@ class OvertimeRequestFilterDTO
             'to_date' => $this->toDate,
             'month' => $this->month,
             'company_id' => $this->companyId,
+            'hierarchy_levels' => $this->hierarchyLevels,
             'search' => $this->search,
             'per_page' => $this->perPage,
             'page' => $this->page,

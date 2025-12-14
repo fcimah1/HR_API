@@ -15,6 +15,7 @@ use App\Models\LeaveApplication;
 use App\Models\User;
 use App\Repository\Interface\LeaveRepositoryInterface;
 use App\Repository\Interface\LeaveTypeRepositoryInterface;
+use App\Repository\Interface\UserRepositoryInterface;
 use App\Services\SimplePermissionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +37,7 @@ class LeaveService
         protected SimplePermissionService $permissionService,
         protected NotificationService $notificationService,
         protected ApprovalWorkflowService $approvalWorkflow,
+        protected UserRepositoryInterface $userRepository,
     ) {}
 
     /**
@@ -56,14 +58,14 @@ class LeaveService
             $filterData['company_id'] = $effectiveCompanyId;
         } else {
             // موظف (staff): يرى طلباته + طلبات الموظفين التابعين له في نفس القسم
-            $subordinateIds = $this->getSubordinateEmployeeIds($user->user_id);
+            $subordinateIds = $this->userRepository->getSubordinateEmployeeIds($user->user_id);
 
             if (!empty($subordinateIds)) {
                 // لديه موظفين تابعين: طلباته + طلبات التابعين
                 $subordinateIds[] = $user->user_id; // إضافة نفسه
                 $filterData['employee_ids'] = $subordinateIds;
                 $filterData['company_id'] = $user->company_id;
-                
+
                 // إضافة فلترة المستويات الهرمية للموظفين التابعين
                 $hierarchyLevels = $this->permissionService->getUserHierarchyLevel($user);
                 if ($hierarchyLevels !== null) {
@@ -85,70 +87,6 @@ class LeaveService
         return $applications;
     }
 
-    /**
-     * Get all subordinate employee IDs using recursive reporting structure
-     * Filters by same department and lower hierarchy levels
-     * 
-     * @param int $managerId
-     * @return array
-     */
-    private function getSubordinateEmployeeIds(int $managerId): array
-    {
-        // Get manager's department and hierarchy level
-        $manager = DB::table('ci_erp_users_details')
-            ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
-            ->where('ci_erp_users_details.user_id', $managerId)
-            ->first(['ci_erp_users_details.department_id', 'ci_designations.hierarchy_level']);
-
-        if (!$manager) {
-            return [];
-        }
-
-        // Get employees in same department with lower hierarchy levels
-        $subordinates = DB::table('ci_erp_users_details')
-            ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
-            ->join('ci_erp_users', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
-            ->where('ci_erp_users_details.department_id', $manager->department_id)
-            ->where('ci_designations.hierarchy_level', '>', $manager->hierarchy_level)
-            ->where('ci_designations.hierarchy_level', '!=', 1) // Exclude highest level if needed
-            ->where('ci_erp_users.is_active', 1)
-            ->pluck('ci_erp_users_details.user_id')
-            ->toArray();
-
-        return array_map('intval', $subordinates);
-    }
-
-    /**
-     * Get hierarchy levels of subordinate employees
-     * Filters by same department and lower hierarchy levels
-     * 
-     * @param int $managerId
-     * @return array
-     */
-    private function getSubordinateHierarchyLevels(int $managerId): array
-    {
-        // Get manager's department and hierarchy level
-        $manager = DB::table('ci_erp_users_details')
-            ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
-            ->where('ci_erp_users_details.user_id', $managerId)
-            ->first(['ci_erp_users_details.department_id', 'ci_designations.hierarchy_level']);
-
-        if (!$manager) {
-            return [];
-        }
-
-        // Get hierarchy levels of employees in same department with lower levels
-        $hierarchyLevels = DB::table('ci_erp_users_details')
-            ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
-            ->where('ci_erp_users_details.department_id', $manager->department_id)
-            ->where('ci_designations.hierarchy_level', '>', $manager->hierarchy_level)
-            ->whereNotNull('ci_designations.hierarchy_level')
-            ->pluck('ci_designations.hierarchy_level')
-            ->unique()
-            ->toArray();
-
-        return array_map('intval', $hierarchyLevels);
-    }
 
     /**
      * الحصول على قوائم Enums الخاصة بالإجازات
@@ -158,7 +96,7 @@ class LeaveService
     public function getLeaveEnums(): array
     {
         $user = Auth::user();
-        
+
         // استخدام effective company_id إذا كان company_id للمستخدم هو 0
         $companyId = $user->company_id;
         if ($user->company_id === 0) {
@@ -166,13 +104,13 @@ class LeaveService
             $permissionService = app(SimplePermissionService::class);
             $companyId = $permissionService->getEffectiveCompanyId($user);
         }
-        
+
         Log::info('Getting leave types for user', [
             'user_id' => $user->user_id ?? null,
             'user_company_id' => $user->company_id,
             'effective_company_id' => $companyId
         ]);
-        
+
         $leavetypes = LeaveApplication::leave_types($companyId);
         return [
             'statuses_string' => StringStatusEnum::toArray(),
@@ -346,7 +284,7 @@ class LeaveService
             if ($application) {
                 return LeaveApplicationResponseDTO::fromModel($application)->toArray();
             }
-        } 
+        }
         // Staff users: check hierarchy permissions
         else {
             // First, try to find by user ID (own requests) - but only if this is actually the user's own request
@@ -375,7 +313,7 @@ class LeaveService
                 $employee = User::find($application->employee_id);
                 if ($employee) {
                     $canView = $this->permissionService->canViewEmployeeRequests($user, $employee);
-                    
+
                     Log::info('LeaveService::getApplicationById - Hierarchy check', [
                         'application_id' => $id,
                         'application_employee_id' => $application->employee_id,
@@ -387,7 +325,7 @@ class LeaveService
                         'employee_department' => $this->permissionService->getUserDepartmentId($employee),
                         'can_view' => $canView
                     ]);
-                    
+
                     if ($canView) {
                         return LeaveApplicationResponseDTO::fromModel($application)->toArray();
                     }
@@ -419,12 +357,12 @@ class LeaveService
             $isOwner = $application->employee_id === $user->user_id;
             $isCompany = $user->user_type === 'company';
             $isHigherLevel = false;
-            
+
             // التحقق من المستوى الأعلى إذا كان المستخدم موظفاً
             if (!$isCompany && $user->employee) {
                 $isHigherLevel = $user->employee->hierarchy_level < $application->employee->hierarchy_level;
             }
-            
+
             if (!$isOwner && !$isCompany && !$isHigherLevel) {
                 Log::error('Unauthorized update attempt', [
                     'isowner' => $isOwner,

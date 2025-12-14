@@ -329,7 +329,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'user' => $request->user(),
-            'permissions' => $request->user()->sendPermissionsWithUserDetails()['permissions'],
+            'permissionData' => $request->user()->sendPermissionsWithUserDetails(),
         ]);
     }
 
