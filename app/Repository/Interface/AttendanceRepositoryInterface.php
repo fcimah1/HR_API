@@ -43,7 +43,7 @@ interface AttendanceRepositoryInterface
     /**
      * Find today's attendance for an employee
      */
-    public function findTodayAttendance(int $employeeId, string $date = null): ?Attendance;
+    public function findTodayAttendance(string|int $employeeId, ?string $date = null): ?Attendance;
 
     /**
      * Find attendance in company
@@ -68,7 +68,7 @@ interface AttendanceRepositoryInterface
     /**
      * Check if employee has clocked in today
      */
-    public function hasClockedInToday(int $employeeId, string $date = null): bool;
+    public function hasClockedInToday(string|int $employeeId, ?string $date = null): bool;
 
     /**
      * Get attendance statistics for company

@@ -6,9 +6,14 @@ use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\HourlyLeaveController;
 use App\Http\Controllers\Api\AdvanceSalaryController;
+use App\Http\Controllers\Api\BiometricAttendanceController;
 use App\Http\Controllers\Api\LeaveAdjustmentController;
 use App\Http\Controllers\Api\LeaveTypeController;
 use App\Http\Controllers\Api\OvertimeController;
+use App\Http\Controllers\Api\SuggestionController;
+use App\Http\Controllers\Api\ComplaintController;
+use App\Http\Controllers\Api\ResignationController;
+use App\Http\Controllers\Api\TransferController;
 use App\Http\Controllers\Api\EnumController;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +34,9 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/companies', [AuthController::class, 'getCompanies']);
 Route::post('/refresh', [AuthController::class, 'refresh']);
 
+// Biometric Device Integration (Public - لا يحتاج تسجيل دخول)
+Route::post('/biometric/punch', [BiometricAttendanceController::class, 'punch']);
+
 
 // Protected routes with simple company isolation
 Route::middleware(['auth:api', 'simple.company'])->group(function () {
@@ -41,10 +49,10 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::get('/employees/stats', [EmployeeController::class, 'stats']);
     Route::get('/employees/search', [EmployeeController::class, 'search']);
     Route::get('/employees/by-type/{type}', [EmployeeController::class, 'getByType']);
-    
+
     // Employees for duty employee - no permissions required (must come before /employees/{id})
     Route::get('/employees/employees-for-duty-employee', [EmployeeController::class, 'getEmployeesForDutyEmployee']);
-    
+
     Route::get('/employees/{id}', [EmployeeController::class, 'show']);
 
     // Employee filters and exports
@@ -206,5 +214,49 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::put('/{id}', [App\Http\Controllers\Api\HolidayController::class, 'update']);
         Route::delete('/{id}', [App\Http\Controllers\Api\HolidayController::class, 'destroy']);
         Route::get('/check/{date}', [App\Http\Controllers\Api\HolidayController::class, 'checkHoliday']);
+    });
+
+    // Suggestions Management
+    Route::prefix('suggestions')->group(function () {
+        Route::get('/', [SuggestionController::class, 'index']);
+        Route::post('/', [SuggestionController::class, 'store']);
+        Route::get('/{id}', [SuggestionController::class, 'show']);
+        Route::put('/{id}', [SuggestionController::class, 'update']);
+        Route::delete('/{id}', [SuggestionController::class, 'destroy']);
+        Route::post('/{id}/comments', [SuggestionController::class, 'addComment']);
+        Route::get('/{id}/comments', [SuggestionController::class, 'getComments']);
+    });
+
+    // Complaints Management
+    Route::prefix('complaints')->group(function () {
+        Route::get('/', [ComplaintController::class, 'index']);
+        Route::post('/', [ComplaintController::class, 'store']);
+        Route::get('/statuses', [ComplaintController::class, 'getStatuses']);
+        Route::get('/{id}', [ComplaintController::class, 'show']);
+        Route::put('/{id}', [ComplaintController::class, 'update']);
+        Route::delete('/{id}', [ComplaintController::class, 'destroy']);
+        Route::post('/{id}/resolve', [ComplaintController::class, 'resolve']);
+    });
+
+    // Resignations Management
+    Route::prefix('resignations')->group(function () {
+        Route::get('/', [ResignationController::class, 'index']);
+        Route::post('/', [ResignationController::class, 'store']);
+        Route::get('/statuses', [ResignationController::class, 'getStatuses']);
+        Route::get('/{id}', [ResignationController::class, 'show']);
+        Route::put('/{id}', [ResignationController::class, 'update']);
+        Route::delete('/{id}', [ResignationController::class, 'destroy']);
+        Route::post('/{id}/approve-or-reject', [ResignationController::class, 'approveOrReject']);
+    });
+
+    // Transfers Management
+    Route::prefix('transfers')->group(function () {
+        Route::get('/', [TransferController::class, 'index']);
+        Route::post('/', [TransferController::class, 'store']);
+        Route::get('/statuses', [TransferController::class, 'getStatuses']);
+        Route::get('/{id}', [TransferController::class, 'show']);
+        Route::put('/{id}', [TransferController::class, 'update']);
+        Route::delete('/{id}', [TransferController::class, 'destroy']);
+        Route::post('/{id}/approve-or-reject', [TransferController::class, 'approveOrReject']);
     });
 });

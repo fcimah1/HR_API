@@ -15,6 +15,7 @@ return new class extends Migration
             $table->integer('designation_id', true);
             $table->integer('department_id');
             $table->integer('company_id');
+            $table->tinyInteger('hierarchy_level')->default(5)->comment('Hierarchy level: 1=highest, 5=lowest');
             $table->string('designation_name', 200);
             $table->text('description');
             $table->string('created_at', 200);

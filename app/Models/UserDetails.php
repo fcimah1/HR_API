@@ -110,7 +110,7 @@ class UserDetails extends Model
     /**
      * Get the reporting manager
      */
- 
+
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'department_id', 'department_id');
@@ -126,4 +126,20 @@ class UserDetails extends Model
         return $this->belongsTo(OfficeShift::class, 'office_shift_id', 'office_shift_id');
     }
 
+    /**
+     * البحث عن الموظف باستخدام المفتاح المركب من جهاز البصمة
+     * Find user by biometric composite key
+     */
+    public function scopeByBiometricId($query, int $companyId, int $branchId, string $employeeId)
+    {
+        $query->where('company_id', $companyId)
+            ->where('employee_id', $employeeId);
+
+        // إذا branch_id ليس صفر، نضيفه للبحث
+        if ($branchId > 0) {
+            $query->where('branch_id', $branchId);
+        }
+
+        return $query;
+    }
 }

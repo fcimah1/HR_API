@@ -2122,6 +2122,910 @@
                 ]
             }
         },
+        "/api/biometric/punch": {
+            "post": {
+                "tags": [
+                    "Biometric Attendance"
+                ],
+                "summary": "تسجيل الحضور/الانصراف من جهاز البصمة",
+                "description": "استقبال بيانات البصمة من الجهاز وتسجيلها تلقائياً كحضور أو انصراف",
+                "operationId": "biometricPunch",
+                "requestBody": {
+                    "description": "بيانات البصمة من الجهاز",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "company_id",
+                                    "branch_id",
+                                    "employee_id",
+                                    "punch_time"
+                                ],
+                                "properties": {
+                                    "company_id": {
+                                        "description": "رقم الشركة",
+                                        "type": "integer",
+                                        "example": 24
+                                    },
+                                    "branch_id": {
+                                        "description": "رقم الفرع (0 إذا لم يوجد)",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "employee_id": {
+                                        "description": "رقم الموظف في جهاز البصمة",
+                                        "type": "string",
+                                        "example": "073323"
+                                    },
+                                    "punch_time": {
+                                        "description": "وقت البصمة",
+                                        "type": "string",
+                                        "format": "datetime",
+                                        "example": "2025-12-14 08:00:00"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تسجيل البصمة بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "type": {
+                                            "description": "نوع البصمة: حضور أو انصراف",
+                                            "type": "string",
+                                            "enum": [
+                                                "clock_in",
+                                                "clock_out"
+                                            ],
+                                            "example": "clock_in"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تسجيل الحضور بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "user_id": {
+                                                    "description": "رقم المستخدم في النظام",
+                                                    "type": "integer",
+                                                    "example": 755
+                                                },
+                                                "employee_id": {
+                                                    "description": "رقم الموظف في جهاز البصمة",
+                                                    "type": "string",
+                                                    "example": "073323"
+                                                },
+                                                "punch_time": {
+                                                    "type": "string",
+                                                    "example": "2025-12-14 08:00:00"
+                                                },
+                                                "attendance_id": {
+                                                    "description": "رقم سجل الحضور",
+                                                    "type": "integer",
+                                                    "example": 1155
+                                                },
+                                                "total_work": {
+                                                    "description": "إجمالي ساعات العمل (فقط عند الانصراف)",
+                                                    "type": "string",
+                                                    "example": "09:00",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "خطأ في العملية",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "الموظف غير موجود في النظام"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The given data was invalid."
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "company_id": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "حقل رقم الشركة مطلوب"
+                                                    }
+                                                },
+                                                "employee_id": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "حقل رقم الموظف مطلوب"
+                                                    }
+                                                },
+                                                "punch_time": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "صيغة وقت البصمة غير صحيحة"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/complaints": {
+            "get": {
+                "tags": [
+                    "Complaint Management"
+                ],
+                "summary": "Get complaints list",
+                "description": "الحصول على قائمة الشكاوى مع إمكانية الفلترة والبحث",
+                "operationId": "c896b092927624ef9ad25851388b1a78",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by employee ID - فلترة حسب معرف الموظف",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by status - فلترة حسب الحالة (pending/resolved/rejected)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "resolved",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "Filter from date - فلترة من تاريخ",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "Filter to date - فلترة إلى تاريخ",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search in title and description - البحث في العنوان والوصف",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page - عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number - رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Complaints retrieved successfully - تم جلب الشكاوى بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الشكاوى بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "complaint_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "employee_id": {
+                                                        "type": "integer",
+                                                        "example": 37
+                                                    },
+                                                    "title": {
+                                                        "type": "string",
+                                                        "example": "شكوى بخصوص بيئة العمل"
+                                                    },
+                                                    "description": {
+                                                        "type": "string",
+                                                        "example": "تفاصيل الشكوى"
+                                                    },
+                                                    "complaint_against": {
+                                                        "type": "integer",
+                                                        "example": 45,
+                                                        "nullable": true
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "pending"
+                                                    },
+                                                    "status_text": {
+                                                        "type": "string",
+                                                        "example": "قيد المراجعة"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "employee": {
+                                                        "properties": {
+                                                            "user_id": {
+                                                                "type": "integer",
+                                                                "example": 37
+                                                            },
+                                                            "full_name": {
+                                                                "type": "string",
+                                                                "example": "محمد أحمد"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 75
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Complaint Management"
+                ],
+                "summary": "Create a new complaint",
+                "description": "إنشاء شكوى جديدة - يمكن تقديم شكوى ضد موظف معين أو شكوى عامة",
+                "operationId": "ccdda53fcb7c24fba177380d20aa10d4",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "description"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "description": "عنوان الشكوى - مطلوب",
+                                        "type": "string",
+                                        "example": "شكوى بخصوص بيئة العمل"
+                                    },
+                                    "description": {
+                                        "description": "وصف تفصيلي للشكوى - مطلوب",
+                                        "type": "string",
+                                        "example": "التكييف لا يعمل بشكل صحيح في المكتب مما يؤثر على الإنتاجية"
+                                    },
+                                    "complaint_against": {
+                                        "description": "معرف الموظف المشتكى ضده (اختياري)",
+                                        "type": "integer",
+                                        "example": 45
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Complaint created successfully - تم إنشاء الشكوى بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء الشكوى بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/complaints/{id}": {
+            "get": {
+                "tags": [
+                    "Complaint Management"
+                ],
+                "summary": "Get a specific complaint",
+                "description": "عرض تفاصيل شكوى محددة",
+                "operationId": "ccab03b315116e788b56eee891bac092",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Complaint ID - معرف الشكوى",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Complaint retrieved successfully - تم جلب الشكوى بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الشكوى بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "complaint_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "employee_id": {
+                                                    "type": "integer",
+                                                    "example": 37
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "example": "شكوى بخصوص بيئة العمل"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "تفاصيل الشكوى"
+                                                },
+                                                "complaint_against": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "pending"
+                                                },
+                                                "status_text": {
+                                                    "type": "string",
+                                                    "example": "قيد المراجعة"
+                                                },
+                                                "resolution": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "employee": {
+                                                    "properties": {
+                                                        "user_id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "full_name": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "404": {
+                        "description": "Complaint not found - الشكوى غير موجودة",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "الشكوى غير موجودة أو ليس لديك صلاحية للوصول إليها"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Complaint Management"
+                ],
+                "summary": "Update a complaint",
+                "description": "تحديث شكوى - يمكن فقط للمالك تعديل شكواه قبل المعالجة",
+                "operationId": "6c87981b9860d45daee4b3c6d4b20e4a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Complaint ID - معرف الشكوى",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "description": "العنوان الجديد",
+                                        "type": "string",
+                                        "example": "عنوان معدل للشكوى"
+                                    },
+                                    "description": {
+                                        "description": "الوصف الجديد",
+                                        "type": "string",
+                                        "example": "وصف معدل للشكوى"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Complaint updated successfully - تم تحديث الشكوى بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث الشكوى بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot update processed complaint - لا يمكن تعديل شكوى تمت معالجتها"
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجودة"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Complaint Management"
+                ],
+                "summary": "Delete a complaint",
+                "description": "حذف شكوى - يمكن فقط للمالك حذف شكواه قبل المعالجة",
+                "operationId": "2f8232066fdc2d7615e5553fa2260e32",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Complaint ID - معرف الشكوى",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Complaint deleted successfully - تم حذف الشكوى بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف الشكوى بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot delete processed complaint - لا يمكن حذف شكوى تمت معالجتها"
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجودة"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/complaints/{id}/resolve": {
+            "post": {
+                "tags": [
+                    "Complaint Management"
+                ],
+                "summary": "Resolve or reject a complaint",
+                "description": "حل أو رفض شكوى - للمديرين والموارد البشرية فقط",
+                "operationId": "98f64636c02d226324f27a29fcdfdbaa",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Complaint ID - معرف الشكوى",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "action"
+                                ],
+                                "properties": {
+                                    "action": {
+                                        "description": "الإجراء: resolve للحل أو reject للرفض",
+                                        "type": "string",
+                                        "enum": [
+                                            "resolve",
+                                            "reject"
+                                        ],
+                                        "example": "resolve"
+                                    },
+                                    "resolution": {
+                                        "description": "تفاصيل الحل (مطلوب عند الحل)",
+                                        "type": "string",
+                                        "example": "تم إصلاح التكييف"
+                                    },
+                                    "remarks": {
+                                        "description": "ملاحظات إضافية",
+                                        "type": "string",
+                                        "example": "تم التواصل مع الصيانة"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Complaint processed successfully - تم معالجة الشكوى بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حل الشكوى بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Complaint already processed - تم معالجة الشكوى مسبقاً",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم معالجة هذه الشكوى مسبقاً"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجودة"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/complaints/statuses": {
+            "get": {
+                "tags": [
+                    "Complaint Management"
+                ],
+                "summary": "Get complaint statuses",
+                "description": "الحصول على قائمة حالات الشكاوى المتاحة",
+                "operationId": "a616959e111b2d3b8eb9bee00f4f8ca9",
+                "responses": {
+                    "200": {
+                        "description": "Statuses retrieved successfully - تم جلب الحالات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الحالات بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "value": {
+                                                        "type": "string",
+                                                        "example": "pending"
+                                                    },
+                                                    "label": {
+                                                        "type": "string",
+                                                        "example": "قيد المراجعة"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/employees/employees-for-duty-employee": {
             "get": {
                 "tags": [
@@ -9231,6 +10135,1682 @@
                 ]
             }
         },
+        "/api/resignations": {
+            "get": {
+                "tags": [
+                    "Resignation Management"
+                ],
+                "summary": "Get resignations list",
+                "description": "الحصول على قائمة طلبات الاستقالة مع إمكانية الفلترة والبحث",
+                "operationId": "537c444c86b91ebd9529c4b24b6a13cb",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by employee ID - فلترة حسب معرف الموظف",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by status - فلترة حسب الحالة (pending/approved/rejected)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "approved",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "Filter from date - فلترة من تاريخ",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "Filter to date - فلترة إلى تاريخ",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search in employee name - البحث في اسم الموظف",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page - عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number - رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Resignations retrieved successfully - تم جلب الاستقالات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب طلبات الاستقالة بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "resignation_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "employee_id": {
+                                                        "type": "integer",
+                                                        "example": 37
+                                                    },
+                                                    "resignation_date": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                        "example": "2025-02-01"
+                                                    },
+                                                    "notice_date": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                        "example": "2025-01-15"
+                                                    },
+                                                    "reason": {
+                                                        "type": "string",
+                                                        "example": "فرصة عمل أفضل"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "pending"
+                                                    },
+                                                    "status_text": {
+                                                        "type": "string",
+                                                        "example": "قيد المراجعة"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "employee": {
+                                                        "properties": {
+                                                            "user_id": {
+                                                                "type": "integer",
+                                                                "example": 37
+                                                            },
+                                                            "full_name": {
+                                                                "type": "string",
+                                                                "example": "محمد أحمد"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 75
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Resignation Management"
+                ],
+                "summary": "Create a new resignation request",
+                "description": "إنشاء طلب استقالة جديد - يمكن للموظف تقديم استقالته أو للمدير تقديمها نيابة عن موظف",
+                "operationId": "1b00d58f0e0f1d419e098271f0676369",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "resignation_date",
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "description": "معرف الموظف (اختياري - الافتراضي المستخدم الحالي)",
+                                        "type": "integer",
+                                        "example": 37
+                                    },
+                                    "resignation_date": {
+                                        "description": "تاريخ الاستقالة المطلوب - مطلوب",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-02-01"
+                                    },
+                                    "notice_date": {
+                                        "description": "تاريخ تقديم الإشعار",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-01-15"
+                                    },
+                                    "reason": {
+                                        "description": "سبب الاستقالة - مطلوب",
+                                        "type": "string",
+                                        "example": "فرصة عمل أفضل في شركة أخرى"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Resignation created successfully - تم إنشاء طلب الاستقالة بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء طلب الاستقالة بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/resignations/{id}": {
+            "get": {
+                "tags": [
+                    "Resignation Management"
+                ],
+                "summary": "Get a specific resignation",
+                "description": "عرض تفاصيل طلب استقالة محدد",
+                "operationId": "e92ecf40e6f4b547a335942a8be18ebb",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Resignation ID - معرف طلب الاستقالة",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Resignation retrieved successfully - تم جلب طلب الاستقالة بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب طلب الاستقالة بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "resignation_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "employee_id": {
+                                                    "type": "integer",
+                                                    "example": 37
+                                                },
+                                                "resignation_date": {
+                                                    "type": "string",
+                                                    "format": "date"
+                                                },
+                                                "notice_date": {
+                                                    "type": "string",
+                                                    "format": "date"
+                                                },
+                                                "reason": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "status_text": {
+                                                    "type": "string"
+                                                },
+                                                "employee": {
+                                                    "properties": {
+                                                        "user_id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "full_name": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "404": {
+                        "description": "Resignation not found - طلب الاستقالة غير موجود",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "طلب الاستقالة غير موجود أو ليس لديك صلاحية للوصول إليه"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Resignation Management"
+                ],
+                "summary": "Update a resignation request",
+                "description": "تحديث طلب استقالة - يمكن فقط تعديل الطلبات المعلقة",
+                "operationId": "40a7b6bba6a29246f554dad4385acb55",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Resignation ID - معرف طلب الاستقالة",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "resignation_date": {
+                                        "description": "تاريخ الاستقالة الجديد",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-02-15"
+                                    },
+                                    "reason": {
+                                        "description": "السبب الجديد",
+                                        "type": "string",
+                                        "example": "سبب معدل للاستقالة"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Resignation updated successfully - تم تحديث طلب الاستقالة بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث طلب الاستقالة بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot update processed resignation - لا يمكن تعديل طلب تمت معالجته"
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Resignation Management"
+                ],
+                "summary": "Delete a resignation request",
+                "description": "حذف/إلغاء طلب استقالة - يمكن فقط حذف الطلبات المعلقة",
+                "operationId": "297d095f41500a1e82a37e605827e27d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Resignation ID - معرف طلب الاستقالة",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Resignation deleted successfully - تم حذف طلب الاستقالة بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف طلب الاستقالة بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot delete processed resignation - لا يمكن حذف طلب تمت معالجته"
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/resignations/{id}/approve-or-reject": {
+            "post": {
+                "tags": [
+                    "Resignation Management"
+                ],
+                "summary": "Approve or reject a resignation request",
+                "description": "الموافقة على أو رفض طلب استقالة - للمديرين فقط",
+                "operationId": "217c33f34a2a167260e0b4e6ab9e2caf",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Resignation ID - معرف طلب الاستقالة",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "action"
+                                ],
+                                "properties": {
+                                    "action": {
+                                        "description": "الإجراء: approve للموافقة أو reject للرفض",
+                                        "type": "string",
+                                        "enum": [
+                                            "approve",
+                                            "reject"
+                                        ],
+                                        "example": "approve"
+                                    },
+                                    "remarks": {
+                                        "description": "ملاحظات (اختياري)",
+                                        "type": "string",
+                                        "example": "موافق على الاستقالة مع الشكر على خدماتك"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Resignation processed successfully - تم معالجة طلب الاستقالة بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تمت الموافقة على طلب الاستقالة"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Resignation already processed - تم معالجة الطلب مسبقاً",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم معالجة هذا الطلب مسبقاً"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/resignations/statuses": {
+            "get": {
+                "tags": [
+                    "Resignation Management"
+                ],
+                "summary": "Get resignation statuses",
+                "description": "الحصول على قائمة حالات الاستقالات المتاحة",
+                "operationId": "83f11b9d02908d6c38de5e81b3b61674",
+                "responses": {
+                    "200": {
+                        "description": "Statuses retrieved successfully - تم جلب الحالات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الحالات بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "value": {
+                                                        "type": "string",
+                                                        "example": "pending"
+                                                    },
+                                                    "label": {
+                                                        "type": "string",
+                                                        "example": "قيد المراجعة"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/suggestions": {
+            "get": {
+                "tags": [
+                    "Suggestion Management"
+                ],
+                "summary": "Get suggestions list",
+                "description": "الحصول على قائمة الاقتراحات مع إمكانية الفلترة والبحث",
+                "operationId": "2f5ecf935c7b542a7d3686328d26265f",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by employee ID - فلترة حسب معرف الموظف",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by status - فلترة حسب الحالة",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "approved",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "Filter from date - فلترة من تاريخ",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "Filter to date - فلترة إلى تاريخ",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search in title and description - البحث في العنوان والوصف",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page - عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number - رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Suggestions retrieved successfully - تم جلب الاقتراحات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الاقتراحات بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "suggestion_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "employee_id": {
+                                                        "type": "integer",
+                                                        "example": 37
+                                                    },
+                                                    "title": {
+                                                        "type": "string",
+                                                        "example": "اقتراح لتحسين بيئة العمل"
+                                                    },
+                                                    "description": {
+                                                        "type": "string",
+                                                        "example": "تفاصيل الاقتراح"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "pending"
+                                                    },
+                                                    "status_text": {
+                                                        "type": "string",
+                                                        "example": "قيد المراجعة"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "employee": {
+                                                        "properties": {
+                                                            "user_id": {
+                                                                "type": "integer",
+                                                                "example": 37
+                                                            },
+                                                            "full_name": {
+                                                                "type": "string",
+                                                                "example": "محمد أحمد"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 75
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "حدث خطأ أثناء جلب الاقتراحات"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Suggestion Management"
+                ],
+                "summary": "Create a new suggestion",
+                "description": "إنشاء اقتراح جديد",
+                "operationId": "3e3bb4f11ce4dba46ea7f85eb65ea81e",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "description"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "description": "عنوان الاقتراح - مطلوب",
+                                        "type": "string",
+                                        "example": "اقتراح لتحسين بيئة العمل"
+                                    },
+                                    "description": {
+                                        "description": "وصف تفصيلي للاقتراح - مطلوب",
+                                        "type": "string",
+                                        "example": "أقترح إضافة نباتات خضراء في المكتب لتحسين جودة الهواء والراحة النفسية"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Suggestion created successfully - تم إنشاء الاقتراح بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء الاقتراح بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "suggestion_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "employee_id": {
+                                                    "type": "integer",
+                                                    "example": 37
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "example": "اقتراح لتحسين بيئة العمل"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "تفاصيل الاقتراح"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "pending"
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "title": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "عنوان الاقتراح مطلوب"
+                                                    }
+                                                },
+                                                "description": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "وصف الاقتراح مطلوب"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل في إنشاء الاقتراح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/suggestions/{id}": {
+            "get": {
+                "tags": [
+                    "Suggestion Management"
+                ],
+                "summary": "Get a specific suggestion",
+                "description": "عرض تفاصيل اقتراح محدد",
+                "operationId": "229eb7138ae8aed0b26ca33682b1696b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Suggestion ID - معرف الاقتراح",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Suggestion retrieved successfully - تم جلب الاقتراح بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الاقتراح بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "suggestion_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "employee_id": {
+                                                    "type": "integer",
+                                                    "example": 37
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "example": "اقتراح لتحسين بيئة العمل"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "تفاصيل الاقتراح"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "pending"
+                                                },
+                                                "status_text": {
+                                                    "type": "string",
+                                                    "example": "قيد المراجعة"
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "employee": {
+                                                    "properties": {
+                                                        "user_id": {
+                                                            "type": "integer",
+                                                            "example": 37
+                                                        },
+                                                        "full_name": {
+                                                            "type": "string",
+                                                            "example": "محمد أحمد"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "comments": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "comment_id": {
+                                                                "type": "integer"
+                                                            },
+                                                            "comment": {
+                                                                "type": "string"
+                                                            },
+                                                            "created_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Suggestion not found - الاقتراح غير موجود",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "الاقتراح غير موجود أو ليس لديك صلاحية للوصول إليه"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "حدث خطأ أثناء جلب الاقتراح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Suggestion Management"
+                ],
+                "summary": "Update a suggestion",
+                "description": "تحديث اقتراح - يمكن فقط للمالك تحديث اقتراحه قبل المعالجة",
+                "operationId": "d3c7b0bda4c7d974f6351e261ea4e650",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Suggestion ID - معرف الاقتراح",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "description": "العنوان الجديد",
+                                        "type": "string",
+                                        "example": "عنوان معدل للاقتراح"
+                                    },
+                                    "description": {
+                                        "description": "الوصف الجديد",
+                                        "type": "string",
+                                        "example": "وصف معدل للاقتراح"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Suggestion updated successfully - تم تحديث الاقتراح بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث الاقتراح بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "ليس لديك صلاحية لتعديل هذا الاقتراح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "الاقتراح غير موجود"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Suggestion Management"
+                ],
+                "summary": "Delete a suggestion",
+                "description": "حذف اقتراح - يمكن فقط للمالك حذف اقتراحه قبل المعالجة",
+                "operationId": "4bf44281d90047dd5abcb215d840879e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Suggestion ID - معرف الاقتراح",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Suggestion deleted successfully - تم حذف الاقتراح بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف الاقتراح بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "ليس لديك صلاحية لحذف هذا الاقتراح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "الاقتراح غير موجود"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/suggestions/{id}/comments": {
+            "get": {
+                "tags": [
+                    "Suggestion Management"
+                ],
+                "summary": "Get suggestion comments",
+                "description": "الحصول على تعليقات اقتراح محدد",
+                "operationId": "c18dd203350f6698ceb6510c99437cdb",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Suggestion ID - معرف الاقتراح",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Comments retrieved successfully - تم جلب التعليقات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب التعليقات بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "comment_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "suggestion_id": {
+                                                        "type": "integer",
+                                                        "example": 5
+                                                    },
+                                                    "employee_id": {
+                                                        "type": "integer",
+                                                        "example": 37
+                                                    },
+                                                    "comment": {
+                                                        "type": "string",
+                                                        "example": "تعليق ممتاز"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "employee": {
+                                                        "properties": {
+                                                            "user_id": {
+                                                                "type": "integer",
+                                                                "example": 37
+                                                            },
+                                                            "full_name": {
+                                                                "type": "string",
+                                                                "example": "محمد أحمد"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "404": {
+                        "description": "Suggestion not found - الاقتراح غير موجود"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Suggestion Management"
+                ],
+                "summary": "Add a comment to suggestion",
+                "description": "إضافة تعليق على اقتراح",
+                "operationId": "ae0ee307fd551ab53b9d44746496f0d9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Suggestion ID - معرف الاقتراح",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "comment"
+                                ],
+                                "properties": {
+                                    "comment": {
+                                        "description": "نص التعليق - مطلوب",
+                                        "type": "string",
+                                        "example": "تعليق ممتاز على الاقتراح"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Comment added successfully - تم إضافة التعليق بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إضافة التعليق بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "comment_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "suggestion_id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "employee_id": {
+                                                    "type": "integer",
+                                                    "example": 37
+                                                },
+                                                "comment": {
+                                                    "type": "string",
+                                                    "example": "تعليق ممتاز"
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "404": {
+                        "description": "Suggestion not found - الاقتراح غير موجود"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/system-logs": {
             "get": {
                 "tags": [
@@ -9309,6 +11889,868 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers": {
+            "get": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Get transfer requests list",
+                "description": "الحصول على قائمة طلبات النقل مع إمكانية الفلترة والبحث - يشمل النقل الداخلي، بين الفروع، وبين الشركات",
+                "operationId": "86c293307ea6d0c1c168d3e56f45208d",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by employee ID - فلترة حسب معرف الموظف",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by status - فلترة حسب الحالة",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "approved",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "department_id",
+                        "in": "query",
+                        "description": "Filter by department ID - فلترة حسب القسم",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "transfer_type",
+                        "in": "query",
+                        "description": "Filter by transfer type - فلترة حسب نوع النقل (internal/branch/intercompany)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "internal",
+                                "branch",
+                                "intercompany"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "Filter from date - فلترة من تاريخ",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "Filter to date - فلترة إلى تاريخ",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search in employee name - البحث في اسم الموظف",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page - عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number - رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Transfers retrieved successfully - تم جلب طلبات النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب طلبات النقل بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "transfer_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "employee_id": {
+                                                        "type": "integer",
+                                                        "example": 37
+                                                    },
+                                                    "transfer_date": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                        "example": "2025-01-15"
+                                                    },
+                                                    "transfer_type": {
+                                                        "type": "string",
+                                                        "example": "internal"
+                                                    },
+                                                    "transfer_type_text": {
+                                                        "type": "string",
+                                                        "example": "نقل داخلي"
+                                                    },
+                                                    "old_department": {
+                                                        "type": "integer",
+                                                        "example": 5
+                                                    },
+                                                    "transfer_department": {
+                                                        "type": "integer",
+                                                        "example": 10
+                                                    },
+                                                    "old_designation": {
+                                                        "type": "integer",
+                                                        "example": 15
+                                                    },
+                                                    "transfer_designation": {
+                                                        "type": "integer",
+                                                        "example": 20
+                                                    },
+                                                    "old_salary": {
+                                                        "type": "number",
+                                                        "example": 5000
+                                                    },
+                                                    "transfer_salary": {
+                                                        "type": "number",
+                                                        "example": 5500
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "pending"
+                                                    },
+                                                    "status_text": {
+                                                        "type": "string",
+                                                        "example": "قيد المراجعة"
+                                                    },
+                                                    "old_branch_id": {
+                                                        "type": "integer",
+                                                        "example": 1,
+                                                        "nullable": true
+                                                    },
+                                                    "new_branch_id": {
+                                                        "type": "integer",
+                                                        "example": 2,
+                                                        "nullable": true
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "employee": {
+                                                        "properties": {
+                                                            "user_id": {
+                                                                "type": "integer",
+                                                                "example": 37
+                                                            },
+                                                            "full_name": {
+                                                                "type": "string",
+                                                                "example": "محمد أحمد"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 75
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Create a new transfer request",
+                "description": "إنشاء طلب نقل جديد - يدعم النقل الداخلي (تغيير القسم/المسمى)، النقل بين الفروع، والنقل بين الشركات",
+                "operationId": "2479b7c75f4622d14cab33cfc53f533c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "employee_id",
+                                    "transfer_date"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "description": "معرف الموظف المطلوب نقله - مطلوب",
+                                        "type": "integer",
+                                        "example": 37
+                                    },
+                                    "transfer_date": {
+                                        "description": "تاريخ النقل الفعلي - مطلوب",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-01-15"
+                                    },
+                                    "transfer_type": {
+                                        "description": "نوع النقل: internal (داخلي)، branch (بين الفروع)، intercompany (بين الشركات)",
+                                        "type": "string",
+                                        "enum": [
+                                            "internal",
+                                            "branch",
+                                            "intercompany"
+                                        ],
+                                        "example": "internal"
+                                    },
+                                    "transfer_department": {
+                                        "description": "القسم الجديد (للنقل الداخلي)",
+                                        "type": "integer",
+                                        "example": 10
+                                    },
+                                    "transfer_designation": {
+                                        "description": "المسمى الوظيفي الجديد (للنقل الداخلي)",
+                                        "type": "integer",
+                                        "example": 20
+                                    },
+                                    "transfer_salary": {
+                                        "description": "الراتب الجديد",
+                                        "type": "number",
+                                        "example": 5500
+                                    },
+                                    "new_branch_id": {
+                                        "description": "معرف الفرع الجديد (للنقل بين الفروع)",
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "new_company_id": {
+                                        "description": "معرف الشركة الجديدة (للنقل بين الشركات)",
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "description": {
+                                        "description": "سبب/وصف النقل",
+                                        "type": "string",
+                                        "example": "نقل بسبب إعادة الهيكلة"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Transfer created successfully - تم إنشاء طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء طلب النقل بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "404": {
+                        "description": "Employee not found - الموظف غير موجود",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "الموظف غير موجود"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/{id}": {
+            "get": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Get a specific transfer request",
+                "description": "عرض تفاصيل طلب نقل محدد",
+                "operationId": "095d80eb165b5cbbfa96350e4182ac0c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Transfer ID - معرف طلب النقل",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Transfer retrieved successfully - تم جلب طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب طلب النقل بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "transfer_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "employee_id": {
+                                                    "type": "integer",
+                                                    "example": 37
+                                                },
+                                                "transfer_date": {
+                                                    "type": "string",
+                                                    "format": "date"
+                                                },
+                                                "transfer_type": {
+                                                    "type": "string"
+                                                },
+                                                "transfer_type_text": {
+                                                    "type": "string"
+                                                },
+                                                "old_department": {
+                                                    "type": "integer"
+                                                },
+                                                "transfer_department": {
+                                                    "type": "integer"
+                                                },
+                                                "old_designation": {
+                                                    "type": "integer"
+                                                },
+                                                "transfer_designation": {
+                                                    "type": "integer"
+                                                },
+                                                "old_salary": {
+                                                    "type": "number"
+                                                },
+                                                "transfer_salary": {
+                                                    "type": "number"
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "status_text": {
+                                                    "type": "string"
+                                                },
+                                                "description": {
+                                                    "type": "string"
+                                                },
+                                                "employee": {
+                                                    "properties": {
+                                                        "user_id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "full_name": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "404": {
+                        "description": "Transfer not found - طلب النقل غير موجود",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "طلب النقل غير موجود أو ليس لديك صلاحية للوصول إليه"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Update a transfer request",
+                "description": "تحديث طلب نقل - يمكن فقط تعديل الطلبات المعلقة",
+                "operationId": "511d8b40f3d640cd3c9fa9a7cf4a6b0e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Transfer ID - معرف طلب النقل",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "transfer_date": {
+                                        "description": "تاريخ النقل الجديد",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-01-20"
+                                    },
+                                    "transfer_department": {
+                                        "description": "القسم الجديد",
+                                        "type": "integer",
+                                        "example": 15
+                                    },
+                                    "transfer_designation": {
+                                        "description": "المسمى الوظيفي الجديد",
+                                        "type": "integer",
+                                        "example": 25
+                                    },
+                                    "transfer_salary": {
+                                        "description": "الراتب الجديد",
+                                        "type": "number",
+                                        "example": 6000
+                                    },
+                                    "description": {
+                                        "description": "السبب/الوصف الجديد",
+                                        "type": "string",
+                                        "example": "وصف معدل"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Transfer updated successfully - تم تحديث طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث طلب النقل بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot update processed transfer - لا يمكن تعديل طلب تمت معالجته"
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Delete a transfer request",
+                "description": "حذف/إلغاء طلب نقل - يمكن فقط حذف الطلبات المعلقة",
+                "operationId": "2a5b36ca31735af184e1a7639d555210",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Transfer ID - معرف طلب النقل",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Transfer deleted successfully - تم حذف طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف طلب النقل بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot delete processed transfer - لا يمكن حذف طلب تمت معالجته"
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/{id}/approve-or-reject": {
+            "post": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Approve or reject a transfer request",
+                "description": "الموافقة على أو رفض طلب نقل - للمديرين فقط. عند الموافقة على نقل بين الشركات، يتطلب موافقة من كلتا الشركتين",
+                "operationId": "2d2277e1ad61c47005fe2acba67223d1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Transfer ID - معرف طلب النقل",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "action"
+                                ],
+                                "properties": {
+                                    "action": {
+                                        "description": "الإجراء: approve للموافقة أو reject للرفض",
+                                        "type": "string",
+                                        "enum": [
+                                            "approve",
+                                            "reject"
+                                        ],
+                                        "example": "approve"
+                                    },
+                                    "remarks": {
+                                        "description": "ملاحظات (اختياري)",
+                                        "type": "string",
+                                        "example": "موافق على النقل لتحسين أداء الفريق"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Transfer processed successfully - تم معالجة طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تمت الموافقة على طلب النقل"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Transfer already processed - تم معالجة الطلب مسبقاً",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم معالجة هذا الطلب مسبقاً"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/statuses": {
+            "get": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Get transfer statuses",
+                "description": "الحصول على قائمة حالات النقل المتاحة",
+                "operationId": "c4aef8dc59686a613d0867b3b9ee25c9",
+                "responses": {
+                    "200": {
+                        "description": "Statuses retrieved successfully - تم جلب الحالات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الحالات بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "value": {
+                                                        "type": "string",
+                                                        "example": "pending"
+                                                    },
+                                                    "label": {
+                                                        "type": "string",
+                                                        "example": "قيد المراجعة"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -11632,6 +15074,14 @@
             "description": "User authentication endpoints"
         },
         {
+            "name": "Biometric Attendance",
+            "description": "تسجيل الحضور والانصراف من أجهزة البصمة"
+        },
+        {
+            "name": "Complaint Management",
+            "description": "إدارة الشكاوى - Complaints management endpoints"
+        },
+        {
             "name": "Holidays",
             "description": "Public holidays management"
         },
@@ -11658,6 +15108,18 @@
         {
             "name": "Overtime Management",
             "description": "Overtime requests management"
+        },
+        {
+            "name": "Resignation Management",
+            "description": "إدارة الاستقالات - Resignations management endpoints"
+        },
+        {
+            "name": "Suggestion Management",
+            "description": "إدارة الاقتراحات - Suggestions management endpoints"
+        },
+        {
+            "name": "Transfer Management",
+            "description": "إدارة النقل والتحويلات - Transfer management endpoints"
         },
         {
             "name": "Employee Management",

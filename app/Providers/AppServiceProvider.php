@@ -34,6 +34,14 @@ use App\Repository\Interface\HolidayRepositoryInterface;
 use App\Repository\HolidayRepository;
 use App\Repository\Interface\HourlyLeaveRepositoryInterface;
 use App\Repository\HourlyLeaveRepository;
+use App\Repository\Interface\SuggestionRepositoryInterface;
+use App\Repository\SuggestionRepository;
+use App\Repository\Interface\ComplaintRepositoryInterface;
+use App\Repository\ComplaintRepository;
+use App\Repository\Interface\ResignationRepositoryInterface;
+use App\Repository\ResignationRepository;
+use App\Repository\Interface\TransferRepositoryInterface;
+use App\Repository\TransferRepository;
 use Laravel\Passport\Passport;
 use Laravel\Telescope\TelescopeServiceProvider;
 
@@ -65,6 +73,18 @@ class AppServiceProvider extends ServiceProvider
 
         // Hourly Leave repository
         $this->app->singleton(HourlyLeaveRepositoryInterface::class, HourlyLeaveRepository::class);
+
+        // Suggestion repository
+        $this->app->singleton(SuggestionRepositoryInterface::class, SuggestionRepository::class);
+
+        // Complaint repository
+        $this->app->singleton(ComplaintRepositoryInterface::class, ComplaintRepository::class);
+
+        // Resignation repository
+        $this->app->singleton(ResignationRepositoryInterface::class, ResignationRepository::class);
+
+        // Transfer repository
+        $this->app->singleton(TransferRepositoryInterface::class, TransferRepository::class);
 
         if ($this->app->environment('local') && class_exists(TelescopeServiceProvider::class)) {
             $this->app->register(TelescopeServiceProvider::class);

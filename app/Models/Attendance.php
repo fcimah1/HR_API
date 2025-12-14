@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\StatusEnum;
+use App\Enums\StringStatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,7 +21,9 @@ class Attendance extends Model
      */
     protected $fillable = [
         'company_id',
+        'user_id',
         'employee_id',
+        'branch_id',
         'attendance_date',
         'clock_in',
         'clock_in_ip_address',
@@ -50,16 +52,18 @@ class Attendance extends Model
      */
     protected $casts = [
         'company_id' => 'integer',
+        'user_id' => 'integer',
         'employee_id' => 'integer',
+        'branch_id' => 'integer',
         'shift_id' => 'integer',
         'work_from_home' => 'integer',
         'clock_in_out' => 'string',
     ];
 
     // Status constants
-    const STATUS_PENDING = StatusEnum::PENDING;
-    const STATUS_APPROVED = StatusEnum::APPROVED;
-    const STATUS_REJECTED = StatusEnum::REJECTED;
+    const STATUS_PENDING = StringStatusEnum::PENDING->value;
+    const STATUS_APPROVED = StringStatusEnum::APPROVED->value;
+    const STATUS_REJECTED = StringStatusEnum::REJECTED->value;
 
     /**
      * Get the employee who owns the attendance record
