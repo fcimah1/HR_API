@@ -17,7 +17,8 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
      */
     public function getPaginatedAdvances(AdvanceSalaryFilterDTO $filters): LengthAwarePaginator
     {
-        $query = AdvanceSalary::with(['employee']);
+        $query = AdvanceSalary::with(['employee', 'approvals.staff']);
+
 
         // Apply filters
         if ($filters->companyId !== null) {
@@ -26,6 +27,10 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
 
         if ($filters->employeeId !== null) {
             $query->where('employee_id', $filters->employeeId);
+        }
+
+        if ($filters->employeeIds !== null && !empty($filters->employeeIds)) {
+            $query->whereIn('employee_id', $filters->employeeIds);
         }
 
         if ($filters->salaryType !== null) {
@@ -48,7 +53,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
             $query->where('created_at', '<=', $filters->toDate);
         }
 
-if ($filters->search !== null && trim($filters->search) !== '') {
+        if ($filters->search !== null && trim($filters->search) !== '') {
             $searchTerm = '%' . $filters->search . '%';
             $query->where(function ($q) use ($searchTerm) {
                 // البحث في بيانات الموظف
@@ -85,11 +90,11 @@ if ($filters->search !== null && trim($filters->search) !== '') {
 
         $advance = AdvanceSalary::create($dto->toArray());
         $advance->load(['employee']);
-        
+
         Log::debug('AdvanceSalaryRepository::createAdvance - Record created', [
             'advance_id' => $advance->advance_salary_id
         ]);
-        
+
         return $advance;
     }
 
@@ -102,9 +107,6 @@ if ($filters->search !== null && trim($filters->search) !== '') {
             ->find($id);
     }
 
-    /**
-     * Find advance salary/loan by ID for specific company
-     */
     public function findAdvanceInCompany(int $id, int $companyId): ?AdvanceSalary
     {
         return AdvanceSalary::with(['employee'])
@@ -112,6 +114,30 @@ if ($filters->search !== null && trim($filters->search) !== '') {
             ->where('company_id', $companyId)
             ->first();
     }
+
+    /**
+     * Find advance salary/loan by Employee ID for specific company and status = 1 (Approved) and NOT completed
+     */
+    public function findApprovedAdvanceInCompany(int $employeeId, int $companyId): ?AdvanceSalary
+    {
+        return AdvanceSalary::with(['employee'])
+            ->where('employee_id', $employeeId)
+            ->where('company_id', $companyId)
+            ->where('status', '=', 1) // Approved
+            ->whereColumn('total_paid', '<', 'advance_amount') // total_paid < advance_amount (Not fully paid)
+            ->first();
+    }
+
+    public function findPendingAdvanceInCompany(int $employeeId, int $companyId): ?AdvanceSalary
+    {
+        return AdvanceSalary::with(['employee'])
+            ->where('employee_id', $employeeId)
+            ->where('company_id', $companyId)
+            ->where('status', '=', 0) // Pending
+            ->first();
+    }
+
+
 
     /**
      * Find advance salary/loan by ID for specific employee
@@ -138,13 +164,13 @@ if ($filters->search !== null && trim($filters->search) !== '') {
             if ($dto->hasUpdates()) {
                 $updates = $dto->toArray();
                 Log::debug('AdvanceSalaryRepository::updateAdvance - Applying updates', ['updates' => $updates]);
-                
+
                 // Update using Eloquent's update method
                 $advance->update($updates);
-                
+
                 // Refresh to get latest data
                 $advance->refresh();
-                
+
                 // Load relationships
                 $advance->load(['employee']);
             }
@@ -154,7 +180,6 @@ if ($filters->search !== null && trim($filters->search) !== '') {
             ]);
 
             return $advance;
-
         } catch (\Exception $e) {
             Log::error('AdvanceSalaryRepository::updateAdvance - Error', [
                 'error' => $e->getMessage(),
@@ -178,8 +203,19 @@ if ($filters->search !== null && trim($filters->search) !== '') {
             'status' => 1, // Approved
         ]);
 
+        // Create approval record
+        \App\Models\StaffApproval::create([
+            'company_id' => $advance->company_id,
+            'staff_id' => $approvedBy,
+            'module_option' => 'advance_salary_settings',
+            'module_key_id' => $advance->advance_salary_id,
+            'status' => 1, // Approved
+            'approval_level' => '1',
+            'updated_at' => now(),
+        ]);
+
         $advance->refresh();
-        $advance->load(['employee']);
+        $advance->load(['employee', 'approvals.staff']); // Load approvals too
 
         Log::debug('AdvanceSalaryRepository::approveAdvance - Approved', [
             'advance_id' => $advance->advance_salary_id
@@ -204,8 +240,19 @@ if ($filters->search !== null && trim($filters->search) !== '') {
             'reason' => $advance->reason . "\n\nسبب الرفض: " . $reason,
         ]);
 
+        // Create rejection record
+        \App\Models\StaffApproval::create([
+            'company_id' => $advance->company_id,
+            'staff_id' => $rejectedBy,
+            'module_option' => 'advance_salary_settings',
+            'module_key_id' => $advance->advance_salary_id,
+            'status' => 2, // Rejected
+            'approval_level' => '1',
+            'updated_at' => now(),
+        ]);
+
         $advance->refresh();
-        $advance->load(['employee']);
+        $advance->load(['employee', 'approvals.staff']);
 
         Log::debug('AdvanceSalaryRepository::rejectAdvance - Rejected', [
             'advance_id' => $advance->advance_salary_id
@@ -276,7 +323,7 @@ if ($filters->search !== null && trim($filters->search) !== '') {
     public function updateTotalPaid(AdvanceSalary $advance, float $amount): AdvanceSalary
     {
         $newTotalPaid = $advance->total_paid + $amount;
-        
+
         // Ensure total paid doesn't exceed advance amount
         if ($newTotalPaid > $advance->advance_amount) {
             $newTotalPaid = $advance->advance_amount;
@@ -307,4 +354,3 @@ if ($filters->search !== null && trim($filters->search) !== '') {
         return $advance;
     }
 }
-

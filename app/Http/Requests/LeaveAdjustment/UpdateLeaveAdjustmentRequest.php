@@ -3,6 +3,7 @@
 namespace App\Http\Requests\LeaveAdjustment;
 
 use App\Models\ErpConstant;
+use App\Models\LeaveApplication;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -39,12 +40,51 @@ class UpdateLeaveAdjustmentRequest extends FormRequest
      */
     public function rules(): array
     {
+        $user = $this->user();
         return [
-            'leave_type_id' => 'sometimes|integer|exists:ci_erp_constants,constants_id',
-            'adjust_hours' => 'sometimes|string|max:100',
-            'reason_adjustment' => 'sometimes|string|max:1000|min:10',
+            'leave_type_id' => [
+                'required',
+                'integer',
+                function ($attribute, $value, $fail) use ($user) {
+                    // استخدام SimplePermissionService للحصول على معرف الشركة الفعلي
+                    $permissionService = app(\App\Services\SimplePermissionService::class);
+                    $companyId = $permissionService->getEffectiveCompanyId($user);
+
+                    // التحقق من وجود نوع الإجازة
+                    $leaveType =  ErpConstant::where('constants_id', $value)
+                        ->where('type',  ErpConstant::TYPE_LEAVE_TYPE)
+                        ->where(function ($query) use ($companyId) {
+                            $query->where('company_id', $companyId)
+                                ->orWhere('company_id', 0); // الأنواع العامة
+                        })
+                        ->first();
+                        // Intentionally not logging here to avoid noise in logs
+                $leaveModel = new LeaveApplication();
+                $validTypes = $leaveModel->allLeaveTypeNameByCompanyId($companyId);
+                Log::info('Valid types: ' . json_encode($validTypes));
+                
+                // Check if the leave type ID exists in the valid types
+                if (!array_key_exists($value, $validTypes)) {
+                    $validList = [];
+                    foreach ($validTypes as $id => $name) {
+                        $validList[] = "[{$id} : ({$name})]";
+                    }
+                    $fail('نوع الإجازة المحدد غير صالح. القيم المسموحة هي: ' . implode(', ', $validList));
+                }
+            }
+            ],            
+            'adjust_hours' => [
+                'required',
+                'numeric',
+                'min:0.5', // على الأقل نصف ساعة
+            ],        
+            'reason_adjustment' => 'sometimes|string|max:1000',
             'adjustment_date' => 'sometimes|date',
-            'duty_employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
+            'duty_employee_id' => [
+                'nullable',
+                'integer',
+                new \App\Rules\ValidDutyEmployee(),
+            ],
         ];
     }
 
@@ -55,10 +95,13 @@ class UpdateLeaveAdjustmentRequest extends FormRequest
     {
         return [
             'leave_type_id.exists' => 'نوع الإجازة المحدد غير صحيح',
-            'adjust_hours.max' => 'ساعات التسوية لا يجب أن تتجاوز 100 حرف',
-            'reason_adjustment.min' => 'سبب التسوية يجب أن يكون على الأقل 10 أحرف',
+            'adjust_hours.required' => 'ساعات التسوية مطلوبة',
+            'adjust_hours.numeric' => 'ساعات التسوية يجب أن تكون رقم',
+            'adjust_hours.min' => 'ساعات التسوية لا يجب أن تقل عن 0.5 ساعة',
             'reason_adjustment.max' => 'سبب التسوية لا يجب أن يتجاوز 1000 حرف',
             'adjustment_date.date' => 'تاريخ التسوية يجب أن يكون تاريخاً صحيحاً',
+            'duty_employee_id.required' => 'الموظف البديل مطلوب',
+            'duty_employee_id.integer' => 'الموظف البديل يجب أن يكون رقم',
             'duty_employee_id.exists' => 'الموظف البديل المحدد غير صحيح',
         ];
     }

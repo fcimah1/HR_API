@@ -95,7 +95,7 @@ class TravelRepository implements TravelRepositoryInterface
         
         // Apply hierarchy level filtering if specified
         if ($filters->hierarchyLevels) {
-            $query->whereHas('employee.userDetails.designation', function ($q) use ($filters) {
+            $query->whereHas('employee.user_details.designation', function ($q) use ($filters) {
                 $q->whereIn('hierarchy_level', $filters->hierarchyLevels);
             });
         }
@@ -165,7 +165,7 @@ class TravelRepository implements TravelRepositoryInterface
         
         // Apply hierarchy level filtering if specified
         if ($filters->hierarchyLevels) {
-            $query->whereHas('employee.userDetails.designation', function ($q) use ($filters) {
+            $query->whereHas('employee.user_details.designation', function ($q) use ($filters) {
                 $q->whereIn('hierarchy_level', $filters->hierarchyLevels);
             });
         }

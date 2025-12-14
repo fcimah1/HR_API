@@ -76,6 +76,14 @@ class OvertimeRepository implements OvertimeRepositoryInterface
                 });
             });
         }
+        
+        // Apply hierarchy level filtering if specified
+        // Use left join to avoid filtering out records without designation
+        if ($filters->hierarchyLevels) {
+            $query->whereHas('employee.user_details.designation', function ($q) use ($filters) {
+                $q->whereIn('hierarchy_level', $filters->hierarchyLevels);
+            });
+        }
 
         // Order by most recent first
         $query->orderBy('time_request_id', 'desc');
@@ -92,6 +100,113 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             'from' => $paginator->firstItem(),
             'to' => $paginator->lastItem(),
         ];
+    }
+
+    /**
+     * Check if employee has overlapping overtime request
+     */
+    public function hasOverlappingOvertime(int $employeeId, string $requestDate, string $clockIn, string $clockOut, ?int $excludeRequestId = null): bool
+    {
+        Log::info('hasOverlappingOvertime called', [
+            'employeeId' => $employeeId,
+            'requestDate' => $requestDate,
+            'clockIn' => $clockIn,
+            'clockOut' => $clockOut,
+            'excludeRequestId' => $excludeRequestId
+        ]);
+        
+        // Convert request date and times to Carbon objects
+        // Handle both time-only format (2:30 PM) and datetime format (2025-12-25 14:30:00)
+        if (strpos($clockIn, ' ') !== false) {
+            // Already datetime format
+            $clockInDateTime = \Carbon\Carbon::parse($clockIn);
+        } else {
+            // Time only format, combine with date
+            $clockInDateTime = \Carbon\Carbon::parse("{$requestDate} {$clockIn}");
+        }
+        
+        if (strpos($clockOut, ' ') !== false) {
+            // Already datetime format
+            $clockOutDateTime = \Carbon\Carbon::parse($clockOut);
+        } else {
+            // Time only format, combine with date
+            $clockOutDateTime = \Carbon\Carbon::parse("{$requestDate} {$clockOut}");
+        }
+        
+        Log::info('Parsed datetime objects', [
+            'clockInDateTime' => $clockInDateTime->format('Y-m-d H:i:s'),
+            'clockOutDateTime' => $clockOutDateTime->format('Y-m-d H:i:s')
+        ]);
+        
+        // Get existing overtime requests for the employee (pending and approved only)
+        $existingRequests = OvertimeRequest::where('staff_id', $employeeId)
+            ->whereIn('is_approved', [0, 1]) // 0: Pending, 1: Approved
+            ->when($excludeRequestId, function($q) use ($excludeRequestId) {
+                $q->where('time_request_id', '!=', $excludeRequestId);
+            })
+            ->where('request_date', $requestDate)
+            ->select(['time_request_id', 'request_date', 'clock_in', 'clock_out', 'is_approved'])
+            ->get();
+        
+        Log::info('Found existing requests', [
+            'count' => $existingRequests->count(),
+            'requests' => $existingRequests->toArray()
+        ]);
+        
+        // Check for time overlap
+        foreach ($existingRequests as $request) {
+            try {
+                // Check if clock_in already contains date (datetime format) or just time
+                if (strpos($request->clock_in, ' ') !== false) {
+                    // Already datetime format
+                    $existingClockIn = \Carbon\Carbon::parse($request->clock_in);
+                } else {
+                    // Time only format, combine with date
+                    $existingClockIn = \Carbon\Carbon::parse("{$request->request_date} {$request->clock_in}");
+                }
+                
+                // Check if clock_out already contains date (datetime format) or just time
+                if (strpos($request->clock_out, ' ') !== false) {
+                    // Already datetime format
+                    $existingClockOut = \Carbon\Carbon::parse($request->clock_out);
+                } else {
+                    // Time only format, combine with date
+                    $existingClockOut = \Carbon\Carbon::parse("{$request->request_date} {$request->clock_out}");
+                }
+                
+                Log::info('Checking overlap with existing request', [
+                    'existing_id' => $request->time_request_id,
+                    'existing_clock_in' => $existingClockIn->format('Y-m-d H:i:s'),
+                    'existing_clock_out' => $existingClockOut->format('Y-m-d H:i:s'),
+                    'condition1' => $clockInDateTime->lt($existingClockOut),
+                    'condition2' => $clockOutDateTime->gt($existingClockIn)
+                ]);
+                
+                // Check if time ranges overlap
+                if ($clockInDateTime->lt($existingClockOut) && $clockOutDateTime->gt($existingClockIn)) {
+                    Log::info('Overtime overlap detected', [
+                        'employee_id' => $employeeId,
+                        'request_date' => $requestDate,
+                        'new_clock_in' => $clockInDateTime->format('H:i'),
+                        'new_clock_out' => $clockOutDateTime->format('H:i'),
+                        'existing_id' => $request->time_request_id,
+                        'existing_clock_in' => $existingClockIn->format('H:i'),
+                        'existing_clock_out' => $existingClockOut->format('H:i'),
+                        'existing_status' => $request->is_approved
+                    ]);
+                    return true;
+                }
+            } catch (\Exception $e) {
+                Log::error('Error checking overtime overlap', [
+                    'request_id' => $request->time_request_id ?? null,
+                    'error' => $e->getMessage()
+                ]);
+                continue;
+            }
+        }
+        
+        Log::info('No overlap found, returning false');
+        return false;
     }
 
     /**
@@ -180,7 +295,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
      * Get overtime requests by manager (subordinates).
      * Uses the reporting manager hierarchy from ci_erp_users_details.
      */
-    public function getRequestsByManager(int $managerId, int $companyId): array
+    public function getRequestsByManager(int $managerId, int $companyId): \Illuminate\Database\Eloquent\Collection
     {
         // Get all subordinates using the same logic as old system
         $sql = "SELECT user_id
@@ -199,15 +314,14 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             ->forCompany($companyId)
             ->with(['employee', 'approvals.staff'])
             ->orderBy('time_request_id', 'desc')
-            ->get()
-            ->toArray();
+            ->get();
     }
 
     /**
      * Get requests requiring approval from specific user.
      * Based on approval levels configured in UserDetails.
      */
-    public function getRequestsRequiringApproval(int $userId, int $companyId): array
+    public function getRequestsRequiringApproval(int $userId, int $companyId): \Illuminate\Database\Eloquent\Collection
     {
         // Get subordinates who have this user in their approval chain
         $subordinates = DB::table('ci_erp_users_details')
@@ -222,7 +336,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             ->toArray();
 
         if (empty($subordinates)) {
-            return [];
+            return new \Illuminate\Database\Eloquent\Collection();
         }
 
         // Get pending requests from these subordinates
@@ -263,7 +377,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             return false;
         });
 
-        return $filtered->values()->toArray();
+        return new \Illuminate\Database\Eloquent\Collection($filtered->values());
     }
 
     /**

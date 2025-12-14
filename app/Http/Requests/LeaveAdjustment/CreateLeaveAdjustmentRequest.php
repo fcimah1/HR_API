@@ -2,10 +2,14 @@
 
 namespace App\Http\Requests\LeaveAdjustment;
 
+use App\Models\ErpConstant;
+use App\Models\LeaveApplication;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+
 // No logging on validation failures for adjustments to avoid noisy logs
 
 
@@ -38,51 +42,81 @@ class CreateLeaveAdjustmentRequest extends FormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
-   public function rules(): array
+    public function rules(): array
     {
         $user = Auth::user();
         return [
-            'leave_type_id' => 'required|exists:ci_erp_constants,constants_id',
+            'employee_id' => [
+                'nullable',
+                'integer',
+                new \App\Rules\CanRequestForEmployee(),
+            ],
+            'leave_type_id' => [
+                'required',
+                'integer',
+                function ($attribute, $value, $fail) use ($user) {
+                    // استخدام SimplePermissionService للحصول على معرف الشركة الفعلي
+                    $permissionService = app(\App\Services\SimplePermissionService::class);
+                    $companyId = $permissionService->getEffectiveCompanyId($user);
+
+                    // التحقق من وجود نوع الإجازة
+                    $leaveType =  ErpConstant::where('constants_id', $value)
+                        ->where('type',  ErpConstant::TYPE_LEAVE_TYPE)
+                        ->where(function ($query) use ($companyId) {
+                            $query->where('company_id', $companyId)
+                                ->orWhere('company_id', 0); // الأنواع العامة
+                        })
+                        ->first();
+                    // Intentionally not logging here to avoid noise in logs
+                    $leaveModel = new LeaveApplication();
+                    $validTypes = $leaveModel->allLeaveTypeNameByCompanyId($companyId);
+                    Log::info('Valid types: ' . json_encode($validTypes));
+
+                    // Check if the leave type ID exists in the valid types
+                    if (!array_key_exists($value, $validTypes)) {
+                        $validList = [];
+                        foreach ($validTypes as $id => $name) {
+                            $validList[] = "[{$id} : ({$name})]";
+                        }
+                        $fail('نوع الإجازة المحدد غير صالح. القيم المسموحة هي: ' . implode(', ', $validList));
+                    }
+                }
+            ],
             'adjustment_date' => [
                 'required',
                 'date',
-                'after_or_equal:today' // يمنع التواريخ الماضية
+                'after_or_equal:today', // يمنع التواريخ الماضية
+                function ($attribute, $value, $fail) use ($user) {
+                    $employeeId = $this->employee_id ?? $user->user_id;
+                    $exists = \App\Models\LeaveAdjustment::where('employee_id', $employeeId)
+                        ->where('adjustment_date', $value)
+                        ->where('status', '!=', \App\Models\LeaveAdjustment::STATUS_REJECTED)
+                        ->exists();
+
+                    if ($exists) {
+                        $fail('يوجد طلب تسوية مسبق لنفس هذا التاريخ.');
+                    }
+                }
             ],
             'duty_employee_id' => [
                 'nullable',
-                'exists:ci_erp_users,user_id',
-                'different:employee_id' // يمنع أن يكون الموظف البديل هو نفس الموظف
+                'integer',
+                new \App\Rules\ValidDutyEmployee($this->employee_id ?? $user->user_id),
             ],
             'adjust_hours' => [
                 'required',
                 'numeric',
                 'min:0.5', // على الأقل نصف ساعة
-                // 'max:24'   // كحد أقصى 24 ساعة
             ],
-            'reason_adjustment' => 'required|string|max:500',
+            'reason_adjustment' => [
+                'required',
+                'string',
+                'max:500',
+            ],
         ];
     }
 
-    // public function withValidator($validator)
-    // {
-    //     $validator->after(function ($validator) {
-    //         if ($validator->errors()->any()) {
-                
-    //             Log::warning('فشل التحقق من صحة طلب إنشاء تسوية إجازة', [
-    //                 'errors' => $validator->errors()->toArray(),
-    //                 'input' => $this->all()
-    //             ]);
-    //             throw new HttpResponseException(response()->json([
-    //                 'success' => false,
-    //                 'message' => 'فشل التحقق من صحة طلب إنشاء تسوية إجازة',
-    //                 'errors' => $validator->errors(),
-    //             ], 422));
-    //         }
-    //     });
-    // }
 
-
-    
     protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(response()->json([
@@ -111,5 +145,4 @@ class CreateLeaveAdjustmentRequest extends FormRequest
             'reason_adjustment.max' => 'يجب أن لا يتجاوز سبب التعديل 500 حرف'
         ];
     }
-
 }

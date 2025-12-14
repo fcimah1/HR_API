@@ -7,6 +7,7 @@ class AdvanceSalaryFilterDTO
     public function __construct(
         public readonly ?int $companyId = null,
         public readonly ?int $employeeId = null,
+        public readonly ?array $employeeIds = null,
         public readonly ?string $salaryType = null,
         public readonly ?int $status = null,
         public readonly ?string $monthYear = null,
@@ -36,9 +37,11 @@ class AdvanceSalaryFilterDTO
             }
         }
         
+
         return new self(
             companyId: isset($data['company_id']) ? (int) $data['company_id'] : null,
             employeeId: isset($data['employee_id']) ? (int) $data['employee_id'] : null,
+            employeeIds: $data['employee_ids'] ?? null,
             salaryType: $data['type'] ?? $data['salary_type'] ?? null,
             status: $status,
             monthYear: $data['month_year'] ?? null,
@@ -46,7 +49,7 @@ class AdvanceSalaryFilterDTO
             toDate: $data['to_date'] ?? null,
             perPage: (int) ($data['per_page'] ?? 15),
             page: (int) ($data['page'] ?? 1),
-            search: $data['search'] ?? null,
+            search: $data['search'] ?? '',
             sortBy: $data['sort_by'] ?? 'created_at',
             sortDirection: $data['sort_direction'] ?? 'desc'
         );
@@ -57,6 +60,7 @@ class AdvanceSalaryFilterDTO
         return [
             'company_id' => $this->companyId,
             'employee_id' => $this->employeeId,
+            'employee_ids' => $this->employeeIds,
             'salary_type' => $this->salaryType,
             'status' => $this->status,
             'month_year' => $this->monthYear,
@@ -70,4 +74,3 @@ class AdvanceSalaryFilterDTO
         ];
     }
 }
-

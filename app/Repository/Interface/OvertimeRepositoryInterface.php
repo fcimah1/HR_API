@@ -46,12 +46,12 @@ interface OvertimeRepositoryInterface
     /**
      * Get overtime requests by manager (subordinates).
      */
-    public function getRequestsByManager(int $managerId, int $companyId): array;
+    public function getRequestsByManager(int $managerId, int $companyId): \Illuminate\Database\Eloquent\Collection;
 
     /**
      * Get requests requiring approval from specific user.
      */
-    public function getRequestsRequiringApproval(int $userId, int $companyId): array;
+    public function getRequestsRequiringApproval(int $userId, int $companyId): \Illuminate\Database\Eloquent\Collection;
 
     /**
      * Get statistics for company overtime requests.
@@ -62,5 +62,10 @@ interface OvertimeRepositoryInterface
      * Check if user can access overtime request.
      */
     public function canUserAccessRequest(User $user, OvertimeRequest $request): bool;
+
+    /**
+     * Check if employee has overlapping overtime request.
+     */
+    public function hasOverlappingOvertime(int $employeeId, string $requestDate, string $clockIn, string $clockOut, ?int $excludeRequestId = null): bool;
 }
 

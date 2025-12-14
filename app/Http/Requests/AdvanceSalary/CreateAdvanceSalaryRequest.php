@@ -2,7 +2,11 @@
 
 namespace App\Http\Requests\AdvanceSalary;
 
+use App\Enums\oneTimeDeduct;
+use App\Enums\SalaryEnum;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class CreateAdvanceSalaryRequest extends FormRequest
 {
@@ -20,16 +24,21 @@ class CreateAdvanceSalaryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'salary_type' => 'required|string|in:loan,advance',
+            'employee_id' => [
+                'nullable',
+                'integer',
+                new \App\Rules\CanRequestForEmployee(),
+            ],
+            'salary_type' => 'required|string|in:' . SalaryEnum::LOAN->value . ',' . SalaryEnum::ADVANCE->value,
             'month_year' => [
                 'required',
                 'string',
                 'regex:/^\d{4}-(0[1-9]|1[0-2])$/', // Format: YYYY-MM
             ],
             'advance_amount' => 'required|numeric|min:1|max:999999',
-            'one_time_deduct' => 'required|string|in:0,1',
-            'monthly_installment' => 'required|numeric|min:0|max:999999',
-            'reason' => 'required|string|min:10|max:1000',
+            'one_time_deduct' => 'required|string|in:' . oneTimeDeduct::TRUE->value . ',' . oneTimeDeduct::FALSE->value,
+            'monthly_installment' => 'required|numeric|min:0|max:999999', // required if one_time_deduct is 0
+            'reason' => 'required|string|max:1000',
         ];
     }
 
@@ -40,7 +49,7 @@ class CreateAdvanceSalaryRequest extends FormRequest
     {
         return [
             'salary_type.required' => 'نوع الطلب مطلوب',
-            'salary_type.in' => 'نوع الطلب يجب أن يكون قرض أو سلفة',
+            'salary_type.in' => 'نوع الطلب يجب أن يكون مرتب مسبقا أو سلفة',
             'month_year.required' => 'الشهر والسنة مطلوبان',
             'month_year.regex' => 'صيغة الشهر والسنة غير صحيحة (يجب أن تكون: YYYY-MM)',
             'advance_amount.required' => 'المبلغ مطلوب',
@@ -54,7 +63,6 @@ class CreateAdvanceSalaryRequest extends FormRequest
             'monthly_installment.min' => 'القسط الشهري يجب أن يكون صفر أو أكبر',
             'monthly_installment.max' => 'القسط الشهري يجب ألا يتجاوز 999,999',
             'reason.required' => 'السبب مطلوب',
-            'reason.min' => 'السبب يجب أن يكون على الأقل 10 أحرف',
             'reason.max' => 'السبب لا يجب أن يتجاوز 1000 حرف',
         ];
     }
@@ -95,7 +103,7 @@ class CreateAdvanceSalaryRequest extends FormRequest
                 try {
                     $requestDate = new \DateTime($this->month_year . '-01');
                     $currentDate = new \DateTime(date('Y-m-01'));
-                    
+
                     if ($requestDate < $currentDate) {
                         $validator->errors()->add('month_year', 'لا يمكن طلب سلفة أو قرض لشهر سابق');
                     }
@@ -109,7 +117,7 @@ class CreateAdvanceSalaryRequest extends FormRequest
                 if ($this->one_time_deduct === '1') {
                     $advanceAmount = (float) $this->advance_amount;
                     $monthlyInstallment = (float) $this->monthly_installment;
-                    
+
                     if ($monthlyInstallment != $advanceAmount) {
                         $validator->errors()->add('monthly_installment', 'عند اختيار خصم لمرة واحدة، يجب أن يساوي القسط الشهري المبلغ الإجمالي');
                     }
@@ -117,5 +125,31 @@ class CreateAdvanceSalaryRequest extends FormRequest
             }
         });
     }
-}
 
+    /**
+     * Handle a failed validation attempt.
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        $response = response()->json([
+            'success' => false,
+            'message' => 'فشل التحقق من البيانات',
+            'errors' => $validator->errors()
+        ], 422);
+
+        throw new HttpResponseException($response);
+    }
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation()
+    {
+        if ($this->has('one_time_deduct') && $this->input('one_time_deduct') == oneTimeDeduct::TRUE->value) {
+            if ($this->has('advance_amount')) {
+                $this->merge([
+                    'monthly_installment' => $this->input('advance_amount')
+                ]);
+            }
+        }
+    }
+}

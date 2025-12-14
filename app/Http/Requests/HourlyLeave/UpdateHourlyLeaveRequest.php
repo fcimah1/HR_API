@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\HourlyLeave;
 
+use App\Enums\DeductedStatus;
+use App\Enums\LeavePlaceEnum;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -25,14 +27,33 @@ class UpdateHourlyLeaveRequest extends FormRequest
     public function rules(): array
     {
         $user = Auth::user();
-        
+
         return [
             'date' => 'sometimes|date|after_or_equal:today',
             'clock_in_m' => 'sometimes|required_with:clock_out_m|date_format:h:i A',
             'clock_out_m' => 'sometimes|required_with:clock_in_m|date_format:h:i A|after:clock_in_m',
-            'reason' => 'sometimes|string|min:10|max:1000',
-            'duty_employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
+            'reason' => 'sometimes|string|max:1000',
+            'duty_employee_id' => [
+                'nullable',
+                'integer',
+                function ($attribute, $value, $fail) use ($user) {
+                    $leaveId = $this->route('id');
+                    $employeeId = $user->user_id;
+
+                    if ($leaveId) {
+                        $leave = \App\Models\LeaveApplication::find($leaveId);
+                        if ($leave) {
+                            $employeeId = $leave->employee_id;
+                        }
+                    }
+
+                    $rule = new \App\Rules\ValidDutyEmployee($this->employee_id ?? $user->user_id);
+                    $rule->validate($attribute, $value, $fail);
+                }
+            ],
             'remarks' => 'nullable|string|max:1000',
+            'is_deducted' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, DeductedStatus::cases())),
+            'place' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, LeavePlaceEnum::cases())),
         ];
     }
 
@@ -82,12 +103,12 @@ class UpdateHourlyLeaveRequest extends FormRequest
             if ($this->filled('date')) {
                 $permissionService = app(\App\Services\SimplePermissionService::class);
                 $companyId = $permissionService->getEffectiveCompanyId(Auth::user());
-                
+
                 $hourlyLeaveRepository = app(\App\Repository\Interface\HourlyLeaveRepositoryInterface::class);
-                
+
                 // الحصول على معرف الطلب الحالي من route
                 $currentLeaveId = $this->route('id');
-                
+
                 // التحقق من وجود استئذان آخر في نفس التاريخ (باستثناء الطلب الحالي)
                 $existingLeave = \App\Models\LeaveApplication::where('company_id', $companyId)
                     ->where('employee_id', Auth::id())
@@ -98,7 +119,7 @@ class UpdateHourlyLeaveRequest extends FormRequest
                     ->whereIn('status', [1, 2])
                     ->where('leave_id', '!=', $currentLeaveId)
                     ->exists();
-                
+
                 if ($existingLeave) {
                     $validator->errors()->add('date', 'يوجد لديك استئذان مسجل بالفعل في هذا التاريخ. لا يمكن تسجيل طلب آخر في نفس اليوم.');
                 }
@@ -120,4 +141,3 @@ class UpdateHourlyLeaveRequest extends FormRequest
         throw new HttpResponseException($response);
     }
 }
-

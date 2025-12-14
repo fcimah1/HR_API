@@ -160,14 +160,15 @@ class SimplePermissionService
      */
     public function canViewEmployeeRequests(User $manager, User $employee): bool
     {
+        // مدير الشركة يرى الجميع
+        if ($this->isCompanyOwner($manager)) {
+            // Check if the employee belongs to the company owner's company (which is the owner's user_id)
+            return $employee->company_id == $manager->user_id;
+        }
+
         // يجب أن يكون من نفس الشركة
         if ($manager->company_id !== $employee->company_id) {
             return false;
-        }
-
-        // مدير الشركة يرى الجميع
-        if ($this->isCompanyOwner($manager)) {
-            return true;
         }
 
         // التحقق من المستوى الهرمي
@@ -213,10 +214,10 @@ class SimplePermissionService
 
         return $query
             ->where('company_id', $manager->company_id)
-            ->whereHas('user_details', function($q) use ($managerDepartment) {
+            ->whereHas('user_details', function ($q) use ($managerDepartment) {
                 $q->where('department_id', $managerDepartment);
             })
-            ->whereHas('user_details.designation', function($q) use ($managerLevel) {
+            ->whereHas('user_details.designation', function ($q) use ($managerLevel) {
                 $q->where('hierarchy_level', '>', $managerLevel);
             });
     }

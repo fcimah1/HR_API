@@ -82,6 +82,7 @@ class OvertimeService
             
             if ($canViewOthers && !empty($subordinateIds)) {
                 // Manager: get requests for employees they can view
+                // Don't apply hierarchy filtering by default to avoid issues
                 $modifiedFilters = new OvertimeRequestFilterDTO(
                     employeeId: null, // Don't filter by specific employee
                     employeeIds: $subordinateIds, // Add subordinate IDs
@@ -92,6 +93,7 @@ class OvertimeService
                     month: $filters->month,
                     search: $filters->search,
                     companyId: $effectiveCompanyId,
+                    hierarchyLevels: null, // Don't apply hierarchy filtering by default
                     perPage: $filters->perPage,
                     page: $filters->page
                 );
@@ -145,6 +147,21 @@ class OvertimeService
                     throw new \Exception('ليس لديك صلاحية لإنشاء طلب عمل إضافي لهذا الموظف');
                 }
             }
+
+            // Check for overlapping overtime requests
+            Log::info('Checking overtime overlap', [
+                'staffId' => $dto->staffId,
+                'requestDate' => $dto->requestDate,
+                'clockIn' => $dto->clockIn,
+                'clockOut' => $dto->clockOut
+            ]);
+            
+            if ($this->overtimeRepository->hasOverlappingOvertime($dto->staffId, $dto->requestDate, $dto->clockIn, $dto->clockOut)) {
+                Log::info('Overtime overlap detected, throwing exception');
+                throw new \Exception('يوجد طلب عمل إضافي آخر لنفس الموظف في نفس الوقت أو وقت متداخل معه');
+            }
+            
+            Log::info('No overtime overlap detected, proceeding with creation');
 
             // Validate against shift
             $this->calculationService->validateAgainstShift(
@@ -281,6 +298,14 @@ class OvertimeService
                 throw new \Exception('لا يمكن تعديل طلب تمت مراجعته');
             }
 
+            // Check for overlapping overtime requests (if times are being updated)
+            $clockIn24 = $this->calculationService->convertTo24Hour($dto->clockIn, $dto->requestDate);
+            $clockOut24 = $this->calculationService->convertTo24Hour($dto->clockOut, $dto->requestDate);
+            
+            if ($this->overtimeRepository->hasOverlappingOvertime($request->staff_id, $dto->requestDate, $clockIn24, $clockOut24, $id)) {
+                throw new \Exception('يوجد طلب عمل إضافي آخر لنفس الموظف في نفس الوقت أو وقت متداخل معه');
+            }
+
             // Validate against shift
             $this->calculationService->validateAgainstShift(
                 $request->staff_id,
@@ -380,6 +405,24 @@ class OvertimeService
 
             if ($request->is_approved !== 0) {
                 throw new \Exception('تمت مراجعة هذا الطلب مسبقاً');
+            }
+
+            // Check hierarchy permissions for staff users
+            if ($approver->user_type !== 'company') {
+                $employee = User::find($request->staff_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($approver, $employee)) {
+                    Log::warning('OvertimeService::approveRequest - Hierarchy permission denied', [
+                        'request_id' => $id,
+                        'requester_id' => $approver->user_id,
+                        'requester_type' => $approver->user_type,
+                        'employee_id' => $request->staff_id,
+                        'requester_level' => $this->permissionService->getUserHierarchyLevel($approver),
+                        'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'requester_department' => $this->permissionService->getUserDepartmentId($approver),
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية للموافقة على طلب هذا الموظف');
+                }
             }
 
             $userType = strtolower(trim($approver->user_type ?? ''));
@@ -510,6 +553,24 @@ class OvertimeService
                 throw new \Exception('تمت مراجعة هذا الطلب مسبقاً');
             }
 
+            // Check hierarchy permissions for staff users
+            if ($rejector->user_type !== 'company') {
+                $employee = User::find($request->staff_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($rejector, $employee)) {
+                    Log::warning('OvertimeService::rejectRequest - Hierarchy permission denied', [
+                        'request_id' => $id,
+                        'requester_id' => $rejector->user_id,
+                        'requester_type' => $rejector->user_type,
+                        'employee_id' => $request->staff_id,
+                        'requester_level' => $this->permissionService->getUserHierarchyLevel($rejector),
+                        'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'requester_department' => $this->permissionService->getUserDepartmentId($rejector),
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لرفض طلب هذا الموظف');
+                }
+            }
+
             // Reject the request
             $rejectedRequest = $this->overtimeRepository->rejectRequest($request, $reason);
 
@@ -568,7 +629,7 @@ class OvertimeService
 
         return array_map(
             fn($request) => OvertimeRequestResponseDTO::fromModel($request)->toArray(),
-            $requests
+            $requests->all()
         );
     }
 
@@ -586,7 +647,7 @@ class OvertimeService
 
         return array_map(
             fn($request) => OvertimeRequestResponseDTO::fromModel($request)->toArray(),
-            $requests
+            $requests->all()
         );
     }
 

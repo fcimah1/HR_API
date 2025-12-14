@@ -52,7 +52,7 @@ class AdvanceSalaryController extends Controller
      *         name="month_year",
      *         in="query",
      *         description="Filter by month and year (format: YYYY-MM)",
-     *         @OA\Schema(type="string", example="2025-11")
+     *         @OA\Schema(type="string", example="")
      *     ),
      *     @OA\Parameter(
      *         name="per_page",
@@ -125,7 +125,7 @@ class AdvanceSalaryController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        
+
         try {
             $filters = AdvanceSalaryFilterDTO::fromRequest($request->all());
             $result = $this->advanceSalaryService->getPaginatedAdvances($filters, $user);
@@ -152,7 +152,8 @@ class AdvanceSalaryController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"salary_type","month_year","advance_amount","one_time_deduct","monthly_installment","reason"},
+     *             required={"employee_id", "salary_type","month_year","advance_amount","one_time_deduct","monthly_installment","reason"},
+     *             @OA\Property(property="employee_id", type="integer", example=755, description="معرف الموظف"),
      *             @OA\Property(property="salary_type", type="string", enum={"loan", "advance"}, example="loan", description="نوع الطلب: قرض أو سلفة"),
      *             @OA\Property(property="month_year", type="string", example="2025-12", description="الشهر والسنة (YYYY-MM)"),
      *             @OA\Property(property="advance_amount", type="number", example=5000.00, description="المبلغ الإجمالي"),
@@ -211,11 +212,16 @@ class AdvanceSalaryController extends Controller
         try {
             // Get effective company ID from attributes
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
+
+            $validated = $request->validated();
             
+            // Use employee_id from request if provided, otherwise use current user's ID
+            $employeeId = $validated['employee_id'] ?? $user->user_id;
+
             $dto = CreateAdvanceSalaryDTO::fromRequest(
-                $request->validated(),
+                $validated,
                 $effectiveCompanyId,
-                $user->user_id
+                $employeeId
             );
 
             $advance = $this->advanceSalaryService->createAdvance($dto);
@@ -225,7 +231,6 @@ class AdvanceSalaryController extends Controller
                 'message' => 'تم إنشاء الطلب بنجاح',
                 'data' => $advance->toArray()
             ], 201);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -263,26 +268,21 @@ class AdvanceSalaryController extends Controller
 
         try {
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
-            
-            // Check if user can view all company requests or just their own
-            $canViewAll = in_array($user->user_type, ['company', 'admin', 'hr', 'manager']);
-            
-            $advance = $canViewAll 
-                ? $this->advanceSalaryService->getAdvanceById($id, $effectiveCompanyId, null)
-                : $this->advanceSalaryService->getAdvanceById($id, null, $user->user_id);
 
-            if (!$advance) {
+            // Use updated getAdvanceById method with user object for proper hierarchy checks
+            $result = $this->advanceSalaryService->getAdvanceById($id, $effectiveCompanyId, $user->user_id, $user);
+
+            if (!$result['advance']) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'الطلب غير موجود'
-                ], 404);
+                    'message' => $result['reason'] ?? 'الطلب غير موجود'
+                ], $result['reason'] === 'الطلب غير موجود' ? 404 : 403);
             }
 
             return response()->json([
                 'success' => true,
-                'data' => $advance->toArray()
-            ]);
-
+                'data' => $result['advance']->toArray()
+            ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -343,7 +343,6 @@ class AdvanceSalaryController extends Controller
                 'message' => 'تم تحديث الطلب بنجاح',
                 'data' => $advance->toArray()
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -401,7 +400,6 @@ class AdvanceSalaryController extends Controller
                 'success' => true,
                 'message' => 'تم إلغاء الطلب بنجاح'
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -444,12 +442,14 @@ class AdvanceSalaryController extends Controller
     {
         $user = Auth::user();
 
-        if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
-            return response()->json([
-                'success' => false,
-                'message' => 'ليس لديك صلاحية للموافقة على الطلبات'
-            ], 403);
-        }
+        // We remove the strict user_type check here because an 'employee' might be a manager via hierarchy.
+        // The service layer will handle the specific hierarchy validation.
+        // if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'ليس لديك صلاحية للموافقة على الطلبات'
+        //     ], 403);
+        // }
 
         try {
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
@@ -459,7 +459,6 @@ class AdvanceSalaryController extends Controller
 
             if ($action === 'approve') {
                 $advance = $this->advanceSalaryService->approveAdvance($id, $effectiveCompanyId, $user->user_id, $remarks);
-
             } elseif ($action === 'reject') {
                 $advance = $this->advanceSalaryService->rejectAdvance($id, $effectiveCompanyId, $user->user_id, $remarks);
             }
@@ -476,7 +475,6 @@ class AdvanceSalaryController extends Controller
                 'message' => $action === 'approve' ? 'تمت الموافقة على الطلب ' : 'تم رفض الطلب ',
                 'data' => $advance->toArray()
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -530,7 +528,6 @@ class AdvanceSalaryController extends Controller
                 'success' => true,
                 'data' => $stats
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -539,4 +536,3 @@ class AdvanceSalaryController extends Controller
         }
     }
 }
-

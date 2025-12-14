@@ -8,6 +8,7 @@ use App\DTOs\LeaveAdjustment\UpdateLeaveAdjustmentDTO;
 use App\Models\LeaveAdjustment;
 use App\Models\User;
 use App\Repository\Interface\LeaveAdjustmentRepositoryInterface;
+use App\Repository\Interface\UserRepositoryInterface;
 use App\Services\SimplePermissionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,17 +24,20 @@ class LeaveAdjustmentService
     protected $leaveService;
     protected $leaveAdjustmentRepository;
     protected $notificationService;
+    protected $userRepository;
 
     public function __construct(
         SimplePermissionService $permissionService,
         LeaveService $leaveService,
         LeaveAdjustmentRepositoryInterface $leaveAdjustmentRepository,
-        NotificationService $notificationService
+        NotificationService $notificationService,
+        UserRepositoryInterface $userRepository
     ) {
         $this->permissionService = $permissionService;
         $this->leaveService = $leaveService;
         $this->leaveAdjustmentRepository = $leaveAdjustmentRepository;
         $this->notificationService = $notificationService;
+        $this->userRepository = $userRepository;
     }
 
     /**
@@ -86,10 +90,21 @@ class LeaveAdjustmentService
         elseif ($this->permissionService->checkPermission($user, 'leave.view.all')) {
             $filterData['company_id'] = $user->company_id;
         }
-        // إذا كان موظف عادي، يرى طلباته الشخصية فقط
+        // إذا كان موظف عادي، يرى طلباته الشخصية أو طلبات مرؤوسيه إذا كان مديراً
         else {
-            $filterData['employee_id'] = $user->user_id;
-            $filterData['company_id'] = $user->company_id;
+            // استخدام المنطق المشابه لـ LeaveService
+            $subordinateIds = $this->userRepository->getSubordinateEmployeeIds($user->user_id);
+
+            if (!empty($subordinateIds)) {
+                // لديه موظفين تابعين: طلباته + طلبات التابعين
+                $subordinateIds[] = $user->user_id; // إضافة نفسه
+                $filterData['employee_ids'] = $subordinateIds;
+                $filterData['company_id'] = $user->company_id;
+            } else {
+                // ليس لديه موظفين تابعين: طلباته فقط
+                $filterData['employee_id'] = $user->user_id;
+                $filterData['company_id'] = $user->company_id;
+            }
         }
 
         $updatedFilters = LeaveAdjustmentFilterDTO::fromRequest($filterData);
@@ -115,7 +130,7 @@ class LeaveAdjustmentService
 
             // إذا كانت التسوية خصم من رصيد الإجازات (ساعات سالبة)، تحقق من أن الرصيد يكفي
             if ($data->adjustHours < 0) {
-                $availableBalance = $this->leaveService->getAvailableLeaveBalance(
+                $availableBalance = $this->getAvailableLeaveBalance(
                     $data->employeeId,
                     $data->leaveTypeId,
                     $data->companyId
@@ -177,6 +192,20 @@ class LeaveAdjustmentService
                 throw new \Exception('لا يمكن الموافقة على هذا الطلب لأنه تم معالجته مسبقاً');
             }
 
+            // Check hierarchy permissions for staff users
+            $approvingUser = User::find($approvedBy);
+            if ($approvingUser && $approvingUser->user_type !== 'company') {
+                $employee = User::find($adjustment->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($approvingUser, $employee)) {
+                    Log::warning('LeaveAdjustmentService::approveAdjustment - Hierarchy permission denied', [
+                        'adjustment_id' => $id,
+                        'approver_id' => $approvedBy,
+                        'employee_id' => $adjustment->employee_id
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية للموافقة على طلب هذا الموظف');
+                }
+            }
+
             $approvedAdjustment = $this->leaveAdjustmentRepository->approveAdjustment($adjustment, $approvedBy);
 
             // Send approval notification
@@ -226,6 +255,20 @@ class LeaveAdjustmentService
                 throw new \Exception('لا يمكن رفض هذا الطلب لأنه تم معالجته مسبقاً');
             }
 
+            // Check hierarchy permissions for staff users
+            $rejectingUser = User::find($rejectedBy);
+            if ($rejectingUser && $rejectingUser->user_type !== 'company') {
+                $employee = User::find($adjustment->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($rejectingUser, $employee)) {
+                    Log::warning('LeaveAdjustmentService::rejectAdjustment - Hierarchy permission denied', [
+                        'adjustment_id' => $id,
+                        'rejector_id' => $rejectedBy,
+                        'employee_id' => $adjustment->employee_id
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لرفض طلب هذا الموظف');
+                }
+            }
+
             $rejectedAdjustment = $this->leaveAdjustmentRepository->rejectAdjustment($adjustment, $rejectedBy, $reason);
 
             // Send rejection notification
@@ -261,16 +304,44 @@ class LeaveAdjustmentService
     /**
      * Update leave adjustment
      */
-    /**
-     * Update leave adjustment
-     */
-    public function updateAdjustment(int $id, UpdateLeaveAdjustmentDTO $dto, int $employeeId): ?LeaveAdjustment
+    public function updateAdjustment(int $id, UpdateLeaveAdjustmentDTO $dto, User $user): ?LeaveAdjustment
     {
-        return DB::transaction(function () use ($id, $dto, $employeeId) {
-            $adjustment = $this->leaveAdjustmentRepository->findAdjustmentForEmployee($id, $employeeId);
+        return DB::transaction(function () use ($id, $dto, $user) {
+
+            // Get effective company ID
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // Find the adjustment in the company
+            $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $effectiveCompanyId);
 
             if (!$adjustment) {
                 throw new \Exception('التسوية غير موجودة');
+            }
+
+            // Check permissions using hierarchy check
+            $isOwner = $adjustment->employee_id === $user->user_id;
+            $isCompany = $user->user_type === 'company';
+            $isHigherLevel = false;
+
+            // Check hierarchy level if user is staff
+            if (!$isCompany && $user->employee) {
+                // Ensure adjustment employee is loaded
+                $targetEmployee = User::find($adjustment->employee_id);
+                // A simpler check using hierarchy level directly if designated
+                $targetHierarchy = $targetEmployee->hierarchy_level ?? 999;
+                $isHigherLevel = $user->hierarchy_level < $targetHierarchy;
+            }
+
+            if (!$isOwner && !$isCompany && !$isHigherLevel) {
+                // Additional explicit check using permission service for consistency
+                $targetEmployee = User::find($adjustment->employee_id);
+                if (!$targetEmployee || !$this->permissionService->canViewEmployeeRequests($user, $targetEmployee)) {
+                    Log::error('Unauthorized update attempt', [
+                        'user_id' => $user->user_id,
+                        'adjustment_id' => $id
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+                }
             }
 
             if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
@@ -301,31 +372,45 @@ class LeaveAdjustmentService
     /**
      * Cancel leave adjustment (mark as rejected)
      */
-    public function cancelAdjustment(int $id, int $employeeId): bool
+    public function cancelAdjustment(int $id, User $user): bool
     {
-        return DB::transaction(function () use ($id, $employeeId) {
-            $adjustment = $this->leaveAdjustmentRepository->findAdjustmentForEmployee($id, $employeeId);
+        return DB::transaction(function () use ($id, $user) {
+            // Get effective company ID
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // Find adjustment in company
+            $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $effectiveCompanyId);
 
             if (!$adjustment) {
-                throw new \Exception('التسوية غير موجودة');
+                throw new \Exception('التسوية غير موجودة أو لا تنتمي لهذه الشركة');
             }
 
+            // 1. Strict Ownership Check: Only the owner can cancel
+            if ($adjustment->employee_id !== $user->user_id) {
+                throw new \Exception('غير مصرح لك بإلغاء طلب موظف آخر');
+            }
+
+            // 2. Strict Status Check: Only Pending (0) can be cancelled
             if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
-                throw new \Exception('لا يمكن إلغاء التسوية بعد المراجعة');
+                throw new \Exception('لا يمكن إلغاء الطلب بعد تغيير حالته عن المعلق');
             }
 
             // Mark as rejected (keeps record in database)
-            $cancelledAdjustment = $this->leaveAdjustmentRepository->cancelAdjustment($adjustment, $employeeId, 'تم إلغاء التسوية من قبل الموظف');
+            $cancelledAdjustment = $this->leaveAdjustmentRepository->cancelAdjustment($adjustment, $user->user_id, 'تم إلغاء التسوية من قبل ' . $user->full_name);
 
-            // Send rejection notification
+            // Send rejection notification (Self-rejection/Cancellation)
             $this->notificationService->sendApprovalNotification(
                 'leave_adjustment_settings',
                 (string)$cancelledAdjustment->id,
                 $cancelledAdjustment->company_id,
                 StringStatusEnum::REJECTED->value,
-                $employeeId  // Employee who cancelled
+                $user->user_id
             );
-            // Send email notification
+
+            // Send email notification? (Maybe not needed if self-cancelled, but consistent to leave it or maybe user wants confirmation)
+            // Existing code sends email. I will leave it as is or maybe the user doesn't need email for self-cancellation? 
+            // Usually "Rejected" notification to self is weird. But let's keep it consistent with "Status changed to Rejected".
+
             $employeeEmail = $cancelledAdjustment->employee->email ?? null;
             $employeeName = $cancelledAdjustment->employee->full_name ?? 'Employee';
             $leaveTypeName = $cancelledAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
@@ -346,14 +431,43 @@ class LeaveAdjustmentService
     }
 
     /**
+     * Get available leave balance for an employee
+     *
+     * @param int $employeeId
+     * @param int $leaveTypeId
+     * @param int $companyId
+     * @return float
+     */
+    public function getAvailableLeaveBalance(int $employeeId, int $leaveTypeId, int $companyId): float
+    {
+        return $this->leaveService->getAvailableLeaveBalance($employeeId, $leaveTypeId, $companyId);
+    }
+
+    /**
      * Get leave adjustment by ID with company validation
      */
-    public function showLeaveAdjustment(int $id, int $companyId): ?LeaveAdjustment
+    public function showLeaveAdjustment(int $id, int $effectiveCompanyId, ?User $user = null): ?LeaveAdjustment
     {
-        $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $companyId);
+        $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $effectiveCompanyId);
 
         if (!$adjustment) {
             throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
+        }
+
+        if ($user) {
+            // Company users can see all applications in their company
+            if ($user->user_type === 'company') {
+                // Already filtered by findAdjustmentInCompany with effective ID
+            } else {
+                // Check ownership
+                if ($adjustment->employee_id !== $user->user_id) {
+                    // Check hierarchy
+                    $employee = User::find($adjustment->employee_id);
+                    if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                        throw new \Exception('ليس لديك صلاحية لعرض تفاصيل هذه التسوية');
+                    }
+                }
+            }
         }
 
         return $adjustment;

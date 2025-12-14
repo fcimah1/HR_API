@@ -6,8 +6,8 @@ use App\Enums\DeductedStatus;
 use App\Enums\LeavePlaceEnum;
 use App\Models\ErpConstant;
 use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 
 class CreateHourlyLeaveRequest extends FormRequest
@@ -26,7 +26,7 @@ class CreateHourlyLeaveRequest extends FormRequest
     public function rules(): array
     {
         $user = Auth::user();
-        
+
         return [
             'employee_id' => [
                 'nullable',
@@ -39,12 +39,12 @@ class CreateHourlyLeaveRequest extends FormRequest
                 function ($attribute, $value, $fail) use ($user) {
                     $permissionService = app(\App\Services\SimplePermissionService::class);
                     $companyId = $permissionService->getEffectiveCompanyId($user);
-                    
+
                     $leaveType = ErpConstant::where('constants_id', $value)
                         ->where('type', ErpConstant::TYPE_LEAVE_TYPE)
-                        ->where(function($query) use ($companyId) {
+                        ->where(function ($query) use ($companyId) {
                             $query->where('company_id', $companyId)
-                                  ->orWhere('company_id', 0);
+                                ->orWhere('company_id', 0);
                         })
                         ->first();
 
@@ -56,7 +56,7 @@ class CreateHourlyLeaveRequest extends FormRequest
             'duty_employee_id' => [
                 'nullable',
                 'integer',
-                new \App\Rules\ValidDutyEmployee(),
+                new \App\Rules\ValidDutyEmployee($this->employee_id ?? $user->user_id),
             ],
             'date' => [
                 'required',
@@ -65,10 +65,10 @@ class CreateHourlyLeaveRequest extends FormRequest
                 function ($attribute, $value, $fail) use ($user) {
                     $permissionService = app(\App\Services\SimplePermissionService::class);
                     $companyId = $permissionService->getEffectiveCompanyId($user);
-                    
+
                     // التحقق من عدم وجود استئذان آخر في نفس التاريخ
                     $hourlyLeaveRepository = app(\App\Repository\Interface\HourlyLeaveRepositoryInterface::class);
-                    
+
                     if ($hourlyLeaveRepository->hasHourlyLeaveOnDate($user->user_id, $value, $companyId)) {
                         $fail('يوجد لديك استئذان مسجل بالفعل في هذا التاريخ. لا يمكن تسجيل طلب آخر في نفس اليوم.');
                     }
@@ -76,11 +76,9 @@ class CreateHourlyLeaveRequest extends FormRequest
             ],
             'clock_in_m' => 'required|date_format:h:i A',
             'clock_out_m' => 'required|date_format:h:i A|after:clock_in_m',
-            ''=> '',
             'reason' => 'required|string',
             'remarks' => 'nullable|string|max:1000',
             'is_half_day' => 'nullable|boolean',
-            'remarks' => 'nullable|string|max:1000',
             'is_deducted' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, DeductedStatus::cases())),
             'place' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, LeavePlaceEnum::cases())),
         ];
@@ -92,7 +90,7 @@ class CreateHourlyLeaveRequest extends FormRequest
     public function messages(): array
     {
         return [
-            
+
             'leave_type_id.required' => 'نوع الإجازة مطلوب',
             'duty_employee_id.exists' => 'الموظف البديل يجب أن يكون من نفس الشركة ونشط',
             'date.required' => 'تاريخ الإستئذان مطلوب',
@@ -124,7 +122,7 @@ class CreateHourlyLeaveRequest extends FormRequest
             'message' => 'فشل التحقق من البيانات',
             'errors' => $validator->errors()
         ], 422);
-        
+
         throw new HttpResponseException($response);
     }
 }

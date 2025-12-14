@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Repository\Interface\EmployeeRepositoryInterface;
 use App\Repository\EmployeeRepository;
+use App\Repository\Interface\UserRepositoryInterface;
+use App\Repository\UserRepository;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use App\Repository\Interface\AttendanceRepositoryInterface;
@@ -43,6 +45,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(EmployeeRepositoryInterface::class, EmployeeRepository::class);
+        $this->app->singleton(UserRepositoryInterface::class, UserRepository::class);
         $this->app->singleton(AttendanceRepositoryInterface::class, AttendanceRepository::class);
         $this->app->singleton(LeaveRepositoryInterface::class, LeaveRepository::class);
         $this->app->singleton(LeaveAdjustmentRepositoryInterface::class, LeaveAdjustmentRepository::class);

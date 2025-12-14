@@ -92,7 +92,6 @@ class CreateOvertimeRequestRequest extends FormRequest
             'request_reason.max' => 'حقل سبب الطلب يجب ألا يزيد عن 1000 حرف',
             'employee_id.integer' => 'حقل معرف الموظف يجب أن يكون رقماً',
             'employee_id.exists' => 'الموظف المحدد غير موجود',
-            'employee_id.can_request_for_employee' => 'لا يمكنك إنشاء طلب لهذا الموظف',
         ];
     }
 
