@@ -36,6 +36,7 @@ Route::post('/refresh', [AuthController::class, 'refresh']);
 
 // Biometric Device Integration (Public - لا يحتاج تسجيل دخول)
 Route::post('/biometric/punch', [BiometricAttendanceController::class, 'punch']);
+Route::get('/biometric/companies', [BiometricAttendanceController::class, 'getCompaniesWithBranches']);
 
 
 // Protected routes with simple company isolation
@@ -52,6 +53,9 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
 
     // Employees for duty employee - no permissions required (must come before /employees/{id})
     Route::get('/employees/employees-for-duty-employee', [EmployeeController::class, 'getEmployeesForDutyEmployee']);
+
+    // Employees for notify - returns employees who can receive notifications
+    Route::get('/employees/employees-for-notify', [EmployeeController::class, 'getEmployeesForNotify']);
 
     Route::get('/employees/{id}', [EmployeeController::class, 'show']);
 
@@ -217,46 +221,47 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Suggestions Management
-    Route::prefix('suggestions')->group(function () {
-        Route::get('/', [SuggestionController::class, 'index']);
-        Route::post('/', [SuggestionController::class, 'store']);
-        Route::get('/{id}', [SuggestionController::class, 'show']);
-        Route::put('/{id}', [SuggestionController::class, 'update']);
-        Route::delete('/{id}', [SuggestionController::class, 'destroy']);
-        Route::post('/{id}/comments', [SuggestionController::class, 'addComment']);
-        Route::get('/{id}/comments', [SuggestionController::class, 'getComments']);
+    Route::prefix('suggestions')->middleware('simple.permission:hr_suggestions')->group(function () {
+        Route::get('/', [SuggestionController::class, 'index'])->middleware('simple.permission:suggestions1');
+        Route::post('/', [SuggestionController::class, 'store'])->middleware('simple.permission:suggestions2');
+        Route::get('/{id}', [SuggestionController::class, 'show'])->middleware('simple.permission:suggestions1');
+        Route::put('/{id}', [SuggestionController::class, 'update'])->middleware('simple.permission:suggestions3');
+        Route::delete('/{id}', [SuggestionController::class, 'destroy'])->middleware('simple.permission:suggestions4');
+        Route::post('/{id}/comments', [SuggestionController::class, 'addComment'])->middleware('simple.permission:suggestions2');
+        Route::get('/{id}/comments', [SuggestionController::class, 'getComments'])->middleware('simple.permission:suggestions1');
+        Route::delete('/{suggestionId}/comments/{commentId}', [SuggestionController::class, 'deleteComment'])->middleware('simple.permission:suggestions4');
     });
 
     // Complaints Management
-    Route::prefix('complaints')->group(function () {
-        Route::get('/', [ComplaintController::class, 'index']);
-        Route::post('/', [ComplaintController::class, 'store']);
-        Route::get('/statuses', [ComplaintController::class, 'getStatuses']);
-        Route::get('/{id}', [ComplaintController::class, 'show']);
-        Route::put('/{id}', [ComplaintController::class, 'update']);
-        Route::delete('/{id}', [ComplaintController::class, 'destroy']);
-        Route::post('/{id}/resolve', [ComplaintController::class, 'resolve']);
+    Route::prefix('complaints')->middleware('simple.permission:hr_complaints')->group(function () {
+        Route::get('/', [ComplaintController::class, 'index'])->middleware('simple.permission:complaint1');
+        Route::post('/', [ComplaintController::class, 'store'])->middleware('simple.permission:complaint2');
+        Route::get('/statuses', [ComplaintController::class, 'getStatuses'])->middleware('simple.permission:complaint1');
+        Route::get('/{id}', [ComplaintController::class, 'show'])->middleware('simple.permission:complaint1');
+        Route::put('/{id}', [ComplaintController::class, 'update'])->middleware('simple.permission:complaint3');
+        Route::delete('/{id}', [ComplaintController::class, 'destroy'])->middleware('simple.permission:complaint4');
+        Route::post('/{id}/resolve', [ComplaintController::class, 'resolve'])->middleware('simple.permission:complaint3');
     });
 
     // Resignations Management
-    Route::prefix('resignations')->group(function () {
-        Route::get('/', [ResignationController::class, 'index']);
-        Route::post('/', [ResignationController::class, 'store']);
-        Route::get('/statuses', [ResignationController::class, 'getStatuses']);
-        Route::get('/{id}', [ResignationController::class, 'show']);
-        Route::put('/{id}', [ResignationController::class, 'update']);
-        Route::delete('/{id}', [ResignationController::class, 'destroy']);
-        Route::post('/{id}/approve-or-reject', [ResignationController::class, 'approveOrReject']);
+    Route::prefix('resignations')->middleware('simple.permission:hr_resignations')->group(function () {
+        Route::get('/', [ResignationController::class, 'index'])->middleware('simple.permission:resignation1');
+        Route::post('/', [ResignationController::class, 'store'])->middleware('simple.permission:resignation2');
+        Route::get('/statuses', [ResignationController::class, 'getStatuses'])->middleware('simple.permission:resignation1');
+        Route::get('/{id}', [ResignationController::class, 'show'])->middleware('simple.permission:resignation1');
+        Route::put('/{id}', [ResignationController::class, 'update'])->middleware('simple.permission:resignation3');
+        Route::delete('/{id}', [ResignationController::class, 'destroy'])->middleware('simple.permission:resignation4');
+        Route::post('/{id}/approve-or-reject', [ResignationController::class, 'approveOrReject'])->middleware('simple.permission:resignation3');
     });
 
     // Transfers Management
-    Route::prefix('transfers')->group(function () {
-        Route::get('/', [TransferController::class, 'index']);
-        Route::post('/', [TransferController::class, 'store']);
-        Route::get('/statuses', [TransferController::class, 'getStatuses']);
-        Route::get('/{id}', [TransferController::class, 'show']);
-        Route::put('/{id}', [TransferController::class, 'update']);
-        Route::delete('/{id}', [TransferController::class, 'destroy']);
-        Route::post('/{id}/approve-or-reject', [TransferController::class, 'approveOrReject']);
+    Route::prefix('transfers')->middleware('simple.permission:hr_transfers')->group(function () {
+        Route::get('/', [TransferController::class, 'index'])->middleware('simple.permission:transfers1');
+        Route::post('/', [TransferController::class, 'store'])->middleware('simple.permission:transfers2');
+        Route::get('/statuses', [TransferController::class, 'getStatuses'])->middleware('simple.permission:transfers1');
+        Route::get('/{id}', [TransferController::class, 'show'])->middleware('simple.permission:transfers1');
+        Route::put('/{id}', [TransferController::class, 'update'])->middleware('simple.permission:transfers3');
+        Route::delete('/{id}', [TransferController::class, 'destroy'])->middleware('simple.permission:transfers4');
+        Route::post('/{id}/approve-or-reject', [TransferController::class, 'approveOrReject'])->middleware('simple.permission:transfers3');
     });
 });

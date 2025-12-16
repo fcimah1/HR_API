@@ -39,27 +39,10 @@ class Travel extends Model
         'end_date' => 'date',
         'expected_budget' => 'decimal:2',
         'actual_budget' => 'decimal:2',
-        'associated_goals' => 'array',
         'created_at' => 'datetime',
     ];
 
-    public function setAssociatedGoalsAttribute($value)
-    {
-        if (is_array($value)) {
-            // تخزين JSON بدون تشفير Unicode
-            $this->attributes['associated_goals'] = json_encode($value, JSON_UNESCAPED_UNICODE);
-        } else {
-            $this->attributes['associated_goals'] = $value;
-        }
-    }
 
-    public function getAssociatedGoalsAttribute($value)
-    {
-        if (is_string($value)) {
-            return json_decode($value, true) ?: $value;
-        }
-        return $value;
-    }
     public function employee()
     {
         return $this->belongsTo(User::class, 'employee_id', 'user_id');
@@ -77,13 +60,14 @@ class Travel extends Model
     }
 
     // get all arrangement types names
-    public function allArrangementTypeName(){
-         return \App\Models\ErpConstant::where('type', 'travel_type')
-            ->pluck('category_name','constants_id')
+    public function allArrangementTypeName()
+    {
+        return \App\Models\ErpConstant::where('type', 'travel_type')
+            ->pluck('category_name', 'constants_id')
             ->toArray();
     }
 
-    public static function arrangementTypeName(int $arrangement_id)   
+    public static function arrangementTypeName(int $arrangement_id)
     {
         return \App\Models\ErpConstant::where('constants_id', $arrangement_id)
             ->where('type', 'travel_type')

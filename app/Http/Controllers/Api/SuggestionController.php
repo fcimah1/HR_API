@@ -269,10 +269,14 @@ class SuggestionController extends Controller
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(
-     *             required={"title", "description"},
-     *             @OA\Property(property="title", type="string", example="اقتراح لتحسين بيئة العمل", description="عنوان الاقتراح - مطلوب"),
-     *             @OA\Property(property="description", type="string", example="أقترح إضافة نباتات خضراء في المكتب لتحسين جودة الهواء والراحة النفسية", description="وصف تفصيلي للاقتراح - مطلوب")
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"title", "description"},
+     *                 @OA\Property(property="title", type="string", example="اقتراح لتحسين بيئة العمل", description="عنوان الاقتراح - مطلوب"),
+     *                 @OA\Property(property="description", type="string", example="أقترح إضافة نباتات خضراء في المكتب لتحسين جودة الهواء والراحة النفسية", description="وصف تفصيلي للاقتراح - مطلوب"),
+     *                 @OA\Property(property="attachment", type="string", format="binary", description="ملف مرفق (jpeg, jpg, png, pdf) - الحد الأقصى 5MB")
+     *             )
      *         )
      *     ),
      *     @OA\Response(
@@ -329,8 +333,27 @@ class SuggestionController extends Controller
             $user = Auth::user();
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             Log::info('SuggestionController::store - Creating suggestion', ['user_id' => $user->user_id]);
+
+            // Handle file upload
+            $attachmentName = null;
+            if ($request->hasFile('attachment')) {
+                $file = $request->file('attachment');
+                $attachmentName = $file->hashName();
+
+                // Upload to shared path (CodeIgniter public folder)
+                $uploadPath = env('SHARED_UPLOADS_PATH', public_path('uploads')) . '/suggestion_attachments';
+
+                // Create directory if not exists
+                if (!file_exists($uploadPath)) {
+                    mkdir($uploadPath, 0755, true);
+                }
+
+                $file->move($uploadPath, $attachmentName);
+                Log::info('SuggestionController::store - File uploaded', ['file' => $attachmentName]);
+            }
+
             $dto = CreateSuggestionDTO::fromRequest(
-                $request->validated(),
+                array_merge($request->validated(), ['attachment' => $attachmentName]),
                 $effectiveCompanyId,
                 $user->user_id
             );
@@ -612,6 +635,73 @@ class SuggestionController extends Controller
             Log::error('SuggestionController::getComments - Error', ['suggestion_id' => $id, 'error' => $e->getMessage()]);
             $statusCode = str_contains($e->getMessage(), 'غير موجود') ? 404 : 500;
             return response()->json(['success' => false, 'message' => $e->getMessage()], $statusCode);
+        }
+    }
+
+    /**
+     * @OA\Delete(
+     *     path="/api/suggestions/{suggestionId}/comments/{commentId}",
+     *     summary="Delete a comment from suggestion",
+     *     description="حذف تعليق من اقتراح - يمكن للمالك فقط حذف تعليقه",
+     *     tags={"Suggestion Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="suggestionId",
+     *         in="path",
+     *         required=true,
+     *         description="Suggestion ID - معرف الاقتراح",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="commentId",
+     *         in="path",
+     *         required=true,
+     *         description="Comment ID - معرف التعليق",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Comment deleted successfully - تم حذف التعليق بنجاح",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم حذف التعليق بنجاح")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthenticated - غير مصرح"),
+     *     @OA\Response(response=403, description="Forbidden - غير مسموح بحذف هذا التعليق"),
+     *     @OA\Response(response=404, description="Comment not found - التعليق غير موجود"),
+     *     @OA\Response(response=500, description="Server error - خطأ في الخادم")
+     * )
+     */
+    public function deleteComment(int $suggestionId, int $commentId)
+    {
+        try {
+            $user = Auth::user();
+
+            $this->suggestionService->deleteComment($suggestionId, $commentId, $user);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حذف التعليق بنجاح',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('SuggestionController::deleteComment - Error', [
+                'suggestion_id' => $suggestionId,
+                'comment_id' => $commentId,
+                'error' => $e->getMessage()
+            ]);
+
+            $statusCode = match (true) {
+                str_contains($e->getMessage(), 'غير موجود') => 404,
+                str_contains($e->getMessage(), 'غير مسموح') => 403,
+                default => 500,
+            };
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
         }
     }
 }

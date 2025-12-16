@@ -129,7 +129,94 @@ class EmployeeController extends Controller
         }
     }
 
+    // get employees for notify (employees who can receive notifications)
+    /**
+     * @OA\Get(
+     *     path="/api/employees/employees-for-notify",
+     *     summary="Get employees who can receive notifications",
+     *     description="Returns employees based on CanNotifyUser rules: company users, hierarchy level 1 users, or higher hierarchy managers in the same department",
+     *     tags={"Employee Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search by employee name or email",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Employees for notification retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="array", @OA\Items(
+     *                 @OA\Property(property="user_id", type="integer", example=24),
+     *                 @OA\Property(property="first_name", type="string", example="أحمد"),
+     *                 @OA\Property(property="last_name", type="string", example="محمد"),
+     *                 @OA\Property(property="full_name", type="string", example="أحمد محمد"),
+     *                 @OA\Property(property="email", type="string", example="ahmed@example.com"),
+     *                 @OA\Property(property="user_type", type="string", example="company"),
+     *                 @OA\Property(property="hierarchy_level", type="integer", example=1)
+     *             ))
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal Server Error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل في الحصول على الموظفين")
+     *         )
+     *     )
+     * )
+     */
+    public function getEmployeesForNotify(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $search = $request->query('search');
 
+            // الحصول على معرف الشركة الفعلي
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // الحصول على معلومات المستخدم الحالي من Service
+            $userInfo = $this->employeeService->getUserWithHierarchyInfo($user->user_id);
+            $currentHierarchyLevel = $userInfo['hierarchy_level'] ?? null;
+            $currentDepartmentId = $userInfo['department_id'] ?? null;
+
+            // استخدام Service للحصول على الموظفين
+            $employees = $this->employeeService->getEmployeesForNotify(
+                $effectiveCompanyId,
+                $user->user_id,
+                $currentHierarchyLevel,
+                $currentDepartmentId,
+                $search
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $employees
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getEmployeesForNotify failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->user_id ?? null
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل في الحصول على الموظفين: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
 
     /**
@@ -233,7 +320,7 @@ class EmployeeController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        
+
         // Check if user has permission to view employees
         if (!$this->employeeService->canViewEmployees($user)) {
             return response()->json([
@@ -291,7 +378,7 @@ class EmployeeController extends Controller
     public function show(Request $request, $id)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canViewEmployee($user, (int) $id)) {
             return response()->json([
                 'success' => false,
@@ -338,7 +425,7 @@ class EmployeeController extends Controller
     public function stats(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canViewEmployees($user)) {
             return response()->json([
                 'success' => false,
@@ -380,7 +467,7 @@ class EmployeeController extends Controller
     public function search(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canViewEmployees($user)) {
             return response()->json([
                 'success' => false,
@@ -430,7 +517,7 @@ class EmployeeController extends Controller
     public function getByType(Request $request, string $type)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canViewEmployees($user)) {
             return response()->json([
                 'success' => false,
@@ -478,7 +565,7 @@ class EmployeeController extends Controller
     public function getActiveEmployees(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canViewEmployees($user)) {
             return response()->json([
                 'success' => false,
@@ -531,7 +618,7 @@ class EmployeeController extends Controller
     public function getInactiveEmployees(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canViewEmployees($user)) {
             return response()->json([
                 'success' => false,
@@ -572,7 +659,7 @@ class EmployeeController extends Controller
     public function exportPdf(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canViewEmployees($user)) {
             return response()->json([
                 'success' => false,
@@ -590,34 +677,34 @@ class EmployeeController extends Controller
 
         // Create PDF using TCPDF with Landscape orientation
         $pdf = new \TCPDF('L', PDF_UNIT, 'A4', true, 'UTF-8', false);
-        
+
         // Set document information
         $pdf->SetCreator('HR System');
         $pdf->SetAuthor($user->company_name);
         $pdf->SetTitle('Employees Report');
         $pdf->SetSubject('Employee List Export');
-        
+
         // Set default header data
         $pdf->SetHeaderData('', 0, $user->company_name, 'Employees Report - Generated on ' . date('Y-m-d H:i:s'));
-        
+
         // Set header and footer fonts
-        $pdf->setHeaderFont(Array('helvetica', '', 12));
-        $pdf->setFooterFont(Array('helvetica', '', 8));
-        
+        $pdf->setHeaderFont(array('helvetica', '', 12));
+        $pdf->setFooterFont(array('helvetica', '', 8));
+
         // Set margins
         $pdf->SetMargins(15, 30, 15);
         $pdf->SetHeaderMargin(5);
         $pdf->SetFooterMargin(10);
-        
+
         // Set auto page breaks
         $pdf->SetAutoPageBreak(TRUE, 25);
-        
+
         // Add a page
         $pdf->AddPage();
-        
+
         // Set font for content
         $pdf->SetFont('helvetica', '', 8);
-        
+
         // Create improved HTML table
         $html = '<style>
             .report-title {
@@ -678,9 +765,9 @@ class EmployeeController extends Controller
                 border-top: 1px solid #bdc3c7;
             }
         </style>';
-        
+
         $html .= '<div class="report-title">Employees Report</div>';
-        
+
         $html .= '<table class="employee-table">';
         $html .= '<thead>';
         $html .= '<tr>';
@@ -696,49 +783,49 @@ class EmployeeController extends Controller
         $html .= '</tr>';
         $html .= '</thead>';
         $html .= '<tbody>';
-        
+
         $rowCount = 0;
         foreach ($employees as $employee) {
             $rowClass = ($rowCount % 2 == 0) ? '' : 'row-even';
             $html .= '<tr class="' . $rowClass . '">';
-            
+
             $html .= '<td class="table-cell table-cell-center" style="width: 8%;">' . htmlspecialchars($employee['user_id']) . '</td>';
             $html .= '<td class="table-cell" style="width: 14%;">' . htmlspecialchars($employee['first_name']) . '</td>';
             $html .= '<td class="table-cell" style="width: 14%;">' . htmlspecialchars($employee['last_name']) . '</td>';
-            
+
             // Email with smaller font and truncation
             $email = $employee['email'];
             if (strlen($email) > 25) {
                 $email = substr($email, 0, 25) . '...';
             }
             $html .= '<td class="table-cell" style="width: 20%; font-size: 6px; line-height: 1.2;">' . htmlspecialchars($email) . '</td>';
-            
+
             $html .= '<td class="table-cell" style="width: 14%;">' . htmlspecialchars($employee['username']) . '</td>';
             $html .= '<td class="table-cell table-cell-center" style="width: 8%;">' . htmlspecialchars(ucfirst($employee['user_type'])) . '</td>';
             $html .= '<td class="table-cell table-cell-center" style="width: 6%;">' . htmlspecialchars($employee['gender'] ?? '-') . '</td>';
-            
+
             $statusClass = $employee['is_active'] ? 'active-yes' : 'active-no';
             $statusText = $employee['is_active'] ? 'Active' : 'Inactive';
             $html .= '<td class="table-cell table-cell-center ' . $statusClass . '" style="width: 8%;">' . $statusText . '</td>';
-            
+
             // Phone with smaller font and truncation
             $phone = $employee['contact_number'] ?? '-';
             if (strlen($phone) > 8) {
                 $phone = substr($phone, 0, 8) . '..';
             }
             $html .= '<td class="table-cell table-cell-center" style="width: 8%; font-size: 6px; line-height: 1.2;">' . htmlspecialchars($phone) . '</td>';
-            
+
             $html .= '</tr>';
             $rowCount++;
         }
-        
+
         $html .= '</tbody>';
         $html .= '</table>';
-        
+
         // Add summary
         $activeCount = count(array_filter($employees, fn($emp) => $emp['is_active']));
         $inactiveCount = count($employees) - $activeCount;
-        
+
         $html .= '<div class="summary">';
         $html .= '<strong>Report Summary</strong><br>';
         $html .= 'Total Employees: <strong>' . count($employees) . '</strong> | ';
@@ -747,15 +834,15 @@ class EmployeeController extends Controller
         $html .= 'Generated on: ' . date('Y-m-d H:i:s') . '<br>';
         $html .= 'Company: <strong>' . htmlspecialchars($user->company_name) . '</strong>';
         $html .= '</div>';
-        
+
         // Print text using writeHTMLCell()
         $pdf->writeHTML($html, true, false, true, false, '');
-        
+
         $filename = 'employees_' . date('Y-m-d_H-i-s') . '.pdf';
-        
+
         // Output PDF
         $pdfContent = $pdf->Output($filename, 'S');
-        
+
         return response($pdfContent)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
@@ -780,7 +867,7 @@ class EmployeeController extends Controller
     public function exportDetailedPdf(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canViewEmployees($user)) {
             return response()->json([
                 'success' => false,
@@ -798,41 +885,41 @@ class EmployeeController extends Controller
 
         // Create PDF using TCPDF
         $pdf = new \TCPDF('P', PDF_UNIT, 'A4', true, 'UTF-8', false); // Portrait orientation for detailed view
-        
+
         // Set document information
         $pdf->SetCreator('HR System');
         $pdf->SetAuthor($user->company_name);
         $pdf->SetTitle('Detailed Employees Report');
         $pdf->SetSubject('Employee Detailed List Export');
-        
+
         // Set default header data
         $pdf->SetHeaderData('', 0, $user->company_name, 'Detailed Employees Report - Generated on ' . date('Y-m-d H:i:s'));
-        
+
         // Set header and footer fonts
-        $pdf->setHeaderFont(Array('helvetica', '', 12));
-        $pdf->setFooterFont(Array('helvetica', '', 8));
-        
+        $pdf->setHeaderFont(array('helvetica', '', 12));
+        $pdf->setFooterFont(array('helvetica', '', 8));
+
         // Set margins
         $pdf->SetMargins(15, 30, 15);
         $pdf->SetHeaderMargin(5);
         $pdf->SetFooterMargin(10);
-        
+
         // Set auto page breaks
         $pdf->SetAutoPageBreak(TRUE, 25);
-        
+
         // Add a page
         $pdf->AddPage();
-        
+
         // Set font for content
         $pdf->SetFont('helvetica', '', 10);
-        
+
         // Create detailed HTML table
         $html = '<h2 style="text-align: center; color: #333;">Detailed Employees Report</h2>';
-        
+
         foreach ($employees as $employee) {
             $html .= '<div style="border: 1px solid #ccc; margin-bottom: 15px; padding: 10px; page-break-inside: avoid;">';
             $html .= '<h3 style="color: #2c3e50; margin-bottom: 10px;">' . htmlspecialchars($employee['full_name']) . ' (ID: ' . $employee['user_id'] . ')</h3>';
-            
+
             $html .= '<table border="0" cellpadding="3" cellspacing="0" style="width: 100%;">';
             $html .= '<tr>';
             $html .= '<td style="width: 25%; font-weight: bold;">Email:</td>';
@@ -858,7 +945,7 @@ class EmployeeController extends Controller
             $html .= '<td style="font-weight: bold;">Last Login:</td>';
             $html .= '<td>' . htmlspecialchars($employee['last_login_date'] ?? 'Never') . '</td>';
             $html .= '</tr>';
-            
+
             // Address information
             if (!empty($employee['address']['address_1']) || !empty($employee['address']['city'])) {
                 $html .= '<tr>';
@@ -877,7 +964,7 @@ class EmployeeController extends Controller
                 $html .= '</td>';
                 $html .= '</tr>';
             }
-            
+
             // Employee details if available
             if (!empty($employee['details'])) {
                 $details = $employee['details'];
@@ -897,26 +984,26 @@ class EmployeeController extends Controller
                 $html .= '<td>' . htmlspecialchars($details['date_of_joining'] ?? 'Not set') . '</td>';
                 $html .= '</tr>';
             }
-            
+
             $html .= '</table>';
             $html .= '</div>';
         }
-        
+
         // Add summary
         $html .= '<div style="text-align: center; color: #666; font-size: 10px; margin-top: 20px;">';
         $html .= '<strong>Total Employees: ' . count($employees) . '</strong><br>';
         $html .= 'Generated on: ' . date('Y-m-d H:i:s') . '<br>';
         $html .= 'Company: ' . htmlspecialchars($user->company_name);
         $html .= '</div>';
-        
+
         // Print text using writeHTMLCell()
         $pdf->writeHTML($html, true, false, true, false, '');
-        
+
         $filename = 'employees_detailed_' . date('Y-m-d_H-i-s') . '.pdf';
-        
+
         // Output PDF
         $pdfContent = $pdf->Output($filename, 'S');
-        
+
         return response($pdfContent)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
@@ -970,7 +1057,7 @@ class EmployeeController extends Controller
     public function store(CreateEmployeeRequest $request)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canManageEmployees($user)) {
             return response()->json([
                 'success' => false,
@@ -997,7 +1084,6 @@ class EmployeeController extends Controller
                 'message' => 'Employee created successfully',
                 'data' => $employee->toArray()
             ], 201);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -1051,7 +1137,7 @@ class EmployeeController extends Controller
     public function update(UpdateEmployeeRequest $request, $id)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canManageEmployee($user, (int) $id)) {
             return response()->json([
                 'success' => false,
@@ -1072,7 +1158,7 @@ class EmployeeController extends Controller
 
         try {
             $updateData = UpdateEmployeeDTO::fromRequest((int) $id, $request->all());
-            
+
             $updated = $this->employeeService->updateEmployee($updateData);
 
             if ($updated) {
@@ -1086,7 +1172,6 @@ class EmployeeController extends Controller
                     'message' => 'No changes were made'
                 ]);
             }
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -1129,7 +1214,7 @@ class EmployeeController extends Controller
     public function destroy(Request $request, $id)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canManageEmployee($user, (int) $id)) {
             return response()->json([
                 'success' => false,
@@ -1160,7 +1245,6 @@ class EmployeeController extends Controller
                     'message' => 'Failed to delete employee'
                 ], 500);
             }
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -1188,7 +1272,7 @@ class EmployeeController extends Controller
     public function exportArabicPdf(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canViewEmployees($user)) {
             return response()->json([
                 'success' => false,
@@ -1206,34 +1290,34 @@ class EmployeeController extends Controller
 
         // Create PDF using TCPDF with RTL support
         $pdf = new \TCPDF('L', PDF_UNIT, 'A4', true, 'UTF-8', false);
-        
+
         // Set document information
         $pdf->SetCreator('HR System');
         $pdf->SetAuthor($user->company_name);
         $pdf->SetTitle('Arabic Employees Report');
         $pdf->SetSubject('Employee List Export Arabic');
-        
+
         // Set RTL
         $pdf->setRTL(true);
-        
+
         // Set default header data
         $pdf->SetHeaderData('', 0, $user->company_name, 'Arabic Employees Report - Generated on ' . date('Y-m-d H:i:s'));
-        
+
         // Set header and footer fonts
-        $pdf->setHeaderFont(Array('helvetica', '', 12));
-        $pdf->setFooterFont(Array('helvetica', '', 8));
-        
+        $pdf->setHeaderFont(array('helvetica', '', 12));
+        $pdf->setFooterFont(array('helvetica', '', 8));
+
         // Set margins
         $pdf->SetMargins(15, 30, 15);
         $pdf->SetHeaderMargin(5);
         $pdf->SetFooterMargin(10);
-        
+
         // Set auto page breaks
         $pdf->SetAutoPageBreak(TRUE, 25);
-        
+
         // Add a page
         $pdf->AddPage();
-        
+
         // Set font for content - try different fonts for Unicode support
         try {
             $pdf->SetFont('dejavusans', '', 8);
@@ -1244,7 +1328,7 @@ class EmployeeController extends Controller
                 $pdf->SetFont('helvetica', '', 8);
             }
         }
-        
+
         // Create Arabic RTL HTML table
         $html = '<style>
             body {
@@ -1315,9 +1399,9 @@ class EmployeeController extends Controller
                 direction: rtl;
             }
         </style>';
-        
+
         $html .= '<div class="report-title">Employees Report (RTL Layout)</div>';
-        
+
         $html .= '<table class="employee-table">';
         $html .= '<thead>';
         $html .= '<tr>';
@@ -1333,24 +1417,24 @@ class EmployeeController extends Controller
         $html .= '</tr>';
         $html .= '</thead>';
         $html .= '<tbody>';
-        
+
         $rowCount = 0;
         foreach ($employees as $employee) {
             $rowClass = ($rowCount % 2 == 0) ? '' : 'row-even';
             $html .= '<tr class="' . $rowClass . '">';
-            
+
             // Phone (first column in RTL)
             $phone = $employee['contact_number'] ?? '-';
             if (strlen($phone) > 8) {
                 $phone = substr($phone, 0, 8) . '..';
             }
             $html .= '<td class="table-cell table-cell-center" style="width: 8%; font-size: 6px; line-height: 1.2;">' . htmlspecialchars($phone) . '</td>';
-            
+
             // Status
             $statusClass = $employee['is_active'] ? 'active-yes' : 'active-no';
             $statusText = $employee['is_active'] ? 'Active' : 'Inactive';
             $html .= '<td class="table-cell table-cell-center ' . $statusClass . '" style="width: 8%;">' . $statusText . '</td>';
-            
+
             // Gender
             $gender = '';
             if ($employee['gender'] == 'male') {
@@ -1361,41 +1445,41 @@ class EmployeeController extends Controller
                 $gender = '-';
             }
             $html .= '<td class="table-cell table-cell-center" style="width: 6%;">' . $gender . '</td>';
-            
+
             // Type
             $userType = htmlspecialchars(ucfirst($employee['user_type']));
             $html .= '<td class="table-cell table-cell-center" style="width: 8%;">' . $userType . '</td>';
-            
+
             // Username
             $html .= '<td class="table-cell" style="width: 14%;">' . htmlspecialchars($employee['username']) . '</td>';
-            
+
             // Email
             $email = $employee['email'];
             if (strlen($email) > 25) {
                 $email = substr($email, 0, 25) . '...';
             }
             $html .= '<td class="table-cell" style="width: 20%; font-size: 6px; line-height: 1.2;">' . htmlspecialchars($email) . '</td>';
-            
+
             // Last Name
             $html .= '<td class="table-cell" style="width: 14%;">' . htmlspecialchars($employee['last_name']) . '</td>';
-            
+
             // First Name
             $html .= '<td class="table-cell" style="width: 14%;">' . htmlspecialchars($employee['first_name']) . '</td>';
-            
+
             // ID (last column in RTL)
             $html .= '<td class="table-cell table-cell-center" style="width: 8%;">' . htmlspecialchars($employee['user_id']) . '</td>';
-            
+
             $html .= '</tr>';
             $rowCount++;
         }
-        
+
         $html .= '</tbody>';
         $html .= '</table>';
-        
+
         // Add Arabic summary
         $activeCount = count(array_filter($employees, fn($emp) => $emp['is_active']));
         $inactiveCount = count($employees) - $activeCount;
-        
+
         $html .= '<div class="summary">';
         $html .= '<strong>Report Summary (RTL Layout)</strong><br>';
         $html .= 'Total Employees: <strong>' . count($employees) . '</strong> | ';
@@ -1404,15 +1488,15 @@ class EmployeeController extends Controller
         $html .= 'Generated on: ' . date('Y-m-d H:i:s') . '<br>';
         $html .= 'Company: <strong>' . htmlspecialchars($user->company_name) . '</strong>';
         $html .= '</div>';
-        
+
         // Print text using writeHTMLCell()
         $pdf->writeHTML($html, true, false, true, false, '');
-        
+
         $filename = 'employees_rtl_' . date('Y-m-d_H-i-s') . '.pdf';
-        
+
         // Output PDF
         $pdfContent = $pdf->Output($filename, 'S');
-        
+
         return response($pdfContent)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
@@ -1437,7 +1521,7 @@ class EmployeeController extends Controller
     public function exportFullArabicPdf(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$this->employeeService->canViewEmployees($user)) {
             return response()->json([
                 'success' => false,
@@ -1578,14 +1662,14 @@ class EmployeeController extends Controller
         foreach ($employees as $employee) {
             $rowClass = ($rowCount % 2 == 0) ? '' : 'row-even';
             $html .= '<tr class="' . $rowClass . '">';
-            
+
             // القسم - من علاقة department المحملة مسبقاً
             $department = 'غير محدد';
             if ($employee->details && $employee->details->department && $employee->details->department->department_name) {
                 $department = $employee->details->department->department_name;
             }
             $html .= '<td class="table-cell table-cell-center">' . htmlspecialchars($department) . '</td>';
-            
+
             // الراتب - من details أو قيمة افتراضية
             $salary = 'غير محدد';
             if ($employee->details && $employee->details->basic_salary) {
@@ -1597,11 +1681,11 @@ class EmployeeController extends Controller
                 $salary = number_format($salary) . ' ريال';
             }
             $html .= '<td class="table-cell table-cell-center">' . htmlspecialchars($salary) . '</td>';
-            
+
             // الموظف - رقم الموظف أو user_id   employee_name => first_name + last_name
             $employee_name = $employee->first_name && $employee->last_name ? $employee->first_name . ' ' . $employee->last_name : 'غير محدد';
             $html .= '<td class="table-cell table-cell-center">' . htmlspecialchars($employee_name) . '</td>';
-            
+
             // الموقع (الوظيفة الحالية) - من علاقة designation أو user_type
             $position = '';
             if ($employee->details && $employee->details->designation && $employee->details->designation->designation_name) {
@@ -1626,12 +1710,12 @@ class EmployeeController extends Controller
                 }
             }
             $html .= '<td class="table-cell table-cell-center">' . htmlspecialchars($position) . '</td>';
-            
+
             // الحالة - نشط/غير نشط
             $statusClass = $employee->is_active ? 'active-yes' : 'active-no';
             $statusText = $employee->is_active ? 'نشط' : 'غير نشط';
             $html .= '<td class="table-cell table-cell-center ' . $statusClass . '">' . $statusText . '</td>';
-            
+
             // تاريخ التعيين - من details.date_of_joining أو created_at
             $hire_date = 'غير محدد';
             if ($employee->details && $employee->details->date_of_joining) {
@@ -1639,7 +1723,7 @@ class EmployeeController extends Controller
             } elseif ($employee->created_at) {
                 $hire_date = $employee->created_at;
             }
-            
+
             if ($hire_date && $hire_date !== 'غير محدد') {
                 try {
                     $hire_date = date('Y-m-d', strtotime($hire_date));
@@ -1648,7 +1732,7 @@ class EmployeeController extends Controller
                 }
             }
             $html .= '<td class="table-cell table-cell-center">' . htmlspecialchars($hire_date) . '</td>';
-            
+
             // سنوات الخبرة - حساب من تاريخ التعيين أو قيمة افتراضية
             $experience = 'غير محدد';
             if ($employee->details && $employee->details->date_of_joining) {
@@ -1667,7 +1751,7 @@ class EmployeeController extends Controller
                 $experience = $employee->details->experience . ' سنة';
             }
             $html .= '<td class="table-cell table-cell-center">' . htmlspecialchars($experience) . '</td>';
-            
+
             $html .= '</tr>';
             $rowCount++;
         }
@@ -1677,7 +1761,7 @@ class EmployeeController extends Controller
         // Add Arabic summary
         $activeCount = $employees->where('is_active', 1)->count();
         $inactiveCount = $employees->count() - $activeCount;
-        
+
         $html .= '
         <div class="summary">
             <strong>ملخص التقرير</strong><br>
@@ -1692,13 +1776,12 @@ class EmployeeController extends Controller
         $mpdf->WriteHTML($html);
 
         $filename = 'employees_arabic_full_' . date('Y-m-d_H-i-s') . '.pdf';
-        
+
         // Output PDF
         $pdfContent = $mpdf->Output($filename, 'S');
-        
+
         return response($pdfContent)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
-
 }

@@ -23,10 +23,10 @@ class UpdateResignationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'notice_date' => 'nullable|date',
-            'resignation_date' => 'nullable|date',
-            'reason' => 'nullable|string',
-            'document_file' => 'nullable|string|max:255',
+            'notice_date' => 'nullable|date|before_or_equal:resignation_date|after_or_equal:today',
+            'resignation_date' => 'nullable|date|after_or_equal:notice_date',
+            'reason' => 'required|string',
+            'notify_send_to' => ['nullable', 'integer', new \App\Rules\CanNotifyUser()],
         ];
     }
 
@@ -38,6 +38,12 @@ class UpdateResignationRequest extends FormRequest
         return [
             'notice_date.date' => 'تنسيق تاريخ الإخطار غير صحيح',
             'resignation_date.date' => 'تنسيق تاريخ الاستقالة غير صحيح',
+            'notice_date.before_or_equal' => 'تاريخ الإخطار يجب أن يكون قبل أو يساوي تاريخ الاستقالة',
+            'resignation_date.after_or_equal' => 'تاريخ الاستقالة يجب أن يكون بعد أو يساوي تاريخ الإخطار',
+            'notice_date.after_or_equal' => 'تاريخ الإخطار يجب أن يكون بعد أو يساوي تاريخ اليوم',
+            'reason.required' => 'سبب الاستقالة مطلوب',
+            'reason.string' => 'سبب الاستقالة يجب أن يكون نصاً',
+            'notify_send_to.integer' => 'notify_send_to يجب أن يكون رقم',
         ];
     }
 

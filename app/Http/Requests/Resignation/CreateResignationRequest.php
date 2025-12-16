@@ -23,12 +23,16 @@ class CreateResignationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
-            'notice_date' => 'required|date',
-            'resignation_date' => 'required|date|after_or_equal:notice_date',
+            'employee_id' => [
+                'nullable',
+                'integer',
+                new \App\Rules\CanRequestForEmployee(),
+            ],
+            'notice_date' => 'required|date|before_or_equal:resignation_date|after_or_equal:today',
+            'resignation_date' => 'required|date|after_or_equal:notice_date|after_or_equal:today',
             'reason' => 'required|string',
-            'document_file' => 'nullable|string|max:255',
-            'is_signed' => 'nullable|integer|in:0,1',
+            'document_file' => 'nullable|file|mimes:pdf|max:5120', // 5MB max
+            'notify_send_to' => ['nullable', 'integer', new \App\Rules\CanNotifyUser()],
         ];
     }
 
@@ -40,11 +44,32 @@ class CreateResignationRequest extends FormRequest
         return [
             'notice_date.required' => 'تاريخ الإخطار مطلوب',
             'notice_date.date' => 'تنسيق تاريخ الإخطار غير صحيح',
+            'notice_date.before_or_equal' => 'تاريخ الإخطار يجب أن يكون قبل أو يساوي تاريخ الاستقالة',
+            'notice_date.after_or_equal' => 'تاريخ الإخطار يجب أن يكون بعد أو يساوي تاريخ اليوم',
             'resignation_date.required' => 'تاريخ الاستقالة مطلوب',
             'resignation_date.date' => 'تنسيق تاريخ الاستقالة غير صحيح',
             'resignation_date.after_or_equal' => 'تاريخ الاستقالة يجب أن يكون بعد أو يساوي تاريخ الإخطار',
+            'resignation_date.after_or_equal' => 'تاريخ الاستقالة يجب أن يكون بعد أو يساوي تاريخ اليوم',
             'reason.required' => 'سبب الاستقالة مطلوب',
-            'employee_id.exists' => 'الموظف غير موجود',
+            'reason.string' => 'سبب الاستقالة يجب أن يكون نصاً',
+            'employee_id.can_request_for_employee' => 'لا يمكنك تقديم طلب استقالة نيابة عن هذا الموظف',
+            'document_file.required' => 'الملف مطلوب',
+            'document_file.file' => 'الملف يجب أن يكون ملفاً',
+            'document_file.mimes' => 'الملف يجب أن يكون من نوع pdf',
+            'document_file.max' => 'الملف يجب أن يكون أقل من 5MB', // does not work with max??
+            'notify_send_to.integer' => 'معرف الموظف المستلم للإشعار يجب أن يكون رقم',
+        ];
+    }
+
+
+    public function attributes(): array
+    {
+        return [
+            'employee_id' => 'معرف الموظف',
+            'notice_date' => 'تاريخ الإخطار',
+            'resignation_date' => 'تاريخ الاستقالة',
+            'reason' => 'سبب الاستقالة',
+            'document_file' => 'ملف الاستقالة',
         ];
     }
 

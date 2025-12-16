@@ -133,12 +133,28 @@ class User extends Authenticatable
     }
 
     /**
+     * Get branches for company (when user_type = 'company')
+     */
+    public function branches(): HasMany
+    {
+        return $this->hasMany(Branch::class, 'company_id', 'user_id');
+    }
+
+    /**
      * Get user department
      */
 
     public function user_department(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'user_id', 'user_id');
+    }
+
+    /**
+     * Alias for user_details (for backward compatibility)
+     */
+    public function details(): HasOne
+    {
+        return $this->user_details();
     }
 
 
@@ -315,6 +331,12 @@ class User extends Authenticatable
     public function getFullNameAttribute(): string
     {
         return trim($this->first_name . ' ' . $this->last_name);
+    }
+
+    // get full name by user id
+    public static function getFullNameById(int $userId): string
+    {
+        return User::find($userId)->getFullNameAttribute();
     }
 
     /**

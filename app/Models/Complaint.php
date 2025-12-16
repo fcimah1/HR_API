@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\NumericalStatusEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -26,9 +25,9 @@ class Complaint extends Model
     /**
      * Status constants
      */
-    const STATUS_PENDING = 1;
-    const STATUS_RESOLVED = 2;
-    const STATUS_REJECTED = 3;
+    const STATUS_PENDING = 0;
+    const STATUS_RESOLVED = 1;
+    const STATUS_REJECTED = 2;
 
     /**
      * The attributes that are mass assignable.
@@ -38,10 +37,10 @@ class Complaint extends Model
         'complaint_from',
         'title',
         'complaint_date',
-        'complaint_against',
+        'complaint_against', // comma-separated user IDs
         'description',
         'status',
-        'notify_send_to',
+        'notify_send_to', // comma-separated user IDs
         'created_at',
     ];
 
@@ -59,7 +58,37 @@ class Complaint extends Model
      */
     public function employee(): BelongsTo
     {
-        return $this->belongsTo(UserDetails::class, 'complaint_from', 'user_id');
+        return $this->belongsTo(User::class, 'complaint_from', 'user_id');
+    }
+
+    /**
+     * Get the user who added the complaint (alias for employee).
+     */
+    public function addedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'complaint_from', 'user_id');
+    }
+
+    /**
+     * Get complaint against employee IDs as array
+     */
+    public function getComplaintAgainstIdsAttribute(): array
+    {
+        if (empty($this->complaint_against)) {
+            return [];
+        }
+        return array_filter(array_map('intval', explode(',', $this->complaint_against)));
+    }
+
+    /**
+     * Get notify send to employee IDs as array
+     */
+    public function getNotifySendToIdsAttribute(): array
+    {
+        if (empty($this->notify_send_to)) {
+            return [];
+        }
+        return array_filter(array_map('intval', explode(',', $this->notify_send_to)));
     }
 
     /**

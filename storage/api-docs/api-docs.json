@@ -11,7 +11,7 @@
     "servers": [
         {
             "url": "http://127.0.0.1:8000",
-            "description": "Local Development Server"
+            "description": "Local Development Server // use for online documentation https://api.firstsoft.io"
         }
     ],
     "paths": {
@@ -2140,7 +2140,9 @@
                                     "company_id",
                                     "branch_id",
                                     "employee_id",
-                                    "punch_time"
+                                    "punch_time",
+                                    "verify_mode",
+                                    "punch_type"
                                 ],
                                 "properties": {
                                     "company_id": {
@@ -2163,6 +2165,21 @@
                                         "type": "string",
                                         "format": "datetime",
                                         "example": "2025-12-14 08:00:00"
+                                    },
+                                    "verify_mode": {
+                                        "description": "طريقة التحقق: 0=كلمة مرور, 1=بصمة, 2=بطاقة, 3=كلمة مرور+بصمة, 4=بطاقة+بصمة, 15=وجه",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "punch_type": {
+                                        "description": "نوع البصمة: 0=حضور, 1=انصراف, 2=خروج استراحة, 3=عودة استراحة, 4=حضور عمل إضافي, 5=انصراف عمل إضافي, 255=غير محدد",
+                                        "type": "integer",
+                                        "example": 0
+                                    },
+                                    "work_code": {
+                                        "description": "كود العمل/المشروع (اختياري)",
+                                        "type": "integer",
+                                        "example": 0
                                     }
                                 },
                                 "type": "object"
@@ -2214,6 +2231,31 @@
                                                     "description": "رقم سجل الحضور",
                                                     "type": "integer",
                                                     "example": 1155
+                                                },
+                                                "verify_mode": {
+                                                    "description": "طريقة التحقق",
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "verify_mode_text": {
+                                                    "description": "وصف طريقة التحقق",
+                                                    "type": "string",
+                                                    "example": "بصمة"
+                                                },
+                                                "punch_type": {
+                                                    "description": "نوع البصمة",
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "punch_type_text": {
+                                                    "description": "وصف نوع البصمة",
+                                                    "type": "string",
+                                                    "example": "حضور"
+                                                },
+                                                "work_code": {
+                                                    "description": "كود العمل",
+                                                    "type": "integer",
+                                                    "example": 0
                                                 },
                                                 "total_work": {
                                                     "description": "إجمالي ساعات العمل (فقط عند الانصراف)",
@@ -2285,6 +2327,70 @@
                                                 }
                                             },
                                             "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/biometric/companies": {
+            "get": {
+                "tags": [
+                    "Biometric Attendance"
+                ],
+                "summary": "الحصول على الشركات والفروع",
+                "description": "إرجاع قائمة الشركات مع الفروع التابعة لكل شركة",
+                "operationId": "getCompaniesWithBranches",
+                "responses": {
+                    "200": {
+                        "description": "قائمة الشركات والفروع",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "company_id": {
+                                                        "type": "integer",
+                                                        "example": 24
+                                                    },
+                                                    "company_name": {
+                                                        "type": "string",
+                                                        "example": "شركة التقنية"
+                                                    },
+                                                    "branches": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "properties": {
+                                                                "branch_id": {
+                                                                    "type": "integer",
+                                                                    "example": 1
+                                                                },
+                                                                "branch_name": {
+                                                                    "type": "string",
+                                                                    "example": "الفرع الرئيسي"
+                                                                },
+                                                                "coordinates": {
+                                                                    "type": "string",
+                                                                    "example": "24.7136,46.6753"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
                                         }
                                     },
                                     "type": "object"
@@ -2887,15 +2993,10 @@
                                         ],
                                         "example": "resolve"
                                     },
-                                    "resolution": {
+                                    "description": {
                                         "description": "تفاصيل الحل (مطلوب عند الحل)",
                                         "type": "string",
                                         "example": "تم إصلاح التكييف"
-                                    },
-                                    "remarks": {
-                                        "description": "ملاحظات إضافية",
-                                        "type": "string",
-                                        "example": "تم التواصل مع الصيانة"
                                     }
                                 },
                                 "type": "object"
@@ -3143,6 +3244,121 @@
                                         "message": {
                                             "type": "string",
                                             "example": "لم يتم العثور على موظفين"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/employees-for-notify": {
+            "get": {
+                "tags": [
+                    "Employee Management"
+                ],
+                "summary": "Get employees who can receive notifications",
+                "description": "Returns employees based on CanNotifyUser rules: company users, hierarchy level 1 users, or higher hierarchy managers in the same department",
+                "operationId": "2d736693b3e54b63bc14919efd48ddaf",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by employee name or email",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Employees for notification retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "user_id": {
+                                                        "type": "integer",
+                                                        "example": 24
+                                                    },
+                                                    "first_name": {
+                                                        "type": "string",
+                                                        "example": "أحمد"
+                                                    },
+                                                    "last_name": {
+                                                        "type": "string",
+                                                        "example": "محمد"
+                                                    },
+                                                    "full_name": {
+                                                        "type": "string",
+                                                        "example": "أحمد محمد"
+                                                    },
+                                                    "email": {
+                                                        "type": "string",
+                                                        "example": "ahmed@example.com"
+                                                    },
+                                                    "user_type": {
+                                                        "type": "string",
+                                                        "example": "company"
+                                                    },
+                                                    "hierarchy_level": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل في الحصول على الموظفين"
                                         }
                                     },
                                     "type": "object"
@@ -10325,15 +10541,18 @@
                     "Resignation Management"
                 ],
                 "summary": "Create a new resignation request",
-                "description": "إنشاء طلب استقالة جديد - يمكن للموظف تقديم استقالته أو للمدير تقديمها نيابة عن موظف",
+                "description": "إنشاء طلب استقالة جديد - يمكن للموظف تقديم استقالته أو للمدير تقديمها نيابة عن موظف. يدعم رفع ملفات المستندات",
                 "operationId": "1b00d58f0e0f1d419e098271f0676369",
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "required": [
+                                    "notice_date",
                                     "resignation_date",
+                                    "reason",
+                                    "document_file",
                                     "reason"
                                 ],
                                 "properties": {
@@ -10342,22 +10561,32 @@
                                         "type": "integer",
                                         "example": 37
                                     },
+                                    "notice_date": {
+                                        "description": "تاريخ تقديم الإشعار - مطلوب",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-01-15"
+                                    },
                                     "resignation_date": {
                                         "description": "تاريخ الاستقالة المطلوب - مطلوب",
                                         "type": "string",
                                         "format": "date",
                                         "example": "2025-02-01"
                                     },
-                                    "notice_date": {
-                                        "description": "تاريخ تقديم الإشعار",
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2025-01-15"
-                                    },
                                     "reason": {
                                         "description": "سبب الاستقالة - مطلوب",
                                         "type": "string",
                                         "example": "فرصة عمل أفضل في شركة أخرى"
+                                    },
+                                    "document_file": {
+                                        "description": "ملف المستند (pdf, doc, docx, jpg, jpeg, png) - حد أقصى 5MB",
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
+                                    "notify_send_to": {
+                                        "description": "معرف الموظف المستلم للإشعار",
+                                        "type": "string",
+                                        "example": "employee_id"
                                     }
                                 },
                                 "type": "object"
@@ -11078,7 +11307,7 @@
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "required": [
                                     "title",
@@ -11094,6 +11323,11 @@
                                         "description": "وصف تفصيلي للاقتراح - مطلوب",
                                         "type": "string",
                                         "example": "أقترح إضافة نباتات خضراء في المكتب لتحسين جودة الهواء والراحة النفسية"
+                                    },
+                                    "attachment": {
+                                        "description": "ملف مرفق (jpeg, jpg, png, pdf) - الحد الأقصى 5MB",
+                                        "type": "string",
+                                        "format": "binary"
                                     }
                                 },
                                 "type": "object"
@@ -11799,6 +12033,75 @@
                     },
                     "422": {
                         "description": "Validation error - خطأ في التحقق"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/suggestions/{suggestionId}/comments/{commentId}": {
+            "delete": {
+                "tags": [
+                    "Suggestion Management"
+                ],
+                "summary": "Delete a comment from suggestion",
+                "description": "حذف تعليق من اقتراح - يمكن للمالك فقط حذف تعليقه",
+                "operationId": "c69ec845144f560bee47121fad680808",
+                "parameters": [
+                    {
+                        "name": "suggestionId",
+                        "in": "path",
+                        "description": "Suggestion ID - معرف الاقتراح",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "commentId",
+                        "in": "path",
+                        "description": "Comment ID - معرف التعليق",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Comment deleted successfully - تم حذف التعليق بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف التعليق بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - غير مسموح بحذف هذا التعليق"
+                    },
+                    "404": {
+                        "description": "Comment not found - التعليق غير موجود"
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
@@ -13058,14 +13361,8 @@
                                     },
                                     "associated_goals": {
                                         "description": "الأهداف المرتبطة (اختياري)",
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        },
-                                        "example": [
-                                            "هدف 1",
-                                            "هدف 2"
-                                        ]
+                                        "type": "string",
+                                        "example": "هدف 1، هدف 2"
                                     },
                                     "remarks": {
                                         "description": "ملاحظات (اختياري)",
@@ -13378,14 +13675,8 @@
                                     },
                                     "associated_goals": {
                                         "description": "الأهداف المرتبطة (اختياري)",
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        },
-                                        "example": [
-                                            "هدف 1",
-                                            "هدف 2"
-                                        ]
+                                        "type": "string",
+                                        "example": "هدف 1، هدف 2"
                                     },
                                     "remarks": {
                                         "type": "string",
@@ -14819,6 +15110,31 @@
                 },
                 "type": "object"
             },
+            "CreateSuggestionRequest": {
+                "required": [
+                    "title",
+                    "description"
+                ],
+                "properties": {
+                    "title": {
+                        "description": "عنوان الاقتراح",
+                        "type": "string",
+                        "maxLength": 255,
+                        "example": "اقتراح لتحسين بيئة العمل"
+                    },
+                    "description": {
+                        "description": "وصف تفصيلي للاقتراح",
+                        "type": "string",
+                        "example": "أقترح إضافة نباتات خضراء في المكتب"
+                    },
+                    "attachment": {
+                        "description": "ملف مرفق (jpeg, jpg, png, pdf) - الحد الأقصى 5MB",
+                        "type": "string",
+                        "format": "binary"
+                    }
+                },
+                "type": "object"
+            },
             "CreateTravelTypeRequest": {
                 "required": [
                     "travel_name"
@@ -14898,11 +15214,8 @@
                         "type": "string"
                     },
                     "associated_goals": {
-                        "description": "الأهداف المرتبطة (مصفوفة نصوص أو نص مفصول بفواصل)",
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
+                        "description": "الأهداف المرتبطة",
+                        "type": "string"
                     },
                     "remarks": {
                         "description": "ملاحظات",
@@ -14955,11 +15268,8 @@
                         "type": "string"
                     },
                     "associated_goals": {
-                        "description": "الأهداف المرتبطة (مصفوفة نصوص أو نص مفصول بفواصل)",
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
+                        "description": "الأهداف المرتبطة",
+                        "type": "string"
                     }
                 },
                 "type": "object"

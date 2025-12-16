@@ -160,6 +160,16 @@ class ResignationRepository implements ResignationRepositoryInterface
             'is_signed' => 1,
         ]);
 
+        // تعطيل حساب الموظف عند الموافقة على الاستقالة
+        $employee = User::find($resignation->employee_id);
+        if ($employee) {
+            $employee->update(['is_active' => 2]); // 2 = استقال
+            Log::info('Employee deactivated due to resignation approval', [
+                'employee_id' => $resignation->employee_id,
+                'resignation_id' => $resignation->resignation_id,
+            ]);
+        }
+
         $resignation->refresh();
         $resignation->load(['employee', 'addedBy']);
 

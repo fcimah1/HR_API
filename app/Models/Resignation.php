@@ -25,9 +25,9 @@ class Resignation extends Model
     /**
      * Status constants
      */
-    const STATUS_PENDING = 1;
-    const STATUS_APPROVED = 2;
-    const STATUS_REJECTED = 3;
+    const STATUS_PENDING = 0;
+    const STATUS_APPROVED = 1;
+    const STATUS_REJECTED = 2;
 
     /**
      * The attributes that are mass assignable.
@@ -64,7 +64,7 @@ class Resignation extends Model
      */
     public function employee(): BelongsTo
     {
-        return $this->belongsTo(UserDetails::class, 'employee_id', 'user_id');
+        return $this->belongsTo(User::class, 'employee_id', 'user_id');
     }
 
     /**
@@ -72,7 +72,7 @@ class Resignation extends Model
      */
     public function addedBy(): BelongsTo
     {
-        return $this->belongsTo(UserDetails::class, 'added_by', 'user_id');
+        return $this->belongsTo(User::class, 'added_by', 'user_id');
     }
 
     /**

@@ -10,7 +10,7 @@ class UpdateResignationDTO extends Data
         public readonly ?string $noticeDate = null,
         public readonly ?string $resignationDate = null,
         public readonly ?string $reason = null,
-        public readonly ?string $documentFile = null,
+        public readonly ?string $notifySendTo = null,
     ) {}
 
     public static function fromRequest(array $data): self
@@ -19,7 +19,7 @@ class UpdateResignationDTO extends Data
             noticeDate: $data['notice_date'] ?? null,
             resignationDate: $data['resignation_date'] ?? null,
             reason: $data['reason'] ?? null,
-            documentFile: $data['document_file'] ?? null,
+            notifySendTo: $data['notify_send_to'] ?? null,
         );
     }
 
@@ -39,8 +39,8 @@ class UpdateResignationDTO extends Data
             $data['reason'] = $this->reason;
         }
 
-        if ($this->documentFile !== null) {
-            $data['document_file'] = $this->documentFile;
+        if ($this->notifySendTo !== null) {
+            $data['notify_send_to'] = $this->notifySendTo;
         }
 
         return $data;

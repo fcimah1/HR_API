@@ -7,6 +7,15 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @OA\Schema(
+ *     schema="CreateSuggestionRequest",
+ *     required={"title", "description"},
+ *     @OA\Property(property="title", type="string", maxLength=255, example="اقتراح لتحسين بيئة العمل", description="عنوان الاقتراح"),
+ *     @OA\Property(property="description", type="string", example="أقترح إضافة نباتات خضراء في المكتب", description="وصف تفصيلي للاقتراح"),
+ *     @OA\Property(property="attachment", type="string", format="binary", description="ملف مرفق (jpeg, jpg, png, pdf) - الحد الأقصى 5MB")
+ * )
+ */
 class CreateSuggestionRequest extends FormRequest
 {
     /**
@@ -25,7 +34,12 @@ class CreateSuggestionRequest extends FormRequest
         return [
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'attachment' => 'nullable|string|max:255',
+            'attachment' => [
+                'nullable',
+                'file',
+                'mimes:jpeg,jpg,png,pdf',
+                'max:5120', // 5MB
+            ],
         ];
     }
 
@@ -38,7 +52,9 @@ class CreateSuggestionRequest extends FormRequest
             'title.required' => 'عنوان الاقتراح مطلوب',
             'title.max' => 'عنوان الاقتراح يجب ألا يتجاوز 255 حرف',
             'description.required' => 'وصف الاقتراح مطلوب',
-            'attachment.max' => 'رابط المرفق يجب ألا يتجاوز 255 حرف',
+            'attachment.file' => 'المرفق يجب أن يكون ملف',
+            'attachment.mimes' => 'المرفق يجب أن يكون من نوع: jpeg, jpg, png, pdf',
+            'attachment.max' => 'حجم المرفق يجب ألا يتجاوز 5 ميجابايت',
         ];
     }
 

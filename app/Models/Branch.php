@@ -26,14 +26,10 @@ class Branch extends Model
      */
     protected $fillable = [
         'branch_name',
-        'branch_code',
+        'description',
         'company_id',
-        'address',
-        'phone',
-        'email',
-        'manager_id',
+        'coordinates',
         'created_at',
-        'updated_at',
     ];
 
     /**
@@ -42,9 +38,7 @@ class Branch extends Model
     protected $casts = [
         'branch_id' => 'integer',
         'company_id' => 'integer',
-        'manager_id' => 'integer',
     ];
-
 
     /**
      * Get the manager of this branch.
@@ -76,5 +70,33 @@ class Branch extends Model
     public function getNameAttribute()
     {
         return $this->branch_name;
+    }
+
+    /**
+     * Get latitude from coordinates
+     * Format expected: "lat,lng" or "lat, lng"
+     */
+    public function getLatitudeAttribute(): ?string
+    {
+        if (empty($this->coordinates)) {
+            return null;
+        }
+
+        $parts = explode(',', $this->coordinates);
+        return isset($parts[0]) ? trim($parts[0]) : null;
+    }
+
+    /**
+     * Get longitude from coordinates
+     * Format expected: "lat,lng" or "lat, lng"
+     */
+    public function getLongitudeAttribute(): ?string
+    {
+        if (empty($this->coordinates)) {
+            return null;
+        }
+
+        $parts = explode(',', $this->coordinates);
+        return isset($parts[1]) ? trim($parts[1]) : null;
     }
 }

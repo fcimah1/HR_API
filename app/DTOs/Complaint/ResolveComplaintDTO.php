@@ -10,7 +10,7 @@ class ResolveComplaintDTO extends Data
     public function __construct(
         public readonly string $action,  // 'resolve' or 'reject'
         public readonly int $processedBy,
-        public readonly ?string $remarks = null,
+        public readonly ?string $description = null,
     ) {}
 
     public static function fromRequest(array $data, int $processedBy): self
@@ -18,7 +18,7 @@ class ResolveComplaintDTO extends Data
         return new self(
             action: $data['action'],
             processedBy: $processedBy,
-            remarks: $data['remarks'] ?? null,
+            description: $data['description'] ?? null,
         );
     }
 

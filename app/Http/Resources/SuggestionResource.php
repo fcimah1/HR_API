@@ -20,6 +20,9 @@ class SuggestionResource extends JsonResource
             'title' => $this->title,
             'description' => $this->description,
             'attachment' => $this->attachment,
+            'attachment_url' => $this->attachment
+                ? env('SHARED_UPLOADS_URL', url('uploads')) . '/suggestion_attachments/' . $this->attachment
+                : null,
             'added_by' => $this->added_by,
             'created_at' => $this->created_at,
 
@@ -31,14 +34,26 @@ class SuggestionResource extends JsonResource
 
             // معلومات الموظف إذا كانت محملة
             'employee' => $this->when($this->relationLoaded('employee'), function () {
-                return $this->employee ? [
+                if (!$this->employee) return null;
+
+                $firstName = $this->employee->first_name ?? '';
+                $lastName = $this->employee->last_name ?? '';
+                $fullName = trim($firstName . ' ' . $lastName);
+
+                return [
                     'user_id' => $this->employee->user_id,
-                    'first_name' => $this->employee->first_name,
-                    'last_name' => $this->employee->last_name,
+                    'first_name' => $firstName ?: null,
+                    'last_name' => $lastName ?: null,
                     'email' => $this->employee->email,
-                    'full_name' => $this->employee->full_name,
-                ] : null;
+                    'full_name' => $fullName ?: 'غير محدد',
+                ];
             }),
+
+            // معلومات من أضاف الطلب
+            'added_by_name' => $this->when(
+                $this->relationLoaded('addedBy'),
+                fn() => $this->addedBy ? ($this->addedBy->first_name . ' ' . $this->addedBy->last_name) : 'غير محدد'
+            ),
 
             // عدد التعليقات
             'comments_count' => $this->when(

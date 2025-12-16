@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Log;
  *     @OA\Property(property="expected_budget", type="number", format="float", description="الميزانية المتوقعة"),
  *     @OA\Property(property="actual_budget", type="number", format="float", description="الميزانية الفعلية"),
  *     @OA\Property(property="description", type="string", description="الوصف"),
- *     @OA\Property(property="associated_goals", type="array", @OA\Items(type="string"), description="الأهداف المرتبطة (مصفوفة نصوص أو نص مفصول بفواصل)")
+ *     @OA\Property(property="associated_goals", type="string", description="الأهداف المرتبطة")
  * )
  */
 class UpdateTravelRequest extends FormRequest
@@ -49,8 +49,7 @@ class UpdateTravelRequest extends FormRequest
             'expected_budget' => 'sometimes|required|numeric|min:0',
             'actual_budget' => 'sometimes|required|numeric|min:0',
             'description' => 'nullable|string',
-            'associated_goals' => 'nullable|array|string',
-            'associated_goals.*' => 'string',
+            'associated_goals' => 'nullable|string',
         ];
     }
 
@@ -74,7 +73,6 @@ class UpdateTravelRequest extends FormRequest
             'actual_budget.min' => 'الميزانية الفعلية يجب أن تكون أكبر من أو تساوي 0.',
             'description.string' => 'الوصف يجب أن يكون سلسلة نصية.',
             'associated_goals.string' => 'الأهداف المرتبطة يجب أن تكون نصاً.',
-            'associated_goals.*.string' => 'جميع الأهداف يجب أن تكون نصاً.',
         ];
     }
 

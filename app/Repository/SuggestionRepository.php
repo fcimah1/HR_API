@@ -178,4 +178,29 @@ class SuggestionRepository implements SuggestionRepositoryInterface
             ->get()
             ->toArray();
     }
+
+    /**
+     * البحث عن تعليق بواسطة المعرف
+     */
+    public function findCommentById(int $commentId, int $suggestionId, int $companyId): ?SuggestionComment
+    {
+        return SuggestionComment::where('comment_id', $commentId)
+            ->where('suggestion_id', $suggestionId)
+            ->where('company_id', $companyId)
+            ->first();
+    }
+
+    /**
+     * حذف تعليق
+     */
+    public function deleteComment(SuggestionComment $comment): bool
+    {
+        Log::info('Suggestion comment deleted', [
+            'comment_id' => $comment->comment_id,
+            'suggestion_id' => $comment->suggestion_id,
+            'employee_id' => $comment->employee_id,
+        ]);
+
+        return $comment->delete();
+    }
 }

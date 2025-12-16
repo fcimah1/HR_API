@@ -48,7 +48,15 @@ class Suggestion extends Model
      */
     public function employee(): BelongsTo
     {
-        return $this->belongsTo(UserDetails::class, 'added_by', 'user_id');
+        return $this->belongsTo(User::class, 'added_by', 'user_id');
+    }
+
+    /**
+     * Get the user who added the suggestion.
+     */
+    public function addedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'added_by', 'user_id');
     }
 
     /**
