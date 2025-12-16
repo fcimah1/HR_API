@@ -83,4 +83,23 @@ interface EmployeeRepositoryInterface
      */
     public function getDutyEmployee(int $id, ?string $search = null, ?int $employeeId = null, ?int $departmentId = null): array;
 
+    /**
+     * Get employees for notification
+     *
+     * @param int $companyId
+     * @param int $currentUserId
+     * @param int|null $currentHierarchyLevel
+     * @param int|null $currentDepartmentId
+     * @param string|null $search
+     * @return array
+     */
+    public function getEmployeesForNotify(int $companyId, int $currentUserId, ?int $currentHierarchyLevel = null, ?int $currentDepartmentId = null, ?string $search = null): array;
+
+    /**
+     * Get user with hierarchy information (level and department)
+     *
+     * @param int $userId
+     * @return array|null
+     */
+    public function getUserWithHierarchyInfo(int $userId): ?array;
 }

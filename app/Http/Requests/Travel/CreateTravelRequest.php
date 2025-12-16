@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Log;
  *     @OA\Property(property="expected_budget", type="number", format="float", description="الميزانية المتوقعة"),
  *     @OA\Property(property="actual_budget", type="number", format="float", description="الميزانية الفعلية"),
  *     @OA\Property(property="description", type="string", description="الوصف"),
- *     @OA\Property(property="associated_goals", type="array", @OA\Items(type="string"), description="الأهداف المرتبطة (مصفوفة نصوص أو نص مفصول بفواصل)"),
+ *     @OA\Property(property="associated_goals", type="string", description="الأهداف المرتبطة"),
  *     @OA\Property(property="remarks", type="string", description="ملاحظات")
  * )
  */
@@ -49,12 +49,12 @@ class CreateTravelRequest extends FormRequest
             'end_date' => 'required|date|after_or_equal:start_date',
             'visit_purpose' => 'required|string|max:255',
             'visit_place' => 'required|string|max:255',
-            'travel_mode' => 'required|integer|in:'.implode(',', array_column(TravelModeEnum::toArray(), 'value')),
-            'arrangement_type' => 'required|integer|in:'.implode(',', Travel::getArrangementTypes()),
+            'travel_mode' => 'required|integer|in:' . implode(',', array_column(TravelModeEnum::toArray(), 'value')),
+            'arrangement_type' => 'required|integer|in:' . implode(',', Travel::getArrangementTypes()),
             'expected_budget' => 'required|numeric|min:0',
             'actual_budget' => 'required|numeric|min:0',
             'description' => 'nullable|string',
-            'associated_goals' => 'nullable|array',
+            'associated_goals' => 'nullable|string',
             'remarks' => 'nullable|string',
         ];
     }
@@ -83,7 +83,7 @@ class CreateTravelRequest extends FormRequest
             'actual_budget.numeric' => 'الميزانية الفعلية يجب أن تكون رقماً.',
             'actual_budget.min' => 'الميزانية الفعلية يجب أن تكون 0 أو أكثر.',
             'description.string' => 'الوصف يجب أن يكون نصاً.',
-            'associated_goals.array' => 'الأهداف المرتبطة يجب أن تكون مصفوفة.',
+            'associated_goals.string' => 'الأهداف المرتبطة يجب أن تكون نصاً.',
             'remarks.string' => 'الملاحظات يجب أن تكون نصاً.',
             'employee_id.exists' => 'الموظف المحدد غير موجود.',
         ];

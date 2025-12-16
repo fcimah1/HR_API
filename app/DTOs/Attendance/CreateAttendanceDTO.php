@@ -15,7 +15,9 @@ class CreateAttendanceDTO
         public readonly int $shiftId = 0,
         public readonly int $workFromHome = 0,
         public readonly string $attendanceStatus = 'Present',
-        public readonly string $status = 'Approved'
+        public readonly string $status = 'Approved',
+        public readonly int $branchId = 0,
+        public readonly string $timeLate = '00:00'
     ) {}
 
     public static function fromRequest(array $data, int $companyId, int $employeeId, string $ipAddress): self
@@ -33,7 +35,9 @@ class CreateAttendanceDTO
             shiftId: $data['shift_id'] ?? 0,
             workFromHome: $data['work_from_home'] ?? 0,
             attendanceStatus: 'Present',
-            status: $data['status'] ?? 'Approved'
+            status: $data['status'] ?? 'Approved',
+            branchId: $data['branch_id'] ?? 0,
+            timeLate: $data['time_late'] ?? '00:00'
         );
     }
 
@@ -41,6 +45,7 @@ class CreateAttendanceDTO
     {
         return [
             'company_id' => $this->companyId,
+            'branch_id' => $this->branchId,
             'employee_id' => $this->employeeId,
             'attendance_date' => $this->attendanceDate,
             'clock_in' => $this->clockIn,
@@ -52,9 +57,9 @@ class CreateAttendanceDTO
             'clock_in_longitude' => $this->clockInLongitude ?? '',
             'clock_out_latitude' => '',
             'clock_out_longitude' => '',
-            'time_late' => $this->clockIn,
-            'early_leaving' => $this->clockIn,
-            'overtime' => $this->clockIn,
+            'time_late' => $this->timeLate,
+            'early_leaving' => '00:00',
+            'overtime' => '00:00',
             'total_work' => '00:00',
             'total_rest' => '',
             'shift_id' => $this->shiftId,

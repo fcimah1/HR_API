@@ -104,9 +104,8 @@ class AttendanceRepository implements AttendanceRepositoryInterface
     /**
      * Start lunch break
      */
-    public function lunchBreakIn(Attendance $attendance): Attendance
+    public function lunchBreakIn(Attendance $attendance, UpdateAttendanceDTO $dto): Attendance
     {
-        $dto = UpdateAttendanceDTO::forLunchBreakIn();
         $attendance->update($dto->toArray());
         $attendance->refresh();
 
@@ -121,9 +120,8 @@ class AttendanceRepository implements AttendanceRepositoryInterface
     /**
      * End lunch break
      */
-    public function lunchBreakOut(Attendance $attendance): Attendance
+    public function lunchBreakOut(Attendance $attendance, UpdateAttendanceDTO $dto): Attendance
     {
-        $dto = UpdateAttendanceDTO::forLunchBreakOut();
         $attendance->update($dto->toArray());
         $attendance->refresh();
 

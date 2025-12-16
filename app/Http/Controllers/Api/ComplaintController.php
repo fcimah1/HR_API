@@ -414,8 +414,7 @@ class ComplaintController extends Controller
      *         @OA\JsonContent(
      *             required={"action"},
      *             @OA\Property(property="action", type="string", enum={"resolve", "reject"}, example="resolve", description="الإجراء: resolve للحل أو reject للرفض"),
-     *             @OA\Property(property="resolution", type="string", example="تم إصلاح التكييف", description="تفاصيل الحل (مطلوب عند الحل)"),
-     *             @OA\Property(property="remarks", type="string", example="تم التواصل مع الصيانة", description="ملاحظات إضافية")
+     *             @OA\Property(property="description", type="string", example="تم إصلاح التكييف", description="تفاصيل الحل (مطلوب عند الحل)")
      *         )
      *     ),
      *     @OA\Response(

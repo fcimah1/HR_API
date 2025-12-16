@@ -43,7 +43,7 @@ interface ComplaintRepositoryInterface
     /**
      * حل الشكوى
      */
-    public function resolveComplaint(Complaint $complaint, int $resolvedBy, ?string $remarks = null): Complaint;
+    public function resolveComplaint(Complaint $complaint, int $resolvedBy, ?string $description = null): Complaint;
 
     /**
      * رفض الشكوى

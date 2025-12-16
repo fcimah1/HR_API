@@ -14,7 +14,7 @@ class UpdateTravelDTO
         public ?float $expected_budget = null,
         public ?float $actual_budget = null,
         public ?string $description = null,
-        public ?array $associated_goals = null,
+        public ?string $associated_goals = null,
     ) {}
 
     public static function fromRequest($request): self
@@ -29,9 +29,7 @@ class UpdateTravelDTO
             expected_budget: $request->input('expected_budget') ?: null,
             actual_budget: $request->input('actual_budget') ?: null,
             description: $request->input('description') ?: null,
-            associated_goals: is_string($request->input('associated_goals')) 
-                ? explode(',', $request->input('associated_goals'))
-                : $request->input('associated_goals')
+            associated_goals: $request->input('associated_goals') ?: null
         );
     }
 

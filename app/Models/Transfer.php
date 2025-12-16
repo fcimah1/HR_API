@@ -101,7 +101,7 @@ class Transfer extends Model
      */
     public function employee(): BelongsTo
     {
-        return $this->belongsTo(UserDetails::class, 'employee_id', 'user_id');
+        return $this->belongsTo(User::class, 'employee_id', 'user_id');
     }
 
     /**
@@ -109,7 +109,7 @@ class Transfer extends Model
      */
     public function addedBy(): BelongsTo
     {
-        return $this->belongsTo(UserDetails::class, 'added_by', 'user_id');
+        return $this->belongsTo(User::class, 'added_by', 'user_id');
     }
 
     /**

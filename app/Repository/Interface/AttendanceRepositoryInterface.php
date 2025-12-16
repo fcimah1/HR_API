@@ -28,12 +28,12 @@ interface AttendanceRepositoryInterface
     /**
      * Start lunch break
      */
-    public function lunchBreakIn(Attendance $attendance): Attendance;
+    public function lunchBreakIn(Attendance $attendance, UpdateAttendanceDTO $dto): Attendance;
 
     /**
      * End lunch break
      */
-    public function lunchBreakOut(Attendance $attendance): Attendance;
+    public function lunchBreakOut(Attendance $attendance, UpdateAttendanceDTO $dto): Attendance;
 
     /**
      * Find attendance record by ID

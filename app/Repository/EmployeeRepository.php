@@ -22,15 +22,15 @@ class EmployeeRepository implements EmployeeRepositoryInterface
     public function getPaginatedEmployees(EmployeeFilterDTO $filters): LengthAwarePaginator
     {
         $query = $this->buildBaseQuery($filters->companyId);
-        
+
         // Load details relationship
-        $query->with('details');
+        $query->with('user_details');
 
         if ($filters->search !== null && trim($filters->search) !== '') {
             $searchTerm = '%' . $filters->search . '%';
             $query->where(function ($q) use ($searchTerm) {
                 // البحث في بيانات الموظف
-                $q->whereHas('details', function ($subQuery) use ($searchTerm) {
+                $q->whereHas('user_details', function ($subQuery) use ($searchTerm) {
                     $subQuery->where('first_name', 'like', $searchTerm)
                         ->orWhere('last_name', 'like', $searchTerm)
                         ->orWhere('email', 'like', $searchTerm);
@@ -45,7 +45,7 @@ class EmployeeRepository implements EmployeeRepositoryInterface
 
     public function findEmployeeInCompany(int $employeeId, int $companyId): ?User
     {
-        return $this->model->with('details')
+        return $this->model->with('user_details')
             ->where('user_id', $employeeId)
             ->where('company_id', $companyId)
             ->first();
@@ -58,7 +58,7 @@ class EmployeeRepository implements EmployeeRepositoryInterface
             ->where('is_active', 1)
             ->count();
         $inactiveEmployees = $totalEmployees - $activeEmployees;
-        
+
         $byUserType = $this->model->where('company_id', $companyId)
             ->selectRaw('user_type, COUNT(*) as count')
             ->groupBy('user_type')
@@ -134,11 +134,11 @@ class EmployeeRepository implements EmployeeRepositoryInterface
     private function buildBaseQuery(?int $companyId = null): Builder
     {
         $query = $this->model->newQuery();
-        
+
         if ($companyId) {
             $query->where('company_id', $companyId);
         }
-        
+
         return $query;
     }
 
@@ -150,9 +150,9 @@ class EmployeeRepository implements EmployeeRepositoryInterface
         if ($filters->hasSearchFilter()) {
             $query->where(function (Builder $q) use ($filters) {
                 $q->where('first_name', 'LIKE', "%{$filters->search}%")
-                  ->orWhere('last_name', 'LIKE', "%{$filters->search}%")
-                  ->orWhere('email', 'LIKE', "%{$filters->search}%")
-                  ->orWhere('username', 'LIKE', "%{$filters->search}%");
+                    ->orWhere('last_name', 'LIKE', "%{$filters->search}%")
+                    ->orWhere('email', 'LIKE', "%{$filters->search}%")
+                    ->orWhere('username', 'LIKE', "%{$filters->search}%");
             });
         }
 
@@ -171,12 +171,17 @@ class EmployeeRepository implements EmployeeRepositoryInterface
     private function applySorting(Builder $query, EmployeeFilterDTO $filters): void
     {
         $allowedSortFields = [
-            'first_name', 'last_name', 'email', 'username', 
-            'user_type', 'created_at', 'last_login_date'
+            'first_name',
+            'last_name',
+            'email',
+            'username',
+            'user_type',
+            'created_at',
+            'last_login_date'
         ];
 
-        $sortBy = in_array($filters->sortBy, $allowedSortFields) 
-            ? $filters->sortBy 
+        $sortBy = in_array($filters->sortBy, $allowedSortFields)
+            ? $filters->sortBy
             : 'first_name';
 
         $query->orderBy($sortBy, $filters->sortDirection);
@@ -187,16 +192,16 @@ class EmployeeRepository implements EmployeeRepositoryInterface
         return DB::transaction(function () use ($employeeData) {
             // Create user
             $user = $this->model->create($employeeData->getUserData());
-            
+
             // Create user details if provided
             $detailsData = $employeeData->getUserDetailsData($user->user_id);
             if (!empty($detailsData)) {
                 UserDetails::create($detailsData);
             }
-            
+
             // Load details relationship
-            $user->load('details');
-            
+            $user->load('user_details');
+
             return $user;
         });
     }
@@ -205,21 +210,21 @@ class EmployeeRepository implements EmployeeRepositoryInterface
     {
         return DB::transaction(function () use ($employeeData) {
             $updated = false;
-            
+
             // Update user data if provided
             if ($employeeData->hasUserUpdates()) {
                 $userData = $employeeData->getUserData();
                 $updated = $this->model->where('user_id', $employeeData->userId)
                     ->update($userData) > 0;
             }
-            
+
             // Update user details if provided
             if ($employeeData->hasDetailsUpdates()) {
                 $detailsData = $employeeData->getUserDetailsData();
-                
+
                 // Check if details exist
                 $existingDetails = UserDetails::where('user_id', $employeeData->userId)->first();
-                
+
                 if ($existingDetails) {
                     // Update existing details
                     $existingDetails->update($detailsData);
@@ -228,10 +233,10 @@ class EmployeeRepository implements EmployeeRepositoryInterface
                     $detailsData['user_id'] = $employeeData->userId;
                     UserDetails::create($detailsData);
                 }
-                
+
                 $updated = true;
             }
-            
+
             return $updated;
         });
     }
@@ -241,7 +246,7 @@ class EmployeeRepository implements EmployeeRepositoryInterface
         return DB::transaction(function () use ($employeeId, $companyId) {
             // Delete user details first (due to foreign key)
             UserDetails::where('user_id', $employeeId)->delete();
-            
+
             // Delete user
             return $this->model->where('user_id', $employeeId)
                 ->where('company_id', $companyId)
@@ -251,13 +256,13 @@ class EmployeeRepository implements EmployeeRepositoryInterface
 
     public function getEmployeeWithDetails(int $employeeId, int $companyId): ?User
     {
-        return $this->model->with('details')
+        return $this->model->with('user_details')
             ->where('user_id', $employeeId)
             ->where('company_id', $companyId)
             ->first();
     }
 
-    
+
     /**
      * Get active duty employees with optional search
      *
@@ -279,7 +284,7 @@ class EmployeeRepository implements EmployeeRepositoryInterface
 
         // Filter by department_id if provided
         if ($departmentId !== null) {
-            $query->whereHas('user_details', function($q) use ($departmentId) {
+            $query->whereHas('user_details', function ($q) use ($departmentId) {
                 $q->where('department_id', $departmentId);
             });
         }
@@ -287,24 +292,24 @@ class EmployeeRepository implements EmployeeRepositoryInterface
         // Add search condition if search term is provided
         if ($search) {
             $searchTerm = "%{$search}%";
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('first_name', 'LIKE', $searchTerm)
-                 ->orWhere('last_name', 'LIKE', $searchTerm)
-                 ->orWhere('email', 'LIKE', $searchTerm)
-                 ->orWhere('company_name', 'LIKE', $searchTerm)
-                 ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$searchTerm]);
+                    ->orWhere('last_name', 'LIKE', $searchTerm)
+                    ->orWhere('email', 'LIKE', $searchTerm)
+                    ->orWhere('company_name', 'LIKE', $searchTerm)
+                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$searchTerm]);
             });
         }
 
         return $query->select([
-                'company_id',
-                'user_id',
-                'email',
-                'first_name',
-                'last_name',
-                'company_name',
-                DB::raw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) as full_name")
-            ])
+            'company_id',
+            'user_id',
+            'email',
+            'first_name',
+            'last_name',
+            'company_name',
+            DB::raw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) as full_name")
+        ])
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->get()
@@ -320,5 +325,51 @@ class EmployeeRepository implements EmployeeRepositoryInterface
                 ];
             })
             ->toArray();
+    }
+
+    /**
+     * Get employees who can receive notifications based on CanNotifyUser rules
+     * Returns: company users, hierarchy level 1 users, or higher hierarchy managers in same department
+     *
+     * @param int $companyId Company ID
+     * @param int $currentUserId Current user ID to exclude
+     * @param int|null $currentHierarchyLevel Current user's hierarchy level
+     * @param int|null $currentDepartmentId Current user's department ID
+     * @param string|null $search Optional search term
+     * @return \Illuminate\Support\Collection
+     */
+    public function getEmployeesForNotify(int $companyId, int $currentUserId, ?int $currentHierarchyLevel = null, ?int $currentDepartmentId = null, ?string $search = null): array {
+        
+        $query = User::with('user_details.designation')
+            ->where('company_id', $companyId)
+            ->where('is_active', 1)
+            ->where('user_id', '!=', $currentUserId);
+
+        // Add search condition if provided
+        if ($search) {
+            $searchTerm = "%{$search}%";
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('first_name', 'LIKE', $searchTerm)
+                    ->orWhere('last_name', 'LIKE', $searchTerm)
+                    ->orWhere('email', 'LIKE', $searchTerm);
+            });
+        }
+
+        return $query->get()->toArray();
+    }
+
+    /**
+     * Get user with hierarchy information
+     *
+     * @param int $userId
+     * @return User|null
+     */
+    public function getUserWithHierarchyInfo(int $userId): ?array
+    {
+        $user = User::with('user_details.designation')
+            ->where('user_id', $userId)
+            ->first();
+
+        return $user ? $user->toArray() : null;
     }
 }

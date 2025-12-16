@@ -51,4 +51,14 @@ interface SuggestionRepositoryInterface
      * الحصول على تعليقات اقتراح
      */
     public function getComments(int $suggestionId): array;
+
+    /**
+     * البحث عن تعليق بواسطة المعرف
+     */
+    public function findCommentById(int $commentId, int $suggestionId, int $companyId): ?SuggestionComment;
+
+    /**
+     * حذف تعليق
+     */
+    public function deleteComment(SuggestionComment $comment): bool;
 }

@@ -33,11 +33,14 @@ class BiometricAttendanceController extends Controller
      *         required=true,
      *         description="بيانات البصمة من الجهاز",
      *         @OA\JsonContent(
-     *             required={"company_id", "branch_id", "employee_id", "punch_time"},
+     *             required={"company_id", "branch_id", "employee_id", "punch_time", "verify_mode", "punch_type"},
      *             @OA\Property(property="company_id", type="integer", example=24, description="رقم الشركة"),
      *             @OA\Property(property="branch_id", type="integer", example=1, description="رقم الفرع (0 إذا لم يوجد)"),
      *             @OA\Property(property="employee_id", type="string", example="073323", description="رقم الموظف في جهاز البصمة"),
-     *             @OA\Property(property="punch_time", type="string", format="datetime", example="2025-12-14 08:00:00", description="وقت البصمة")
+     *             @OA\Property(property="punch_time", type="string", format="datetime", example="2025-12-14 08:00:00", description="وقت البصمة"),
+     *             @OA\Property(property="verify_mode", type="integer", example=1, description="طريقة التحقق: 0=كلمة مرور, 1=بصمة, 2=بطاقة, 3=كلمة مرور+بصمة, 4=بطاقة+بصمة, 15=وجه"),
+     *             @OA\Property(property="punch_type", type="integer", example=0, description="نوع البصمة: 0=حضور, 1=انصراف, 2=خروج استراحة, 3=عودة استراحة, 4=حضور عمل إضافي, 5=انصراف عمل إضافي, 255=غير محدد"),
+     *             @OA\Property(property="work_code", type="integer", example=0, description="كود العمل/المشروع (اختياري)")
      *         )
      *     ),
      *     @OA\Response(
@@ -55,6 +58,11 @@ class BiometricAttendanceController extends Controller
      *                 @OA\Property(property="employee_id", type="string", example="073323", description="رقم الموظف في جهاز البصمة"),
      *                 @OA\Property(property="punch_time", type="string", example="2025-12-14 08:00:00"),
      *                 @OA\Property(property="attendance_id", type="integer", example=1155, description="رقم سجل الحضور"),
+     *                 @OA\Property(property="verify_mode", type="integer", example=1, description="طريقة التحقق"),
+     *                 @OA\Property(property="verify_mode_text", type="string", example="بصمة", description="وصف طريقة التحقق"),
+     *                 @OA\Property(property="punch_type", type="integer", example=0, description="نوع البصمة"),
+     *                 @OA\Property(property="punch_type_text", type="string", example="حضور", description="وصف نوع البصمة"),
+     *                 @OA\Property(property="work_code", type="integer", example=0, description="كود العمل"),
      *                 @OA\Property(property="total_work", type="string", example="09:00", nullable=true, description="إجمالي ساعات العمل (فقط عند الانصراف)")
      *             )
      *         )
@@ -104,13 +112,19 @@ class BiometricAttendanceController extends Controller
                 companyId: $request->company_id,
                 branchId: $request->branch_id,
                 employeeId: $request->employee_id,
-                punchTime: $request->punch_time
+                punchTime: $request->punch_time,
+                verifyMode: $request->verify_mode,
+                punchType: $request->punch_type,
+                workCode: $request->work_code
             );
 
             Log::info('Biometric punch processed', [
                 'company_id' => $request->company_id,
                 'employee_id' => $request->employee_id,
                 'type' => $result['type'] ?? 'unknown',
+                'verify_mode' => $request->verify_mode,
+                'punch_type' => $request->punch_type,
+                'work_code' => $request->work_code,
             ]);
 
             return response()->json($result, 200);
@@ -125,6 +139,79 @@ class BiometricAttendanceController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 400);
+        }
+    }
+
+    /**
+     * الحصول على الشركات مع الفروع
+     * Get all companies with their branches
+     * 
+     * @OA\Get(
+     *     path="/api/biometric/companies",
+     *     operationId="getCompaniesWithBranches",
+     *     summary="الحصول على الشركات والفروع",
+     *     description="إرجاع قائمة الشركات مع الفروع التابعة لكل شركة",
+     *     tags={"Biometric Attendance"},
+     *     @OA\Response(
+     *         response=200,
+     *         description="قائمة الشركات والفروع",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="company_id", type="integer", example=24),
+     *                     @OA\Property(property="company_name", type="string", example="شركة التقنية"),
+     *                     @OA\Property(
+     *                         property="branches",
+     *                         type="array",
+     *                         @OA\Items(
+     *                             type="object",
+     *                             @OA\Property(property="branch_id", type="integer", example=1),
+     *                             @OA\Property(property="branch_name", type="string", example="الفرع الرئيسي"),
+     *                             @OA\Property(property="coordinates", type="string", example="24.7136,46.6753")
+     *                         )
+     *                     )
+     *                 )
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function getCompaniesWithBranches()
+    {
+        try {
+            // جلب الشركات مع الفروع باستخدام Eager Loading
+            $companies = \App\Models\User::where('user_type', 'company')
+                ->where('is_active', 1)
+                ->with(['branches:branch_id,company_id,branch_name,description'])
+                ->select(['user_id', 'company_name', 'trading_name'])
+                ->get()
+                ->map(function ($company) {
+                    return [
+                        'company_id' => $company->user_id,
+                        'company_name' => $company->company_name ?? $company->trading_name,
+                        'branches' => $company->branches->map(function ($branch) {
+                            return [
+                                'branch_id' => $branch->branch_id,
+                                'branch_name' => $branch->branch_name,
+                            ];
+                        })
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $companies
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 }

@@ -24,7 +24,7 @@ class ResolveComplaintRequest extends FormRequest
     {
         return [
             'action' => 'required|string|in:resolve,reject',
-            'remarks' => 'nullable|string|max:1000',
+            'description' => 'nullable|string|max:1000',
         ];
     }
 
@@ -36,7 +36,7 @@ class ResolveComplaintRequest extends FormRequest
         return [
             'action.required' => 'يجب تحديد الإجراء (حل أو رفض)',
             'action.in' => 'الإجراء يجب أن يكون resolve (حل) أو reject (رفض)',
-            'remarks.max' => 'الملاحظات يجب ألا تتجاوز 1000 حرف',
+            'description.max' => 'الملاحظات يجب ألا تتجاوز 1000 حرف',
         ];
     }
 

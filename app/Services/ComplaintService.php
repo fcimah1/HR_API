@@ -278,7 +278,7 @@ class ComplaintService
                 $processedComplaint = $this->complaintRepository->resolveComplaint(
                     $complaint,
                     $dto->processedBy,
-                    $dto->remarks
+                    $dto->description,
                 );
 
                 // إرسال إشعار للموظف
@@ -302,7 +302,7 @@ class ComplaintService
                 $processedComplaint = $this->complaintRepository->rejectComplaint(
                     $complaint,
                     $dto->processedBy,
-                    $dto->remarks
+                    $dto->description
                 );
 
                 // إرسال إشعار للموظف

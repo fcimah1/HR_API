@@ -136,7 +136,7 @@ class TravelController extends Controller
         try {
             $user = Auth::user();
             $hasPermission = $this->permissionService->checkPermission($user, 'travel1');
-            
+
             if (!$hasPermission) {
                 return response()->json([
                     'success' => false,
@@ -195,7 +195,7 @@ class TravelController extends Controller
      *             @OA\Property(property="expected_budget", type="number", format="float", example=1000.00, description="الميزانية المتوقعة"),
      *             @OA\Property(property="actual_budget", type="number", format="float", example=900.00, description="الميزانية الفعلية"),
      *             @OA\Property(property="description", type="string", example="وصف الرحلة", description="وصف (اختياري)"),
-     *             @OA\Property(property="associated_goals", type="array", @OA\Items(type="string"), example={"هدف 1","هدف 2"}, description="الأهداف المرتبطة (اختياري)"),
+     *             @OA\Property(property="associated_goals", type="string", example="هدف 1، هدف 2", description="الأهداف المرتبطة (اختياري)"),
      *             @OA\Property(property="remarks", type="string", example="ملاحظات إضافية", description="ملاحظات (اختياري)")
      *         )
      *     ),
@@ -395,7 +395,7 @@ class TravelController extends Controller
      *             @OA\Property(property="expected_budget", type="number", format="float", example=1000.00),
      *             @OA\Property(property="actual_budget", type="number", format="float", example=900.00),
      *             @OA\Property(property="description", type="string", example="وصف معدل"),
-     *             @OA\Property(property="associated_goals", type="array", @OA\Items(type="string"), example={"هدف 1","هدف 2"}, description="الأهداف المرتبطة (اختياري)"),
+     *             @OA\Property(property="associated_goals", type="string", example="هدف 1، هدف 2", description="الأهداف المرتبطة (اختياري)"),
      *             @OA\Property(property="remarks", type="string", example="ملاحظات معدلة")
      *         )
      *     ),
@@ -467,22 +467,22 @@ class TravelController extends Controller
                 'request_json' => $request->json()->all(),
                 'request_content' => $request->getContent()
             ]);
-            
+
             // Try to parse JSON manually if Laravel fails
             $content = $request->getContent();
-            
+
             // Fix common JSON syntax errors - add quotes to unquoted values in arrays
             $content = preg_replace('/\[\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\]/', '["$1", "$2"]', $content);
             $content = preg_replace('/\[\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\]/', '["$1"]', $content);
-            
+
             $jsonData = json_decode($content, true);
-            
+
             if (json_last_error() !== JSON_ERROR_NONE) {
 
-                throw new \Exception('Invalid JSON format - ' . json_last_error_msg()); 
+                throw new \Exception('Invalid JSON format - ' . json_last_error_msg());
             }
-            
-            
+
+
             // Create a new request with the fixed data
             $fixedRequest = new Request($jsonData);
             $dto = UpdateTravelDTO::fromRequest($fixedRequest);

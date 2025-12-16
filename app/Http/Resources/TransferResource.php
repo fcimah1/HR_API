@@ -32,6 +32,10 @@ class TransferResource extends JsonResource
             'old_currency' => $this->old_currency,
             'new_currency' => $this->new_currency,
             'reason' => $this->reason,
+            'document_file' => $this->document_file ?? null,
+            'document_file_url' => $this->document_file
+                ? env('SHARED_UPLOADS_URL', url('uploads')) . '/pdf_files/transfer/' . $this->document_file
+                : null,
             'status' => $this->status,
             'status_text' => $this->status_text,
             'status_text_en' => $this->status_text_en,
@@ -58,13 +62,19 @@ class TransferResource extends JsonResource
 
             // معلومات الموظف إذا كانت محملة
             'employee' => $this->when($this->relationLoaded('employee'), function () {
-                return $this->employee ? [
+                if (!$this->employee) return null;
+
+                $firstName = $this->employee->first_name ?? '';
+                $lastName = $this->employee->last_name ?? '';
+                $fullName = trim($firstName . ' ' . $lastName);
+
+                return [
                     'user_id' => $this->employee->user_id,
-                    'first_name' => $this->employee->first_name,
-                    'last_name' => $this->employee->last_name,
+                    'first_name' => $firstName ?: null,
+                    'last_name' => $lastName ?: null,
                     'email' => $this->employee->email,
-                    'full_name' => $this->employee->full_name,
-                ] : null;
+                    'full_name' => $fullName ?: 'غير محدد',
+                ];
             }),
 
             // معلومات القسم القديم

@@ -21,11 +21,18 @@ class ResignationResource extends JsonResource
             'notice_date' => $this->notice_date,
             'resignation_date' => $this->resignation_date,
             'document_file' => $this->document_file,
+            'document_file_url' => $this->document_file
+                ? env('SHARED_UPLOADS_URL', url('uploads')) . '/pdf_files/resignation/' . $this->document_file
+                : null,
             'is_signed' => $this->is_signed,
             'signed_file' => $this->signed_file,
+            'signed_file_url' => $this->signed_file
+                ? env('SHARED_UPLOADS_URL', url('uploads')) . '/pdf_files/resignation/' . $this->signed_file
+                : null,
             'signed_date' => $this->signed_date,
             'reason' => $this->reason,
             'added_by' => $this->added_by,
+            'notify_send_to' => $this->notify_send_to,
             'status' => $this->status,
             'status_text' => $this->status_text,
             'status_text_en' => $this->status_text_en,
@@ -39,13 +46,19 @@ class ResignationResource extends JsonResource
 
             // معلومات الموظف إذا كانت محملة
             'employee' => $this->when($this->relationLoaded('employee'), function () {
-                return $this->employee ? [
+                if (!$this->employee) return null;
+
+                $firstName = $this->employee->first_name ?? '';
+                $lastName = $this->employee->last_name ?? '';
+                $fullName = trim($firstName . ' ' . $lastName);
+
+                return [
                     'user_id' => $this->employee->user_id,
-                    'first_name' => $this->employee->first_name,
-                    'last_name' => $this->employee->last_name,
+                    'first_name' => $firstName ?: null,
+                    'last_name' => $lastName ?: null,
                     'email' => $this->employee->email,
-                    'full_name' => $this->employee->full_name,
-                ] : null;
+                    'full_name' => $fullName ?: 'غير محدد',
+                ];
             }),
 
             // معلومات من أضاف الطلب

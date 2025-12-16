@@ -12,10 +12,12 @@ class UpdateAttendanceDTO
         public readonly ?string $totalWork = null,
         public readonly ?string $status = null,
         public readonly ?string $lunchBreakIn = null,
-        public readonly ?string $lunchBreakOut = null
+        public readonly ?string $lunchBreakOut = null,
+        public readonly ?string $earlyLeaving = null,
+        public readonly ?string $overtime = null
     ) {}
 
-    public static function fromClockOutRequest(array $data, string $ipAddress, string $totalWork): self
+    public static function fromClockOutRequest(array $data, string $ipAddress, string $totalWork, ?string $earlyLeaving = null, ?string $overtime = null): self
     {
         $now = now();
 
@@ -27,7 +29,9 @@ class UpdateAttendanceDTO
             totalWork: $totalWork,
             status: null,
             lunchBreakIn: null,
-            lunchBreakOut: null
+            lunchBreakOut: null,
+            earlyLeaving: $earlyLeaving,
+            overtime: $overtime
         );
     }
 
@@ -54,7 +58,9 @@ class UpdateAttendanceDTO
             clockOutLatitude: $data['clock_out_latitude'] ?? null,
             clockOutLongitude: $data['clock_out_longitude'] ?? null,
             totalWork: $data['total_work'] ?? null,
-            status: $data['status'] ?? null
+            status: $data['status'] ?? null,
+            earlyLeaving: $data['early_leaving'] ?? null,
+            overtime: $data['overtime'] ?? null
         );
     }
 
@@ -65,8 +71,6 @@ class UpdateAttendanceDTO
         if ($this->clockOut !== null) {
             $data['clock_out'] = $this->clockOut;
             $data['clock_in_out'] = '0';
-            $data['early_leaving'] = $this->clockOut;
-            $data['overtime'] = $this->clockOut;
         }
 
         if ($this->clockOutIpAddress !== null) {
@@ -96,6 +100,14 @@ class UpdateAttendanceDTO
 
         if ($this->lunchBreakOut !== null) {
             $data['lunch_breakout'] = $this->lunchBreakOut;
+        }
+
+        if ($this->earlyLeaving !== null) {
+            $data['early_leaving'] = $this->earlyLeaving;
+        }
+
+        if ($this->overtime !== null) {
+            $data['overtime'] = $this->overtime;
         }
 
         return $data;

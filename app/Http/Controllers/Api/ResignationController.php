@@ -231,17 +231,22 @@ class ResignationController extends Controller
      * @OA\Post(
      *     path="/api/resignations",
      *     summary="Create a new resignation request",
-     *     description="إنشاء طلب استقالة جديد - يمكن للموظف تقديم استقالته أو للمدير تقديمها نيابة عن موظف",
+     *     description="إنشاء طلب استقالة جديد - يمكن للموظف تقديم استقالته أو للمدير تقديمها نيابة عن موظف. يدعم رفع ملفات المستندات",
      *     tags={"Resignation Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(
-     *             required={"resignation_date", "reason"},
-     *             @OA\Property(property="employee_id", type="integer", example=37, description="معرف الموظف (اختياري - الافتراضي المستخدم الحالي)"),
-     *             @OA\Property(property="resignation_date", type="string", format="date", example="2025-02-01", description="تاريخ الاستقالة المطلوب - مطلوب"),
-     *             @OA\Property(property="notice_date", type="string", format="date", example="2025-01-15", description="تاريخ تقديم الإشعار"),
-     *             @OA\Property(property="reason", type="string", example="فرصة عمل أفضل في شركة أخرى", description="سبب الاستقالة - مطلوب")
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"notice_date", "resignation_date", "reason", "document_file", "reason"},
+     *                 @OA\Property(property="employee_id", type="integer", example=37, description="معرف الموظف (اختياري - الافتراضي المستخدم الحالي)"),
+     *                 @OA\Property(property="notice_date", type="string", format="date", example="2025-01-15", description="تاريخ تقديم الإشعار - مطلوب"),
+     *                 @OA\Property(property="resignation_date", type="string", format="date", example="2025-02-01", description="تاريخ الاستقالة المطلوب - مطلوب"),
+     *                 @OA\Property(property="reason", type="string", example="فرصة عمل أفضل في شركة أخرى", description="سبب الاستقالة - مطلوب"),
+     *                 @OA\Property(property="document_file", type="string", format="binary", description="ملف المستند (pdf, doc, docx, jpg, jpeg, png) - حد أقصى 5MB"),
+     *                 @OA\Property(property="notify_send_to", type="string", example="employee_id", description="معرف الموظف المستلم للإشعار")
+     *             )
      *         )
      *     ),
      *     @OA\Response(
@@ -273,12 +278,35 @@ class ResignationController extends Controller
             $user = Auth::user();
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $employeeId = $request->validated()['employee_id'] ?? $user->user_id;
+
             Log::info('ResignationController::store - Creating resignation', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
             ]);
+
+            $data = $request->validated();
+
+            // حفظ الملف إذا تم رفعه - رفع إلى المسار المشترك
+            if ($request->hasFile('document_file')) {
+
+                $file = $request->file('document_file');
+                $newName = $file->hashName(); // اسم عشوائي فريد
+
+                // المسار المشترك من .env (يعمل على local و production)
+                $sharedUploadsPath = env('SHARED_UPLOADS_PATH', public_path('uploads'));
+                $resignationPath = $sharedUploadsPath . '/pdf_files/resignation';
+
+                // التأكد من وجود المجلد
+                if (!is_dir($resignationPath)) {
+                    mkdir($resignationPath, 0755, true);
+                }
+
+                $file->move($resignationPath, $newName);
+                $data['document_file'] = $newName;
+            }
+
             $dto = CreateResignationDTO::fromRequest(
-                $request->validated(),
+                $data,
                 $effectiveCompanyId,
                 $employeeId,
                 $user->user_id

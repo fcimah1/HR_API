@@ -22,7 +22,7 @@ class EmployeeService
     public function getPaginatedEmployees(EmployeeFilterDTO $filters): array
     {
         $employees = $this->employeeRepository->getPaginatedEmployees($filters);
-        
+
         $employeeDTOs = collect($employees->items())->map(function ($employee) {
             return EmployeeResponseDTO::fromModel($employee);
         });
@@ -47,7 +47,7 @@ class EmployeeService
     public function getEmployeeById(int $employeeId, int $companyId): ?EmployeeResponseDTO
     {
         $employee = $this->employeeRepository->findEmployeeInCompany($employeeId, $companyId);
-        
+
         return $employee ? EmployeeResponseDTO::fromModel($employee) : null;
     }
 
@@ -93,7 +93,7 @@ class EmployeeService
     public function getEmployeesByType(int $companyId, string $userType): array
     {
         $employees = $this->employeeRepository->getEmployeesByType($companyId, $userType);
-        
+
         return $employees->map(function ($employee) {
             return EmployeeResponseDTO::fromModel($employee)->toArray();
         })->toArray();
@@ -105,7 +105,7 @@ class EmployeeService
     public function searchEmployees(int $companyId, string $searchTerm): array
     {
         $employees = $this->employeeRepository->searchEmployees($companyId, $searchTerm);
-        
+
         return $employees->map(function ($employee) {
             return EmployeeResponseDTO::fromModel($employee)->toArray();
         })->toArray();
@@ -147,7 +147,7 @@ class EmployeeService
     public function getEmployeeWithDetails(int $employeeId, int $companyId): ?EmployeeResponseDTO
     {
         $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $companyId);
-        
+
         return $employee ? EmployeeResponseDTO::fromModel($employee) : null;
     }
 
@@ -175,7 +175,7 @@ class EmployeeService
     }
 
 
-    
+
 
     /**
      * Get active employees for duty employee selection with optional filters
@@ -200,5 +200,106 @@ class EmployeeService
         return $employees;
     }
 
+    /**
+     * Get employees who can receive notifications
+     * Based on CanNotifyUser rules:
+     * 1- user_type = company for same company
+     * 2- hierarchy_level = 1 (top level)
+     * 3- Same department and higher hierarchy level
+     *
+     * @param int $companyId
+     * @param int $currentUserId
+     * @param int|null $currentHierarchyLevel
+     * @param int|null $currentDepartmentId
+     * @param string|null $search
+     * @return array
+     */
+    public function getEmployeesForNotify(int $companyId, int $currentUserId, ?int $currentHierarchyLevel = null, ?int $currentDepartmentId = null, ?string $search = null): array
+    {
 
+        $employeesArray = $this->employeeRepository->getEmployeesForNotify(
+            $companyId,
+            $currentUserId,
+            $currentHierarchyLevel,
+            $currentDepartmentId,
+            $search
+        );
+
+        // Convert to collection of User models for filtering with model methods
+        $employees = collect($employeesArray)->map(function ($employeeData) {
+            return User::with('user_details.designation')->find($employeeData['user_id']);
+        })->filter(); // Remove nulls
+
+        // Filter employees based on CanNotifyUser rules
+        $filteredEmployees = $employees->filter(function ($employee) use ($currentHierarchyLevel, $currentDepartmentId) {
+            // 1- If user_type = company - allowed
+            if ($employee->user_type === 'company') {
+                return true;
+            }
+
+            // Get hierarchy_level
+            $employeeHierarchyLevel = $employee->getHierarchyLevel();
+
+            // 2- If hierarchy_level = 1 - allowed
+            if ($employeeHierarchyLevel === 1) {
+                return true;
+            }
+
+            // 3- Same department and higher hierarchy level
+            $employeeDepartmentId = $employee->user_details?->department_id;
+
+            if (
+                $currentDepartmentId === $employeeDepartmentId &&
+                $employeeHierarchyLevel !== null &&
+                $currentHierarchyLevel !== null &&
+                $employeeHierarchyLevel < $currentHierarchyLevel
+            ) {
+                return true;
+            }
+
+            return false;
+        });
+
+        // Transform data
+        return $filteredEmployees->map(function ($employee) {
+            return [
+                'user_id' => $employee->user_id,
+                'first_name' => $employee->first_name,
+                'last_name' => $employee->last_name,
+                'full_name' => trim($employee->first_name . ' ' . $employee->last_name),
+                'email' => $employee->email,
+                'user_type' => $employee->user_type,
+                'hierarchy_level' => $employee->getHierarchyLevel(),
+                'department_id' => $employee->user_details?->department_id,
+            ];
+        })->values()->toArray();
+    }
+
+    /**
+     * Get user with hierarchy information (level and department)
+     *
+     * @param int $userId
+     * @return array|null
+     */
+    public function getUserWithHierarchyInfo(int $userId): ?array
+    {
+        $userData = $this->employeeRepository->getUserWithHierarchyInfo($userId);
+
+        if (!$userData) {
+            return null;
+        }
+
+        // Fetch the actual User model to call methods like getHierarchyLevel()
+        $user = User::with('user_details.designation')->find($userId);
+
+        if (!$user) {
+            return null;
+        }
+
+        return [
+            'user_id' => $user->user_id,
+            'hierarchy_level' => $user->getHierarchyLevel(),
+            'department_id' => $user->user_details?->department_id,
+        ];
+    }
 }

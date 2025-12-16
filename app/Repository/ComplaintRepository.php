@@ -154,10 +154,11 @@ class ComplaintRepository implements ComplaintRepositoryInterface
     /**
      * حل الشكوى
      */
-    public function resolveComplaint(Complaint $complaint, int $resolvedBy, ?string $remarks = null): Complaint
+    public function resolveComplaint(Complaint $complaint, int $resolvedBy, ?string $description = null): Complaint
     {
         $complaint->update([
             'status' => Complaint::STATUS_RESOLVED,
+            'description' => $description . "__" . User::getFullNameById($resolvedBy) . " تم حل الشكوى بواسطة ",
         ]);
 
         $complaint->refresh();
@@ -166,7 +167,7 @@ class ComplaintRepository implements ComplaintRepositoryInterface
         Log::info('Complaint resolved', [
             'complaint_id' => $complaint->complaint_id,
             'resolved_by' => $resolvedBy,
-            'remarks' => $remarks,
+            'description' => $description,
         ]);
 
         return $complaint;
@@ -175,10 +176,11 @@ class ComplaintRepository implements ComplaintRepositoryInterface
     /**
      * رفض الشكوى
      */
-    public function rejectComplaint(Complaint $complaint, int $rejectedBy, ?string $remarks = null): Complaint
+    public function rejectComplaint(Complaint $complaint, int $rejectedBy, ?string $description = null): Complaint
     {
         $complaint->update([
             'status' => Complaint::STATUS_REJECTED,
+            'description' => $description . "__" . User::getFullNameById($rejectedBy) . " تم رفض الشكوى بواسطة ",
         ]);
 
         $complaint->refresh();
@@ -187,7 +189,7 @@ class ComplaintRepository implements ComplaintRepositoryInterface
         Log::info('Complaint rejected', [
             'complaint_id' => $complaint->complaint_id,
             'rejected_by' => $rejectedBy,
-            'remarks' => $remarks,
+            'description' => $description,
         ]);
 
         return $complaint;

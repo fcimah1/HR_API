@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,6 +15,14 @@ class ComplaintResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // تحويل complaint_against من string إلى array من الموظفين
+        $complainAgainstIds = $this->getEmployeeIdsArray($this->complaint_against);
+        $complainAgainstEmployees = $this->getEmployeesInfo($complainAgainstIds);
+
+        // تحويل notify_send_to من string إلى array من الموظفين
+        $notifySendToIds = $this->getEmployeeIdsArray($this->notify_send_to);
+        $notifySendToEmployees = $this->getEmployeesInfo($notifySendToIds);
+
         return [
             'complaint_id' => $this->complaint_id,
             'company_id' => $this->company_id,
@@ -21,7 +30,10 @@ class ComplaintResource extends JsonResource
             'title' => $this->title,
             'complaint_date' => $this->complaint_date,
             'complaint_against' => $this->complaint_against,
+            'complaint_against_employees' => $complainAgainstEmployees,
             'description' => $this->description,
+            'notify_send_to' => $this->notify_send_to,
+            'notify_send_to_employees' => $notifySendToEmployees,
             'status' => $this->status,
             'status_text' => $this->status_text,
             'status_text_en' => $this->status_text_en,
@@ -35,14 +47,64 @@ class ComplaintResource extends JsonResource
 
             // معلومات الموظف إذا كانت محملة
             'employee' => $this->when($this->relationLoaded('employee'), function () {
-                return $this->employee ? [
+                if (!$this->employee) return null;
+
+                $firstName = $this->employee->first_name ?? '';
+                $lastName = $this->employee->last_name ?? '';
+                $fullName = trim($firstName . ' ' . $lastName);
+
+                return [
                     'user_id' => $this->employee->user_id,
-                    'first_name' => $this->employee->first_name,
-                    'last_name' => $this->employee->last_name,
+                    'first_name' => $firstName ?: null,
+                    'last_name' => $lastName ?: null,
                     'email' => $this->employee->email,
-                    'full_name' => $this->employee->full_name,
-                ] : null;
+                    'full_name' => $fullName ?: 'غير محدد',
+                ];
             }),
+
+            // معلومات من أضاف الطلب
+            'added_by_name' => $this->when(
+                $this->relationLoaded('addedBy'),
+                fn() => $this->addedBy ? ($this->addedBy->first_name . ' ' . $this->addedBy->last_name) : 'غير محدد'
+            ),
         ];
+    }
+
+    /**
+     * تحويل string من IDs مفصولة بفاصلة إلى array
+     */
+    private function getEmployeeIdsArray(?string $idsString): array
+    {
+        if (empty($idsString)) {
+            return [];
+        }
+
+        return array_filter(
+            array_map('intval', explode(',', $idsString)),
+            fn($id) => $id > 0
+        );
+    }
+
+    /**
+     * الحصول على معلومات الموظفين من IDs
+     */
+    private function getEmployeesInfo(array $ids): array
+    {
+        if (empty($ids)) {
+            return [];
+        }
+
+        return User::whereIn('user_id', $ids)
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'user_id' => $user->user_id,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'full_name' => trim($user->first_name . ' ' . $user->last_name) ?: 'غير محدد',
+                    'email' => $user->email,
+                ];
+            })
+            ->toArray();
     }
 }

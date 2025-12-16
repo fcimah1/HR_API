@@ -257,4 +257,27 @@ class SuggestionService
 
         return $this->suggestionRepository->getComments($suggestionId);
     }
+
+    /**
+     * حذف تعليق من اقتراح
+     */
+    public function deleteComment(int $suggestionId, int $commentId, User $user): bool
+    {
+        // الحصول على معرف الشركة الفعلي
+        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+        // البحث عن التعليق
+        $comment = $this->suggestionRepository->findCommentById($commentId, $suggestionId, $effectiveCompanyId);
+
+        if (!$comment) {
+            throw new \Exception('التعليق غير موجود');
+        }
+
+        //  التحقق من أن المستخدم هو صاحب التعليق أو مدير الشركة او المستوى الاعلى منه hierercly_level
+        if ($comment->employee_id !== $user->user_id && $user->user_type !== 'company' && $user->hierarchy_level < $comment->employee->hierarchy_level) {
+            throw new \Exception('غير مسموح بحذف هذا التعليق', 403);
+        }
+
+        return $this->suggestionRepository->deleteComment($comment);
+    }
 }
