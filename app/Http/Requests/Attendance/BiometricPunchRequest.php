@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\Attendance;
 
+use App\Enums\PunchTypeEnum;
+use App\Enums\VerifyModeEnum;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
@@ -23,12 +26,12 @@ class BiometricPunchRequest extends FormRequest
     {
         return [
             'company_id' => 'required|integer|min:1',
-            'branch_id' => 'required|integer|min:0',
+            'branch_id' => 'required|integer|exists:ci_branchs,branch_id',
             'employee_id' => 'required|string|max:50',
             'punch_time' => 'required|date_format:Y-m-d H:i:s',
-            'verify_mode' => 'required|integer|in:0,1,2,3,4,15', // 0=Password, 1=Fingerprint, 2=Card, 3=Password+Fingerprint, 4=Card+Fingerprint, 15=Face
-            'punch_type' => 'required|integer|in:0,1,2,3,4,5,255', // 0=Check-In, 1=Check-Out, 2=Break Out, 3=Break In, 4=Overtime In, 5=Overtime Out, 255=Unspecified
-            'work_code' => 'nullable|integer|min:0', // Optional work/project code
+            'verify_mode' => ['required', 'integer', Rule::in(VerifyModeEnum::cases())], // use enum VerifyModeEnum
+            'punch_type' => ['required', 'integer', Rule::in(PunchTypeEnum::cases())], // use enum PunchTypeEnum
+            'work_code' => 'nullable|integer', // Optional work/project code
         ];
     }
 
@@ -42,6 +45,7 @@ class BiometricPunchRequest extends FormRequest
             'company_id.integer' => 'رقم الشركة يجب أن يكون رقم صحيح',
             'branch_id.required' => 'رقم الفرع مطلوب',
             'branch_id.integer' => 'رقم الفرع يجب أن يكون رقم صحيح',
+            'branch_id.exists' => 'رقم الفرع غير صحيح',
             'employee_id.required' => 'رقم الموظف مطلوب',
             'employee_id.string' => 'رقم الموظف يجب أن يكون نص',
             'employee_id.max' => 'رقم الموظف يجب أن يكون أقل من 50 حرف',

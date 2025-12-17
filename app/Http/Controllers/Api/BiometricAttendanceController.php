@@ -96,9 +96,24 @@ class BiometricAttendanceController extends Controller
      *                     @OA\Items(type="string", example="حقل رقم الموظف مطلوب")
      *                 ),
      *                 @OA\Property(
+     *                     property="branch_id",
+     *                     type="array",
+     *                     @OA\Items(type="string", example="حقل رقم الفرع مطلوب")
+     *                 ),
+     *                 @OA\Property(
      *                     property="punch_time",
      *                     type="array",
      *                     @OA\Items(type="string", example="صيغة وقت البصمة غير صحيحة")
+     *                 ),
+     *                 @OA\Property(
+     *                     property="verify_mode",
+     *                     type="array",
+     *                     @OA\Items(type="string", example="نوع التحقق غير صالح")
+     *                 ),
+     *                 @OA\Property(
+     *                     property="punch_type",
+     *                     type="array",
+     *                     @OA\Items(type="string", example="نوع البصمة غير صالح")
      *                 )
      *             )
      *         )
@@ -111,7 +126,7 @@ class BiometricAttendanceController extends Controller
             $result = $this->attendanceService->biometricPunch(
                 companyId: $request->company_id,
                 branchId: $request->branch_id,
-                employeeId: $request->employee_id,
+                employeeIdnum: $request->employee_id,
                 punchTime: $request->punch_time,
                 verifyMode: $request->verify_mode,
                 punchType: $request->punch_type,
@@ -120,7 +135,7 @@ class BiometricAttendanceController extends Controller
 
             Log::info('Biometric punch processed', [
                 'company_id' => $request->company_id,
-                'employee_id' => $request->employee_id,
+                'employee_idnum' => $request->employee_id,
                 'type' => $result['type'] ?? 'unknown',
                 'verify_mode' => $request->verify_mode,
                 'punch_type' => $request->punch_type,

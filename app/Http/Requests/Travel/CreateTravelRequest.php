@@ -8,6 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 /**
  * @OA\Schema(
@@ -49,8 +50,9 @@ class CreateTravelRequest extends FormRequest
             'end_date' => 'required|date|after_or_equal:start_date',
             'visit_purpose' => 'required|string|max:255',
             'visit_place' => 'required|string|max:255',
-            'travel_mode' => 'required|integer|in:' . implode(',', array_column(TravelModeEnum::toArray(), 'value')),
-            'arrangement_type' => 'required|integer|in:' . implode(',', Travel::getArrangementTypes()),
+            'travel_mode' => ['required', 'integer', Rule::in(TravelModeEnum::cases())],
+            // 'arrangement_type' => 'required|integer|in:' . implode(',', Travel::getArrangementTypes()),
+            'arrangement_type' => ['required', 'integer', Rule::in(Travel::getArrangementTypes())],
             'expected_budget' => 'required|numeric|min:0',
             'actual_budget' => 'required|numeric|min:0',
             'description' => 'nullable|string',
@@ -72,10 +74,10 @@ class CreateTravelRequest extends FormRequest
             'visit_place.max' => 'مكان الزيارة يجب أن يكون 255 حرفاً أو أقل.',
             'travel_mode.required' => 'وضع السفر مطلوب.',
             'travel_mode.integer' => 'وضع السفر يجب أن يكون رقماً.',
-            'travel_mode.in' => 'وضع السفر المحدد غير صالح.',
+            'travel_mode.in' => 'يجب أن يكون إجابة Travel Mode من القيم: ' . implode(',', array_map(fn($c) => $c->value, TravelModeEnum::cases())),
             'arrangement_type.required' => 'نوع ترتيب السفر مطلوب.',
             'arrangement_type.integer' => 'نوع ترتيب السفر يجب أن يكون رقماً.',
-            'arrangement_type.in' => 'نوع ترتيب السفر المحدد غير صالح.',
+            'arrangement_type.in' => 'نوع ترتيب السفر يجب أن يكون موجودا.',
             'expected_budget.required' => 'الميزانية المتوقعة مطلوبة.',
             'expected_budget.numeric' => 'الميزانية المتوقعة يجب أن تكون رقماً.',
             'expected_budget.min' => 'الميزانية المتوقعة يجب أن تكون 0 أو أكثر.',

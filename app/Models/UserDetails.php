@@ -130,15 +130,11 @@ class UserDetails extends Model
      * البحث عن الموظف باستخدام المفتاح المركب من جهاز البصمة
      * Find user by biometric composite key
      */
-    public function scopeByBiometricId($query, int $companyId, int $branchId, string $employeeId)
+    public function scopeByBiometricId($query, int $companyId, int $branchId, string $employeeIdnum)
     {
         $query->where('company_id', $companyId)
-            ->where('employee_id', $employeeId);
-
-        // إذا branch_id ليس صفر، نضيفه للبحث
-        if ($branchId > 0) {
-            $query->where('branch_id', $branchId);
-        }
+            ->where('branch_id', $branchId)
+            ->where('employee_idnum', $employeeIdnum);
 
         return $query;
     }

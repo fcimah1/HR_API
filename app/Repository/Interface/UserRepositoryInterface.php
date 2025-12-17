@@ -2,6 +2,8 @@
 
 namespace App\Repository\Interface;
 
+use App\Models\UserDetails;
+
 interface UserRepositoryInterface
 {
     /**
@@ -12,4 +14,6 @@ interface UserRepositoryInterface
      * @return array
      */
     public function getSubordinateEmployeeIds(int $managerId): array;
+
+    public function getUserByCompositeKey(int $companyId, int $branchId, string $employeeIdnum): ?UserDetails;
 }

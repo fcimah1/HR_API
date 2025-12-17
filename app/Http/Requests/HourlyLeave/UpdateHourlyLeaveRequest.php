@@ -10,6 +10,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class UpdateHourlyLeaveRequest extends FormRequest
 {
@@ -52,8 +53,8 @@ class UpdateHourlyLeaveRequest extends FormRequest
                 }
             ],
             'remarks' => 'nullable|string|max:1000',
-            'is_deducted' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, DeductedStatus::cases())),
-            'place' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, LeavePlaceEnum::cases())),
+            'is_deducted' => ['nullable', 'boolean', Rule::in(DeductedStatus::cases())],
+            'place' => ['nullable', 'boolean', Rule::in(LeavePlaceEnum::cases())],
         ];
     }
 
@@ -75,8 +76,12 @@ class UpdateHourlyLeaveRequest extends FormRequest
             'reason.min' => 'يجب أن يكون سبب الإستئذان 10 أحرف على الأقل',
             'reason.max' => 'لا يمكن أن يتجاوز سبب الإستئذان 1000 حرف',
             'duty_employee_id.exists' => 'الموظف البديل يجب أن يكون من نفس الشركة ونشط',
+            'is_deducted.in' => 'يجب أن يكون إجابة Deducted نعم أو لا',
+            'place.in' => 'يجب أن يكون إجابة مكان الإستئذان نعم أو لا',
         ];
     }
+    
+    
 
     /**
      * Configure the validator instance.
