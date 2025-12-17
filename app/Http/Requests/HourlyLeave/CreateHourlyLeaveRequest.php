@@ -9,6 +9,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class CreateHourlyLeaveRequest extends FormRequest
 {
@@ -79,8 +80,8 @@ class CreateHourlyLeaveRequest extends FormRequest
             'reason' => 'required|string',
             'remarks' => 'nullable|string|max:1000',
             'is_half_day' => 'nullable|boolean',
-            'is_deducted' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, DeductedStatus::cases())),
-            'place' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, LeavePlaceEnum::cases())),
+            'is_deducted' => ['nullable', 'boolean', Rule::in(DeductedStatus::cases())],
+            'place' => ['nullable', 'boolean', Rule::in(LeavePlaceEnum::cases())],
         ];
     }
 
@@ -104,11 +105,9 @@ class CreateHourlyLeaveRequest extends FormRequest
             'reason.required' => 'سبب الإستئذان مطلوب',
             'reason.max' => 'لا يمكن أن يتجاوز سبب الإستئذان 1000 حرف',
             'remarks.max' => 'لا يمكن أن يتجاوز الملاحظات 1000 حرف',
-            'is_half_day.boolean' => 'يجب أن يكون إجابة Half Day boolean',
-            'is_deducted.boolean' => 'يجب أن يكون إجابة Deducted boolean',
-            'place.boolean' => 'يجب أن يكون إجابة Place boolean',
-            'is_deducted.in' => 'يجب أن يكون إجابة Deducted من القيم: ' . implode(',', array_map(fn($c) => $c->value, DeductedStatus::cases())),
-            'place.in' => 'يجب أن يكون إجابة Place من القيم: ' . implode(',', array_map(fn($c) => $c->value, LeavePlaceEnum::cases())),
+            'is_half_day.boolean' => 'يجب أن يكون إجابة Half Day نعم أو لا',
+            'is_deducted.boolean' => 'يجب أن يكون إجابة Deducted نعم أو لا',
+            'place.boolean' => 'يجب أن يكون إجابة مكان الإستئذان نعم أو لا',
         ];
     }
 

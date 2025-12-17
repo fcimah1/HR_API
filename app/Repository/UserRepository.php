@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Models\User;
+use App\Models\UserDetails;
 use App\Repository\Interface\UserRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -43,5 +44,13 @@ class UserRepository implements UserRepositoryInterface
             ->toArray();
 
         return array_map('intval', $subordinates);
+    }
+
+    public function getUserByCompositeKey(int $companyId, int $branchId, string $employeeIdnum): ?UserDetails
+    {
+        return UserDetails::where('company_id', $companyId)
+            ->where('branch_id', $branchId)
+            ->where('employee_idnum', $employeeIdnum)
+            ->first();
     }
 }

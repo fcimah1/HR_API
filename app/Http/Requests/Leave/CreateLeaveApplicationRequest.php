@@ -11,6 +11,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 // No logging on validation failures to avoid noisy log output
 
@@ -95,8 +96,8 @@ class CreateLeaveApplicationRequest extends FormRequest
             ],
             'is_half_day' => 'nullable|boolean',
             'remarks' => 'nullable|string|max:1000',
-            'is_deducted' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, DeductedStatus::cases())),
-            'place' => 'nullable|boolean|in:' . implode(',', array_map(fn($c) => $c->value, LeavePlaceEnum::cases())),
+            'is_deducted' => ['nullable', 'boolean', Rule::in(DeductedStatus::cases())],
+            'place' => ['nullable', 'boolean', Rule::in(LeavePlaceEnum::cases())],
         ];
     }
     /**
@@ -114,8 +115,8 @@ class CreateLeaveApplicationRequest extends FormRequest
             'to_date.after_or_equal' => 'تاريخ نهاية الإجازة يجب أن يكون بعد أو يساوي تاريخ البداية',
             'reason.required' => 'سبب الإجازة مطلوب',
             'reason.max' => 'سبب الإجازة لا يجب أن يتجاوز 1000 حرف',
-            'is_deducted.in' => 'حالة الإجازة يجب أن تكون صحيحة',
-            'place.in' => 'مكان الإجازة يجب أن يكون صحيح'
+            'is_deducted.in' => 'يجب أن يكون إجابة Deducted من القيم: ' . implode(',', array_map(fn($c) => $c->value, DeductedStatus::cases())),
+            'place.in' => 'يجب أن يكون إجابة Place من القيم: ' . implode(',', array_map(fn($c) => $c->value, LeavePlaceEnum::cases())),
         ];
     }
 

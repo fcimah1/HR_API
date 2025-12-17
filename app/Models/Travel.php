@@ -60,7 +60,7 @@ class Travel extends Model
     }
 
     // get all arrangement types names
-    public function allArrangementTypeName()
+    public static function allArrangementTypeName(): array
     {
         return \App\Models\ErpConstant::where('type', 'travel_type')
             ->pluck('category_name', 'constants_id')
@@ -85,6 +85,9 @@ class Travel extends Model
             ->pluck('constants_id')
             ->toArray();
     }
+
+
+
 
     /**
      * Get the approvals for this travel request

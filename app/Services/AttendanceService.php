@@ -11,6 +11,7 @@ use App\Enums\PunchTypeEnum;
 use App\Enums\VerifyModeEnum;
 use App\Models\User;
 use App\Repository\Interface\AttendanceRepositoryInterface;
+use App\Repository\Interface\UserRepositoryInterface;
 use App\Services\SimplePermissionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +23,7 @@ class AttendanceService
         protected SimplePermissionService $permissionService,
         protected HolidayService $holidayService,
         protected NotificationService $notificationService,
+        protected UserRepositoryInterface $userRepository,
     ) {}
 
     /**
@@ -368,17 +370,17 @@ class AttendanceService
      * @param int|null $workCode كود العمل
      * @return array
      */
-    public function biometricPunch(int $companyId, int $branchId, string $employeeId, string $punchTime, ?int $verifyMode = null, ?int $punchType = null, ?int $workCode = null): array
+    public function biometricPunch(int $companyId, int $branchId, string $employeeIdnum, string $punchTime, ?int $verifyMode = null, ?int $punchType = null, ?int $workCode = null): array
     {
-        return DB::transaction(function () use ($companyId, $branchId, $employeeId, $punchTime, $verifyMode, $punchType, $workCode) {
+        return DB::transaction(function () use ($companyId, $branchId, $employeeIdnum, $punchTime, $verifyMode, $punchType, $workCode) {
             // 1. البحث عن الموظف باستخدام المفتاح المركب
-            $userDetails = \App\Models\UserDetails::byBiometricId($companyId, $branchId, $employeeId)->first();
+            $userDetails = $this->userRepository->getUserByCompositeKey($companyId, $branchId, $employeeIdnum);
 
             if (!$userDetails) {
                 Log::warning('Biometric punch - Employee not found', [
                     'company_id' => $companyId,
                     'branch_id' => $branchId,
-                    'employee_id' => $employeeId,
+                    'employee_idnum' => $employeeIdnum,
                 ]);
                 throw new \Exception('الموظف غير موجود في النظام');
             }
@@ -445,7 +447,7 @@ class AttendanceService
 
             $baseResponseData = [
                 'user_id' => $userId,
-                'employee_id' => $employeeId,
+                'employee_idnum' => $employeeIdnum,
                 'branch_id' => $branchId,
                 'punch_time' => $punchTime,
                 'verify_mode' => $verifyMode,
@@ -622,10 +624,10 @@ class AttendanceService
                     // التحديد التلقائي بناءً على حالة الحضور
                     if (!$attendance) {
                         // لا يوجد سجل = حضور
-                        return $this->biometricPunch($companyId, $branchId, $employeeId, $punchTime, $verifyMode, 0, $workCode);
+                        return $this->biometricPunch($companyId, $branchId, $employeeIdnum, $punchTime, $verifyMode, 0, $workCode);
                     } elseif (!$attendance->clock_out) {
                         // يوجد حضور بدون انصراف = انصراف
-                        return $this->biometricPunch($companyId, $branchId, $employeeId, $punchTime, $verifyMode, 1, $workCode);
+                        return $this->biometricPunch($companyId, $branchId, $employeeIdnum, $punchTime, $verifyMode, 1, $workCode);
                     } else {
                         throw new \Exception('تم تسجيل الحضور والانصراف لهذا اليوم بالفعل');
                     }

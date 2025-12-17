@@ -11,7 +11,7 @@
     "servers": [
         {
             "url": "http://127.0.0.1:8000",
-            "description": "Local Development Server // use for online documentation https://api.firstsoft.io"
+            "description": "Local Development Server"
         }
     ],
     "paths": {
@@ -2318,11 +2318,32 @@
                                                         "example": "حقل رقم الموظف مطلوب"
                                                     }
                                                 },
+                                                "branch_id": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "حقل رقم الفرع مطلوب"
+                                                    }
+                                                },
                                                 "punch_time": {
                                                     "type": "array",
                                                     "items": {
                                                         "type": "string",
                                                         "example": "صيغة وقت البصمة غير صحيحة"
+                                                    }
+                                                },
+                                                "verify_mode": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "نوع التحقق غير صالح"
+                                                    }
+                                                },
+                                                "punch_type": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "نوع البصمة غير صالح"
                                                     }
                                                 }
                                             },
