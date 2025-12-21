@@ -420,18 +420,16 @@ class OvertimeController extends Controller
             // Calculate request month
             $requestMonth = $this->calculationService->calculateRequestMonth($validated['request_date']);
 
-            $dto = new CreateOvertimeRequestDTO(
-                companyId: $companyId,
-                staffId: $staffId,
-                requestDate: $validated['request_date'],
-                requestMonth: $requestMonth,
-                clockIn: $clockIn24,
-                clockOut: $clockOut24,
-                overtimeReason: $request->overtime_reason, // Access merged integer value
-                additionalWorkHours: $validated['additional_work_hours'] ?? 0,
-                compensationType: $request->compensation_type, // Access merged integer value
-                requestReason: $validated['request_reason'] ?? null
-            );
+            // Prepare data for DTO with converted times
+            $dtoData = array_merge($validated, [
+                'company_id' => $companyId,
+                'staff_id' => $staffId,
+                'request_month' => $requestMonth,
+                'clock_in' => $clockIn24,
+                'clock_out' => $clockOut24,
+            ]);
+
+            $dto = CreateOvertimeRequestDTO::fromRequest($dtoData);
 
             $result = $this->overtimeService->createRequest($dto, $user);
 
@@ -505,16 +503,8 @@ class OvertimeController extends Controller
         try {
             $validated = $request->validated();
 
-            // Create DTO with merged integer values from request object
-            $dto = new UpdateOvertimeRequestDTO(
-                requestDate: $validated['request_date'],
-                clockIn: $validated['clock_in'],
-                clockOut: $validated['clock_out'],
-                overtimeReason: $request->overtime_reason, // Access merged integer value
-                additionalWorkHours: $validated['additional_work_hours'] ?? 0,
-                compensationType: $request->compensation_type, // Access merged integer value
-                requestReason: $validated['request_reason'] ?? null
-            );
+            // Use DTO fromRequest method to handle string enum conversion
+            $dto = UpdateOvertimeRequestDTO::fromRequest($validated);
             $result = $this->overtimeService->updateRequest($id, $dto, $user);
 
             Log::info('OvertimeController::update success', [

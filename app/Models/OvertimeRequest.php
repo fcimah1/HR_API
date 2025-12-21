@@ -48,7 +48,7 @@ class OvertimeRequest extends Model
         'company_id' => 'integer',
         'staff_id' => 'integer',
         'overtime_reason' => OvertimeReasonEnum::class,
-        'additional_work_hours' => 'integer',
+        'additional_work_hours' => 'float',
         'compensation_type' => CompensationTypeEnum::class,
         'is_approved' => 'integer',
     ];

@@ -11,21 +11,18 @@ class OvertimeRequestResponseDTO
         public readonly int $companyId,
         public readonly int $staffId,
         public readonly string $requestDate,
-        public readonly string $requestMonth,
         public readonly string $clockIn,
         public readonly string $clockOut,
         public readonly string $totalHours,
         public readonly ?string $requestReason,
         public readonly int $isApproved,
         public readonly string $statusText,
-        public readonly int $overtimeReason,
-        public readonly string $overtimeReasonText,
-        public readonly int $additionalWorkHours,
+        public readonly string $overtimeReason,
+        public readonly float $additionalWorkHours,
         public readonly ?string $straight,
         public readonly ?string $timeAHalf,
         public readonly ?string $doubleOvertime,
-        public readonly int $compensationType,
-        public readonly string $compensationTypeText,
+        public readonly string $compensationType,
         public readonly ?string $compensationBanked,
         public readonly string $createdAt,
         public readonly ?array $employee = null,
@@ -69,21 +66,18 @@ class OvertimeRequestResponseDTO
             companyId: $request->company_id,
             staffId: $request->staff_id,
             requestDate: $request->request_date,
-            requestMonth: $request->request_month,
-            clockIn: $request->clock_in,
-            clockOut: $request->clock_out,
+            clockIn: self::formatTimeTo12Hour($request->clock_in),
+            clockOut: self::formatTimeTo12Hour($request->clock_out),
             totalHours: $request->total_hours,
             requestReason: $request->request_reason,
             isApproved: $request->is_approved,
             statusText: $request->status_text,
-            overtimeReason: $request->overtime_reason->value, // Extract integer from enum
-            overtimeReasonText: $request->overtime_reason_text,
+            overtimeReason: $request->overtime_reason->name, // Return enum name as string
             additionalWorkHours: $request->additional_work_hours,
             straight: $request->straight,
             timeAHalf: $request->time_a_half,
             doubleOvertime: $request->double_overtime,
-            compensationType: $request->compensation_type->value, // Extract integer from enum
-            compensationTypeText: $request->compensation_type_text,
+            compensationType: $request->compensation_type->name, // Return enum name as string
             compensationBanked: $request->compensation_banked,
             createdAt: $request->created_at,
             employee: $employee,
@@ -101,7 +95,6 @@ class OvertimeRequestResponseDTO
             'company_id' => $this->companyId,
             'staff_id' => $this->staffId,
             'request_date' => $this->requestDate,
-            'request_month' => $this->requestMonth,
             'clock_in' => $this->clockIn,
             'clock_out' => $this->clockOut,
             'total_hours' => $this->totalHours,
@@ -109,18 +102,46 @@ class OvertimeRequestResponseDTO
             'is_approved' => $this->isApproved,
             'status_text' => $this->statusText,
             'overtime_reason' => $this->overtimeReason,
-            'overtime_reason_text' => $this->overtimeReasonText,
             'additional_work_hours' => $this->additionalWorkHours,
             'straight' => $this->straight,
             'time_a_half' => $this->timeAHalf,
             'double_overtime' => $this->doubleOvertime,
             'compensation_type' => $this->compensationType,
-            'compensation_type_text' => $this->compensationTypeText,
             'compensation_banked' => $this->compensationBanked,
             'created_at' => $this->createdAt,
             'employee' => $this->employee,
             'approvals' => $this->approvals,
         ];
+    }
+
+    /**
+     * Format time from 24h datetime format to 12h time format.
+     */
+    private static function formatTimeTo12Hour(string $time): string
+    {
+        // Handle both full datetime (2025-11-25 14:30:00) and time only (14:30:00) formats
+        if (strpos($time, ' ') !== false) {
+            // Full datetime format - extract time part
+            $timePart = explode(' ', $time)[1];
+        } else {
+            // Time only format
+            $timePart = $time;
+        }
+        
+        // Parse and format as 12h
+        try {
+            $carbon = \Carbon\Carbon::createFromFormat('H:i:s', $timePart);
+            return $carbon->format('g:i A');
+        } catch (\Exception $e) {
+            // Fallback - try parsing without seconds
+            try {
+                $carbon = \Carbon\Carbon::createFromFormat('H:i', $timePart);
+                return $carbon->format('g:i A');
+            } catch (\Exception $e2) {
+                // Return original if parsing fails
+                return $time;
+            }
+        }
     }
 }
 
