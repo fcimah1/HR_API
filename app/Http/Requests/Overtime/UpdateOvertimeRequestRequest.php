@@ -49,7 +49,7 @@ class UpdateOvertimeRequestRequest extends FormRequest
                     $fail('The selected overtime reason is invalid.');
                 }
             }],
-            'additional_work_hours' => ['nullable', 'integer', Rule::in([0, 1, 2, 3])],
+            'additional_work_hours' => ['nullable', 'numeric', 'min:0', 'max:24'],
             'compensation_type' => ['required', 'string', function ($attribute, $value, $fail) {
                 $validNames = array_column(CompensationTypeEnum::cases(), 'name');
                 if (!in_array($value, $validNames, true)) {
@@ -75,7 +75,8 @@ class UpdateOvertimeRequestRequest extends FormRequest
             'clock_out.after' => 'وقت النهاية يجب أن يكون بعد وقت البداية',
             'overtime_reason.required' => 'سبب العمل الإضافي مطلوب',
             'overtime_reason.in' => 'سبب العمل الإضافي غير صحيح',
-            'additional_work_hours.in' => 'نوع ساعات العمل الإضافية غير صحيح',
+            'additional_work_hours.min' => 'ساعات العمل الإضافية يجب أن تكون أكبر من أو تساوي 0',
+            'additional_work_hours.max' => 'ساعات العمل الإضافية يجب أن تكون أقل من أو تساوي 24',
             'compensation_type.required' => 'نوع التعويض مطلوب',
             'compensation_type.in' => 'نوع التعويض غير صحيح',
             'request_reason.max' => 'السبب يجب ألا يتجاوز 1000 حرف',
@@ -99,42 +100,27 @@ class UpdateOvertimeRequestRequest extends FormRequest
     }
 
     /**
-     * Handle a passed validation attempt - convert enum names to integer values
+     * Handle a passed validation attempt - validate ADDITIONAL_WORK_HOURS requirement
      */
     protected function passedValidation(): void
     {
-        // Convert enum names to their integer values for backward compatibility with DTOs/Services
         $validated = $this->validator->validated();
         
-        // Convert overtime_reason enum name to integer
-        if (isset($validated['overtime_reason']) && is_string($validated['overtime_reason'])) {
-            // Get enum by name (e.g., "STANDBY_PAY" -> OvertimeReasonEnum::STANDBY_PAY)
-            $overtimeEnum = constant(OvertimeReasonEnum::class . '::' . $validated['overtime_reason']);
-            $this->merge(['overtime_reason' => $overtimeEnum->value]);
+        // Additional validation: ADDITIONAL_WORK_HOURS requires additional_work_hours field
+        if (isset($validated['overtime_reason']) && $validated['overtime_reason'] === 'ADDITIONAL_WORK_HOURS' && $this->additional_work_hours === null) {
+            $this->validator->errors()->add(
+                'additional_work_hours',
+                'يجب تحديد نوع ساعات العمل الإضافية عند اختيار "عمل إضافي"'
+            );
             
-            // Additional validation: ADDITIONAL_WORK_HOURS requires additional_work_hours field
-            if ($overtimeEnum === OvertimeReasonEnum::ADDITIONAL_WORK_HOURS && $this->additional_work_hours === null) {
-                $this->validator->errors()->add(
-                    'additional_work_hours',
-                    'يجب تحديد نوع ساعات العمل الإضافية عند اختيار "عمل إضافي"'
-                );
-                
-                throw new \Illuminate\Validation\ValidationException(
-                    $this->validator,
-                    response()->json([
-                        'success' => false,
-                        'message' => 'يجب تحديد نوع ساعات العمل الإضافية عند اختيار "عمل إضافي"',
-                        'errors' => $this->validator->errors()
-                    ], 422)
-                );
-            }
-        }
-        
-        // Convert compensation_type enum name to integer
-        if (isset($validated['compensation_type']) && is_string($validated['compensation_type'])) {
-            // Get enum by name (e.g., "BANKED" -> CompensationTypeEnum::BANKED)
-            $compensationEnum = constant(CompensationTypeEnum::class . '::' . $validated['compensation_type']);
-            $this->merge(['compensation_type' => $compensationEnum->value]);
+            throw new \Illuminate\Validation\ValidationException(
+                $this->validator,
+                response()->json([
+                    'success' => false,
+                    'message' => 'يجب تحديد نوع ساعات العمل الإضافية عند اختيار "عمل إضافي"',
+                    'errors' => $this->validator->errors()
+                ], 422)
+            );
         }
     }
 }

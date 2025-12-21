@@ -114,7 +114,22 @@ class OvertimeService
             }
         }
 
-        return $this->overtimeRepository->getPaginatedRequests($modifiedFilters, $user);
+        $result = $this->overtimeRepository->getPaginatedRequests($modifiedFilters, $user);
+        
+        // Transform data using ResponseDTO for consistent format
+        $transformedData = collect($result['data'])->map(function ($request) {
+            return \App\DTOs\Overtime\OvertimeRequestResponseDTO::fromModel($request)->toArray();
+        })->toArray();
+        
+        return [
+            'data' => $transformedData,
+            'total' => $result['total'],
+            'per_page' => $result['per_page'],
+            'current_page' => $result['current_page'],
+            'last_page' => $result['last_page'],
+            'from' => $result['from'],
+            'to' => $result['to'],
+        ];
     }
 
     /**
@@ -173,7 +188,7 @@ class OvertimeService
             );
 
             // Check if it's a holiday (allow for weekend work reason)
-            if ($dto->overtimeReason != 4) {
+            if ($dto->overtimeReason !== \App\Enums\OvertimeReasonEnum::SALARIED_EMPLOYEE->value) {
                 $isHoliday = $this->calculationService->isHoliday($dto->companyId, $dto->requestDate);
                 if ($isHoliday) {
                     throw new \Exception('لا يمكن تقديم طلب عمل إضافي في يوم عطلة');
