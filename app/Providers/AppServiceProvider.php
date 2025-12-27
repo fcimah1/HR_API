@@ -52,15 +52,34 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Employee repository
         $this->app->singleton(EmployeeRepositoryInterface::class, EmployeeRepository::class);
+
+        // User repository
         $this->app->singleton(UserRepositoryInterface::class, UserRepository::class);
+
+        // Attendance repository
         $this->app->singleton(AttendanceRepositoryInterface::class, AttendanceRepository::class);
+
+        // Leave repository
         $this->app->singleton(LeaveRepositoryInterface::class, LeaveRepository::class);
+
+        // Leave Adjustment repository
         $this->app->singleton(LeaveAdjustmentRepositoryInterface::class, LeaveAdjustmentRepository::class);
+
+        // Advance Salary repository
         $this->app->singleton(AdvanceSalaryRepositoryInterface::class, AdvanceSalaryRepository::class);
+
+        // Overtime repository
         $this->app->singleton(OvertimeRepositoryInterface::class, OvertimeRepository::class);
+
+        // Travel repository
         $this->app->singleton(TravelRepositoryInterface::class, TravelRepository::class);
+
+        // Travel Type repository
         $this->app->bind(TravelTypeRepositoryInterface::class, TravelTypeRepository::class);
+
+        // Leave Type repository
         $this->app->bind(LeaveTypeRepositoryInterface::class, LeaveTypeRepository::class);
 
         // Notification repositories
@@ -86,9 +105,8 @@ class AppServiceProvider extends ServiceProvider
         // Transfer repository
         $this->app->singleton(TransferRepositoryInterface::class, TransferRepository::class);
 
-        if ($this->app->environment('local') && class_exists(TelescopeServiceProvider::class)) {
-            $this->app->register(TelescopeServiceProvider::class);
-        }
+        // Cache Service (Singleton)
+        $this->app->singleton(\App\Services\CacheService::class, \App\Services\CacheService::class);
     }
 
     /**
@@ -103,5 +121,11 @@ class AppServiceProvider extends ServiceProvider
             Passport::tokensExpireIn(now()->addMinutes(config('passport.token_expiration', 1440)));
             Passport::refreshTokensExpireIn(now()->addMinutes(config('passport.refresh_token_expiration', 20160)));
         }
+
+        // تسجيل Listener لفشل الـ Jobs
+        \Illuminate\Support\Facades\Event::listen(
+            \Illuminate\Queue\Events\JobFailed::class,
+            \App\Listeners\JobFailedListener::class
+        );
     }
 }

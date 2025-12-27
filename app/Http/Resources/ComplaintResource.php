@@ -19,10 +19,6 @@ class ComplaintResource extends JsonResource
         $complainAgainstIds = $this->getEmployeeIdsArray($this->complaint_against);
         $complainAgainstEmployees = $this->getEmployeesInfo($complainAgainstIds);
 
-        // تحويل notify_send_to من string إلى array من الموظفين
-        $notifySendToIds = $this->getEmployeeIdsArray($this->notify_send_to);
-        $notifySendToEmployees = $this->getEmployeesInfo($notifySendToIds);
-
         return [
             'complaint_id' => $this->complaint_id,
             'company_id' => $this->company_id,
@@ -32,8 +28,6 @@ class ComplaintResource extends JsonResource
             'complaint_against' => $this->complaint_against,
             'complaint_against_employees' => $complainAgainstEmployees,
             'description' => $this->description,
-            'notify_send_to' => $this->notify_send_to,
-            'notify_send_to_employees' => $notifySendToEmployees,
             'status' => $this->status,
             'status_text' => $this->status_text,
             'status_text_en' => $this->status_text_en,

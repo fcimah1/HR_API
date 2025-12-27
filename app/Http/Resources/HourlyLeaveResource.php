@@ -59,6 +59,8 @@ class HourlyLeaveResource extends JsonResource
                     'last_name' => $this->employee->last_name,
                     'email' => $this->employee->email,
                     'full_name' => $this->employee->full_name,
+                    'department' => $this->employee->user_details?->department?->name ?? null,
+                    'position' => $this->employee->user_details?->designation?->name ?? null,
                 ] : null;
             }),
             
@@ -70,6 +72,8 @@ class HourlyLeaveResource extends JsonResource
                     'last_name' => $this->dutyEmployee->last_name,
                     'email' => $this->dutyEmployee->email,
                     'full_name' => $this->dutyEmployee->full_name,
+                    'department' => $this->dutyEmployee->user_details?->department?->name ?? null,
+                    'position' => $this->dutyEmployee->user_details?->designation?->name ?? null,
                 ] : null;
             }),
             
@@ -78,9 +82,6 @@ class HourlyLeaveResource extends JsonResource
                 return $this->leaveType ? [
                     'constants_id' => $this->leaveType->constants_id,
                     'category_name' => $this->leaveType->category_name,
-                    'field_one' => $this->leaveType->field_one,
-                    'field_two' => $this->leaveType->field_two,
-                    'field_three' => $this->leaveType->field_three,
                 ] : null;
             }),
             
@@ -91,6 +92,8 @@ class HourlyLeaveResource extends JsonResource
                         'staff_approval_id' => $approval->staff_approval_id,
                         'staff_id' => $approval->staff_id,
                         'staff_name' => $approval->staff ? $approval->staff->full_name : null,
+                        'department' => $approval->user_details?->department?->name ?? null,
+                        'position' => $approval->user_details?->designation?->name ?? null,
                         'status' => $approval->status,
                         'approval_level' => $approval->approval_level,
                         'updated_at' => $approval->updated_at,

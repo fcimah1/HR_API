@@ -6,11 +6,16 @@ use App\DTOs\Transfer\CreateTransferDTO;
 use App\DTOs\Transfer\TransferFilterDTO;
 use App\DTOs\Transfer\ApproveRejectTransferDTO;
 use App\DTOs\Transfer\UpdateTransferDTO;
+use App\DTOs\Transfer\CompanyApprovalDTO;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Transfer\CreateTransferRequest;
+use App\Http\Requests\Transfer\CreateInternalTransferRequest;
+use App\Http\Requests\Transfer\CreateBranchTransferRequest;
+use App\Http\Requests\Transfer\CreateIntercompanyTransferRequest;
 use App\Http\Requests\Transfer\GetTransferRequest;
 use App\Http\Requests\Transfer\ApproveRejectTransferRequest;
-use App\Http\Requests\Transfer\UpdateTransferRequest;
+use App\Http\Requests\Transfer\UpdateInternalTransferRequest;
+use App\Http\Requests\Transfer\UpdateBranchTransferRequest;
+use App\Http\Requests\Transfer\UpdateIntercompanyTransferRequest;
 use App\Http\Resources\TransferResource;
 use App\Models\User;
 use App\Services\TransferService;
@@ -126,6 +131,24 @@ class TransferController extends Controller
      *                         type="object",
      *                         @OA\Property(property="user_id", type="integer", example=37),
      *                         @OA\Property(property="full_name", type="string", example="محمد أحمد")
+     *                     ),
+     *                     @OA\Property(
+     *                         property="approvals",
+     *                         type="array",
+     *                         @OA\Items(
+     *                             type="object",
+     *                             @OA\Property(property="status", type="integer", example=1),
+     *                             @OA\Property(property="approval_level", type="integer", example=1),
+     *                             @OA\Property(property="updated_at", type="string", format="date-time", example="2025-01-16 10:00:00"),
+     *                             @OA\Property(
+     *                                 property="staff",
+     *                                 type="object",
+     *                                 @OA\Property(property="user_id", type="integer", example=55),
+     *                                 @OA\Property(property="full_name", type="string", example="مدير القسم"),
+     *                                 @OA\Property(property="department", type="string", example="Department Name"),
+     *                                 @OA\Property(property="position", type="string", example="Manager")
+     *                             )
+     *                         )
      *                     )
      *                 )
      *             ),
@@ -208,10 +231,26 @@ class TransferController extends Controller
      *                 @OA\Property(property="status_text", type="string"),
      *                 @OA\Property(property="description", type="string"),
      *                 @OA\Property(
-     *                     property="employee",
-     *                     type="object",
      *                     @OA\Property(property="user_id", type="integer"),
      *                     @OA\Property(property="full_name", type="string")
+     *                 ),
+     *                 @OA\Property(
+     *                     property="approvals",
+     *                     type="array",
+     *                     @OA\Items(
+     *                         type="object",
+     *                         @OA\Property(property="status", type="integer", example=1),
+     *                         @OA\Property(property="approval_level", type="integer", example=1),
+     *                         @OA\Property(property="updated_at", type="string", format="date-time"),
+     *                         @OA\Property(
+     *                             property="staff",
+     *                             type="object",
+     *                             @OA\Property(property="user_id", type="integer"),
+     *                             @OA\Property(property="full_name", type="string"),
+     *                             @OA\Property(property="department", type="string"),
+     *                             @OA\Property(property="position", type="string")
+     *                         )
+     *                     )
      *                 )
      *             )
      *         )
@@ -257,24 +296,22 @@ class TransferController extends Controller
 
     /**
      * @OA\Post(
-     *     path="/api/transfers",
-     *     summary="Create a new transfer request",
-     *     description="إنشاء طلب نقل جديد - يدعم النقل الداخلي (تغيير القسم/المسمى)، النقل بين الفروع، والنقل بين الشركات",
+     *     path="/api/transfers/internal",
+     *     summary="Create a new internal transfer request",
      *     tags={"Transfer Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"employee_id", "transfer_date"},
-     *             @OA\Property(property="employee_id", type="integer", example=37, description="معرف الموظف المطلوب نقله - مطلوب"),
-     *             @OA\Property(property="transfer_date", type="string", format="date", example="2025-01-15", description="تاريخ النقل الفعلي - مطلوب"),
-     *             @OA\Property(property="transfer_type", type="string", enum={"internal", "branch", "intercompany"}, example="internal", description="نوع النقل: internal (داخلي)، branch (بين الفروع)، intercompany (بين الشركات)"),
-     *             @OA\Property(property="transfer_department", type="integer", example=10, description="القسم الجديد (للنقل الداخلي)"),
-     *             @OA\Property(property="transfer_designation", type="integer", example=20, description="المسمى الوظيفي الجديد (للنقل الداخلي)"),
-     *             @OA\Property(property="transfer_salary", type="number", example=5500, description="الراتب الجديد"),
-     *             @OA\Property(property="new_branch_id", type="integer", example=2, description="معرف الفرع الجديد (للنقل بين الفروع)"),
-     *             @OA\Property(property="new_company_id", type="integer", example=3, description="معرف الشركة الجديدة (للنقل بين الشركات)"),
-     *             @OA\Property(property="description", type="string", example="نقل بسبب إعادة الهيكلة", description="سبب/وصف النقل")
+     *             required={"employee_id", "transfer_date", "reason", "transfer_department", "transfer_designation", "new_salary", "new_currency"},
+     *             @OA\Property(property="employee_id", type="integer", example=1, description="Employee ID"),
+     *             @OA\Property(property="transfer_date", type="string", format="date", example="2024-01-01", description="Transfer Date"),
+     *             @OA\Property(property="reason", type="string", example="Promotion", description="Reason for transfer"),
+     *             @OA\Property(property="transfer_department", type="integer", example=10, description="New Department ID"),
+     *             @OA\Property(property="transfer_designation", type="integer", example=5, description="New Designation ID"),
+     *             @OA\Property(property="new_salary", type="number", example=5000, description="New Salary"),
+     *             @OA\Property(property="new_currency", type="integer", example=1, description="New Currency ID"),
+     *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User ID to notify (optional)")
      *         )
      *     ),
      *     @OA\Response(
@@ -308,12 +345,139 @@ class TransferController extends Controller
      *     @OA\Response(response=500, description="Server error - خطأ في الخادم")
      * )
      */
-    public function store(CreateTransferRequest $request)
+    public function storeInternal(CreateInternalTransferRequest $request)
+    {
+        return $this->processTransferRequest($request);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/transfers/branch",
+     *     summary="Create a new branch transfer request",
+     *     tags={"Transfer Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"employee_id", "transfer_date", "reason", "new_branch_id"},
+     *             @OA\Property(property="employee_id", type="integer", example=1, description="Employee ID"),
+     *             @OA\Property(property="transfer_date", type="string", format="date", example="2024-01-01", description="Transfer Date"),
+     *             @OA\Property(property="reason", type="string", example="Relocation", description="Reason for transfer"),
+     *             @OA\Property(property="new_branch_id", type="integer", example=3, description="New Branch ID"),
+     *             @OA\Property(property="new_currency", type="integer", example=1, description="New Currency ID"),
+     *             @OA\Property(property="new_salary", type="number", example=5000, description="New Salary"),
+     *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User ID to notify (optional)")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Transfer created successfully - تم إنشاء طلب النقل بنجاح",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم إنشاء طلب النقل بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthenticated - غير مصرح"),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Employee not found - الموظف غير موجود",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="الموظف غير موجود")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error - خطأ في التحقق",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=500, description="Server error - خطأ في الخادم")
+     * )
+     */
+    public function storeBranch(CreateBranchTransferRequest $request)
+    {
+        return $this->processTransferRequest($request);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/transfers/intercompany",
+     *     summary="Create a new intercompany transfer request",
+     *     tags={"Transfer Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"employee_id", "transfer_date", "reason", "new_company_id", "new_salary", "new_currency"},
+     *             @OA\Property(property="employee_id", type="integer", example=1, description="Employee ID"),
+     *             @OA\Property(property="transfer_date", type="string", format="date", example="2024-01-01", description="Transfer Date"),
+     *             @OA\Property(property="reason", type="string", example="New Opportunity", description="Reason for transfer"),
+     *             @OA\Property(property="new_company_id", type="integer", example=2, description="New Company ID"),
+     *             @OA\Property(property="new_salary", type="number", example=6000, description="New Salary"),
+     *             @OA\Property(property="new_currency", type="integer", example=1, description="New Currency ID"),
+     *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User ID to notify (optional)")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Transfer created successfully - تم إنشاء طلب النقل بنجاح",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم إنشاء طلب النقل بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthenticated - غير مصرح"),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Employee not found - الموظف غير موجود",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="الموظف غير موجود")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error - خطأ في التحقق",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=500, description="Server error - خطأ في الخادم")
+     * )
+     */
+    public function storeIntercompany(CreateIntercompanyTransferRequest $request)
+    {
+        return $this->processTransferRequest($request);
+    }
+
+    /**
+     * Helper method to process transfer requests
+     */
+    private function processTransferRequest($request)
     {
         try {
             $user = Auth::user();
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-            $employeeId = $request->validated()['employee_id'];
+
+            $data = $request->validated();
+            $data['transfer_type'] = $request->getTransferType();
+
+            // إضافة notify_send_to إلى البيانات
+            if ($request->has('notify_send_to')) {
+                $data['notify_send_to'] = $request->input('notify_send_to');
+            }
+
+            $employeeId = $data['employee_id'];
             $employee = User::find($employeeId);
             if (!$employee) {
                 return response()->json([
@@ -321,14 +485,13 @@ class TransferController extends Controller
                     'message' => 'الموظف غير موجود',
                 ], 404);
             }
-            Log::info('TransferController::store - Creating transfer', [
+
+            Log::info('TransferController::processTransferRequest - Creating transfer', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
+                'type' => $data['transfer_type']
             ]);
-            $data = $request->validated();
-            $data['old_salary'] = $data['old_salary'] ?? $employee->salary;
-            $data['old_designation'] = $data['old_designation'] ?? $employee->designation_id;
-            $data['old_department'] = $data['old_department'] ?? $employee->department_id;
+
             $dto = CreateTransferDTO::fromRequest(
                 $data,
                 $effectiveCompanyId,
@@ -336,13 +499,14 @@ class TransferController extends Controller
                 $user->user_id
             );
             $transfer = $this->transferService->createTransfer($dto);
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم إنشاء طلب النقل بنجاح',
                 'data' => new TransferResource($transfer),
             ], 201);
         } catch (\Exception $e) {
-            Log::error('TransferController::store - Error', ['error' => $e->getMessage()]);
+            Log::error('TransferController::processTransferRequest - Error', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'فشل في إنشاء طلب النقل',
@@ -353,25 +517,22 @@ class TransferController extends Controller
 
     /**
      * @OA\Put(
-     *     path="/api/transfers/{id}",
-     *     summary="Update a transfer request",
-     *     description="تحديث طلب نقل - يمكن فقط تعديل الطلبات المعلقة",
+     *     path="/api/transfers/internal/{id}",
+     *     summary="Update an internal transfer request",
      *     tags={"Transfer Management"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         required=true,
-     *         description="Transfer ID - معرف طلب النقل",
-     *         @OA\Schema(type="integer")
-     *     ),
+     *     @OA\Parameter(name="id", in="path", required=true, description="Transfer ID", @OA\Schema(type="integer")),
      *     @OA\RequestBody(
+     *         required=true,
      *         @OA\JsonContent(
-     *             @OA\Property(property="transfer_date", type="string", format="date", example="2025-01-20", description="تاريخ النقل الجديد"),
-     *             @OA\Property(property="transfer_department", type="integer", example=15, description="القسم الجديد"),
-     *             @OA\Property(property="transfer_designation", type="integer", example=25, description="المسمى الوظيفي الجديد"),
-     *             @OA\Property(property="transfer_salary", type="number", example=6000, description="الراتب الجديد"),
-     *             @OA\Property(property="description", type="string", example="وصف معدل", description="السبب/الوصف الجديد")
+     *             @OA\Property(property="employee_id", type="integer", example=1, description="Employee ID"),
+     *             @OA\Property(property="transfer_date", type="string", format="date", example="2024-01-01", description="Transfer Date"),
+     *             @OA\Property(property="reason", type="string", example="Reason", description="Reason"),
+     *             @OA\Property(property="transfer_department", type="integer", example=10, description="New Department ID"),
+     *             @OA\Property(property="transfer_designation", type="integer", example=5, description="New Designation ID"),
+     *             @OA\Property(property="new_salary", type="number", example=5000, description="New Salary"),
+     *             @OA\Property(property="new_currency", type="integer", example=1, description="New Currency ID"),
+     *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User IDs to notify")
      *         )
      *     ),
      *     @OA\Response(
@@ -391,7 +552,97 @@ class TransferController extends Controller
      *     @OA\Response(response=500, description="Server error - خطأ في الخادم")
      * )
      */
-    public function update(int $id, UpdateTransferRequest $request)
+    public function updateInternal(int $id, UpdateInternalTransferRequest $request)
+    {
+        return $this->processUpdateTransferRequest($id, $request);
+    }
+
+    /**
+     * @OA\Put(
+     *     path="/api/transfers/branch/{id}",
+     *     summary="Update a branch transfer request",
+     *     tags={"Transfer Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, description="Transfer ID", @OA\Schema(type="integer")),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="employee_id", type="integer", example=1, description="Employee ID"),
+     *             @OA\Property(property="transfer_date", type="string", format="date", example="2024-01-01", description="Transfer Date"),
+     *             @OA\Property(property="reason", type="string", example="Reason", description="Reason"),
+     *             @OA\Property(property="new_branch_id", type="integer", example=3, description="New Branch ID"),
+     *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User IDs to notify"),
+     *             @OA\Property(property="new_salary", type="number", example=5000, description="New Salary"),
+     *             @OA\Property(property="new_currency", type="integer", example=1, description="New Currency ID"),
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Transfer updated successfully - تم تحديث طلب النقل بنجاح",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تحديث طلب النقل بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=400, description="Cannot update processed transfer - لا يمكن تعديل طلب تمت معالجته"),
+     *     @OA\Response(response=401, description="Unauthenticated - غير مصرح"),
+     *     @OA\Response(response=403, description="Forbidden - ليس لديك صلاحية"),
+     *     @OA\Response(response=404, description="Not found - غير موجود"),
+     *     @OA\Response(response=500, description="Server error - خطأ في الخادم")
+     * )
+     */
+    public function updateBranch(int $id, UpdateBranchTransferRequest $request)
+    {
+        return $this->processUpdateTransferRequest($id, $request);
+    }
+
+    /**
+     * @OA\Put(
+     *     path="/api/transfers/intercompany/{id}",
+     *     summary="Update an intercompany transfer request",
+     *     tags={"Transfer Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, description="Transfer ID", @OA\Schema(type="integer")),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="employee_id", type="integer", example=1, description="Employee ID"),
+     *             @OA\Property(property="transfer_date", type="string", format="date", example="2024-01-01", description="Transfer Date"),
+     *             @OA\Property(property="reason", type="string", example="Reason", description="Reason"),
+     *             @OA\Property(property="new_company_id", type="integer", example=2, description="New Company ID"),
+     *             @OA\Property(property="new_salary", type="number", example=6000, description="New Salary"),
+     *             @OA\Property(property="new_currency", type="integer", example=1, description="New Currency ID"),
+     *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User IDs to notify")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Transfer updated successfully - تم تحديث طلب النقل بنجاح",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تحديث طلب النقل بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=400, description="Cannot update processed transfer - لا يمكن تعديل طلب تمت معالجته"),
+     *     @OA\Response(response=401, description="Unauthenticated - غير مصرح"),
+     *     @OA\Response(response=403, description="Forbidden - ليس لديك صلاحية"),
+     *     @OA\Response(response=404, description="Not found - غير موجود"),
+     *     @OA\Response(response=500, description="Server error - خطأ في الخادم")
+     * )
+     */
+    public function updateIntercompany(int $id, UpdateIntercompanyTransferRequest $request)
+    {
+        return $this->processUpdateTransferRequest($id, $request);
+    }
+
+    /**
+     * Helper method to process update transfer requests
+     */
+    private function processUpdateTransferRequest(int $id, $request)
     {
         try {
             $user = Auth::user();
@@ -446,7 +697,7 @@ class TransferController extends Controller
             $user = Auth::user();
             Log::info('TransferController::destroy - Deleting transfer', ['transfer_id' => $id, 'user_id' => $user->user_id]);
             $this->transferService->deleteTransfer($id, $user);
-            return response()->json(['success' => true, 'message' => 'تم حذف طلب النقل بنجاح']);
+            return response()->json(['success' => true, 'message' => 'تم إلغاء طلب النقل بنجاح']);
         } catch (\Exception $e) {
             Log::error('TransferController::destroy - Error', ['transfer_id' => $id, 'error' => $e->getMessage()]);
             $statusCode = str_contains($e->getMessage(), 'غير موجود') ? 404 : (str_contains($e->getMessage(), 'صلاحية') ? 403 : (str_contains($e->getMessage(), 'معالجته') ? 400 : 500));
@@ -525,6 +776,212 @@ class TransferController extends Controller
     }
 
     /**
+     * @OA\Post(
+     *     path="/api/transfers/{id}/approve-current-company",
+     *     summary="Approve or reject transfer by current company",
+     *     description="موافقة أو رفض النقل من قبل الشركة الحالية (للنقل بين الشركات فقط)",
+     *     tags={"Transfer Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Transfer ID - معرف طلب النقل",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"action"},
+     *             @OA\Property(property="action", type="string", enum={"approve", "reject"}, example="approve"),
+     *             @OA\Property(property="remarks", type="string", example="موافق على النقل")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Transfer processed successfully - تم معالجة طلب النقل بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تمت الموافقة من قبل الشركة الحالية"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=400, description="Already processed - تمت المعالجة مسبقاً"),
+     *     @OA\Response(response=403, description="Forbidden - ليس لديك صلاحية"),
+     *     @OA\Response(response=404, description="Not found - غير موجود")
+     * )
+     */
+    public function approveByCurrentCompany(int $id, ApproveRejectTransferRequest $request)
+    {
+        try {
+            $user = Auth::user();
+            $dto = CompanyApprovalDTO::fromRequest([
+                'action' => $request->input('action'),
+                'approval_type' => 'current_company',
+                'approved_by' => $user->user_id,
+                'remarks' => $request->input('remarks'),
+            ]);
+            $transfer = $this->transferService->approveByCurrentCompany($id, $dto);
+            $actionMessage = $dto->isApprove()
+                ? 'تمت الموافقة من قبل الشركة الحالية'
+                : 'تم رفض النقل من قبل الشركة الحالية';
+
+            return response()->json([
+                'success' => true,
+                'message' => $actionMessage,
+                'data' => new TransferResource($transfer),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('TransferController::approveByCurrentCompany - Error', [
+                'transfer_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            $statusCode = str_contains($e->getMessage(), 'غير موجود') ? 404
+                : (str_contains($e->getMessage(), 'صلاحية') ? 403
+                    : (str_contains($e->getMessage(), 'مسبقاً') ? 400 : 500));
+
+            return response()->json(['success' => false, 'message' => $e->getMessage()], $statusCode);
+        }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/transfers/{id}/approve-new-company",
+     *     summary="Approve or reject transfer by new company",
+     *     description="موافقة أو رفض النقل من قبل الشركة الجديدة (للنقل بين الشركات فقط) - يتم التحقق من المتطلبات تلقائياً",
+     *     tags={"Transfer Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Transfer ID - معرف طلب النقل",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"action"},
+     *             @OA\Property(property="action", type="string", enum={"approve", "reject"}, example="approve"),
+     *             @OA\Property(property="remarks", type="string", example="موافق على استقبال الموظف")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Transfer processed successfully - تم معالجة طلب النقل بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تمت الموافقة النهائية وتم تنفيذ النقل"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Validation failed - متطلبات غير مستوفاة",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="لا يمكن الموافقة - الموظف لديه متطلبات غير مستوفاة"),
+     *             @OA\Property(
+     *                 property="blockers",
+     *                 type="object",
+     *                 description="تفاصيل المتطلبات غير المستوفاة",
+     *                 @OA\Property(
+     *                     property="active_leaves",
+     *                     type="object",
+     *                     @OA\Property(property="message", type="string", example="لديه إجازات نشطة"),
+     *                     @OA\Property(property="count", type="integer", example=1)
+     *                 ),
+     *                 @OA\Property(
+     *                     property="active_advances",
+     *                     type="object",
+     *                     @OA\Property(property="message", type="string", example="لديه سلف غير مسددة"),
+     *                     @OA\Property(property="count", type="integer", example=2)
+     *                 ),
+     *                 @OA\Property(
+     *                     property="unreturned_custody",
+     *                     type="object",
+     *                     @OA\Property(property="message", type="string", example="لديه عهد غير مرتجعة"),
+     *                     @OA\Property(property="count", type="integer", example=3)
+     *                 )
+     *             ),
+     *             @OA\Property(
+     *                 property="validations",
+     *                 type="object",
+     *                 description="تفاصيل الفحوصات مع العناصر",
+     *                 @OA\Property(
+     *                     property="active_leaves",
+     *                     type="object",
+     *                     @OA\Property(property="passed", type="boolean", example=false),
+     *                     @OA\Property(property="count", type="integer", example=1),
+     *                     @OA\Property(property="items", type="array", @OA\Items(type="object"))
+     *                 ),
+     *                 @OA\Property(
+     *                     property="active_advances",
+     *                     type="object",
+     *                     @OA\Property(property="passed", type="boolean", example=true),
+     *                     @OA\Property(property="count", type="integer", example=0),
+     *                     @OA\Property(property="items", type="array", @OA\Items(type="object"))
+     *                 ),
+     *                 @OA\Property(
+     *                     property="unreturned_custody",
+     *                     type="object",
+     *                     @OA\Property(property="passed", type="boolean", example=true),
+     *                     @OA\Property(property="count", type="integer", example=0),
+     *                     @OA\Property(property="items", type="array", @OA\Items(type="object"))
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Forbidden - ليس لديك صلاحية"),
+     *     @OA\Response(response=404, description="Not found - غير موجود")
+     * )
+     */
+    public function approveByNewCompany(int $id, ApproveRejectTransferRequest $request)
+    {
+        try {
+            $user = Auth::user();
+            $dto = CompanyApprovalDTO::fromRequest([
+                'action' => $request->input('action'),
+                'approval_type' => 'new_company',
+                'approved_by' => $user->user_id,
+                'remarks' => $request->input('remarks'),
+            ]);
+            $transfer = $this->transferService->approveByNewCompany($id, $dto);
+            $actionMessage = $dto->isApprove()
+                ? 'تمت الموافقة النهائية وتم تنفيذ النقل'
+                : 'تم رفض النقل من قبل الشركة الجديدة';
+
+            return response()->json([
+                'success' => true,
+                'message' => $actionMessage,
+                'data' => new TransferResource($transfer),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('TransferController::approveByNewCompany - Error', [
+                'transfer_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            // تحقق إذا كانت الرسالة تحتوي على تفاصيل validation
+            $errorData = json_decode($e->getMessage(), true);
+            if (json_last_error() === JSON_ERROR_NONE && isset($errorData['blockers'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorData['message'],
+                    'blockers' => $errorData['blockers'],
+                    'validations' => $errorData['validations'],
+                ], 400);
+            }
+
+            $statusCode = str_contains($e->getMessage(), 'غير موجود') ? 404
+                : (str_contains($e->getMessage(), 'صلاحية') ? 403
+                    : (str_contains($e->getMessage(), 'مسبقاً') || str_contains($e->getMessage(), 'متطلبات') ? 400 : 500));
+
+            return response()->json(['success' => false, 'message' => $e->getMessage()], $statusCode);
+        }
+    }
+
+    /**
      * @OA\Get(
      *     path="/api/transfers/statuses",
      *     summary="Get transfer statuses",
@@ -560,6 +1017,158 @@ class TransferController extends Controller
             return response()->json(['success' => true, 'message' => 'تم جلب الحالات بنجاح', 'data' => $statuses]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'حدث خطأ أثناء جلب الحالات'], 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/transfers/available-companies",
+     *     summary="Get available companies for transfer",
+     *     description="الحصول على قائمة الشركات المتاحة للنقل إليها",
+     *     tags={"Transfer Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Companies retrieved successfully - تم جلب الشركات بنجاح",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب الشركات المتاحة بنجاح"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="company_id", type="integer", example=1),
+     *                     @OA\Property(property="company_name", type="string", example="شركة الأولى"),
+     *                     @OA\Property(property="branches", type="array", @OA\Items(type="object", @OA\Property(property="branch_id", type="integer", example=1), @OA\Property(property="branch_name", type="string", example="فرع الأولى")))
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="unauthenticated - غير مصرح"),
+     *     @OA\Response(response=500, description="internal server error - خطأ في الخادم")
+     * )
+     */
+
+    public function getCompaniesWithBranches()
+    {
+        try {
+            // استخدام الـ Repository بدلاً من الاستعلام المباشر
+            $companies = $this->transferService->getCompaniesWithBranches();
+
+            return response()->json([
+                'success' => true,
+                'data' => $companies
+            ]);
+        } catch (\Exception $e) {
+            Log::error('TransferController::getCompaniesWithBranches - Error', [
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء جلب الشركات مع الفروع'
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/transfers/{id}/pre-transfer-validation",
+     *     summary="Validate employee eligibility for transfer",
+     *     description="التحقق من أهلية الموظف للنقل - يتحقق من الإجازات النشطة، السلف، والعهد غير المرجعة",
+     *     tags={"Transfer Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Transfer ID - معرف طلب النقل",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Validation completed - تم التحقق بنجاح",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم التحقق من المتطلبات بنجاح"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="can_transfer", type="boolean", example=false),
+     *                 @OA\Property(
+     *                     property="validations",
+     *                     type="object",
+     *                     @OA\Property(
+     *                         property="active_leaves",
+     *                         type="object",
+     *                         @OA\Property(property="passed", type="boolean", example=false),
+     *                         @OA\Property(property="count", type="integer", example=2),
+     *                         @OA\Property(property="items", type="array", @OA\Items(type="object"))
+     *                     ),
+     *                     @OA\Property(
+     *                         property="active_advances",
+     *                         type="object",
+     *                         @OA\Property(property="passed", type="boolean", example=false),
+     *                         @OA\Property(property="count", type="integer", example=1),
+     *                         @OA\Property(property="items", type="array", @OA\Items(type="object"))
+     *                     ),
+     *                     @OA\Property(
+     *                         property="unreturned_custody",
+     *                         type="object",
+     *                         @OA\Property(property="passed", type="boolean", example=true),
+     *                         @OA\Property(property="count", type="integer", example=0),
+     *                         @OA\Property(property="items", type="array", @OA\Items(type="object"))
+     *                     )
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthenticated - غير مصرح"),
+     *     @OA\Response(response=404, description="Transfer not found - طلب النقل غير موجود"),
+     *     @OA\Response(response=500, description="Server error - خطأ في الخادم")
+     * )
+     */
+    public function getPreTransferValidation(int $id)
+    {
+        try {
+            $user = Auth::user();
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $transfer = $this->transferService->getTransferById($id, $effectiveCompanyId, null, $user);
+
+            if (!$transfer) {
+                Log::error('TransferController::getPreTransferValidation - Transfer not found', [
+                    'transfer_id' => $id,
+                    'message' => 'طلب النقل غير موجود',
+                    'user_id' => $user->user_id,
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'طلب النقل غير موجود',
+                ], 404);
+            }
+
+            $validation = $this->transferService->validatePreTransferRequirements($transfer->employee_id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم التحقق من المتطلبات بنجاح',
+                'data' => $validation,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('TransferController::getPreTransferValidation - Error', [
+                'transfer_id' => $id,
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء التحقق من المتطلبات',
+                'user_id' => $user->user_id,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء التحقق من المتطلبات',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
 }

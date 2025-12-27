@@ -9,7 +9,6 @@ class UpdateLeaveAdjustmentDTO
         public readonly ?string $adjustHours = null,
         public readonly ?string $reasonAdjustment = null,
         public readonly ?string $adjustmentDate = null,
-        public readonly ?int $dutyEmployeeId = null
     ) {}
 
     public static function fromRequest(array $data): self
@@ -19,7 +18,6 @@ class UpdateLeaveAdjustmentDTO
             adjustHours: $data['adjust_hours'] ?? null,
             reasonAdjustment: $data['reason_adjustment'] ?? null,
             adjustmentDate: $data['adjustment_date'] ?? null,
-            dutyEmployeeId: $data['duty_employee_id'] ?? null
         );
     }
 
@@ -43,9 +41,6 @@ class UpdateLeaveAdjustmentDTO
             $data['adjustment_date'] = $this->adjustmentDate;
         }
 
-        if ($this->dutyEmployeeId !== null) {
-            $data['duty_employee_id'] = $this->dutyEmployeeId;
-        }
 
         return $data;
     }

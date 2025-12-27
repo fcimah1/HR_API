@@ -25,7 +25,6 @@ class UpdateComplaintRequest extends FormRequest
         return [
             'title' => 'required|string|max:255',
             'complaint_date' => 'required|date|before_or_equal:today',
-            'complaint_against' => ['nullable', 'string', 'max:255', new \App\Rules\CanRequestForEmployee()],
             'description' => 'nullable|string',
         ];
     }
@@ -37,7 +36,6 @@ class UpdateComplaintRequest extends FormRequest
     {
         return [
             'title.max' => 'عنوان الشكوى يجب ألا يتجاوز 255 حرف',
-            'complaint_against.max' => 'يجب ألا يتجاوز معرفات الأشخاص المشتكى عليهم (مفصولة بفاصلة) 255 حرف',
             'description.max' => 'يجب ألا يتجاوز معرفات الأشخاص المشتكى عليهم (مفصولة بفاصلة) 255 حرف',
             'title.required' => 'عنوان الشكوى مطلوب',
             'complaint_date.date' => 'تنسيق تاريخ الشكوى غير صحيح',

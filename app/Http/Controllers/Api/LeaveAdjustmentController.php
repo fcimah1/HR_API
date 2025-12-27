@@ -29,11 +29,9 @@ class LeaveAdjustmentController extends Controller
 {
     public $simplePermissionService;
     public function __construct(
-        private readonly LeaveAdjustmentService $leaveService,
+        private readonly LeaveAdjustmentService $leaveAdjustmentService,
         private readonly SimplePermissionService $permissionService,
         private readonly LeaveService $leaveServices,
-
-
     ) {
         $this->simplePermissionService = $permissionService;
     }
@@ -97,7 +95,6 @@ class LeaveAdjustmentController extends Controller
      *                     @OA\Property(property="adjustment_id", type="integer", example=501),
      *                     @OA\Property(property="company_id", type="integer", example=36),
      *                     @OA\Property(property="employee_id", type="integer", example=37),
-     *                     @OA\Property(property="duty_employee_id", type="integer", nullable=true, example=118),
      *                     @OA\Property(property="leave_type_id", type="integer", example=323),
      *                     @OA\Property(property="adjust_hours", type="number", format="float", example=8.0),
      *                     @OA\Property(property="reason_adjustment", type="string", example="تسوية رصيد سنوية"),
@@ -110,14 +107,6 @@ class LeaveAdjustmentController extends Controller
      *                         @OA\Property(property="user_id", type="integer", example=37),
      *                         @OA\Property(property="full_name", type="string", example="محمد أحمد"),
      *                         @OA\Property(property="email", type="string", example="m.ahmed@example.com")
-     *                     ),
-     *                     @OA\Property(
-     *                         property="dutyEmployee",
-     *                         type="object",
-     *                         nullable=true,
-     *                         @OA\Property(property="user_id", type="integer", example=118),
-     *                         @OA\Property(property="full_name", type="string", example="خالد سالم"),
-     *                         @OA\Property(property="email", type="string", example="k.salem@example.com")
      *                     ),
      *                     @OA\Property(
      *                         property="leaveType",
@@ -203,7 +192,7 @@ class LeaveAdjustmentController extends Controller
             }
 
             $filters = LeaveAdjustmentFilterDTO::fromRequest($request->all());
-            $result = $this->leaveService->getPaginatedAdjustments($filters, $user);
+            $result = $this->leaveAdjustmentService->getPaginatedAdjustments($filters, $user);
 
             return response()->json([
                 'success' => true,
@@ -239,8 +228,7 @@ class LeaveAdjustmentController extends Controller
      *             @OA\Property(property="leave_type_id", type="integer", example=1),
      *             @OA\Property(property="adjust_hours", type="string", example="8"),
      *             @OA\Property(property="reason_adjustment", type="string", example="تسوية إجازة متراكمة"),
-     *             @OA\Property(property="adjustment_date", type="string", format="date", example="2025-11-15"),
-     *             @OA\Property(property="duty_employee_id", type="integer", example=25)
+     *             @OA\Property(property="adjustment_date", type="string", format="date", example="2025-11-15")
      *         )
      *     ),
      *     @OA\Response(
@@ -326,7 +314,7 @@ class LeaveAdjustmentController extends Controller
                 $validated['employee_id'] ?? $user->user_id
             );
 
-            $adjustment = $this->leaveService->createAdjust($dto);
+            $adjustment = $this->leaveAdjustmentService->createAdjust($dto);
 
             return response()->json([
                 'success' => true,
@@ -400,7 +388,7 @@ class LeaveAdjustmentController extends Controller
             }
 
             // التحقق من وجود التسوية والصلاحيات الهرمية
-            $adjustment = $this->leaveService->showLeaveAdjustment($id, $effectiveCompanyId);
+            $adjustment = $this->leaveAdjustmentService->showLeaveAdjustment($id, $effectiveCompanyId);
             if (!$adjustment) {
                 return response()->json([
                     'success' => false,
@@ -422,7 +410,7 @@ class LeaveAdjustmentController extends Controller
             $action = $request->input('action'); // approve or reject
 
             if ($action === 'approve') {
-                $adjustment = $this->leaveService->approveAdjustment(
+                $adjustment = $this->leaveAdjustmentService->approveAdjustment(
                     $id,
                     $effectiveCompanyId,
                     $user->user_id
@@ -438,7 +426,7 @@ class LeaveAdjustmentController extends Controller
                 // رفض التسوية
                 $remarks = $request->input('remarks', 'تم رفض الطلب');
 
-                $adjustment = $this->leaveService->rejectAdjustment(
+                $adjustment = $this->leaveAdjustmentService->rejectAdjustment(
                     $id,
                     $effectiveCompanyId,
                     $user->user_id,
@@ -488,8 +476,7 @@ class LeaveAdjustmentController extends Controller
      *             @OA\Property(property="leave_type_id", type="integer", example=323),
      *             @OA\Property(property="adjust_hours", type="string", example="8"),
      *             @OA\Property(property="reason_adjustment", type="string", example="تحديث سبب التسوية"),
-     *             @OA\Property(property="adjustment_date", type="string", format="date", example="2025-12-01"),
-     *             @OA\Property(property="duty_employee_id", type="integer", example=37)
+     *             @OA\Property(property="adjustment_date", type="string", format="date", example="2025-12-01")
      *         )
      *     ),
      *     @OA\Response(
@@ -533,7 +520,7 @@ class LeaveAdjustmentController extends Controller
             }
 
             $dto = UpdateLeaveAdjustmentDTO::fromRequest($request->validated());
-            $adjustment = $this->leaveService->updateAdjustment($id, $dto, $user);
+            $adjustment = $this->leaveAdjustmentService->updateAdjustment($id, $dto, $user);
 
             return response()->json([
                 'success' => true,
@@ -601,7 +588,7 @@ class LeaveAdjustmentController extends Controller
                 ], 403);
             }
 
-            $this->leaveService->cancelAdjustment($id, $user);
+            $this->leaveAdjustmentService->cancelAdjustment($id, $user);
 
             return response()->json([
                 'success' => true,
@@ -699,7 +686,7 @@ class LeaveAdjustmentController extends Controller
                 ], 403);
             }
 
-            $adjustment = $this->leaveService->showLeaveAdjustment($id, $effectiveCompanyId, $user);
+            $adjustment = $this->leaveAdjustmentService->showLeaveAdjustment($id, $effectiveCompanyId, $user);
 
             return response()->json([
                 'success' => true,
@@ -722,7 +709,7 @@ class LeaveAdjustmentController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/api/leave-adjustments/enums",
+     *     path="/api/leaves/adjustments/enums",
      *     summary="Get leave enums as string and numeric values",
      *     tags={"Leave Adjustments"},
      *     security={{"bearerAuth":{}}},
@@ -741,11 +728,11 @@ class LeaveAdjustmentController extends Controller
     public function getLeaveAdjustmentsEnums()
     {
         try {
-            $enums = $this->leaveServices->getLeaveEnums();
+            $enums = $this->leaveAdjustmentService->getLeaveEnums();
 
             return response()->json([
                 'success' => true,
-                'message' => 'تم جلب قوائم حالات الإجازات بنجاح',
+                'message' => 'تم جلب قوائم حالات التسوية بنجاح',
                 'data' => $enums
             ]);
         } catch (\Exception $e) {

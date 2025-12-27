@@ -12,9 +12,14 @@ use App\Repository\Interface\ResignationRepositoryInterface;
 use App\Services\SimplePermissionService;
 use App\Services\NotificationService;
 use App\Enums\StringStatusEnum;
+use App\Jobs\SendEmailNotificationJob;
+use App\Mail\Resignation\ResignationSubmitted;
+use App\Mail\Resignation\ResignationApproved;
+use App\Mail\Resignation\ResignationRejected;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
 
 class ResignationService
 {
@@ -22,6 +27,7 @@ class ResignationService
         protected ResignationRepositoryInterface $resignationRepository,
         protected SimplePermissionService $permissionService,
         protected NotificationService $notificationService,
+        protected CacheService $cacheService,
     ) {}
 
     /**
@@ -80,6 +86,10 @@ class ResignationService
         $user = $user ?? Auth::user();
 
         if (is_null($companyId) && is_null($userId)) {
+            Log::info('ResignationService::getResignationById - Invalid arguments', [
+                'id' => $id,
+                'message' => 'Invalid arguments'
+            ]);
             throw new \InvalidArgumentException('يجب توفير معرف الشركة أو معرف المستخدم');
         }
 
@@ -93,6 +103,17 @@ class ResignationService
 
                 $employee = User::find($resignation->employee_id);
                 if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::warning('ResignationService::getResignationById - Hierarchy permission denied', [
+                        'request_id' => $id,
+                        'requester_id' => $user->user_id,
+                        'requester_type' => $user->user_type,
+                        'employee_id' => $resignation->employee_id,
+                        'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                        'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                        'requester_department' => $this->permissionService->getUserDepartmentId($user),
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee),
+                        'message' => 'Hierarchy permission denied'
+                    ]);
                     return null;
                 }
             }
@@ -112,13 +133,14 @@ class ResignationService
     public function createResignation(CreateResignationDTO $dto): Resignation
     {
         return DB::transaction(function () use ($dto) {
-            Log::info('ResignationService::createResignation', [
-                'employee_id' => $dto->employeeId,
-            ]);
 
             $resignation = $this->resignationRepository->createResignation($dto);
 
             if (!$resignation) {
+                Log::warning('ResignationService::createResignation - Failed to create resignation', [
+                    'employee_id' => $dto->employeeId,
+                    'message' => 'فشل في إنشاء طلب الاستقالة'
+                ]);
                 throw new \Exception('فشل في إنشاء طلب الاستقالة');
             }
 
@@ -130,6 +152,20 @@ class ResignationService
                 StringStatusEnum::SUBMITTED->value,
                 $dto->employeeId
             );
+
+            // Send email notification
+            $employee = User::find($dto->employeeId);
+            if ($employee && $employee->email) {
+                SendEmailNotificationJob::dispatch(
+                    new ResignationSubmitted(
+                        employeeName: $employee->full_name ?? $employee->first_name,
+                        resignationDate: $resignation->resignation_date ?? now()->format('Y-m-d'),
+                        lastWorkingDay: $resignation->last_working_day ?? 'غير محدد',
+                        reason: $dto->reason ?? null
+                    ),
+                    $employee->email
+                );
+            }
 
             return $resignation;
         });
@@ -145,15 +181,28 @@ class ResignationService
             $resignation = $this->resignationRepository->findResignationById($id, $effectiveCompanyId);
 
             if (!$resignation) {
+                Log::warning('ResignationService::updateResignation - Resignation not found', [
+                    'id' => $id,
+                    'message' => 'طلب '
+                ]);
                 throw new \Exception('طلب الاستقالة غير موجود');
             }
 
             if ($resignation->status !== Resignation::STATUS_PENDING) {
+                Log::warning('ResignationService::updateResignation - Resignation is not pending', [
+                    'id' => $id,
+                    'message' => 'Resignation is not pending'
+                ]);
                 throw new \Exception('لا يمكن تعديل طلب الاستقالة بعد معالجته');
             }
 
             $isOwner = $resignation->employee_id === $user->user_id;
             if (!$isOwner && $user->user_type !== 'company') {
+
+                Log::warning('ResignationService::updateResignation - User is not owner', [
+                    'id' => $id,
+                    'message' => 'User is not owner'
+                ]);
                 throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
             }
 
@@ -171,19 +220,52 @@ class ResignationService
             $resignation = $this->resignationRepository->findResignationById($id, $effectiveCompanyId);
 
             if (!$resignation) {
+
+                Log::warning('ResignationService::deleteResignation - Resignation not found', [
+                    'id' => $id,
+                    'message' => 'Resignation not found'
+                ]);
                 throw new \Exception('طلب الاستقالة غير موجود');
             }
 
+            // 1. Status Check: Only Pending can be deleted
             if ($resignation->status !== Resignation::STATUS_PENDING) {
+                Log::info('ResignationService::deleteResignation - Resignation not pending', [
+                    'resignation_id' => $id,
+                    'message' => 'لا يمكن حذف طلب الاستقالة بعد معالجته',
+                    'deleted_by' => $user->user_id,
+                ]);
                 throw new \Exception('لا يمكن حذف طلب الاستقالة بعد معالجته');
             }
 
+            // 2. Permission Check
             $isOwner = $resignation->employee_id === $user->user_id;
-            if (!$isOwner && $user->user_type !== 'company') {
+            $isCompany = $user->user_type === 'company';
+
+            // Check hierarchy permission (is a manager of the employee)
+            $isHierarchyManager = false;
+            if (!$isOwner && !$isCompany) {
+                $employee = User::find($resignation->employee_id);
+                if ($employee && $this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    $isHierarchyManager = true;
+                }
+            }
+
+            if (!$isOwner && !$isCompany && !$isHierarchyManager) {
+                Log::info('ResignationService::deleteResignation - Permission denied', [
+                    'resignation_id' => $id,
+                    'message' => 'ليس لديك صلاحية لحذف هذا الطلب',
+                    'deleted_by' => $user->user_id,
+                ]);
                 throw new \Exception('ليس لديك صلاحية لحذف هذا الطلب');
             }
 
-            return $this->resignationRepository->deleteResignation($resignation);
+            // Determine cancel reason based on who is cancelling
+            $cancelReason = $isOwner
+                ? 'تم إلغاء الطلب من قبل الموظف'
+                : 'تم إلغاء الطلب من قبل الإدارة';
+
+            return $this->resignationRepository->rejectResignation($resignation, $user->user_id, $cancelReason);
         });
     }
 
@@ -198,10 +280,20 @@ class ResignationService
             $resignation = $this->resignationRepository->findResignationById($id, $effectiveCompanyId);
 
             if (!$resignation) {
+                Log::info('ResignationService::approveOrRejectResignation - Resignation not found', [
+                    'resignation_id' => $id,
+                    'message' => 'طلب الاستقالة غير موجود',
+                    'approved_by' => $user->user_id,
+                ]);
                 throw new \Exception('طلب الاستقالة غير موجود');
             }
 
             if ($resignation->status !== Resignation::STATUS_PENDING) {
+                Log::info('ResignationService::approveOrRejectResignation - Resignation not pending', [
+                    'resignation_id' => $id,
+                    'message' => 'تم معالجة طلب الاستقالة مسبقاً',
+                    'approved_by' => $user->user_id,
+                ]);
                 throw new \Exception('تم معالجة طلب الاستقالة مسبقاً');
             }
 
@@ -209,6 +301,11 @@ class ResignationService
             if ($user->user_type !== 'company') {
                 $employee = User::find($resignation->employee_id);
                 if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::info('ResignationService::approveOrRejectResignation - Permission denied', [
+                        'resignation_id' => $id,
+                        'message' => 'ليس لديك صلاحية لمعالجة طلب استقالة هذا الموظف',
+                        'approved_by' => $user->user_id,
+                    ]);
                     throw new \Exception('ليس لديك صلاحية لمعالجة طلب استقالة هذا الموظف');
                 }
             }
@@ -230,6 +327,20 @@ class ResignationService
                     $processedResignation->employee_id
                 );
 
+                // Send approval email
+                $employee = User::find($processedResignation->employee_id);
+                if ($employee && $employee->email) {
+                    SendEmailNotificationJob::dispatch(
+                        new ResignationApproved(
+                            employeeName: $employee->full_name ?? $employee->first_name,
+                            resignationDate: $processedResignation->resignation_date ?? now()->format('Y-m-d'),
+                            lastWorkingDay: $processedResignation->last_working_day ?? 'غير محدد',
+                            remarks: $dto->remarks
+                        ),
+                        $employee->email
+                    );
+                }
+
                 return $processedResignation;
             } else {
                 $processedResignation = $this->resignationRepository->rejectResignation(
@@ -247,6 +358,20 @@ class ResignationService
                     null,
                     $processedResignation->employee_id
                 );
+
+                // Send rejection email
+                $employee = User::find($processedResignation->employee_id);
+                if ($employee && $employee->email) {
+                    SendEmailNotificationJob::dispatch(
+                        new ResignationRejected(
+                            employeeName: $employee->full_name ?? $employee->first_name,
+                            resignationDate: $processedResignation->resignation_date ?? now()->format('Y-m-d'),
+                            lastWorkingDay: $processedResignation->last_working_day ?? 'غير محدد',
+                            reason: $dto->remarks
+                        ),
+                        $employee->email
+                    );
+                }
 
                 return $processedResignation;
             }

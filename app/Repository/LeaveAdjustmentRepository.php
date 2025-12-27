@@ -6,6 +6,7 @@ use App\DTOs\LeaveAdjustment\CreateLeaveAdjustmentDTO;
 use App\DTOs\LeaveAdjustment\UpdateLeaveAdjustmentDTO;
 use App\DTOs\LeaveAdjustment\LeaveAdjustmentFilterDTO;
 use App\Models\LeaveAdjustment;
+use App\Models\StaffApproval;
 use App\Repository\Interface\LeaveAdjustmentRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -19,7 +20,7 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
     {
         $companyId = $filters->companyId;
         $query = LeaveAdjustment::where('company_id', $companyId)
-            ->with(['employee', 'dutyEmployee', 'leaveType']);
+            ->with(['employee', 'leaveType', 'approvals.staff']);
 
         // تطبيق فلتر البحث
         if ($filters->search !== null && trim($filters->search) !== '') {
@@ -27,13 +28,6 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
             $query->where(function ($q) use ($searchTerm) {
                 // البحث في بيانات الموظف
                 $q->whereHas('employee', function ($subQuery) use ($searchTerm) {
-                    $subQuery->where('first_name', 'like', $searchTerm)
-                        ->orWhere('last_name', 'like', $searchTerm)
-                        ->orWhere('email', 'like', $searchTerm);
-                });
-
-                // البحث في بيانات موظف المناوبة
-                $q->orWhereHas('dutyEmployee', function ($subQuery) use ($searchTerm) {
                     $subQuery->where('first_name', 'like', $searchTerm)
                         ->orWhere('last_name', 'like', $searchTerm)
                         ->orWhere('email', 'like', $searchTerm);
@@ -105,7 +99,7 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
     public function createAdjust(CreateLeaveAdjustmentDTO $dto): object
     {
         $adjustment = LeaveAdjustment::create($dto->toArray());
-        $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
+        $adjustment->load(['employee', 'leaveType']);
 
         return $adjustment;
     }
@@ -115,7 +109,7 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
      */
     public function findAdjustment(int $id): ?LeaveAdjustment
     {
-        return LeaveAdjustment::with(['employee', 'dutyEmployee', 'leaveType'])
+        return LeaveAdjustment::with(['employee', 'leaveType', 'approvals.staff'])
             ->find($id);
     }
 
@@ -124,7 +118,7 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
      */
     public function findAdjustmentInCompany(int $id, int $companyId): ?LeaveAdjustment
     {
-        return LeaveAdjustment::with(['employee', 'dutyEmployee', 'leaveType'])
+        return LeaveAdjustment::with(['employee', 'leaveType','approvals.staff'])
             ->where('adjustment_id', $id)
             ->where('company_id', $companyId)
             ->first();
@@ -139,8 +133,19 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
             'status' => LeaveAdjustment::STATUS_APPROVED,
         ]);
 
+        // تسجيل سجل الموافقة
+        StaffApproval::create([
+            'company_id' => $adjustment->company_id,
+            'staff_id' => $approvedBy,
+            'module_option' => 'leave_adjustment_settings',
+            'module_key_id' => $adjustment->adjustment_id,
+            'status' => 1, // موافق
+            'approval_level' => 1,
+            'updated_at' => now(),
+        ]);
+
         $adjustment->refresh();
-        $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
+        $adjustment->load(['employee', 'leaveType', 'approvals.staff']);
 
         return $adjustment;
     }
@@ -153,9 +158,18 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
         $adjustment->update([
             'status' => LeaveAdjustment::STATUS_REJECTED,
         ]);
-
+        StaffApproval::create([
+            'company_id' => $adjustment->company_id,
+            'staff_id' => $rejectedBy,
+            'module_option' => 'leave_adjustment_settings',
+            'module_key_id' => $adjustment->adjustment_id,
+            'status' => 2, // رفض
+            'approval_level' => 1,
+            'updated_at' => now(),
+        ]);
         $adjustment->refresh();
-        $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
+
+        $adjustment->load(['employee', 'leaveType', 'approvals.staff']);
 
         return $adjustment;
     }
@@ -165,7 +179,7 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
      */
     public function findAdjustmentForEmployee(int $id, int $employeeId): ?LeaveAdjustment
     {
-        return LeaveAdjustment::with(['employee', 'dutyEmployee', 'leaveType'])
+        return LeaveAdjustment::with(['employee', 'leaveType', 'approvals.staff'])
             ->where('adjustment_id', $id)
             ->where('employee_id', $employeeId)
             ->first();
@@ -180,7 +194,7 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
         if ($dto->hasUpdates()) {
             $adjustment->update($dto->toArray());
             $adjustment->refresh();
-            $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
+            $adjustment->load(['employee', 'leaveType', 'approvals.staff']);
         }
 
         return $adjustment;
@@ -196,8 +210,18 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
             'reason_adjustment' => $reason,
         ]);
 
+        StaffApproval::create([
+            'company_id' => $adjustment->company_id,
+            'staff_id' => $cancelledBy,
+            'module_option' => 'leave_adjustment_settings',
+            'module_key_id' => $adjustment->adjustment_id,
+            'status' => LeaveAdjustment::STATUS_REJECTED,
+            'approval_level' => 1,
+            'updated_at' => now(),
+        ]);
+
         $adjustment->refresh();
-        $adjustment->load(['employee', 'dutyEmployee', 'leaveType']);
+        $adjustment->load(['employee', 'leaveType', 'approvals.staff']);
 
         return $adjustment;
     }

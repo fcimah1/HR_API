@@ -20,10 +20,8 @@ use App\Services\SimplePermissionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use App\Enums\StringStatusEnum;
 use App\Jobs\SendEmailNotificationJob;
-use App\Mail\Leave\HourSubmitted;
 use App\Mail\Leave\LeaveSubmitted;
 use App\Mail\Leave\LeaveUpdated;
 use App\Mail\Leave\LeaveApproved;
@@ -38,6 +36,7 @@ class LeaveService
         protected NotificationService $notificationService,
         protected ApprovalWorkflowService $approvalWorkflow,
         protected UserRepositoryInterface $userRepository,
+        protected CacheService $cacheService,
     ) {}
 
     /**
@@ -111,7 +110,7 @@ class LeaveService
             'effective_company_id' => $companyId
         ]);
 
-        $leavetypes = LeaveApplication::leave_types($companyId);
+        $leavetypes = $this->cacheService->getLeaveTypes($companyId);
         return [
             'statuses_string' => StringStatusEnum::toArray(),
             'statuses_numeric' => NumericalStatusEnum::toArray(),
@@ -131,10 +130,6 @@ class LeaveService
     public function createApplication(CreateLeaveApplicationDTO $dto): array
     {
         return DB::transaction(function () use ($dto) {
-            Log::info('LeaveService::createApplication - Transaction started', [
-                'employee_id' => $dto->employeeId,
-                'leave_type_id' => $dto->leaveTypeId
-            ]);
 
             // حساب الساعات المطلوبة للإجازة
             if (!is_null($dto->leaveHours) && $dto->leaveHours !== '') {
@@ -154,6 +149,13 @@ class LeaveService
 
             // إذا كانت الإجازة المطلوبة أكبر من الرصيد المتاح نرفض الطلب
             if ($requestedHours > $availableBalance) {
+                Log::info('LeaveService::createApplication - Not enough balance', [
+                    'employee_id' => $dto->employeeId,
+                    'leave_type_id' => $dto->leaveTypeId,
+                    'requested_hours' => $requestedHours,
+                    'available_balance' => $availableBalance,
+                    'message' => 'Not enough balance'
+                ]);
                 throw new \Exception(
                     'ساعات الإجازة المطلوبة (' . $requestedHours . ' ساعة) أكبر من الرصيد المتاح (' . $availableBalance . ' ساعة) لهذا النوع.'
                 );
@@ -166,6 +168,11 @@ class LeaveService
                 $targetEmployee = User::find($dto->employeeId);
 
                 if (!$requester || !$targetEmployee) {
+                    Log::info('LeaveService::createApplication - User or target employee not found', [
+                        'created_by' => $dto->createdBy,
+                        'employee_id' => $dto->employeeId,
+                        'message' => 'User or target employee not found'
+                    ]);
                     throw new \Exception('المستخدم أو الموظف المستهدف غير موجود');
                 }
 
@@ -189,6 +196,13 @@ class LeaveService
                     // Example: Level 2 can create for Level 3,4,5 but NOT for Level 1,2
                     // If the requester is not the target employee, check hierarchy level
                     if ($requester->user_id != $targetEmployee->user_id && $requester->hierarchy_level >= $targetEmployee->hierarchy_level) {
+                        Log::info('LeaveService::createApplication - Hierarchy permission denied', [
+                            'requester_id' => $requester->user_id,
+                            'target_employee_id' => $targetEmployee->user_id,
+                            'requester_hierarchy_level' => $requester->hierarchy_level,
+                            'target_employee_hierarchy_level' => $targetEmployee->hierarchy_level,
+                            'message' => 'Hierarchy permission denied'
+                        ]);
                         throw new \Exception(
                             'ليس لديك صلاحية لتقديم طلب لهذا الموظف. ' .
                                 'يجب أن تكون في مستوى هرمي أعلى (رقم أقل) من الموظف المستهدف.'
@@ -200,6 +214,11 @@ class LeaveService
             $leave = $this->leaveRepository->createApplication($dto);
 
             if (!$leave) {
+                Log::info('LeaveService::createApplication - Failed to create leave application', [
+                    'employee_id' => $dto->employeeId,
+                    'leave_type_id' => $dto->leaveTypeId,
+                    'message' => 'Failed to create leave application'
+                ]);
                 throw new \Exception('Failed to create leave application');
             }
 
@@ -273,6 +292,9 @@ class LeaveService
         $user = $user ?? Auth::user();
 
         if (is_null($companyId) && is_null($userId)) {
+            Log::info('LeaveService::getApplicationById - Invalid arguments', [
+                'message' => 'يجب توفير معرف الشركة أو معرف المستخدم'
+            ]);
             throw new \InvalidArgumentException('يجب توفير معرف الشركة أو معرف المستخدم');
         }
 
@@ -299,6 +321,8 @@ class LeaveService
                     // This is not the user's own request, continue to check hierarchy permissions
                     Log::info('LeaveService::getApplicationById - Not user own request, checking hierarchy', [
                         'application_id' => $id,
+                        'message' => 'Not user own request, checking hierarchy',
+                        'error_message' => $e->getMessage(),
                         'user_id' => $userId
                     ]);
                 }
@@ -350,6 +374,10 @@ class LeaveService
             $application = $this->leaveRepository->findApplicationInCompany($id, $effectiveCompanyId);
 
             if (!$application) {
+                Log::info('LeaveService::updateApplication - Application not found', [
+                    'application_id' => $id,
+                    'message' => 'Application not found'
+                ]);
                 throw new \Exception('الطلب غير موجود');
             }
 
@@ -367,13 +395,18 @@ class LeaveService
                 Log::error('Unauthorized update attempt', [
                     'isowner' => $isOwner,
                     '$isHigh' => $isHigherLevel,
-                    'iscompany' => $isCompany
+                    'iscompany' => $isCompany,
+                    'message' => 'Unauthorized update attempt'
                 ]);
                 throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
             }
 
             // Check if application can be updated (only pending applications)
             if ($application->status !== LeaveApplication::STATUS_PENDING) {
+                Log::error('Unauthorized update attempt', [
+                    'application_id' => $id,
+                    'message' => 'Application not found'
+                ]);
                 throw new \Exception('لا يمكن تعديل الطلب بعد المراجعة');
             }
 
@@ -408,51 +441,71 @@ class LeaveService
     public function cancelApplication(int $id, User $user): bool
     {
         return DB::transaction(function () use ($id, $user) {
-            Log::info('LeaveService::cancelApplication - Transaction started', [
-                'application_id' => $id,
-                'user_id' => $user->user_id
-            ]);
 
-            // الحصول على معرف الشركة الفعلي
+            // Get effective company ID
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            // البحث عن الطلب في نفس الشركة
+            // Find application in same company
             $application = $this->leaveRepository->findApplicationInCompany($id, $effectiveCompanyId);
 
             if (!$application) {
+                Log::info('LeaveService::cancelApplication - Application not found', [
+                    'id' => $id,
+                    'message' => 'Application not found'
+                ]);
                 throw new \Exception('الطلب غير موجود');
             }
 
-            // التحقق من الصلاحيات:
-            // 1. الموظف صاحب الطلب يمكنه إلغاء طلباته المعلقة فقط
-            // 2. المدير/الشركة يمكنهم إلغاء أي طلب (معلق أو موافق عليه)
-            $isOwner = $application->employee_id === $user->user_id;
+            // 1. Status Check: Only Pending (0) can be cancelled
+            if ($application->status !== LeaveApplication::STATUS_PENDING) {
+                Log::info('LeaveService::cancelApplication - Application not found', [
+                    'id' => $id,
+                    'message' => 'Application not found'
+                ]);
+                throw new \Exception('لا يمكن إلغاء الطلب بعد المراجعة (موافق عليه أو مرفوض)');
+            }
 
-            if (!$isOwner) {
+            // 2. Permission Check
+            $isOwner = $application->employee_id === $user->user_id;
+            $isCompany = $user->user_type === 'company';
+
+            // Check hierarchy permission (is a manager of the employee)
+            $isHierarchyManager = false;
+            if (!$isOwner && !$isCompany) {
+                $employee = User::find($application->employee_id);
+                if ($employee && $this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    $isHierarchyManager = true;
+                }
+            }
+
+            if (!$isOwner && !$isCompany && !$isHierarchyManager) {
+                Log::info('LeaveService::cancelApplication - Application not found', [
+                    'id' => $id,
+                    'message' => 'Application not found'
+                ]);
                 throw new \Exception('ليس لديك صلاحية لإلغاء هذا الطلب');
             }
 
-            // الموظف العادي يمكنه إلغاء الطلبات المعلقة فقط
-            if ($isOwner && $application->status !== LeaveApplication::STATUS_PENDING) {
-                throw new \Exception('لا يمكن إلغاء الطلب بعد المراجعة');
-            }
+            // Determine cancel reason based on who is cancelling
+            $cancelReason = $isOwner
+                ? 'تم إلغاء الطلب من قبل الموظف'
+                : 'تم إلغاء الطلب من قبل الإدارة';
 
             // Mark as rejected (keeps record in database)
-            $cancelReason = 'تم إلغاء الطلب من قبل الموظف';
             $this->leaveRepository->rejectApplication($application, $user->user_id, $cancelReason);
 
             Log::info('LeaveService::cancelApplication - Transaction committed', [
-                'application_id' => $id
+                'application_id' => $id,
+                'message' => 'Application cancelled'
             ]);
 
-            // Send notification for cancellation (using custom notification to notify managers)
-            // We notify the company managers/admins
+            // Send notification for cancellation
             $this->notificationService->sendSubmissionNotification(
                 'leave_settings',
                 (string)$id,
                 $effectiveCompanyId,
                 StringStatusEnum::REJECTED->value,
-                $application->employee_id // Submitter ID
+                $application->employee_id
             );
 
             return true;
@@ -471,7 +524,8 @@ class LeaveService
     {
         return DB::transaction(function () use ($id, $request) {
             Log::info('LeaveService::approveApplication - Transaction started', [
-                'application_id' => $id
+                'application_id' => $id,
+                'message' => 'Transaction started'
             ]);
 
             // Get the authenticated user from the request
@@ -484,11 +538,19 @@ class LeaveService
             $application = $this->leaveRepository->findApplicationInCompany($id, $companyId);
 
             if (!$application) {
+                Log::info('LeaveService::approveApplication - Application not found', [
+                    'id' => $id,
+                    'message' => 'Application not found'
+                ]);
                 throw new \Exception('الطلب غير موجود');
             }
 
             // Check if the application is already processed
             if ($application->status !== LeaveApplication::STATUS_PENDING) {
+                Log::info('LeaveService::approveApplication - Application not found', [
+                    'id' => $id,
+                    'message' => 'Application not found'
+                ]);
                 throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
             }
 
@@ -504,7 +566,8 @@ class LeaveService
                         'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
                         'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'requester_department' => $this->permissionService->getUserDepartmentId($user),
-                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee),
+                        'message' => 'Hierarchy permission denied'
                     ]);
                     throw new \Exception('ليس لديك صلاحية للموافقة على طلب هذا الموظف');
                 }
@@ -521,6 +584,10 @@ class LeaveService
                 $remarks
             );
             if (!$approvedApplication) {
+                Log::info('LeaveService::approveApplication - Application not found', [
+                    'id' => $id,
+                    'message' => 'Application not found'
+                ]);
                 throw new \Exception('فشل في الموافقة على الطلب');
             }
             // Send approval notification
@@ -565,16 +632,25 @@ class LeaveService
         return DB::transaction(function () use ($id, $companyId, $rejectedBy, $reason) {
             Log::info('LeaveService::rejectApplication - Transaction started', [
                 'application_id' => $id,
-                'rejected_by' => $rejectedBy
+                'rejected_by' => $rejectedBy,
+                'message' => 'Transaction started'
             ]);
 
             $application = $this->leaveRepository->findApplicationInCompany($id, $companyId);
 
             if (!$application) {
+                Log::info('LeaveService::rejectApplication - Application not found', [
+                    'id' => $id,
+                    'message' => 'Application not found'
+                ]);
                 throw new \Exception('الطلب غير موجود');
             }
 
             if ($application->status !== LeaveApplication::STATUS_PENDING) {
+                Log::info('LeaveService::rejectApplication - Application not pending', [
+                    'id' => $id,
+                    'message' => 'Application not pending'
+                ]);
                 throw new \Exception('لا يمكن رفض طلب تم الموافقة عليه مسبقاً');
             }
 
@@ -591,7 +667,8 @@ class LeaveService
                         'rejecting_user_level' => $this->permissionService->getUserHierarchyLevel($rejectingUser),
                         'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'rejecting_user_department' => $this->permissionService->getUserDepartmentId($rejectingUser),
-                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee),
+                        'message' => 'Hierarchy permission denied'
                     ]);
                     throw new \Exception('ليس لديك صلاحية لرفض طلب هذا الموظف');
                 }
@@ -600,6 +677,10 @@ class LeaveService
             $rejectedApplication = $this->leaveRepository->rejectApplication($application, $rejectedBy, $reason);
 
             if (!$rejectedApplication) {
+                Log::info('LeaveService::rejectApplication - Application not found', [
+                    'id' => $id,
+                    'message' => 'Application not found'
+                ]);
                 throw new \Exception('فشل في رفض الطلب');
             }
 

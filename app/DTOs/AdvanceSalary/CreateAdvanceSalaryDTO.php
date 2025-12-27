@@ -2,6 +2,8 @@
 
 namespace App\DTOs\AdvanceSalary;
 
+use App\Enums\TravelStatusEnum;
+
 class CreateAdvanceSalaryDTO
 {
     public function __construct(
@@ -41,7 +43,7 @@ class CreateAdvanceSalaryDTO
             'monthly_installment' => $this->monthlyInstallment,
             'total_paid' => 0.00,
             'reason' => $this->reason,
-            'status' => 0, // Pending by default
+            'status' => TravelStatusEnum::PENDING->value, // Pending by default
             'is_deducted_from_salary' => 0,
             'created_at' => now()->format('d-m-Y h:i:s'),
         ];

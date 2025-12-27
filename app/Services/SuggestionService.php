@@ -87,6 +87,10 @@ class SuggestionService
         $user = $user ?? Auth::user();
 
         if (is_null($companyId) && is_null($userId)) {
+            Log::warning('SuggestionService::getSuggestionById - Invalid arguments', [
+                'id'=> $id,
+                'message' => 'Invalid arguments'
+            ]);
             throw new \InvalidArgumentException('يجب توفير معرف الشركة أو معرف المستخدم');
         }
 
@@ -107,6 +111,7 @@ class SuggestionService
                         'suggestion_id' => $id,
                         'requester_id' => $user->user_id,
                         'added_by' => $suggestion->added_by,
+                        'message' => 'Hierarchy permission denied'
                     ]);
                     return null;
                 }
@@ -128,14 +133,15 @@ class SuggestionService
     public function createSuggestion(CreateSuggestionDTO $dto): Suggestion
     {
         return DB::transaction(function () use ($dto) {
-            Log::info('SuggestionService::createSuggestion', [
-                'added_by' => $dto->addedBy,
-                'title' => $dto->title,
-            ]);
 
             $suggestion = $this->suggestionRepository->createSuggestion($dto);
 
             if (!$suggestion) {
+                Log::warning('SuggestionService::createSuggestion - Failed to create suggestion', [
+                    'added_by' => $dto->addedBy,
+                    'title' => $dto->title,
+                    'message' => 'Failed to create suggestion'
+                ]);
                 throw new \Exception('فشل في إنشاء الاقتراح');
             }
 
@@ -156,6 +162,11 @@ class SuggestionService
             $suggestion = $this->suggestionRepository->findSuggestionById($id, $effectiveCompanyId);
 
             if (!$suggestion) {
+
+                Log::warning('SuggestionService::updateSuggestion - Suggestion not found', [
+                    'suggestion_id' => $id,
+                    'message' => 'Suggestion not found'
+                ]);
                 throw new \Exception('الاقتراح غير موجود');
             }
 
@@ -164,6 +175,11 @@ class SuggestionService
             $isCompanyAdmin = $user->user_type === 'company';
 
             if (!$isOwner && !$isCompanyAdmin) {
+
+                Log::warning('SuggestionService::updateSuggestion - Permission denied', [
+                    'suggestion_id' => $id,
+                    'message' => 'Permission denied'
+                ]);
                 throw new \Exception('ليس لديك صلاحية لتعديل هذا الاقتراح');
             }
 
@@ -185,28 +201,42 @@ class SuggestionService
     public function deleteSuggestion(int $id, User $user): bool
     {
         return DB::transaction(function () use ($id, $user) {
-            // الحصول على معرف الشركة الفعلي
+            // Get effective company ID
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            // البحث عن الاقتراح
+            // Find suggestion
             $suggestion = $this->suggestionRepository->findSuggestionById($id, $effectiveCompanyId);
 
             if (!$suggestion) {
+                Log::warning('SuggestionService::deleteSuggestion - Suggestion not found', [
+                    'suggestion_id' => $id,
+                    'message' => 'الاقتراح غير موجود',
+                    'deleted_by' => $user->user_id,
+                ]);
                 throw new \Exception('الاقتراح غير موجود');
             }
 
-            // التحقق من صلاحية الحذف (المالك فقط أو مدير الشركة)
+            // Permission Check (no status check as suggestions don't have status)
             $isOwner = $suggestion->added_by === $user->user_id;
-            $isCompanyAdmin = $user->user_type === 'company';
+            $isCompany = $user->user_type === 'company';
 
-            if (!$isOwner && !$isCompanyAdmin) {
-                throw new \Exception('ليس لديك صلاحية لحذف هذا الاقتراح');
+            // Check hierarchy permission (is a manager of the employee)
+            $isHierarchyManager = false;
+            if (!$isOwner && !$isCompany) {
+                $employee = User::find($suggestion->added_by);
+                if ($employee && $this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    $isHierarchyManager = true;
+                }
             }
 
-            Log::info('SuggestionService::deleteSuggestion', [
-                'suggestion_id' => $id,
-                'deleted_by' => $user->user_id,
-            ]);
+            if (!$isOwner && !$isCompany && !$isHierarchyManager) {
+                Log::warning('SuggestionService::deleteSuggestion - Permission denied', [
+                    'suggestion_id' => $id,
+                    'message' => 'ليس لديك صلاحية لحذف هذا الاقتراح',
+                    'deleted_by' => $user->user_id,
+                ]);
+                throw new \Exception('ليس لديك صلاحية لحذف هذا الاقتراح');
+            }
 
             return $this->suggestionRepository->deleteSuggestion($suggestion);
         });
@@ -225,16 +255,15 @@ class SuggestionService
             $suggestion = $this->suggestionRepository->findSuggestionById($suggestionId, $effectiveCompanyId);
 
             if (!$suggestion) {
+                Log::warning('SuggestionService::addComment - Suggestion not found', [
+                    'suggestion_id' => $suggestionId,
+                    'message' => 'الاقتراح غير موجود',
+                    'employee_id' => $dto->employeeId,
+                ]);
                 throw new \Exception('الاقتراح غير موجود');
             }
 
             $comment = $this->suggestionRepository->addComment($dto);
-
-            Log::info('SuggestionService::addComment', [
-                'suggestion_id' => $suggestionId,
-                'comment_id' => $comment->comment_id,
-                'employee_id' => $dto->employeeId,
-            ]);
 
             return $comment;
         });
@@ -252,6 +281,11 @@ class SuggestionService
         $suggestion = $this->suggestionRepository->findSuggestionById($suggestionId, $effectiveCompanyId);
 
         if (!$suggestion) {
+            Log::warning('SuggestionService::getComments - Suggestion not found', [
+                'suggestion_id' => $suggestionId,
+                'message' => 'الاقتراح غير موجود',
+                'employee_id' => $user->user_id,
+            ]);
             throw new \Exception('الاقتراح غير موجود');
         }
 
@@ -270,11 +304,21 @@ class SuggestionService
         $comment = $this->suggestionRepository->findCommentById($commentId, $suggestionId, $effectiveCompanyId);
 
         if (!$comment) {
+            Log::warning('SuggestionService::deleteComment - Comment not found', [
+                'comment_id' => $commentId,
+                'message' => 'التعليق غير موجود',
+                'employee_id' => $user->user_id,
+            ]);
             throw new \Exception('التعليق غير موجود');
         }
 
         //  التحقق من أن المستخدم هو صاحب التعليق أو مدير الشركة او المستوى الاعلى منه hierercly_level
         if ($comment->employee_id !== $user->user_id && $user->user_type !== 'company' && $user->hierarchy_level < $comment->employee->hierarchy_level) {
+            Log::warning('SuggestionService::deleteComment - Permission denied', [
+                'comment_id' => $commentId,
+                'message' => 'غير مسموح بحذف هذا التعليق',
+                'employee_id' => $user->user_id,
+            ]);
             throw new \Exception('غير مسموح بحذف هذا التعليق', 403);
         }
 

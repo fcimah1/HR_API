@@ -14,50 +14,53 @@ class LeaveTypeService
 {
     protected $leaveTypeRepository;
     protected $permissionService;
+    protected $cacheService;
 
     public function __construct(
         LeaveTypeRepositoryInterface $leaveTypeRepository,
-        SimplePermissionService $permissionService
+        SimplePermissionService $permissionService,
+        CacheService $cacheService
     ) {
         $this->leaveTypeRepository = $leaveTypeRepository;
         $this->permissionService = $permissionService;
+        $this->cacheService = $cacheService;
     }
 
-public function getActiveLeaveTypes(int $companyId, array $filters): array
-{
+    public function getActiveLeaveTypes(int $companyId, array $filters): array
+    {
 
-    $result = $this->leaveTypeRepository->getActiveLeaveTypes($companyId, $filters);
-    
-    // تحويل البيانات إلى الصيغة المطلوبة
-    $result['data'] = array_map(function ($constant) {
-        $leaveData = unserialize($constant['field_one']);
-        $quotaAssign = $leaveData['quota_assign'] ?? [];
-        
-        // تحويل جميع القيم إلى أرقام
-        $quotaAssign = array_map('intval', $quotaAssign);
-                
-        // تجميع البيانات حسب السنة
-        $yearlyBreakdown_days    = [];
-        $yearlyBreakdown_hours = [];
-        foreach ($quotaAssign as $yearIndex => $hours) {
-            if ($hours > 0) {
-                $yearlyBreakdown_days[] = "السنة " . ($yearIndex + 1) . ": " . ($hours / 8) . " يوم";
-                $yearlyBreakdown_hours[] = "السنة " . ($yearIndex + 1) . ": " . $hours . " ساعة";
+        $result = $this->leaveTypeRepository->getActiveLeaveTypes($companyId, $filters);
+
+        // تحويل البيانات إلى الصيغة المطلوبة
+        $result['data'] = array_map(function ($constant) {
+            $leaveData = unserialize($constant['field_one']);
+            $quotaAssign = $leaveData['quota_assign'] ?? [];
+
+            // تحويل جميع القيم إلى أرقام
+            $quotaAssign = array_map('intval', $quotaAssign);
+
+            // تجميع البيانات حسب السنة
+            $yearlyBreakdown_days    = [];
+            $yearlyBreakdown_hours = [];
+            foreach ($quotaAssign as $yearIndex => $hours) {
+                if ($hours > 0) {
+                    $yearlyBreakdown_days[] = "السنة " . ($yearIndex + 1) . ": " . ($hours / 8) . " يوم";
+                    $yearlyBreakdown_hours[] = "السنة " . ($yearIndex + 1) . ": " . $hours . " ساعة";
+                }
             }
-        }
-        
-        return [
-            'leave_type_id' => $constant['constants_id'],
-            'leave_type_name' => $constant['category_name'],
-            'leave_type_short_name' => $constant['field_one'] ?? '',
-            'yearly_breakdown_days' => $yearlyBreakdown_days,
-            'yearly_breakdown_hours' => $yearlyBreakdown_hours,
 
-        ];
-    }, $result['data']);
-    
-    return $result;
-}
+            return [
+                'leave_type_id' => $constant['constants_id'],
+                'leave_type_name' => $constant['category_name'],
+                'leave_type_short_name' => $constant['field_one'] ?? '',
+                'yearly_breakdown_days' => $yearlyBreakdown_days,
+                'yearly_breakdown_hours' => $yearlyBreakdown_hours,
+
+            ];
+        }, $result['data']);
+
+        return $result;
+    }
 
     public function getLeaveType(int $id): array
     {
@@ -66,12 +69,12 @@ public function getActiveLeaveTypes(int $companyId, array $filters): array
         if (!$leaveType) {
             throw new \Exception('نوع الإجازة غير موجود');
         }
-    $leaveData = unserialize($leaveType['field_one']);
-            $quotaAssign = $leaveData['quota_assign'] ?? [];
+        $leaveData = unserialize($leaveType['field_one']);
+        $quotaAssign = $leaveData['quota_assign'] ?? [];
 
         // تحويل جميع القيم إلى أرقام
         $quotaAssign = array_map('intval', $quotaAssign);
-                
+
         // تجميع البيانات حسب السنة
         $yearlyBreakdown_days    = [];
         $yearlyBreakdown_hours = [];
@@ -101,17 +104,20 @@ public function getActiveLeaveTypes(int $companyId, array $filters): array
 
             $leaveType = $this->leaveTypeRepository->create($dto);
 
+            // مسح الـ cache لأنواع الإجازات بعد الإضافة
+            $this->cacheService->clearLeaveTypesCache($dto->companyId);
+
             Log::info('LeaveTypeService::createLeaveType - Transaction committed', [
                 'leave_type_id' => $leaveType->constants_id
             ]);
             $leaveData = unserialize($leaveType->field_one);
             $quotaAssign = $leaveData['quota_assign'] ?? [];
-            $totalHours = array_sum(array_map('intval', $quotaAssign)); 
+            $totalHours = array_sum(array_map('intval', $quotaAssign));
             return [
                 'leave_type_id' => $leaveType->constants_id,
                 'leave_type_name' => $leaveType->leave_type_name,
                 'leave_type_short_name' => $leaveType->leave_type_short_name,
-                'leave_hours' => $totalHours. ' hours',
+                'leave_hours' => $totalHours . ' hours',
                 'leave_days' => $totalHours / 8 . " days",
                 'company_id' => $leaveType->company_id,
             ];
@@ -128,25 +134,29 @@ public function getActiveLeaveTypes(int $companyId, array $filters): array
 
             $leaveType = $this->leaveTypeRepository->update($dto);
 
+            // مسح الـ cache لأنواع الإجازات بعد التحديث
+            $this->cacheService->clearLeaveTypesCache($leaveType->company_id);
+
             Log::info('LeaveTypeService::updateLeaveType - Transaction committed', [
                 'leave_type_id' => $leaveType->constants_id
             ]);
-        $leaveData = unserialize($leaveType->field_one);
-        $quotaAssign = $leaveData['quota_assign'] ?? [];
-       // تجميع البيانات حسب السنة
-        $yearlyBreakdown_days    = [];
-        $yearlyBreakdown_hours = [];
-        foreach ($quotaAssign as $yearIndex => $hours) {
-            if ($hours > 0) {
-                $yearlyBreakdown_days[] = "السنة " . ($yearIndex + 1) . ": " . ($hours / 8) . " يوم";
-                $yearlyBreakdown_hours[] = "السنة " . ($yearIndex + 1) . ": " . $hours . " ساعة";
+            $leaveData = unserialize($leaveType->field_one);
+            $quotaAssign = $leaveData['quota_assign'] ?? [];
+            // تجميع البيانات حسب السنة
+            $yearlyBreakdown_days    = [];
+            $yearlyBreakdown_hours = [];
+            foreach ($quotaAssign as $yearIndex => $hours) {
+                if ($hours > 0) {
+                    $yearlyBreakdown_days[] = "السنة " . ($yearIndex + 1) . ": " . ($hours / 8) . " يوم";
+                    $yearlyBreakdown_hours[] = "السنة " . ($yearIndex + 1) . ": " . $hours . " ساعة";
+                }
             }
-        }            return [
+            return [
                 'leave_type_id' => $leaveType->constants_id,
                 'leave_type_name' => $leaveType->category_name,
                 'leave_type_short_name' => $leaveType->field_one ?? '',
                 'leave_hours' => $yearlyBreakdown_hours,
-                'leave_days' => $yearlyBreakdown_days,                
+                'leave_days' => $yearlyBreakdown_days,
                 'company_id' => $leaveType->company_id,
             ];
         });
@@ -161,9 +171,11 @@ public function getActiveLeaveTypes(int $companyId, array $filters): array
 
             $result = $this->leaveTypeRepository->delete($id, $effectiveCompanyId);
 
+            // مسح الـ cache لأنواع الإجازات بعد الحذف
+            $this->cacheService->clearLeaveTypesCache($effectiveCompanyId);
+
             Log::info('LeaveTypeService::deleteLeaveType - Transaction committed', ['id' => $id]);
             return $result;
         });
     }
-
 }

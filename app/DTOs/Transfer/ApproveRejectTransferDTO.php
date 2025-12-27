@@ -2,7 +2,7 @@
 
 namespace App\DTOs\Transfer;
 
-use App\Models\Transfer;
+use App\Enums\NumericalStatusEnum;
 use Spatie\LaravelData\Data;
 
 class ApproveRejectTransferDTO extends Data
@@ -25,9 +25,9 @@ class ApproveRejectTransferDTO extends Data
     public function getNewStatus(): int
     {
         return match ($this->action) {
-            'approve' => Transfer::STATUS_APPROVED,
-            'reject' => Transfer::STATUS_REJECTED,
-            default => Transfer::STATUS_PENDING,
+            'approve' => NumericalStatusEnum::APPROVED->value,
+            'reject' => NumericalStatusEnum::REJECTED->value,
+            default => NumericalStatusEnum::PENDING->value,
         };
     }
 }

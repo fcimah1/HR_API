@@ -8,7 +8,7 @@ class UpdateComplaintDTO extends Data
 {
     public function __construct(
         public readonly ?string $title = null,
-        public readonly ?string $complaintAgainst = null,
+        public readonly ?string $complaintDate = null,
         public readonly ?string $description = null,
     ) {}
 
@@ -16,7 +16,7 @@ class UpdateComplaintDTO extends Data
     {
         return new self(
             title: $data['title'] ?? null,
-            complaintAgainst: $data['complaint_against'] ?? null,
+            complaintDate: $data['complaint_date'] ?? null,
             description: $data['description'] ?? null,
         );
     }
@@ -29,8 +29,8 @@ class UpdateComplaintDTO extends Data
             $data['title'] = $this->title;
         }
 
-        if ($this->complaintAgainst !== null) {
-            $data['complaint_against'] = $this->complaintAgainst;
+        if ($this->complaintDate !== null) {
+            $data['complaint_date'] = $this->complaintDate;
         }
 
         if ($this->description !== null) {

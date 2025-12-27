@@ -49,4 +49,34 @@ interface TransferRepositoryInterface
      * رفض نقل
      */
     public function rejectTransfer(Transfer $transfer, int $rejectedBy, ?string $remarks = null): Transfer;
+
+    /**
+     * الحصول على طلبات الإجازة النشطة للموظف
+     */
+    public function getActiveLeaves(int $employeeId): array;
+
+    /**
+     * الحصول على السلف النشطة للموظف
+     */
+    public function getActiveAdvances(int $employeeId): array;
+
+    /**
+     * الحصول على العهد غير المرجعة للموظف
+     */
+    public function getUnreturnedCustody(int $employeeId): array;
+
+    /**
+     * تنفيذ النقل - تحديث بيانات الموظف
+     */
+    public function executeTransfer(Transfer $transfer): void;
+
+    /**
+     * الحصول على الشركات مع الفروع للنقل بين الشركات
+     */
+    public function getCompaniesWithBranches(): array;
+
+    /**
+     * البحث عن طلب نقل معلق للموظف
+     */
+    public function findPendingTransferForEmployee(int $employeeId): ?Transfer;
 }

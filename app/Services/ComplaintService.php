@@ -12,9 +12,13 @@ use App\Repository\Interface\ComplaintRepositoryInterface;
 use App\Services\SimplePermissionService;
 use App\Services\NotificationService;
 use App\Enums\StringStatusEnum;
+use App\Jobs\SendEmailNotificationJob;
+use App\Mail\Complaint\ComplaintSubmitted;
+use App\Mail\Complaint\ComplaintResolved;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
 
 class ComplaintService
 {
@@ -138,6 +142,11 @@ class ComplaintService
             $complaint = $this->complaintRepository->createComplaint($dto);
 
             if (!$complaint) {
+                Log::warning('ComplaintService::createComplaint - Failed to create complaint', [
+                    'complaint_from' => $dto->complaintFrom,
+                    'title' => $dto->title,
+                    'message' => 'Failed to create complaint',
+                ]);
                 throw new \Exception('فشل في إنشاء الشكوى');
             }
 
@@ -149,6 +158,20 @@ class ComplaintService
                 StringStatusEnum::SUBMITTED->value,
                 $dto->complaintFrom
             );
+
+            // Send email notification
+            $employee = User::find($dto->complaintFrom);
+            if ($employee && $employee->email) {
+                SendEmailNotificationJob::dispatch(
+                    new ComplaintSubmitted(
+                        employeeName: $employee->full_name ?? $employee->first_name,
+                        complaintType: $dto->complaintType ?? 'شكوى عامة',
+                        complaintSubject: $dto->title ?? 'غير محدد',
+                        description: $dto->description ?? null
+                    ),
+                    $employee->email
+                );
+            }
 
             return $complaint;
         });
@@ -167,11 +190,21 @@ class ComplaintService
             $complaint = $this->complaintRepository->findComplaintById($id, $effectiveCompanyId);
 
             if (!$complaint) {
+                Log::warning('ComplaintService::updateComplaint - Complaint not found', [
+                    'complaint_id' => $id,
+                    'requester_id' => $user->user_id,
+                    'message' => 'الشكوى غير موجودة'
+                ]);
                 throw new \Exception('الشكوى غير موجودة');
             }
 
             // التحقق من أن الشكوى قيد المراجعة
             if ($complaint->status !== Complaint::STATUS_PENDING) {
+                Log::warning('ComplaintService::updateComplaint - Complaint not pending', [
+                    'complaint_id' => $id,
+                    'requester_id' => $user->user_id,
+                    'message' => 'لا يمكن تعديل الشكوى بعد معالجتها'
+                ]);
                 throw new \Exception('لا يمكن تعديل الشكوى بعد معالجتها');
             }
 
@@ -179,6 +212,11 @@ class ComplaintService
             $isOwner = $complaint->complaint_from === $user->user_id;
 
             if (!$isOwner) {
+                Log::warning('ComplaintService::updateComplaint - User not owner', [
+                    'complaint_id' => $id,
+                    'requester_id' => $user->user_id,
+                    'message' => 'ليس لديك صلاحية لتعديل هذه الشكوى'
+                ]);
                 throw new \Exception('ليس لديك صلاحية لتعديل هذه الشكوى');
             }
 
@@ -197,38 +235,61 @@ class ComplaintService
     /**
      * حذف شكوى
      */
-    public function deleteComplaint(int $id, User $user): bool
+    public function deleteComplaint(int $id, User $user, int $processedBy, ?string $description = null): bool
     {
-        return DB::transaction(function () use ($id, $user) {
-            // الحصول على معرف الشركة الفعلي
+        return DB::transaction(function () use ($id, $user, $processedBy, $description) {
+            // Get effective company ID
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            // البحث عن الشكوى
+            // Find complaint
             $complaint = $this->complaintRepository->findComplaintById($id, $effectiveCompanyId);
 
             if (!$complaint) {
+                Log::warning('ComplaintService::deleteComplaint - Complaint not found', [
+                    'complaint_id' => $id,
+                    'message' => 'الشكوى غير موجودة',
+                    'deleted_by' => $user->user_id,
+                ]);
                 throw new \Exception('الشكوى غير موجودة');
             }
 
-            // التحقق من أن الشكوى قيد المراجعة
+            // 1. Status Check: Only Pending can be deleted
             if ($complaint->status !== Complaint::STATUS_PENDING) {
+                Log::warning('ComplaintService::deleteComplaint - Complaint not pending', [
+                    'complaint_id' => $id,
+                    'message' => 'لا يمكن حذف الشكوى بعد معالجتها',
+                    'deleted_by' => $user->user_id,
+                ]);
                 throw new \Exception('لا يمكن حذف الشكوى بعد معالجتها');
             }
 
-            // التحقق من صلاحية الحذف (المالك فقط أو مدير الشركة)
+            // 2. Permission Check
             $isOwner = $complaint->complaint_from === $user->user_id;
-            $isCompanyAdmin = $user->user_type === 'company';
+            $isCompany = $user->user_type === 'company';
 
-            if (!$isOwner && !$isCompanyAdmin) {
+            // Check hierarchy permission (is a manager of the employee)
+            $isHierarchyManager = false;
+            if (!$isOwner && !$isCompany) {
+                $employee = User::find($complaint->complaint_from);
+                if ($employee && $this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    $isHierarchyManager = true;
+                }
+            }
+
+            if (!$isOwner && !$isCompany && !$isHierarchyManager) {
+                Log::warning('ComplaintService::deleteComplaint - Permission denied', [
+                    'complaint_id' => $id,
+                    'message' => 'ليس لديك صلاحية لحذف هذه الشكوى',
+                    'deleted_by' => $user->user_id,
+                ]);
                 throw new \Exception('ليس لديك صلاحية لحذف هذه الشكوى');
             }
 
-            Log::info('ComplaintService::deleteComplaint', [
-                'complaint_id' => $id,
-                'deleted_by' => $user->user_id,
-            ]);
-
-            return $this->complaintRepository->deleteComplaint($complaint);
+            return $this->complaintRepository->deleteComplaint(
+                $complaint,
+                $processedBy,
+                $description,
+            );;
         });
     }
 
@@ -240,11 +301,6 @@ class ComplaintService
         return DB::transaction(function () use ($id, $dto) {
             $user = Auth::user();
 
-            Log::info('ComplaintService::resolveOrRejectComplaint - Transaction started', [
-                'complaint_id' => $id,
-                'action' => $dto->action
-            ]);
-
             // الحصول على معرف الشركة الفعلي
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
@@ -252,11 +308,21 @@ class ComplaintService
             $complaint = $this->complaintRepository->findComplaintById($id, $effectiveCompanyId);
 
             if (!$complaint) {
+                Log::warning('ComplaintService::resolveOrRejectComplaint - Complaint not found', [
+                    'complaint_id' => $id,
+                    'message' => 'الشكوى غير موجودة',
+                    'resolved_by' => $user->user_id,
+                ]);
                 throw new \Exception('الشكوى غير موجودة');
             }
 
             // التحقق من أن الشكوى قيد المراجعة
             if ($complaint->status !== Complaint::STATUS_PENDING) {
+                Log::warning('ComplaintService::resolveOrRejectComplaint - Complaint not pending', [
+                    'complaint_id' => $id,
+                    'message' => 'لا يمكن معالجة الشكوى بعد معالجتها',
+                    'resolved_by' => $user->user_id,
+                ]);
                 throw new \Exception('تم معالجة هذه الشكوى مسبقاً');
             }
 
@@ -266,8 +332,8 @@ class ComplaintService
                 if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                     Log::warning('ComplaintService::resolveOrRejectComplaint - Hierarchy permission denied', [
                         'complaint_id' => $id,
-                        'requester_id' => $user->user_id,
-                        'complaint_from' => $complaint->complaint_from,
+                        'message' => 'ليس لديك صلاحية لمعالجة شكوى هذا الموظف',
+                        'resolved_by' => $user->user_id,
                     ]);
                     throw new \Exception('ليس لديك صلاحية لمعالجة شكوى هذا الموظف');
                 }
@@ -292,8 +358,25 @@ class ComplaintService
                     $processedComplaint->complaint_from
                 );
 
-                Log::info('ComplaintService::resolveOrRejectComplaint - Complaint resolved', [
+                // Send resolution email
+                $employee = User::find($processedComplaint->complaint_from);
+                if ($employee && $employee->email) {
+                    SendEmailNotificationJob::dispatch(
+                        new ComplaintResolved(
+                            employeeName: $employee->full_name ?? $employee->first_name,
+                            complaintType: $processedComplaint->complaint_type ?? 'شكوى عامة',
+                            complaintSubject: $processedComplaint->title ?? 'غير محدد',
+                            resolution: $dto->description ?? 'تم الحل',
+                            remarks: null
+                        ),
+                        $employee->email
+                    );
+                }
+
+                Log::warning('ComplaintService::resolveOrRejectComplaint - Complaint resolved', [
                     'complaint_id' => $id,
+                    'message' => 'تم معالجة الشكوى بنجاح',
+                    'resolved_by' => $user->user_id,
                 ]);
 
                 return $processedComplaint;
@@ -316,8 +399,10 @@ class ComplaintService
                     $processedComplaint->complaint_from
                 );
 
-                Log::info('ComplaintService::resolveOrRejectComplaint - Complaint rejected', [
+                Log::warning('ComplaintService::resolveOrRejectComplaint - Complaint rejected', [
                     'complaint_id' => $id,
+                    'message' => 'تم رفض الشكوى بنجاح',
+                    'rejected_by' => $user->user_id,
                 ]);
 
                 return $processedComplaint;

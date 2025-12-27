@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\BiometricPunchRequest;
+use App\Http\Requests\Attendance\BiometricBulkLogsRequest;
+use App\Models\BiometricLog;
+use App\Models\UserDetails;
 use App\Services\AttendanceService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -120,13 +124,14 @@ class BiometricAttendanceController extends Controller
      *     )
      * )
      */
+
     public function punch(BiometricPunchRequest $request)
     {
         try {
             $result = $this->attendanceService->biometricPunch(
                 companyId: $request->company_id,
                 branchId: $request->branch_id,
-                employeeIdnum: $request->employee_id,
+                employeeId: $request->employee_id,
                 punchTime: $request->punch_time,
                 verifyMode: $request->verify_mode,
                 punchType: $request->punch_type,
@@ -135,7 +140,7 @@ class BiometricAttendanceController extends Controller
 
             Log::info('Biometric punch processed', [
                 'company_id' => $request->company_id,
-                'employee_idnum' => $request->employee_id,
+                'employee_id    ' => $request->employee_id,
                 'type' => $result['type'] ?? 'unknown',
                 'verify_mode' => $request->verify_mode,
                 'punch_type' => $request->punch_type,
@@ -154,6 +159,399 @@ class BiometricAttendanceController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 400);
+        }
+    }
+
+    /**
+     * استقبال مجموعة من سجلات البصمة دفعة واحدة
+     * Receive bulk biometric logs from device
+     * 
+     * @OA\Post(
+     *     path="/api/biometric/logs",
+     *     operationId="storeBulkBiometricLogs",
+     *     summary="تخزين مجموعة من سجلات البصمة",
+     *     description="استقبال وتخزين مجموعة من سجلات البصمة من الجهاز دفعة واحدة. يتم تخزين السجلات في جدول منفصل ليتم معالجتها لاحقاً.",
+     *     tags={"Biometric Attendance"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         description="بيانات سجلات البصمة من الجهاز",
+     *         @OA\JsonContent(ref="#/components/schemas/BiometricBulkLogsRequest")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم تخزين السجلات بنجاح",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تخزين 10 سجل بنجاح"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="total_received", type="integer", example=10, description="عدد السجلات المستلمة"),
+     *                 @OA\Property(property="total_stored", type="integer", example=10, description="عدد السجلات المخزنة"),
+     *                 @OA\Property(property="total_matched", type="integer", example=8, description="عدد السجلات المطابقة لموظفين في النظام"),
+     *                 @OA\Property(property="total_unmatched", type="integer", example=2, description="عدد السجلات غير المطابقة")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="خطأ في البيانات المدخلة",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="خطأ في البيانات المدخلة"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="خطأ في الخادم",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="حدث خطأ أثناء تخزين السجلات")
+     *         )
+     *     )
+     * )
+     */
+    public function storeBulkLogs(BiometricBulkLogsRequest $request)
+    {
+        try {
+            $logs = $request->getLogs();
+
+            $totalReceived = count($logs);
+            $totalStored = 0;
+            $totalMatched = 0;
+            $totalUnmatched = 0;
+            $totalProcessed = 0;
+            $processingErrors = [];
+            $unmatchedEmployees = []; // قائمة الموظفين غير الموجودين
+
+            // تجميع الـ logs حسب company_id و branch_id للبحث الفعال
+            $groupedLogs = collect($logs)->groupBy(function ($log) {
+                return $log['company_id'] . '_' . $log['branch_id'];
+            });
+
+            // DEBUG: عرض البيانات المستلمة
+            Log::info('Biometric bulk logs - Received data', [
+                'total_logs' => count($logs),
+                'first_log_sample' => $logs[0] ?? null,
+                'grouped_keys' => $groupedLogs->keys()->toArray(),
+            ]);
+
+            // إنشاء cache للموظفين لتجنب queries متكررة
+            $employeeCache = [];
+
+            foreach ($groupedLogs as $key => $logsGroup) {
+                [$companyId, $branchId] = explode('_', $key);
+                $companyId = (int) $companyId;
+                $branchId = (int) $branchId;
+
+                $employeeIds = $logsGroup->pluck('employee_id')->unique()->toArray();
+
+                // DEBUG: عرض الموظفين المطلوب البحث عنهم
+                Log::info('Biometric bulk logs - Searching employees', [
+                    'company_id' => $companyId,
+                    'branch_id' => $branchId,
+                    'employee_ids_from_device' => $employeeIds,
+                ]);
+
+                // البحث عن الموظفين باستخدام المفتاح المركب (company + branch + employee)
+                $matchedRecords = UserDetails::where('company_id', $companyId)
+                    ->where('branch_id', $branchId)
+                    ->whereIn('employee_id', $employeeIds)
+                    ->select('employee_id', 'user_id')
+                    ->get();
+
+                // بناء الـ mapping يدوياً للحفاظ على الـ keys
+                $matchedEmployees = [];
+                foreach ($matchedRecords as $record) {
+                    $matchedEmployees[$record->employee_id] = $record->user_id;
+                }
+
+                // إذا لم نجد جميع الموظفين، ابحث عن الموظفين بـ branch_id = NULL أو 0 (fallback)
+                if (count($matchedEmployees) < count($employeeIds)) {
+                    $foundIds = array_keys($matchedEmployees);
+                    $notFoundIds = array_diff($employeeIds, $foundIds);
+
+                    if (!empty($notFoundIds)) {
+                        // البحث عن الموظفين بدون فرع (branch_id = null أو 0)
+                        $fallbackRecords = UserDetails::where('company_id', $companyId)
+                            ->where(function ($query) {
+                                $query->whereNull('branch_id')
+                                    ->orWhere('branch_id', 0);
+                            })
+                            ->whereIn('employee_id', $notFoundIds)
+                            ->select('employee_id', 'user_id')
+                            ->get();
+
+                        // بناء الـ mapping يدوياً
+                        $fallbackMatches = [];
+                        foreach ($fallbackRecords as $record) {
+                            $fallbackMatches[$record->employee_id] = $record->user_id;
+                        }
+
+                        $matchedEmployees = $matchedEmployees + $fallbackMatches;
+
+                        Log::info('Biometric - Fallback search for NULL/0 branch_id', [
+                            'not_found_ids' => $notFoundIds,
+                            'fallback_matches' => count($fallbackMatches),
+                            'fallback_mapping' => array_map(function ($empId, $userId) {
+                                return "emp_id:{$empId} => user_id:{$userId}";
+                            }, array_keys($fallbackMatches), $fallbackMatches),
+                        ]);
+                    }
+                }
+
+                // DEBUG: عرض نتائج البحث
+                Log::info('Biometric bulk logs - Database match results', [
+                    'company_id' => $companyId,
+                    'branch_id' => $branchId,
+                    'matched_count' => count($matchedEmployees),
+                ]);
+
+                // تخزين في الـ cache
+                foreach ($matchedEmployees as $empId => $userId) {
+                    $cacheKey = "{$companyId}_{$branchId}_{$empId}";
+                    $employeeCache[$cacheKey] = $userId;
+                }
+
+                // DEBUG: عرض الـ cache المبني
+                Log::info('Biometric - Cache built', [
+                    'cache_keys' => array_keys($employeeCache),
+                    'cache_details' => array_map(function ($key, $userId) {
+                        return "{$key} => {$userId}";
+                    }, array_keys($employeeCache), $employeeCache),
+                ]);
+            }
+
+            DB::beginTransaction();
+
+            $totalDuplicated = 0;
+
+            foreach ($logs as $log) {
+                $companyId = $log['company_id'];
+                $branchId = $log['branch_id'];
+                $employeeId = $log['employee_id'];
+                $punchTime = $log['punch_time'];
+
+                // التحقق من وجود سجل مكرر
+                $existingLog = BiometricLog::where('company_id', $companyId)
+                    ->where('branch_id', $branchId)
+                    ->where('employee_id', $employeeId)
+                    ->where('punch_time', $punchTime)
+                    ->first();
+
+                if ($existingLog) {
+                    $totalDuplicated++;
+                    continue; // تخطي السجل المكرر
+                }
+
+                // البحث في الـ cache
+                // تحويل employee_id إلى integer للتطابق مع الـ cache keys
+                $employeeIdInt = is_numeric($employeeId) ? (int)$employeeId : $employeeId;
+                $cacheKey = "{$companyId}_{$branchId}_{$employeeIdInt}";
+                $userId = $employeeCache[$cacheKey] ?? null;
+
+                if ($userId) {
+                    $totalMatched++;
+                } else {
+                    $totalUnmatched++;
+                    // إضافة الموظف غير الموجود للقائمة (بدون تكرار)
+                    $unmatchedKey = "{$companyId}_{$branchId}_{$employeeId}";
+                    if (!isset($unmatchedEmployees[$unmatchedKey])) {
+                        $unmatchedEmployees[$unmatchedKey] = [
+                            'company_id' => $companyId,
+                            'branch_id' => $branchId,
+                            'employee_id' => $employeeId,
+                        ];
+                    }
+                    continue; // تخطي السجل إذا لم يتم العثور على الموظف
+                }
+
+                // 1. تخزين في ci_biometric_logs (فقط للموظفين الموجودين)
+                $biometricLog = BiometricLog::create([
+                    'company_id' => $companyId,
+                    'branch_id' => $branchId,
+                    'employee_id' => $employeeId,
+                    'user_id' => $userId,
+                    'punch_time' => $punchTime,
+                    'punch_type' => $log['punch_type'],
+                    'verify_mode' => $log['verify_mode'],
+                    'raw_data' => $log,
+                    'is_processed' => false,
+                ]);
+
+                $totalStored++;
+
+                // 2. التسجيل المباشر في ci_timesheet (إذا كان الموظف موجود)
+                if ($userId) {
+                    try {
+                        $result = $this->attendanceService->biometricPunch(
+                            companyId: $companyId,
+                            branchId: $branchId,
+                            employeeId: $employeeId,
+                            punchTime: $log['punch_time'],
+                            verifyMode: $log['verify_mode'],
+                            punchType: $log['punch_type'],
+                            workCode: $log['work_code'] ?? null
+                        );
+
+                        // تحديث السجل كمعالج
+                        $biometricLog->markAsProcessed(
+                            attendanceId: $result['data']['attendance_id'] ?? null,
+                            notes: $result['message'] ?? 'تمت المعالجة بنجاح'
+                        );
+
+                        $totalProcessed++;
+                    } catch (\Exception $e) {
+                        // تسجيل الخطأ وإكمال المعالجة
+                        $biometricLog->update([
+                            'processing_notes' => 'فشل: ' . $e->getMessage(),
+                        ]);
+
+                        $processingErrors[] = [
+                            'employee_id' => $employeeId,
+                            'error' => $e->getMessage(),
+                        ];
+
+                        Log::warning('Direct biometric processing failed', [
+                            'employee_id' => $employeeId,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            Log::info('Bulk biometric logs stored and processed', [
+                'total_received' => $totalReceived,
+                'total_stored' => $totalStored,
+                'total_duplicated' => $totalDuplicated,
+                'total_matched' => $totalMatched,
+                'total_unmatched' => $totalUnmatched,
+                'total_processed' => $totalProcessed,
+                'errors_count' => count($processingErrors),
+            ]);
+
+            // بناء رسالة واضحة ومفصلة
+            $successMessage = "تم استلام {$totalReceived} سجل";
+            $detailedMessages = [];
+
+            if ($totalStored > 0) {
+                $detailedMessages[] = "✓ تم تخزين {$totalStored} سجل بنجاح";
+            }
+
+            if ($totalProcessed > 0) {
+                $detailedMessages[] = "✓ تمت معالجة {$totalProcessed} سجل في جدول الحضور";
+            }
+
+            if ($totalDuplicated > 0) {
+                $detailedMessages[] = "⚠ تم تخطي {$totalDuplicated} سجل مكرر";
+            }
+
+            if ($totalUnmatched > 0) {
+                $detailedMessages[] = "✗ فشل {$totalUnmatched} سجل (موظف غير موجود في النظام)";
+            }
+
+            if (count($processingErrors) > 0) {
+                $detailedMessages[] = "✗ فشلت معالجة " . count($processingErrors) . " سجل";
+            }
+
+            $fullMessage = $successMessage . "\n" . implode("\n", $detailedMessages);
+
+            // تحديد حالة النجاح الكلية
+            $isFullSuccess = ($totalUnmatched === 0 && count($processingErrors) === 0);
+            $isPartialSuccess = ($totalProcessed > 0 && ($totalUnmatched > 0 || count($processingErrors) > 0));
+
+
+            // بناء قائمة مفصلة بالموظفين غير الموجودين
+            $unmatchedDetails = [];
+            foreach ($unmatchedEmployees as $emp) {
+                $unmatchedDetails[] = [
+                    'company_id' => $emp['company_id'],
+                    'branch_id' => $emp['branch_id'],
+                    'employee_id' => $emp['employee_id'],
+                    'error' => "الموظف رقم {$emp['employee_id']} غير موجود في الشركة {$emp['company_id']} - الفرع {$emp['branch_id']}",
+                ];
+            }
+
+            // بناء قائمة مفصلة بأخطاء المعالجة
+            $processingErrorsDetails = [];
+            foreach ($processingErrors as $error) {
+                $processingErrorsDetails[] = [
+                    'employee_id' => $error['employee_id'],
+                    'error' => $error['error'],
+                    'error_type' => 'processing_failed',
+                ];
+            }
+
+            // تحديد HTTP Status Code بناءً على النتيجة
+            $httpStatusCode = 200;
+            if ($totalUnmatched === $totalReceived) {
+                // جميع السجلات فشلت
+                $httpStatusCode = 422; // Unprocessable Entity
+            } elseif ($totalUnmatched > 0 || count($processingErrors) > 0) {
+                // نجاح جزئي
+                $httpStatusCode = 207; // Multi-Status
+            }
+
+            return response()->json([
+                'success' => $isFullSuccess || $isPartialSuccess,
+                'status' => $isFullSuccess ? 'success' : ($isPartialSuccess ? 'partial_success' : 'failed'),
+                'message' => $fullMessage,
+                'summary' => [
+                    'total_received' => $totalReceived,
+                    'total_stored' => $totalStored,
+                    'total_processed' => $totalProcessed,
+                    'total_duplicated' => $totalDuplicated,
+                    'total_matched' => $totalMatched,
+                    'total_unmatched' => $totalUnmatched,
+                    'total_failed' => count($processingErrors),
+                ],
+                'errors' => [
+                    'has_errors' => ($totalUnmatched > 0 || count($processingErrors) > 0),
+                    'unmatched_employees' => count($unmatchedEmployees) > 0 ? [
+                        'count' => count($unmatchedEmployees),
+                        'message' => 'تحذير: الموظفين التاليين غير موجودين في النظام ولم يتم تسجيل حضورهم',
+                        'action_required' => 'يرجى التأكد من إضافة هؤلاء الموظفين في النظام أو تصحيح أرقامهم في جهاز البصمة',
+                        'details' => $unmatchedDetails,
+                    ] : null,
+                    'processing_errors' => count($processingErrors) > 0 ? [
+                        'count' => count($processingErrors),
+                        'message' => 'فشلت معالجة السجلات التالية',
+                        'action_required' => 'يرجى مراجعة الأخطاء التالية وإعادة المحاولة',
+                        'details' => $processingErrorsDetails,
+                    ] : null,
+                ],
+            ], $httpStatusCode);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Bulk biometric logs storage failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'status' => 'error',
+                'message' => 'حدث خطأ أثناء تخزين السجلات',
+                'error' => [
+                    'type' => 'server_error',
+                    'message' => $e->getMessage(),
+                    'details' => config('app.debug') ? [
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                        'trace' => explode("\n", $e->getTraceAsString()),
+                    ] : null,
+                ],
+                'help' => 'يرجى التحقق من صحة البيانات المرسلة أو التواصل مع الدعم الفني',
+            ], 500);
         }
     }
 

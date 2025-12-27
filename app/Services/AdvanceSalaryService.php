@@ -292,7 +292,10 @@ class AdvanceSalaryService
             $advance = $this->advanceSalaryRepository->findAdvanceInCompany($id, $effectiveCompanyId);
 
             if (!$advance) {
-                Log::warning('Advance not found', ['advance_id' => $id, 'company_id' => $effectiveCompanyId]);
+                Log::warning('Advance not found', [
+                    'advance_id' => $id, 
+                    'company_id' => $effectiveCompanyId,
+                ]);
                 DB::rollBack();
                 return null;
             }
@@ -322,7 +325,8 @@ class AdvanceSalaryService
                         'advance_id' => $id,
                         'is_owner' => $isOwner,
                         'is_company' => $isCompany,
-                        'is_higher_level' => $isHigherLevel
+                        'is_higher_level' => $isHigherLevel,
+                        'message' => 'ليس لديك صلاحيه لتعديل هذا الطلب'
                     ]);
                     DB::rollBack();
                     throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
@@ -396,12 +400,6 @@ class AdvanceSalaryService
     {
         return DB::transaction(function () use ($id, $user) {
             try {
-                Log::info('AdvanceSalaryService::cancelAdvance started', [
-                    'advance_id' => $id,
-                    'user_id' => $user->user_id,
-                    'user_type' => $user->user_type
-                ]);
-
                 // Get effective company ID
                 $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
@@ -411,6 +409,7 @@ class AdvanceSalaryService
                 if (!$advance) {
                     Log::warning('AdvanceSalaryService::cancelAdvance - Advance not found', [
                         'advance_id' => $id,
+                        'message' => 'الطلب غير موجود',
                         'company_id' => $effectiveCompanyId
                     ]);
                     return false;
@@ -434,29 +433,25 @@ class AdvanceSalaryService
                 if (!$isOwner && !$isCompany && !$isHierarchyManager) {
                     Log::warning('AdvanceSalaryService::cancelAdvance - Permission denied', [
                         'advance_id' => $id,
+                        'message' => 'ليس لديك صلاحية لإلغاء هذا الطلب',
                         'user_id' => $user->user_id,
                         'advance_employee_id' => $advance->employee_id
                     ]);
                     throw new \Exception('ليس لديك صلاحية لإلغاء هذا الطلب');
                 }
 
-                // Regular employee (owner) can only cancel pending requests
-                // Managers/Company can cancel approved/processed requests
-
-                if ($isOwner && !$isCompany && !$isHierarchyManager && $advance->status !== 0) {
-                    Log::warning('AdvanceSalaryService::cancelAdvance - Cannot cancel non-pending request', [
-                        'advance_id' => $id,
-                        'status' => $advance->status
-                    ]);
-                    throw new \Exception('لا يمكن إلغاء الطلب بعد المراجعة');
+                // 1. Status Check: Only Pending (0) can be cancelled
+                if ($advance->status !== 0) {
+                    throw new \Exception('لا يمكن إلغاء الطلب بعد المراجعة (موافق عليه أو مرفوض)');
                 }
 
-                // Recalculate reason based on who is cancelling
+                // Determine cancel reason based on who is cancelling
                 $cancelReason = ($isCompany || $isHierarchyManager) ? 'تم إلغاء الطلب من قبل الإدارة' : 'تم إلغاء الطلب من قبل الموظف';
                 $this->advanceSalaryRepository->rejectAdvance($advance, $user->user_id, $cancelReason);
 
                 Log::info('AdvanceSalaryService::cancelAdvance completed successfully', [
                     'advance_id' => $id,
+                    'message'=> 'تم إلغاء الطلب بنجاح',
                     'cancelled_by' => $user->user_id,
                     'is_manager' => $isHierarchyManager || $isCompany,
                     'cancel_reason' => $cancelReason
@@ -467,6 +462,7 @@ class AdvanceSalaryService
                 Log::error('AdvanceSalaryService::cancelAdvance failed', [
                     'advance_id' => $id,
                     'user_id' => $user->user_id,
+                    'message'=> 'فشل إلغاء الطلب',
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString()
                 ]);
@@ -494,6 +490,8 @@ class AdvanceSalaryService
                 if (!$advance) {
                     Log::warning('AdvanceSalaryService::approveAdvance - Advance not found', [
                         'advance_id' => $id,
+                        'message'=> 'الطلب غير موجود',
+                        'user_id' => $approvedBy,
                         'company_id' => $companyId
                     ]);
                     return null;
@@ -502,7 +500,8 @@ class AdvanceSalaryService
                 if ($advance->status !== 0) {
                     Log::warning('AdvanceSalaryService::approveAdvance - Cannot approve non-pending request', [
                         'advance_id' => $id,
-                        'current_status' => $advance->status
+                        'current_status' => $advance->status,
+                        'message'=> 'تم الموافقة على هذا الطلب مسبقاً أو تم رفضه'
                     ]);
                     throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
                 }
@@ -526,7 +525,8 @@ class AdvanceSalaryService
                         Log::warning('AdvanceSalaryService::approveAdvance - Hierarchy permission denied', [
                             'advance_id' => $id,
                             'approver_id' => $approvedBy,
-                            'employee_id' => $advance->employee_id
+                            'employee_id' => $advance->employee_id,
+                            'message'=> 'ليس لديك صلاحية للموافقة على طلب هذا الموظف'
                         ]);
                         throw new \Exception('ليس لديك صلاحية للموافقة على طلب هذا الموظف');
                     }
@@ -564,6 +564,7 @@ class AdvanceSalaryService
                 Log::info('AdvanceSalaryService::approveAdvance completed successfully', [
                     'advance_id' => $id,
                     'employee_id' => $advance->employee_id,
+                    'message'=> 'تم الموافقة على الطلب بنجاح',
                     'amount' => $advance->advance_amount,
                     'salary_type' => $advance->salary_type,
                     'approved_by' => $approvedBy
@@ -575,6 +576,7 @@ class AdvanceSalaryService
                     'advance_id' => $id,
                     'company_id' => $companyId,
                     'approved_by' => $approvedBy,
+                    'message'=> 'فشل الموافقة على الطلب',
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString()
                 ]);
@@ -590,19 +592,14 @@ class AdvanceSalaryService
     {
         return DB::transaction(function () use ($id, $companyId, $rejectedBy, $reason) {
             try {
-                Log::info('AdvanceSalaryService::rejectAdvance started', [
-                    'advance_id' => $id,
-                    'company_id' => $companyId,
-                    'rejected_by' => $rejectedBy,
-                    'reason_length' => strlen($reason)
-                ]);
 
                 $advance = $this->advanceSalaryRepository->findAdvanceInCompany($id, $companyId);
 
                 if (!$advance) {
                     Log::warning('AdvanceSalaryService::rejectAdvance - Advance not found', [
                         'advance_id' => $id,
-                        'company_id' => $companyId
+                        'company_id' => $companyId,
+                        'message'=> 'الطلب غير موجود'
                     ]);
                     return null;
                 }
@@ -610,6 +607,7 @@ class AdvanceSalaryService
                 if ($advance->status !== 0) {
                     Log::warning('AdvanceSalaryService::rejectAdvance - Cannot reject non-pending request', [
                         'advance_id' => $id,
+                        'message'=> 'لا يمكن رفض طلب تم الموافقة عليه مسبقاً',
                         'current_status' => $advance->status
                     ]);
                     throw new \Exception('لا يمكن رفض طلب تم الموافقة عليه مسبقاً');
@@ -632,6 +630,7 @@ class AdvanceSalaryService
                     if (!$hasPermission && (!$employee || !$this->permissionService->canViewEmployeeRequests($rejectingUser, $employee))) {
                         Log::warning('AdvanceSalaryService::rejectAdvance - Hierarchy permission denied', [
                             'advance_id' => $id,
+                            'message'=> 'ليس لديك صلاحية لرفض طلب هذا الموظف',
                             'rejector_id' => $rejectedBy,
                             'employee_id' => $advance->employee_id
                         ]);
@@ -672,6 +671,7 @@ class AdvanceSalaryService
                     'advance_id' => $id,
                     'employee_id' => $advance->employee_id,
                     'amount' => $advance->advance_amount,
+                    'message'=> 'تم رفض الطلب بنجاح',
                     'salary_type' => $advance->salary_type,
                     'rejected_by' => $rejectedBy,
                     'rejection_reason' => $reason
@@ -683,6 +683,7 @@ class AdvanceSalaryService
                     'advance_id' => $id,
                     'company_id' => $companyId,
                     'rejected_by' => $rejectedBy,
+                    'message'=> 'فشل رفض الطلب',
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString()
                 ]);
@@ -707,10 +708,21 @@ class AdvanceSalaryService
         $advance = $this->advanceSalaryRepository->findAdvanceInCompany($id, $companyId);
 
         if (!$advance) {
+            Log::warning('AdvanceSalaryService::updateTotalPaid - Advance not found', [
+                'advance_id' => $id,
+                'company_id' => $companyId,
+                'message'=> 'الطلب غير موجود'
+            ]);
             return null;
         }
 
         if ($advance->status !== 1) {
+            Log::warning('AdvanceSalaryService::updateTotalPaid - Cannot update paid amount for non-approved request', [
+                'advance_id' => $id,
+                'company_id' => $companyId,
+                'current_status' => $advance->status,
+                'message'=> 'يمكن تحديث المبلغ المدفوع للطلبات الموافق عليها فقط'
+            ]);
             throw new \Exception('يمكن تحديث المبلغ المدفوع للطلبات الموافق عليها فقط');
         }
 
@@ -726,10 +738,21 @@ class AdvanceSalaryService
         $advance = $this->advanceSalaryRepository->findAdvanceInCompany($id, $companyId);
 
         if (!$advance) {
+            Log::warning('AdvanceSalaryService::markAsDeducted - Advance not found', [
+                'advance_id' => $id,
+                'company_id' => $companyId,
+                'message'=> 'الطلب غير موجود'
+            ]);
             return null;
         }
 
         if ($advance->status !== 1) {
+            Log::warning('AdvanceSalaryService::markAsDeducted - Cannot mark non-approved request as deducted', [
+                'advance_id' => $id,
+                'company_id' => $companyId,
+                'current_status' => $advance->status,
+                'message'=> 'يمكن تحديد الخصم من الراتب للطلبات الموافق عليها فقط'
+            ]);
             throw new \Exception('يمكن تحديد الخصم من الراتب للطلبات الموافق عليها فقط');
         }
 

@@ -32,10 +32,6 @@ class TransferResource extends JsonResource
             'old_currency' => $this->old_currency,
             'new_currency' => $this->new_currency,
             'reason' => $this->reason,
-            'document_file' => $this->document_file ?? null,
-            'document_file_url' => $this->document_file
-                ? env('SHARED_UPLOADS_URL', url('uploads')) . '/pdf_files/transfer/' . $this->document_file
-                : null,
             'status' => $this->status,
             'status_text' => $this->status_text,
             'status_text_en' => $this->status_text_en,
@@ -74,38 +70,62 @@ class TransferResource extends JsonResource
                     'last_name' => $lastName ?: null,
                     'email' => $this->employee->email,
                     'full_name' => $fullName ?: 'غير محدد',
+                    'department' => $this->employee->user_details?->department?->name ?? null,
+                    'position' => $this->employee->user_details?->designation?->name ?? null,
                 ];
             }),
 
+            // معلومات الشركة القديمة
+            'old_company_name' => $this->oldCompany?->company_name ?? 'غير محدد',
+
+            // معلومات الشركة الجديدة
+            'new_company_name' => $this->newCompany?->company_name ?? 'غير محدد',
+
             // معلومات القسم القديم
-            'old_department_name' => $this->when(
-                $this->relationLoaded('oldDepartment'),
-                fn() => $this->oldDepartment?->department_name ?? 'غير محدد'
-            ),
+            'old_department_name' => ($this->old_department && $this->old_department > 0)
+                ? ($this->oldDepartment?->department_name ?? 'غير محدد')
+                : 'غير محدد',
 
             // معلومات القسم الجديد
-            'new_department_name' => $this->when(
-                $this->relationLoaded('newDepartment'),
-                fn() => $this->newDepartment?->department_name ?? 'غير محدد'
-            ),
+            'new_department_name' => ($this->transfer_department && $this->transfer_department > 0)
+                ? ($this->newDepartment?->department_name ?? 'غير محدد')
+                : 'غير محدد',
 
             // معلومات المسمى الوظيفي القديم
-            'old_designation_name' => $this->when(
-                $this->relationLoaded('oldDesignation'),
-                fn() => $this->oldDesignation?->designation_name ?? 'غير محدد'
-            ),
+            'old_designation_name' => ($this->old_designation && $this->old_designation > 0)
+                ? ($this->oldDesignation?->designation_name ?? 'غير محدد')
+                : 'غير محدد',
 
             // معلومات المسمى الوظيفي الجديد
-            'new_designation_name' => $this->when(
-                $this->relationLoaded('newDesignation'),
-                fn() => $this->newDesignation?->designation_name ?? 'غير محدد'
-            ),
+            'new_designation_name' => ($this->transfer_designation && $this->transfer_designation > 0)
+                ? ($this->newDesignation?->designation_name ?? 'غير محدد')
+                : 'غير محدد',
 
             // معلومات من أضاف الطلب
             'added_by_name' => $this->when(
                 $this->relationLoaded('addedBy'),
                 fn() => $this->addedBy ? ($this->addedBy->first_name . ' ' . $this->addedBy->last_name) : 'غير محدد'
             ),
+
+            // معلومات الموافقات
+            'approvals' => $this->when($this->relationLoaded('approvals'), function () {
+                return $this->approvals->map(function ($approval) {
+                    return [
+                        'status' => $approval->status,
+                        'approval_level' => $approval->approval_level ?? 1,
+                        'updated_at' => $approval->updated_at,
+                        'staff' => isset($approval->staff) ? [
+                            'user_id' => $approval->staff->user_id,
+                            'first_name' => $approval->staff->first_name,
+                            'last_name' => $approval->staff->last_name,
+                            'full_name' => $approval->staff->full_name,
+                            'email' => $approval->staff->email,
+                            'department' => $approval->staff->user_details?->department?->name ?? null,
+                            'position' => $approval->staff->user_details?->designation?->name ?? null,
+                        ] : null
+                    ];
+                });
+            }),
         ];
     }
 }

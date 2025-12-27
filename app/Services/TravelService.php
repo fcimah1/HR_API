@@ -28,7 +28,8 @@ class TravelService
         protected SimplePermissionService $permissionService,
         protected NotificationService $notificationService,
         protected ApprovalWorkflowService $approvalWorkflow,
-        protected Travel $travel
+        protected Travel $travel,
+        protected CacheService $cacheService,
     ) {}
 
     public function getTravelEnums(): array
@@ -58,13 +59,20 @@ class TravelService
                         'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
                         'target_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'requester_department' => $this->permissionService->getUserDepartmentId($user),
-                        'target_department' => $this->permissionService->getUserDepartmentId($employee)
+                        'target_department' => $this->permissionService->getUserDepartmentId($employee),
+                        'message' => 'ليس لديك صلاحية لإنشاء طلب سفر لهذا الموظف',
                     ]);
                     throw new \Exception('ليس لديك صلاحية لإنشاء طلب سفر لهذا الموظف');
                 }
             }
 
             if ($this->travelRepository->hasOverlappingTravel($dto->employee_id, $dto->start_date, $dto->end_date)) {
+                Log::warning('TravelService::createTravel - Overlapping travel found', [
+                    'employee_id' => $dto->employee_id,
+                    'start_date' => $dto->start_date,
+                    'end_date' => $dto->end_date,
+                    'message' => 'يوجد طلب سفر آخر لنفس الموظف في نفس الفترة الزمنية أو فترة متداخلة معها',
+                ]);
                 throw new \Exception('يوجد طلب سفر آخر لنفس الموظف في نفس الفترة الزمنية أو فترة متداخلة معها');
             }
 
@@ -127,6 +135,11 @@ class TravelService
             $travel = $this->travelRepository->findByIdAndCompany($id, $effectiveCompanyId);
 
             if (!$travel) {
+                Log::warning('TravelService::updateTravel - Travel not found', [
+                    'travel_id' => $id,
+                    'message' => 'الطلب غير موجود',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception('الطلب غير موجود');
             }
 
@@ -146,17 +159,28 @@ class TravelService
                         'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
                         'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'requester_department' => $this->permissionService->getUserDepartmentId($user),
-                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee),
+                        'message' => 'ليس لديك صلاحية لتحديث طلب سفر هذا الموظف',
                     ]);
                     throw new \Exception('ليس لديك صلاحية لتحديث طلب سفر هذا الموظف');
                 }
             }
 
             if ($travel->status == 1) {
+                Log::warning('TravelService::updateTravel - Travel already approved', [
+                    'travel_id' => $id,
+                    'message' => 'لا يمكن تحديث طلب سفر بعد الموافقة عليه',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception(' لا يمكن تحديث طلب سفر بعد الموافقة عليه');
             }
 
             if ($travel->status == 2) {
+                Log::warning('TravelService::updateTravel - Travel already rejected', [
+                    'travel_id' => $id,
+                    'message' => 'لا يمكن تحديث طلب سفر بعد رفضه',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception(' لا يمكن تحديث طلب سفر بعد رفضه');
             }
 
@@ -165,12 +189,17 @@ class TravelService
             $endDate = $dto->end_date ?? $travel->end_date;
 
             if ($this->travelRepository->hasOverlappingTravel($travel->employee_id, $startDate, $endDate, $id)) {
+                Log::warning('TravelService::updateTravel - Overlapping travel found', [
+                    'travel_id' => $id,
+                    'message' => 'يوجد طلب سفر آخر لنفس الموظف في نفس الفترة الزمنية أو فترة متداخلة معها',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception('يوجد طلب سفر آخر لنفس الموظف في نفس الفترة الزمنية أو فترة متداخلة معها');
             }
 
             $this->travelRepository->update($travel, $dto);
 
-         
+
             // Send email notification
             $employeeEmail = $travel->employee->email ?? null;
             $employeeName = $travel->employee->full_name ?? 'Employee';
@@ -200,27 +229,48 @@ class TravelService
             $travel = $this->travelRepository->findByIdAndCompany($id, $effectiveCompanyId);
 
             if (!$travel) {
+                Log::warning('TravelService::cancelTravel - Travel not found', [
+                    'travel_id' => $id,
+                    'message' => 'الطلب غير موجود',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception('الطلب غير موجود');
             }
 
-            // Permission check
+            // 1. Status Check: Only Pending (0) can be cancelled
+            if ($travel->status !== 0) {
+                Log::warning('TravelService::cancelTravel - Travel not pending', [
+                    'travel_id' => $id,
+                    'message' => 'لا يمكن إلغاء الطلب بعد المراجعة (موافق عليه أو مرفوض)',
+                    'user_id' => $user->user_id,
+                ]);
+                throw new \Exception('لا يمكن إلغاء الطلب بعد المراجعة (موافق عليه أو مرفوض)');
+            }
+
+            // 2. Permission Check
             $isOwner = $travel->employee_id === $user->user_id;
             $isCompany = $user->user_type === 'company';
 
+            // Check hierarchy permission (is a manager of the employee)
+            $isHierarchyManager = false;
             if (!$isOwner && !$isCompany) {
-                throw new \Exception('غير مسموح بحذف طلب سفر الموظف');
+                $employee = User::find($travel->employee_id);
+                if ($employee && $this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    $isHierarchyManager = true;
+                }
             }
 
-            // Only pending requests can be cancelled
-            if ($travel->status == 1) {
-                throw new \Exception('لا يمكن حذف طلب سفر تم الموافقة عليه');
+            if (!$isOwner && !$isCompany && !$isHierarchyManager) {
+                Log::warning('TravelService::cancelTravel - Permission denied', [
+                    'travel_id' => $id,
+                    'message' => 'ليس لديك صلاحية لإلغاء هذا الطلب',
+                    'user_id' => $user->user_id,
+                ]);
+                throw new \Exception('ليس لديك صلاحية لإلغاء هذا الطلب');
             }
 
-            if ($travel->status == 2) {
-                throw new \Exception('لا يمكن حذف طلب سفر تم رفضه');
-            }
 
-            $this->travelRepository->cancel($id);
+            $this->travelRepository->reject($id, $user->user_id);
 
             // Send notification for cancellation
             $this->notificationService->sendSubmissionNotification(
@@ -229,6 +279,7 @@ class TravelService
                 $effectiveCompanyId,
                 StringStatusEnum::REJECTED->value
             );
+
             // Send email notification
             $employeeEmail = $travel->employee->email ?? null;
             $employeeName = $travel->employee->full_name ?? 'Employee';
@@ -260,10 +311,20 @@ class TravelService
             $travel = $this->travelRepository->findByIdAndCompany($id, $effectiveCompanyId);
 
             if (!$travel) {
+                Log::warning('TravelService::approveTravel - Travel not found', [
+                    'travel_id' => $id,
+                    'message' => 'الطلب غير موجود',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception('الطلب غير موجود');
             }
 
             if ($travel->status !== 0) {
+                Log::warning('TravelService::approveTravel - Travel not pending', [
+                    'travel_id' => $id,
+                    'message' => 'تم الموافقة على هذا الطلب مسبقاً أو تم رفضه',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
             }
 
@@ -279,13 +340,14 @@ class TravelService
                         'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
                         'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'requester_department' => $this->permissionService->getUserDepartmentId($user),
-                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee),
+                        'message' => 'ليس لديك صلاحية للموافقة على طلب هذا الموظف',
                     ]);
                     throw new \Exception('ليس لديك صلاحية للموافقة على طلب هذا الموظف');
                 }
             }
 
-            $travel = $this->travelRepository->approve($id);
+            $travel = $this->travelRepository->approve($id, $user->user_id);
 
             // Send approval notification
             $this->notificationService->sendApprovalNotification(
@@ -327,10 +389,20 @@ class TravelService
             $travel = $this->travelRepository->findByIdAndCompany($id, $effectiveCompanyId);
 
             if (!$travel) {
+                Log::warning('TravelService::rejectTravel - Travel not found', [
+                    'travel_id' => $id,
+                    'message' => 'الطلب غير موجود',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception('الطلب غير موجود');
             }
 
             if ($travel->status !== 0) {
+                Log::warning('TravelService::rejectTravel - Travel not pending', [
+                    'travel_id' => $id,
+                    'message' => 'تم رفض هذا الطلب مسبقاً أو تم الموافقة عليه',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception('تم رفض هذا الطلب مسبقاً أو تم الموافقة عليه');
             }
 
@@ -346,13 +418,14 @@ class TravelService
                         'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
                         'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'requester_department' => $this->permissionService->getUserDepartmentId($user),
-                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee),
+                        'message' => 'ليس لديك صلاحية لرفض طلب هذا الموظف',
                     ]);
                     throw new \Exception('ليس لديك صلاحية لرفض طلب هذا الموظف');
                 }
             }
 
-            $travel = $this->travelRepository->reject($id);
+            $travel = $this->travelRepository->reject($id, $user->user_id);
 
             // Send rejection notification
             $this->notificationService->sendApprovalNotification(
@@ -395,17 +468,17 @@ class TravelService
         } else {
             // Staff users: check hierarchy permissions
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-            
+
             // Check if user can view other employees' requests (has subordinates)
             $canViewOthers = false;
             $subordinateIds = [];
-            
+
             try {
                 // Get all employees in the company except the user
                 $allEmployees = User::where('company_id', $effectiveCompanyId)
                     ->where('user_id', '!=', $user->user_id)
                     ->get();
-                
+
                 foreach ($allEmployees as $employee) {
                     Log::info('getTravels - Checking employee permission', [
                         'user_id' => $user->user_id,
@@ -413,16 +486,16 @@ class TravelService
                         'employee_name' => $employee->full_name,
                         'can_view' => $this->permissionService->canViewEmployeeRequests($user, $employee)
                     ]);
-                    
+
                     if ($this->permissionService->canViewEmployeeRequests($user, $employee)) {
                         $canViewOthers = true;
                         $subordinateIds[] = $employee->user_id;
                     }
                 }
-                
+
                 // Always include the current user's own requests
                 $subordinateIds[] = $user->user_id;
-                
+
                 Log::info('getTravels - Permission check results', [
                     'user_id' => $user->user_id,
                     'can_view_others' => $canViewOthers,
@@ -432,7 +505,7 @@ class TravelService
                 $canViewOthers = false;
                 $subordinateIds = [];
             }
-            
+
             if ($canViewOthers && !empty($subordinateIds)) {
                 // Manager: get requests for employees they can view (subordinates only)
                 $newFilters = new TravelRequestFilterDTO(
@@ -452,7 +525,7 @@ class TravelService
                     orderBy: $filters->orderBy,
                     order: $filters->order,
                 );
-                
+
                 return $this->travelRepository->getByCompany($effectiveCompanyId, $newFilters);
             } else {
                 // Regular employee: only own requests
@@ -467,6 +540,11 @@ class TravelService
         $travel = $this->travelRepository->findByIdAndCompany($id, $effectiveCompanyId);
 
         if (!$travel) {
+            Log::warning('TravelService::getTravel - Travel not found', [
+                'travel_id' => $id,
+                'message' => 'الطلب غير موجود',
+                'user_id' => $user->user_id,
+            ]);
             throw new \Exception('الطلب غير موجود');
         }
 
@@ -483,7 +561,8 @@ class TravelService
                     'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
                     'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                     'requester_department' => $this->permissionService->getUserDepartmentId($user),
-                    'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                    'employee_department' => $this->permissionService->getUserDepartmentId($employee),
+                    'message' => 'غير مسموح بعرض طلب سفر هذا الموظف',
                 ]);
                 throw new \Exception('غير مسموح بعرض طلب سفر هذا الموظف');
             }

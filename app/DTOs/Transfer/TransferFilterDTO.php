@@ -2,6 +2,7 @@
 
 namespace App\DTOs\Transfer;
 
+use App\Enums\NumericalStatusEnum;
 use Spatie\LaravelData\Data;
 
 class TransferFilterDTO extends Data
@@ -22,11 +23,27 @@ class TransferFilterDTO extends Data
 
     public static function fromRequest(array $data): self
     {
+        // Handle status conversion properly
+        $status = null;
+        // status can be string (pending/approved/rejected) or int (0/1/2)
+        if (array_key_exists('status', $data) && $data['status'] !== null && $data['status'] !== '') {
+            $inputStatus = is_numeric($data['status']) ? (int) $data['status'] : $data['status'];
+
+            if ($inputStatus === 'approved' || $inputStatus === NumericalStatusEnum::APPROVED->value) {
+                $status = NumericalStatusEnum::APPROVED->value;
+            } else if ($inputStatus === 'rejected' || $inputStatus === NumericalStatusEnum::REJECTED->value) {
+                $status = NumericalStatusEnum::REJECTED->value;
+            } else if ($inputStatus === 'pending' || $inputStatus === NumericalStatusEnum::PENDING->value) {
+                $status = NumericalStatusEnum::PENDING->value;
+            } else {
+                $status = null;
+            }
+        }
         return new self(
             companyId: $data['company_id'] ?? null,
             employeeId: $data['employee_id'] ?? null,
             employeeIds: $data['employee_ids'] ?? null,
-            status: isset($data['status']) ? (int)$data['status'] : null,
+            status: $status,
             departmentId: isset($data['department_id']) ? (int)$data['department_id'] : null,
             transferType: $data['transfer_type'] ?? null,
             search: $data['search'] ?? null,

@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Repository\Interface\OvertimeRepositoryInterface;
 use App\DTOs\Overtime\OvertimeRequestFilterDTO;
 use App\Models\OvertimeRequest;
+use App\Models\StaffApproval;
 use App\Models\User;
 use App\Models\UserDetails;
 use Illuminate\Support\Facades\DB;
@@ -76,7 +77,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
                 });
             });
         }
-        
+
         // Apply hierarchy level filtering if specified
         // Use left join to avoid filtering out records without designation
         if ($filters->hierarchyLevels) {
@@ -114,7 +115,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             'clockOut' => $clockOut,
             'excludeRequestId' => $excludeRequestId
         ]);
-        
+
         // Convert request date and times to Carbon objects
         // Handle both time-only format (2:30 PM) and datetime format (2025-12-25 14:30:00)
         if (strpos($clockIn, ' ') !== false) {
@@ -124,7 +125,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             // Time only format, combine with date
             $clockInDateTime = \Carbon\Carbon::parse("{$requestDate} {$clockIn}");
         }
-        
+
         if (strpos($clockOut, ' ') !== false) {
             // Already datetime format
             $clockOutDateTime = \Carbon\Carbon::parse($clockOut);
@@ -132,27 +133,27 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             // Time only format, combine with date
             $clockOutDateTime = \Carbon\Carbon::parse("{$requestDate} {$clockOut}");
         }
-        
+
         Log::info('Parsed datetime objects', [
             'clockInDateTime' => $clockInDateTime->format('Y-m-d H:i:s'),
             'clockOutDateTime' => $clockOutDateTime->format('Y-m-d H:i:s')
         ]);
-        
+
         // Get existing overtime requests for the employee (pending and approved only)
         $existingRequests = OvertimeRequest::where('staff_id', $employeeId)
             ->whereIn('is_approved', [0, 1]) // 0: Pending, 1: Approved
-            ->when($excludeRequestId, function($q) use ($excludeRequestId) {
+            ->when($excludeRequestId, function ($q) use ($excludeRequestId) {
                 $q->where('time_request_id', '!=', $excludeRequestId);
             })
             ->where('request_date', $requestDate)
             ->select(['time_request_id', 'request_date', 'clock_in', 'clock_out', 'is_approved'])
             ->get();
-        
+
         Log::info('Found existing requests', [
             'count' => $existingRequests->count(),
             'requests' => $existingRequests->toArray()
         ]);
-        
+
         // Check for time overlap
         foreach ($existingRequests as $request) {
             try {
@@ -164,7 +165,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
                     // Time only format, combine with date
                     $existingClockIn = \Carbon\Carbon::parse("{$request->request_date} {$request->clock_in}");
                 }
-                
+
                 // Check if clock_out already contains date (datetime format) or just time
                 if (strpos($request->clock_out, ' ') !== false) {
                     // Already datetime format
@@ -173,7 +174,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
                     // Time only format, combine with date
                     $existingClockOut = \Carbon\Carbon::parse("{$request->request_date} {$request->clock_out}");
                 }
-                
+
                 Log::info('Checking overlap with existing request', [
                     'existing_id' => $request->time_request_id,
                     'existing_clock_in' => $existingClockIn->format('Y-m-d H:i:s'),
@@ -181,7 +182,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
                     'condition1' => $clockInDateTime->lt($existingClockOut),
                     'condition2' => $clockOutDateTime->gt($existingClockIn)
                 ]);
-                
+
                 // Check if time ranges overlap
                 if ($clockInDateTime->lt($existingClockOut) && $clockOutDateTime->gt($existingClockIn)) {
                     Log::info('Overtime overlap detected', [
@@ -204,7 +205,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
                 continue;
             }
         }
-        
+
         Log::info('No overlap found, returning false');
         return false;
     }
@@ -217,7 +218,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
         Log::info('OvertimeRepository::createRequest', ['data' => $data]);
 
         $request = OvertimeRequest::create($data);
-        $request->load(['employee', 'approvals']);
+        $request->load(['employee', 'approvals.staff']);
 
         return $request;
     }
@@ -234,7 +235,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
 
         $request->update($data);
         $request->refresh();
-        $request->load(['employee', 'approvals']);
+        $request->load(['employee', 'approvals.staff']);
 
         return $request;
     }
@@ -247,6 +248,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
         Log::info('OvertimeRepository::deleteRequest', [
             'request_id' => $request->time_request_id
         ]);
+
 
         return $request->delete();
     }
@@ -265,9 +267,21 @@ class OvertimeRepository implements OvertimeRepositoryInterface
     /**
      * Approve an overtime request.
      */
-    public function approveRequest(OvertimeRequest $request): OvertimeRequest
+    public function approveRequest(OvertimeRequest $request, int $approvedBy): OvertimeRequest
     {
         $request->update(['is_approved' => 1]);
+
+        // إنشاء سجل الموافقة في جدول ci_erp_notifications_approval
+        StaffApproval::create([
+            'company_id' => $request->company_id,
+            'staff_id' => $approvedBy,
+            'module_option' => 'overtime_settings',
+            'module_key_id' => $request->time_request_id,
+            'status' => 1, // Approved
+            'approval_level' => 1,
+            'updated_at' => now(),
+        ]);
+
         $request->refresh();
         $request->load(['employee', 'approvals.staff']);
 
@@ -277,7 +291,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
     /**
      * Reject an overtime request.
      */
-    public function rejectRequest(OvertimeRequest $request, string $reason): OvertimeRequest
+    public function rejectRequest(OvertimeRequest $request, int $rejectedBy, string $reason): OvertimeRequest
     {
         $request->update([
             'is_approved' => 2,
@@ -285,6 +299,18 @@ class OvertimeRepository implements OvertimeRepositoryInterface
                 ? $request->request_reason . ' | رفض: ' . $reason
                 : 'رفض: ' . $reason
         ]);
+
+        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
+        StaffApproval::create([
+            'company_id' => $request->company_id,
+            'staff_id' => $rejectedBy,
+            'module_option' => 'overtime_settings',
+            'module_key_id' => $request->time_request_id,
+            'status' => 2, // Rejected
+            'approval_level' => 1,
+            'updated_at' => now(),
+        ]);
+
         $request->refresh();
         $request->load(['employee', 'approvals.staff']);
 
@@ -410,9 +436,9 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             ->select('overtime_reason', DB::raw('COUNT(*) as count'))
             ->groupBy('overtime_reason')
             ->get()
-            ->map(function($item) {
-                $reasonValue = $item->overtime_reason instanceof \App\Enums\OvertimeReasonEnum 
-                    ? $item->overtime_reason->value 
+            ->map(function ($item) {
+                $reasonValue = $item->overtime_reason instanceof \App\Enums\OvertimeReasonEnum
+                    ? $item->overtime_reason->value
                     : $item->overtime_reason;
                 return [
                     'reason' => $reasonValue,
@@ -427,9 +453,9 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             ->select('compensation_type', DB::raw('COUNT(*) as count'))
             ->groupBy('compensation_type')
             ->get()
-            ->map(function($item) {
-                $typeValue = $item->compensation_type instanceof \App\Enums\CompensationTypeEnum 
-                    ? $item->compensation_type->value 
+            ->map(function ($item) {
+                $typeValue = $item->compensation_type instanceof \App\Enums\CompensationTypeEnum
+                    ? $item->compensation_type->value
                     : $item->compensation_type;
                 return [
                     'type' => $typeValue,

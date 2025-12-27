@@ -2,6 +2,8 @@
 
 namespace App\DTOs\AdvanceSalary;
 
+use App\Enums\TravelStatusEnum;
+
 class AdvanceSalaryFilterDTO
 {
     public function __construct(
@@ -24,19 +26,21 @@ class AdvanceSalaryFilterDTO
     {
         // Handle status conversion properly
         $status = null;
-        // status can be string (pending/approved/rejected) or int (1/2/3)
-        if (array_key_exists('status', $data) && $data['status'] !== null) {
-            if ($data['status'] === 'approved' || $data['status'] === 2) {
-                $status = 2;
-            } else if ($data['status'] === 'rejected' || $data['status'] === 3) {
-                $status = 3;
-            } else if ($data['status'] === 'pending' || $data['status'] === 1) {
-                $status = 1;
+        // status can be string (pending/approved/rejected) or int (0/1/2)
+        if (array_key_exists('status', $data) && $data['status'] !== null && $data['status'] !== '') {
+            $inputStatus = is_numeric($data['status']) ? (int) $data['status'] : $data['status'];
+
+            if ($inputStatus === 'approved' || $inputStatus === TravelStatusEnum::APPROVED->value) {
+                $status = TravelStatusEnum::APPROVED->value;
+            } else if ($inputStatus === 'rejected' || $inputStatus === TravelStatusEnum::REJECTED->value) {
+                $status = TravelStatusEnum::REJECTED->value;
+            } else if ($inputStatus === 'pending' || $inputStatus === TravelStatusEnum::PENDING->value) {
+                $status = TravelStatusEnum::PENDING->value;
             } else {
                 $status = null;
             }
         }
-        
+
 
         return new self(
             companyId: isset($data['company_id']) ? (int) $data['company_id'] : null,

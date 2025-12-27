@@ -22,10 +22,16 @@ return Application::configure(basePath: dirname(__DIR__))
         // نعيد null من الـ closure حتى لا يحدث أي redirect، ونعتمد على معالج الاستثناءات لإرجاع JSON 401
         $middleware->redirectGuestsTo(fn(Request $request) => null);
 
+        // إضافة middleware للتحقق من صحة JSON
+        $middleware->api(prepend: [
+            \App\Http\Middleware\ValidateJsonSyntax::class,
+        ]);
+
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
             'simple.permission' => \App\Http\Middleware\SimplePermissionCheck::class,
             'simple.company' => \App\Http\Middleware\SimpleCompanyIsolation::class,
+            'fix.biometric.json' => \App\Http\Middleware\FixBiometricJsonMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

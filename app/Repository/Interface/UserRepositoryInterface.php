@@ -15,5 +15,5 @@ interface UserRepositoryInterface
      */
     public function getSubordinateEmployeeIds(int $managerId): array;
 
-    public function getUserByCompositeKey(int $companyId, int $branchId, string $employeeIdnum): ?UserDetails;
+    public function getUserByCompositeKey(int $companyId, int $branchId, string $employeeId): ?UserDetails;
 }

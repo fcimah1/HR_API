@@ -116,4 +116,13 @@ class Complaint extends Model
             default => 'Unknown',
         };
     }
+
+    /**
+     * Get the approvals for this complaint.
+     */
+    public function approvals(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(StaffApproval::class, 'module_key_id', 'complaint_id')
+            ->where('module_option', 'complaint_settings');
+    }
 }

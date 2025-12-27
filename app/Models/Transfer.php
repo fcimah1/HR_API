@@ -25,9 +25,9 @@ class Transfer extends Model
     /**
      * Status constants
      */
-    const STATUS_PENDING = 1;
-    const STATUS_APPROVED = 2;
-    const STATUS_REJECTED = 3;
+    const STATUS_PENDING = 0;
+    const STATUS_APPROVED = 1;
+    const STATUS_REJECTED = 2;
 
     /**
      * Approval status constants
@@ -70,6 +70,11 @@ class Transfer extends Model
         'added_by',
         'notify_send_to',
         'created_at',
+        'custody_clearance_notes',
+        'blocked_reasons',
+        'executed_at',
+        'executed_by',
+        'validation_notes',
     ];
 
     /**
@@ -94,6 +99,9 @@ class Transfer extends Model
         'status' => 'integer',
         'current_company_approval' => 'integer',
         'new_company_approval' => 'integer',
+        'blocked_reasons' => 'array',
+        'executed_at' => 'datetime',
+        'executed_by' => 'integer',
     ];
 
     /**
@@ -142,6 +150,24 @@ class Transfer extends Model
     public function newDesignation(): BelongsTo
     {
         return $this->belongsTo(Designation::class, 'transfer_designation', 'designation_id');
+    }
+
+    /**
+     * Get the old company.
+     */
+    public function oldCompany(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'old_company_id', 'user_id')
+            ->where('user_type', 'company');
+    }
+
+    /**
+     * Get the new company.
+     */
+    public function newCompany(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'new_company_id', 'user_id')
+            ->where('user_type', 'company');
     }
 
     /**
@@ -252,5 +278,13 @@ class Transfer extends Model
     public function isIntercompanyTransfer(): bool
     {
         return $this->transfer_type === self::TYPE_INTERCOMPANY;
+    }
+    /**
+     * Get the approvals for this transfer.
+     */
+    public function approvals()
+    {
+        return $this->hasMany(StaffApproval::class, 'module_key_id', 'transfer_id')
+            ->where('module_option', 'transfer_settings');
     }
 }

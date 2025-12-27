@@ -46,11 +46,23 @@ class UserRepository implements UserRepositoryInterface
         return array_map('intval', $subordinates);
     }
 
-    public function getUserByCompositeKey(int $companyId, int $branchId, string $employeeIdnum): ?UserDetails
+    public function getUserByCompositeKey(int $companyId, int $branchId, string $employeeId): ?UserDetails
     {
-        return UserDetails::where('company_id', $companyId)
+        // محاولة البحث بالمفتاح المركب (company + branch + employee)
+        $userDetails = UserDetails::where('company_id', $companyId)
             ->where('branch_id', $branchId)
-            ->where('employee_idnum', $employeeIdnum)
+            ->where('employee_id', $employeeId)
+            ->first();
+
+        if ($userDetails) {
+            return $userDetails;
+        }
+
+        // fallback: ابحث عن موظف بنفس company و employee لكن branch = NULL أو 0
+        return UserDetails::where('company_id', $companyId)
+            ->whereIn('branch_id', [0, null])
+            ->where('employee_id', $employeeId)
             ->first();
     }
+
 }

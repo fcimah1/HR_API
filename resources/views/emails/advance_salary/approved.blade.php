@@ -40,7 +40,7 @@
         </div>
         <div class="content">
             <p><strong>الموظف:</strong> {{ $employeeName }}</p>
-            <p><strong>التاريخ:</strong> {{ $requestDate }}</p>
+            <p><strong>نوع الطلب:</strong> {{ $salaryType === 'advance' ? 'سلفة' : 'قرض' }}</p>
             <p><strong>المبلغ:</strong> {{ $amount }}</p>
             @if($remarks)
             <p><strong>ملاحظات:</strong> {{ $remarks }}</p>
