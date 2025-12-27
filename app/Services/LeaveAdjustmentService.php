@@ -17,6 +17,8 @@ use App\Mail\LeaveAdjustment\LeaveAdjustmentApproved;
 use App\Mail\LeaveAdjustment\LeaveAdjustmentRejected;
 use App\Mail\LeaveAdjustment\LeaveAdjustmentSubmitted;
 use App\Enums\StringStatusEnum;
+use App\Models\LeaveApplication;
+use Illuminate\Support\Facades\Auth;
 
 class LeaveAdjustmentService
 {
@@ -25,19 +27,22 @@ class LeaveAdjustmentService
     protected $leaveAdjustmentRepository;
     protected $notificationService;
     protected $userRepository;
+    protected $cacheService;
 
     public function __construct(
         SimplePermissionService $permissionService,
         LeaveService $leaveService,
         LeaveAdjustmentRepositoryInterface $leaveAdjustmentRepository,
         NotificationService $notificationService,
-        UserRepositoryInterface $userRepository
+        UserRepositoryInterface $userRepository,
+        CacheService $cacheService
     ) {
         $this->permissionService = $permissionService;
         $this->leaveService = $leaveService;
         $this->leaveAdjustmentRepository = $leaveAdjustmentRepository;
         $this->notificationService = $notificationService;
         $this->userRepository = $userRepository;
+        $this->cacheService = $cacheService;
     }
 
     /**
@@ -122,11 +127,6 @@ class LeaveAdjustmentService
     public function createAdjust(CreateLeaveAdjustmentDTO $data): array
     {
         return DB::transaction(function () use ($data) {
-            Log::info('LeaveAdjustmentService::createAdjustment - Transaction started', [
-                'employee_id' => $data->employeeId,
-                'leave_type_id' => $data->leaveTypeId,
-                'adjust_hours' => $data->adjustHours
-            ]);
 
             // إذا كانت التسوية خصم من رصيد الإجازات (ساعات سالبة)، تحقق من أن الرصيد يكفي
             if ($data->adjustHours < 0) {
@@ -139,6 +139,14 @@ class LeaveAdjustmentService
                 $hoursToDeduct = abs($data->adjustHours);
 
                 if ($availableBalance < $hoursToDeduct) {
+                    Log::info('LeaveAdjustmentService::createAdjustment - Not enough balance', [
+                        'employee_id' => $data->employeeId,
+                        'leave_type_id' => $data->leaveTypeId,
+                        'message' => 'Not enough balance',
+                        'adjust_hours' => $data->adjustHours,
+                        'available_balance' => $availableBalance,
+                        'hours_to_deduct' => $hoursToDeduct
+                    ]);
                     throw new \Exception(
                         'الرصيد المتاح (' . $availableBalance . ' ساعة) غير كافٍ لتسوية ' . $hoursToDeduct . ' ساعة.'
                     );
@@ -185,10 +193,21 @@ class LeaveAdjustmentService
             $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $companyId);
 
             if (!$adjustment) {
+                Log::info('LeaveAdjustmentService::approveAdjustment - Adjustment not found', [
+                    'id' => $id,
+                    'message' => 'Adjustment not found',
+                    'company_id' => $companyId
+                ]);
                 throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
             }
 
             if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
+                Log::info('LeaveAdjustmentService::approveAdjustment - Adjustment not pending', [
+                    'id' => $id,
+                    'message' => 'Adjustment not pending',
+                    'company_id' => $companyId,
+                    'status' => $adjustment->status
+                ]);
                 throw new \Exception('لا يمكن الموافقة على هذا الطلب لأنه تم معالجته مسبقاً');
             }
 
@@ -200,6 +219,7 @@ class LeaveAdjustmentService
                     Log::warning('LeaveAdjustmentService::approveAdjustment - Hierarchy permission denied', [
                         'adjustment_id' => $id,
                         'approver_id' => $approvedBy,
+                        'message' => 'Hierarchy permission denied',
                         'employee_id' => $adjustment->employee_id
                     ]);
                     throw new \Exception('ليس لديك صلاحية للموافقة على طلب هذا الموظف');
@@ -248,10 +268,21 @@ class LeaveAdjustmentService
             $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $companyId);
 
             if (!$adjustment) {
+                Log::info('LeaveAdjustmentService::rejectAdjustment - Adjustment not found', [
+                    'adjustment_id' => $id,
+                    'message' => 'Adjustment not found',
+                    'company_id' => $companyId
+                ]);
                 throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
             }
 
             if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
+                Log::info('LeaveAdjustmentService::rejectAdjustment - Adjustment not pending', [
+                    'adjustment_id' => $id,
+                    'message' => 'Adjustment not pending',
+                    'company_id' => $companyId,
+                    'status' => $adjustment->status
+                ]);
                 throw new \Exception('لا يمكن رفض هذا الطلب لأنه تم معالجته مسبقاً');
             }
 
@@ -263,6 +294,7 @@ class LeaveAdjustmentService
                     Log::warning('LeaveAdjustmentService::rejectAdjustment - Hierarchy permission denied', [
                         'adjustment_id' => $id,
                         'rejector_id' => $rejectedBy,
+                        'message' => 'Hierarchy permission denied',
                         'employee_id' => $adjustment->employee_id
                     ]);
                     throw new \Exception('ليس لديك صلاحية لرفض طلب هذا الموظف');
@@ -315,6 +347,11 @@ class LeaveAdjustmentService
             $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $effectiveCompanyId);
 
             if (!$adjustment) {
+                Log::info('LeaveAdjustmentService::updateAdjustment - Adjustment not found', [
+                    'adjustment_id' => $id,
+                    'message' => 'Adjustment not found',
+                    'company_id' => $effectiveCompanyId
+                ]);
                 throw new \Exception('التسوية غير موجودة');
             }
 
@@ -336,15 +373,22 @@ class LeaveAdjustmentService
                 // Additional explicit check using permission service for consistency
                 $targetEmployee = User::find($adjustment->employee_id);
                 if (!$targetEmployee || !$this->permissionService->canViewEmployeeRequests($user, $targetEmployee)) {
-                    Log::error('Unauthorized update attempt', [
+                    Log::info('LeaveAdjustmentService::updateAdjustment - Unauthorized update attempt', [
                         'user_id' => $user->user_id,
-                        'adjustment_id' => $id
+                        'adjustment_id' => $id,
+                        'message' => 'Unauthorized update attempt'
                     ]);
                     throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
                 }
             }
 
             if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
+                Log::info('LeaveAdjustmentService::updateAdjustment - Adjustment not pending', [
+                    'adjustment_id' => $id,
+                    'message' => 'Adjustment not pending',
+                    'company_id' => $effectiveCompanyId,
+                    'status' => $adjustment->status
+                ]);
                 throw new \Exception('لا يمكن تعديل التسوية بعد المراجعة');
             }
 
@@ -382,21 +426,54 @@ class LeaveAdjustmentService
             $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $effectiveCompanyId);
 
             if (!$adjustment) {
+                Log::info('LeaveAdjustmentService::cancelAdjustment - Adjustment not found', [
+                    'adjustment_id' => $id,
+                    'message' => 'Adjustment not found',
+                    'company_id' => $effectiveCompanyId
+                ]);
                 throw new \Exception('التسوية غير موجودة أو لا تنتمي لهذه الشركة');
             }
 
-            // 1. Strict Ownership Check: Only the owner can cancel
-            if ($adjustment->employee_id !== $user->user_id) {
-                throw new \Exception('غير مصرح لك بإلغاء طلب موظف آخر');
+            // 1. Status Check: Only Pending (0) can be cancelled
+            if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
+                Log::info('LeaveAdjustmentService::cancelAdjustment - Adjustment not pending', [
+                    'adjustment_id' => $id,
+                    'message' => 'Adjustment not pending',
+                    'company_id' => $effectiveCompanyId,
+                    'status' => $adjustment->status
+                ]);
+                throw new \Exception('لا يمكن إلغاء الطلب بعد المراجعة (موافق عليه أو مرفوض)');
             }
 
-            // 2. Strict Status Check: Only Pending (0) can be cancelled
-            if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
-                throw new \Exception('لا يمكن إلغاء الطلب بعد تغيير حالته عن المعلق');
+            // 2. Permission Check
+            $isOwner = $adjustment->employee_id === $user->user_id;
+            $isCompany = $user->user_type === 'company';
+
+            // Check hierarchy permission (is a manager of the employee)
+            $isHierarchyManager = false;
+            if (!$isOwner && !$isCompany) {
+                $employee = User::find($adjustment->employee_id);
+                if ($employee && $this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    $isHierarchyManager = true;
+                }
             }
+
+            if (!$isOwner && !$isCompany && !$isHierarchyManager) {
+                Log::info('LeaveAdjustmentService::cancelAdjustment - Unauthorized cancellation attempt', [
+                    'user_id' => $user->user_id,
+                    'adjustment_id' => $id,
+                    'message' => 'Unauthorized cancellation attempt'
+                ]);
+                throw new \Exception('ليس لديك صلاحية لإلغاء هذا الطلب');
+            }
+
+            // Determine cancel reason based on who is cancelling
+            $cancelReason = $isOwner
+                ? 'تم إلغاء التسوية من قبل ' . $user->full_name
+                : 'تم إلغاء التسوية من قبل الإدارة';
 
             // Mark as rejected (keeps record in database)
-            $cancelledAdjustment = $this->leaveAdjustmentRepository->cancelAdjustment($adjustment, $user->user_id, 'تم إلغاء التسوية من قبل ' . $user->full_name);
+            $cancelledAdjustment = $this->leaveAdjustmentRepository->cancelAdjustment($adjustment, $user->user_id, $cancelReason);
 
             // Send rejection notification (Self-rejection/Cancellation)
             $this->notificationService->sendApprovalNotification(
@@ -407,10 +484,7 @@ class LeaveAdjustmentService
                 $user->user_id
             );
 
-            // Send email notification? (Maybe not needed if self-cancelled, but consistent to leave it or maybe user wants confirmation)
-            // Existing code sends email. I will leave it as is or maybe the user doesn't need email for self-cancellation? 
-            // Usually "Rejected" notification to self is weird. But let's keep it consistent with "Status changed to Rejected".
-
+            // Send email notification
             $employeeEmail = $cancelledAdjustment->employee->email ?? null;
             $employeeName = $cancelledAdjustment->employee->full_name ?? 'Employee';
             $leaveTypeName = $cancelledAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
@@ -451,6 +525,11 @@ class LeaveAdjustmentService
         $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $effectiveCompanyId);
 
         if (!$adjustment) {
+            Log::info('LeaveAdjustmentService::showLeaveAdjustment - Adjustment not found', [
+                'adjustment_id' => $id,
+                'message' => 'Adjustment not found',
+                'company_id' => $effectiveCompanyId
+            ]);
             throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
         }
 
@@ -464,6 +543,11 @@ class LeaveAdjustmentService
                     // Check hierarchy
                     $employee = User::find($adjustment->employee_id);
                     if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                        Log::info('LeaveAdjustmentService::showLeaveAdjustment - Unauthorized view attempt', [
+                            'user_id' => $user->user_id,
+                            'adjustment_id' => $id,
+                            'message' => 'Unauthorized view attempt'
+                        ]);
                         throw new \Exception('ليس لديك صلاحية لعرض تفاصيل هذه التسوية');
                     }
                 }
@@ -471,5 +555,32 @@ class LeaveAdjustmentService
         }
 
         return $adjustment;
+    }
+
+
+    /**
+     * الحصول على قوائم Enums الخاصة بالإجازات
+     * 
+     * @return array
+     */
+    public function getLeaveEnums(): array
+    {
+        $user = Auth::user();
+
+        // استخدام getEffectiveCompanyId دائماً
+        $companyId = $this->permissionService->getEffectiveCompanyId($user);
+
+        Log::info('Getting leave types for user', [
+            'user_id' => $user->user_id ?? null,
+            'user_company_id' => $user->company_id,
+            'effective_company_id' => $companyId
+        ]);
+
+        $leavetypes = $this->cacheService->getLeaveTypes($companyId);
+        return [
+            'statuses_string' => StringStatusEnum::toArray(),
+            'statuses_numeric' => \App\Enums\NumericalStatusEnum::toArray(),
+            'leave_types' => $leavetypes
+        ];
     }
 }

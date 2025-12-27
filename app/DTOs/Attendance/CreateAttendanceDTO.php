@@ -8,8 +8,8 @@ class CreateAttendanceDTO
         public readonly int $companyId,
         public readonly int $employeeId,
         public readonly string $attendanceDate,
-        public readonly string $clockIn,
-        public readonly string $clockInIpAddress,
+        public readonly ?string $clockIn, // nullable for clock-out without clock-in
+        public readonly ?string $clockInIpAddress, // nullable for clock-out without clock-in
         public readonly ?string $clockInLatitude = null,
         public readonly ?string $clockInLongitude = null,
         public readonly int $shiftId = 0,
@@ -17,7 +17,7 @@ class CreateAttendanceDTO
         public readonly string $attendanceStatus = 'Present',
         public readonly string $status = 'Approved',
         public readonly int $branchId = 0,
-        public readonly string $timeLate = '00:00'
+        public readonly ?string $timeLate = '00:00' // nullable for clock-out without clock-in
     ) {}
 
     public static function fromRequest(array $data, int $companyId, int $employeeId, string $ipAddress): self

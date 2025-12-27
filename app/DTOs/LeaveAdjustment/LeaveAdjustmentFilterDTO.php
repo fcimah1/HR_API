@@ -25,12 +25,12 @@ class LeaveAdjustmentFilterDTO
         // Handle status conversion properly
         $status = null;
         if (array_key_exists('status', $data) && $data['status'] !== null) {
-            if ($data['status'] === 'approved' || $data['status'] === 2) {
-                $status = 2;
-            } else if ($data['status'] === 'rejected' || $data['status'] === 3) {
-                $status = 3;
-            } else if ($data['status'] === 'pending' || $data['status'] === 1) {
+            if ($data['status'] === 'approved' || $data['status'] === 1) {
                 $status = 1;
+            } else if ($data['status'] === 'rejected' || $data['status'] === 2) {
+                $status = 2;
+            } else if ($data['status'] === 'pending' || $data['status'] === 0) {
+                $status = 0;
             } else {
                 $status = null;
             }

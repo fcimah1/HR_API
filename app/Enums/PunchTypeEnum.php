@@ -13,12 +13,12 @@ enum PunchTypeEnum: int
     case UNSPECIFIED = 255; // Unspecified
 
 
-        /**
+    /**
      * Get human-readable label for API responses (Arabic)
      */
     public function labelAr(): string
     {
-        return match($this) {
+        return match ($this) {
             self::CHECK_IN => 'حضور',
             self::CHECK_OUT => 'انصراف',
             self::BREAK_OUT => 'نهاية الاستراحة',
@@ -42,5 +42,13 @@ enum PunchTypeEnum: int
             ],
             self::cases()
         );
+    }
+
+    /**
+     * Get all values as a simple array for database ENUM definition
+     */
+    public static function values(): array
+    {
+        return array_map(fn(self $case) => (string) $case->value, self::cases());
     }
 }

@@ -98,11 +98,6 @@ class CreateLeaveAdjustmentRequest extends FormRequest
                     }
                 }
             ],
-            'duty_employee_id' => [
-                'nullable',
-                'integer',
-                new \App\Rules\ValidDutyEmployee($this->employee_id ?? $user->user_id),
-            ],
             'adjust_hours' => [
                 'required',
                 'numeric',
@@ -134,8 +129,6 @@ class CreateLeaveAdjustmentRequest extends FormRequest
             'adjustment_date.required' => 'يجب تحديد تاريخ التعديل',
             'adjustment_date.date' => 'يجب إدخال تاريخ صحيح',
             'adjustment_date.after_or_equal' => 'لا يمكن تحديد تاريخ ماضي',
-            'duty_employee_id.exists' => 'الموظف البديل غير موجود',
-            'duty_employee_id.different' => 'لا يمكن اختيار الموظف نفسه كبديل',
             'adjust_hours.required' => 'يجب تحديد عدد ساعات التعديل',
             'adjust_hours.numeric' => 'يجب إدخال رقم صحيح أو عشري',
             'adjust_hours.min' => 'يجب أن لا يقل عدد الساعات عن 0.5',

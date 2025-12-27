@@ -11,12 +11,12 @@ enum VerifyModeEnum: int
     case CARD_FINGERPRINT = 4; // Card+Fingerprint
     case FACE = 15; // Face
 
-        /**
+    /**
      * Get human-readable label for API responses (Arabic)
      */
     public function labelAr(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PASSWORD => 'كلمة مرور',
             self::FINGERPRINT => 'اصبع بصمة',
             self::CARD => 'بطاقة',
@@ -39,5 +39,13 @@ enum VerifyModeEnum: int
             ],
             self::cases()
         );
+    }
+
+    /**
+     * Get all values as a simple array for database ENUM definition
+     */
+    public static function values(): array
+    {
+        return array_map(fn(self $case) => (string) $case->value, self::cases());
     }
 }

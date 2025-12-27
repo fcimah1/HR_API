@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\DB;
 class HolidayService
 {
     public function __construct(
-        protected HolidayRepositoryInterface $holidayRepository
+        protected HolidayRepositoryInterface $holidayRepository,
+        protected CacheService $cacheService,
     ) {}
 
     public function getHolidays(int $companyId, array $filters = []): array
@@ -52,6 +53,10 @@ class HolidayService
             }
 
             $holiday = $this->holidayRepository->create($dto);
+
+            // مسح الـ cache للعطلات بعد الإضافة
+            $this->cacheService->clearHolidaysCache($dto->companyId);
+
             return HolidayResponseDTO::fromModel($holiday)->toArray();
         });
     }
@@ -65,36 +70,67 @@ class HolidayService
             }
 
             $holiday = $this->holidayRepository->update($id, $dto, $companyId);
+
+            // مسح الـ cache للعطلات بعد التحديث
+            $this->cacheService->clearHolidaysCache($companyId);
+
             return HolidayResponseDTO::fromModel($holiday)->toArray();
         });
     }
 
     public function deleteHoliday(int $id, int $companyId): bool
     {
-        return $this->holidayRepository->delete($id, $companyId);
+        $result = $this->holidayRepository->delete($id, $companyId);
+
+        // مسح الـ cache للعطلات بعد الحذف
+        $this->cacheService->clearHolidaysCache($companyId);
+
+        return $result;
     }
 
     /**
-     * Check if date is a holiday
+     * Check if date is a holiday (مع Cache)
      */
     public function isHoliday(string $date, int $companyId): bool
     {
-        $holiday = $this->holidayRepository->getHolidayByDate($date, $companyId);
-        return $holiday !== null;
+        $year = (int)date('Y', strtotime($date));
+        $holidays = $this->cacheService->getHolidays($companyId, $year);
+
+        foreach ($holidays as $holiday) {
+            $startDate = $holiday->event_start_date ?? ($holiday['event_start_date'] ?? null);
+            $endDate = $holiday->event_end_date ?? ($holiday['event_end_date'] ?? null);
+
+            if ($startDate && $endDate && $date >= $startDate && $date <= $endDate) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
-     * Get holiday info for a date
+     * Get holiday info for a date (مع Cache)
      */
     public function getHolidayForDate(string $date, int $companyId): ?array
     {
-        $holiday = $this->holidayRepository->getHolidayByDate($date, $companyId);
+        $year = (int)date('Y', strtotime($date));
+        $holidays = $this->cacheService->getHolidays($companyId, $year);
 
-        if (!$holiday) {
-            return null;
+        foreach ($holidays as $holiday) {
+            $startDate = $holiday->event_start_date ?? ($holiday['event_start_date'] ?? null);
+            $endDate = $holiday->event_end_date ?? ($holiday['event_end_date'] ?? null);
+
+            if ($startDate && $endDate && $date >= $startDate && $date <= $endDate) {
+                return [
+                    'event_id' => $holiday->event_id ?? ($holiday['event_id'] ?? null),
+                    'event_name' => $holiday->event_name ?? ($holiday['event_name'] ?? null),
+                    'event_start_date' => $startDate,
+                    'event_end_date' => $endDate,
+                ];
+            }
         }
 
-        return HolidayResponseDTO::fromModel($holiday)->toArray();
+        return null;
     }
 
     /**

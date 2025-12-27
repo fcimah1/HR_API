@@ -268,12 +268,7 @@ class HourlyLeaveController extends Controller
                     'message' => 'طلب الإجازة غير موجود أو ليس لديك صلاحية لعرضه'
                 ], 404);
             }
-
-            Log::info('HourlyLeaveController::show', [
-                'success' => true,
-                'created_by' => $user->full_name
-            ]);
-
+            
             return response()->json([
                 'success' => true,
                 'data' => new HourlyLeaveResource($application)
@@ -360,11 +355,6 @@ class HourlyLeaveController extends Controller
     {
         try {
             $user = Auth::user();
-            
-            Log::info('HourlyLeaveController::store', [
-                'user_id' => $user->user_id,
-                'request' => $request->all()
-            ]);
 
             // التحقق من الصلاحيات
             if (!$this->simplePermissionService->checkPermission($user, 'leave3')) {
@@ -503,19 +493,8 @@ class HourlyLeaveController extends Controller
             // إنشاء DTO من الطلب
             $dto = UpdateHourlyLeaveDTO::fromRequest($request->validated());
 
-            Log::info('HourlyLeaveController::update', [
-                'application_id' => $id,
-                'dto' => $dto,
-                'created_by' => $user->full_name
-            ]);
-
             // تحديث طلب الإستئذان
             $application = $this->hourlyLeaveService->updateHourlyLeave($id, $dto, $user);
-
-            Log::info('HourlyLeaveController::update', [
-                'success' => true,
-                'created_by' => $user->full_name
-            ]);
 
             return response()->json([
                 'success' => true,
@@ -617,12 +596,6 @@ class HourlyLeaveController extends Controller
             }
             
             $this->hourlyLeaveService->cancelHourlyLeave($id, $user);
-
-            Log::info('HourlyLeaveController::cancel', [
-                'success' => true,
-                'message' => 'تم إلغاء طلب الإستئذان بنجاح',
-                'create_by' => $user->full_name
-            ]);
             
             return response()->json([
                 'success' => true,
@@ -732,13 +705,6 @@ class HourlyLeaveController extends Controller
 
             $action = $request->input('action'); // approve or reject
 
-            Log::info('HourlyLeaveController::approveOrReject Request received', [
-                'request' => $request->all(),
-                'application_id' => $id,
-                'action' => $action,
-                'created_by' => $user->full_name
-            ]);
-
             // إنشاء DTO
             $dto = ApproveOrRejectHourlyLeaveDTO::fromRequest(
                 $request->validated(),
@@ -750,11 +716,6 @@ class HourlyLeaveController extends Controller
             $application = $this->hourlyLeaveService->approveOrRejectHourlyLeave($id, $dto);
 
             if ($action === 'approve') {
-                Log::info('HourlyLeaveController::approveOrReject Approved', [
-                    'success' => true,
-                    'application' => $application,
-                    'created_by' => $user->full_name
-                ]);
 
                 return response()->json([
                     'success' => true,
@@ -762,11 +723,6 @@ class HourlyLeaveController extends Controller
                     'data' => new HourlyLeaveResource($application)
                 ]);
             } else {
-                Log::info('HourlyLeaveController::approveOrReject Rejected', [
-                    'success' => true,
-                    'application' => $application,
-                    'created_by' => $user->full_name
-                ]);
 
                 return response()->json([
                     'success' => true,

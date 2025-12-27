@@ -30,7 +30,8 @@ class OvertimeService
         private readonly ApprovalService $approvalService,
         private readonly OvertimeCalculationService $calculationService,
         private readonly NotificationService $notificationService,
-        private readonly ApprovalWorkflowService $approvalWorkflow
+        private readonly ApprovalWorkflowService $approvalWorkflow,
+        private readonly CacheService $cacheService
     ) {}
 
     /**
@@ -58,28 +59,27 @@ class OvertimeService
             // Staff users: check hierarchy permissions
             $canViewOthers = false;
             $subordinateIds = [];
-            
+
             try {
                 // Get all employees in the company except the user
                 $allEmployees = User::where('company_id', $effectiveCompanyId)
                     ->where('user_id', '!=', $user->user_id)
                     ->get();
-                
+
                 foreach ($allEmployees as $employee) {
                     if ($this->permissionService->canViewEmployeeRequests($user, $employee)) {
                         $canViewOthers = true;
                         $subordinateIds[] = $employee->user_id;
                     }
                 }
-                
+
                 // Always include the current user's own requests
                 $subordinateIds[] = $user->user_id;
-                
             } catch (\Exception $e) {
                 $canViewOthers = false;
                 $subordinateIds = [$user->user_id];
             }
-            
+
             if ($canViewOthers && !empty($subordinateIds)) {
                 // Manager: get requests for employees they can view
                 // Don't apply hierarchy filtering by default to avoid issues
@@ -114,7 +114,22 @@ class OvertimeService
             }
         }
 
-        return $this->overtimeRepository->getPaginatedRequests($modifiedFilters, $user);
+        $result = $this->overtimeRepository->getPaginatedRequests($modifiedFilters, $user);
+
+        // Transform data using ResponseDTO for consistent format
+        $transformedData = collect($result['data'])->map(function ($request) {
+            return OvertimeRequestResponseDTO::fromModel($request)->toArray();
+        })->toArray();
+
+        return [
+            'data' => $transformedData,
+            'total' => $result['total'],
+            'per_page' => $result['per_page'],
+            'current_page' => $result['current_page'],
+            'last_page' => $result['last_page'],
+            'from' => $result['from'],
+            'to' => $result['to'],
+        ];
     }
 
     /**
@@ -135,15 +150,16 @@ class OvertimeService
     public function createRequest(CreateOvertimeRequestDTO $dto, User $user): OvertimeRequestResponseDTO
     {
         return DB::transaction(function () use ($dto, $user) {
-            Log::info('OvertimeService::createRequest started', [
-                'user_id' => $user->user_id,
-                'staff_id' => $dto->staffId
-            ]);
 
             // Check hierarchical permissions for staff users creating requests for others
             if ($user->user_type !== 'company' && $dto->staffId !== $user->user_id) {
                 $employee = User::find($dto->staffId);
                 if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::info('OvertimeService::createRequest - Permission denied', [
+                        'user_id' => $user->user_id,
+                        'staff_id' => $dto->staffId,
+                        'message' => 'Permission denied'
+                    ]);
                     throw new \Exception('ليس لديك صلاحية لإنشاء طلب عمل إضافي لهذا الموظف');
                 }
             }
@@ -153,15 +169,20 @@ class OvertimeService
                 'staffId' => $dto->staffId,
                 'requestDate' => $dto->requestDate,
                 'clockIn' => $dto->clockIn,
-                'clockOut' => $dto->clockOut
+                'clockOut' => $dto->clockOut,
+                'message' => 'Checking overtime overlap'
             ]);
-            
+
             if ($this->overtimeRepository->hasOverlappingOvertime($dto->staffId, $dto->requestDate, $dto->clockIn, $dto->clockOut)) {
-                Log::info('Overtime overlap detected, throwing exception');
+                Log::info('Overtime overlap detected, throwing exception', [
+                    'staffId' => $dto->staffId,
+                    'requestDate' => $dto->requestDate,
+                    'clockIn' => $dto->clockIn,
+                    'clockOut' => $dto->clockOut,
+                    'message' => 'Overtime overlap detected'
+                ]);
                 throw new \Exception('يوجد طلب عمل إضافي آخر لنفس الموظف في نفس الوقت أو وقت متداخل معه');
             }
-            
-            Log::info('No overtime overlap detected, proceeding with creation');
 
             // Validate against shift
             $this->calculationService->validateAgainstShift(
@@ -173,9 +194,14 @@ class OvertimeService
             );
 
             // Check if it's a holiday (allow for weekend work reason)
-            if ($dto->overtimeReason != 4) {
+            if ($dto->overtimeReason !== OvertimeReasonEnum::SALARIED_EMPLOYEE->value) {
                 $isHoliday = $this->calculationService->isHoliday($dto->companyId, $dto->requestDate);
                 if ($isHoliday) {
+                    Log::info('Holiday detected, throwing exception', [
+                        'companyId' => $dto->companyId,
+                        'requestDate' => $dto->requestDate,
+                        'message' => 'Holiday detected'
+                    ]);
                     throw new \Exception('لا يمكن تقديم طلب عمل إضافي في يوم عطلة');
                 }
             }
@@ -218,7 +244,7 @@ class OvertimeService
 
             $request = $this->overtimeRepository->createRequest($data);
 
-               // Start approval workflow if multi-level approval is enabled
+            // Start approval workflow if multi-level approval is enabled
             $this->approvalWorkflow->submitForApproval(
                 'overtime_request_settings',
                 (string)$request->time_request_id,
@@ -279,30 +305,47 @@ class OvertimeService
             $request = $this->overtimeRepository->findRequestInCompany($id, $effectiveCompanyId);
 
             if (!$request) {
+                Log::info('OvertimeService::updateRequest - Request not found', [
+                    'request_id' => $id,
+                    'message' => 'Request not found'
+                ]);
                 throw new \Exception('الطلب غير موجود');
             }
 
             // Check hierarchical permissions (owner, company, or authorized managers can update)
             $isOwner = $request->staff_id === $user->user_id;
             $isCompany = $user->user_type === 'company';
-            
+
             if (!$isOwner && !$isCompany) {
                 $employee = User::find($request->staff_id);
                 if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::info('OvertimeService::updateRequest - Permission denied', [
+                        'user_id' => $user->user_id,
+                        'request_id' => $id,
+                        'message' => 'Permission denied'
+                    ]);
                     throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
                 }
             }
 
             // Can only update pending requests
             if ($request->is_approved !== 0) {
+                Log::info('OvertimeService::updateRequest - Request is not pending', [
+                    'request_id' => $id,
+                    'message' => 'Request is not pending'
+                ]);
                 throw new \Exception('لا يمكن تعديل طلب تمت مراجعته');
             }
 
             // Check for overlapping overtime requests (if times are being updated)
             $clockIn24 = $this->calculationService->convertTo24Hour($dto->clockIn, $dto->requestDate);
             $clockOut24 = $this->calculationService->convertTo24Hour($dto->clockOut, $dto->requestDate);
-            
+
             if ($this->overtimeRepository->hasOverlappingOvertime($request->staff_id, $dto->requestDate, $clockIn24, $clockOut24, $id)) {
+                Log::info('OvertimeService::updateRequest - Overlapping overtime detected', [
+                    'request_id' => $id,
+                    'message' => 'Overlapping overtime detected'
+                ]);
                 throw new \Exception('يوجد طلب عمل إضافي آخر لنفس الموظف في نفس الوقت أو وقت متداخل معه');
             }
 
@@ -367,26 +410,46 @@ class OvertimeService
         $request = $this->overtimeRepository->findRequestInCompany($id, $effectiveCompanyId);
 
         if (!$request) {
+            Log::info('OvertimeService::deleteRequest - Request not found', [
+                'request_id' => $id,
+                'message' => 'Request not found'
+            ]);
             throw new \Exception('الطلب غير موجود');
         }
 
         // Check hierarchical permissions (owner, company, or authorized managers can delete)
         $isOwner = $request->staff_id === $user->user_id;
         $isCompany = $user->user_type === 'company';
-        
+
         if (!$isOwner && !$isCompany) {
             $employee = User::find($request->staff_id);
             if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::info('OvertimeService::deleteRequest - Permission denied', [
+                    'user_id' => $user->user_id,
+                    'request_id' => $id,
+                    'message' => 'Permission denied'
+                ]);
                 throw new \Exception('ليس لديك صلاحية لحذف هذا الطلب');
             }
         }
 
         // Can only delete pending requests
         if ($request->is_approved !== 0) {
+            Log::info('OvertimeService::deleteRequest - Request is not pending', [
+                'request_id' => $id,
+                'message' => 'Request is not pending'
+            ]);
             throw new \Exception('لا يمكن حذف طلب تمت مراجعته');
         }
 
-        return $this->overtimeRepository->deleteRequest($request);
+        // Determine cancel reason based on who is cancelling
+        $cancelReason = $isOwner
+            ? 'تم إلغاء الطلب من قبل الموظف'
+            : 'تم إلغاء الطلب من قبل الإدارة';
+
+        $this->overtimeRepository->rejectRequest($request, $user->user_id, $cancelReason);
+
+        return true;
     }
 
     /**
@@ -400,10 +463,18 @@ class OvertimeService
             $request = $this->overtimeRepository->findRequestInCompany($id, $effectiveCompanyId);
 
             if (!$request) {
+                Log::info('OvertimeService::approveRequest - Request not found', [
+                    'request_id' => $id,
+                    'message' => 'Request not found'
+                ]);
                 throw new \Exception('الطلب غير موجود');
             }
 
             if ($request->is_approved !== 0) {
+                Log::info('OvertimeService::approveRequest - Request is not pending', [
+                    'request_id' => $id,
+                    'message' => 'Request is not pending'
+                ]);
                 throw new \Exception('تمت مراجعة هذا الطلب مسبقاً');
             }
 
@@ -419,7 +490,8 @@ class OvertimeService
                         'requester_level' => $this->permissionService->getUserHierarchyLevel($approver),
                         'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'requester_department' => $this->permissionService->getUserDepartmentId($approver),
-                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee),
+                        'message' => 'Hierarchy permission denied'
                     ]);
                     throw new \Exception('ليس لديك صلاحية للموافقة على طلب هذا الموظف');
                 }
@@ -429,7 +501,7 @@ class OvertimeService
 
             // Company user can approve directly
             if ($userType === 'company') {
-                $approvedRequest = $this->overtimeRepository->approveRequest($request);
+                $approvedRequest = $this->overtimeRepository->approveRequest($request, $approver->user_id);
 
                 // Send approval notification
                 $this->notificationService->sendApprovalNotification(
@@ -480,6 +552,11 @@ class OvertimeService
             );
 
             if (!$canApprove) {
+                Log::info('OvertimeService::approveRequest - Permission denied', [
+                    'user_id' => $approver->user_id,
+                    'request_id' => $id,
+                    'message' => 'Permission denied'
+                ]);
                 throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
             }
 
@@ -491,7 +568,7 @@ class OvertimeService
 
             if ($isFinal) {
                 // Final approval - update request status
-                $approvedRequest = $this->overtimeRepository->approveRequest($request);
+                $approvedRequest = $this->overtimeRepository->approveRequest($request, $approver->user_id);
 
                 // Send approval notification
                 $this->notificationService->sendApprovalNotification(
@@ -546,10 +623,18 @@ class OvertimeService
             $request = $this->overtimeRepository->findRequestInCompany($id, $effectiveCompanyId);
 
             if (!$request) {
+                Log::info('OvertimeService::rejectRequest - Request not found', [
+                    'id' => $id,
+                    'message' => 'Request not found'
+                ]);
                 throw new \Exception('الطلب غير موجود');
             }
 
             if ($request->is_approved !== 0) {
+                Log::info('OvertimeService::rejectRequest - Request is not pending', [
+                    'id' => $id,
+                    'message' => 'Request is not pending'
+                ]);
                 throw new \Exception('تمت مراجعة هذا الطلب مسبقاً');
             }
 
@@ -565,14 +650,15 @@ class OvertimeService
                         'requester_level' => $this->permissionService->getUserHierarchyLevel($rejector),
                         'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'requester_department' => $this->permissionService->getUserDepartmentId($rejector),
-                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee),
+                        'message' => 'Hierarchy permission denied'
                     ]);
                     throw new \Exception('ليس لديك صلاحية لرفض طلب هذا الموظف');
                 }
             }
 
             // Reject the request
-            $rejectedRequest = $this->overtimeRepository->rejectRequest($request, $reason);
+            $rejectedRequest = $this->overtimeRepository->rejectRequest($request, $rejector->user_id, $reason);
 
             // Send rejection notification
             $this->notificationService->sendApprovalNotification(
@@ -673,6 +759,10 @@ class OvertimeService
         $request = $this->overtimeRepository->findRequestInCompany($id, $effectiveCompanyId);
 
         if (!$request) {
+            Log::info('OvertimeService::getRequest - Request not found', [
+                'id' => $id,
+                'message' => 'Request not found'
+            ]);
             throw new \Exception('الطلب غير موجود');
         }
 
@@ -680,6 +770,17 @@ class OvertimeService
         if ($user->user_type !== 'company' && $request->staff_id !== $user->user_id) {
             $employee = User::find($request->staff_id);
             if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::warning('OvertimeService::getRequest - Hierarchy permission denied', [
+                    'request_id' => $id,
+                    'requester_id' => $user->user_id,
+                    'requester_type' => $user->user_type,
+                    'employee_id' => $request->staff_id,
+                    'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                    'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                    'requester_department' => $this->permissionService->getUserDepartmentId($user),
+                    'employee_department' => $this->permissionService->getUserDepartmentId($employee),
+                    'message' => 'Hierarchy permission denied'
+                ]);
                 throw new \Exception('ليس لديك صلاحية لعرض هذا الطلب');
             }
         }

@@ -24,7 +24,8 @@ class GetTransferRequest extends FormRequest
     {
         return [
             'search' => 'nullable|string|max:255',
-            'status' => 'nullable|integer|in:1,2,3',
+            'employee_id' => 'nullable|integer',
+            'status' => 'nullable|string|in:pending,approved,rejected',
             'department_id' => 'nullable|integer',
             'transfer_type' => 'nullable|string|in:internal,branch,intercompany',
             'from_date' => 'nullable|date',
@@ -40,7 +41,7 @@ class GetTransferRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'status.in' => 'الحالة يجب أن تكون 1 (قيد المراجعة) أو 2 (موافق عليه) أو 3 (مرفوض)',
+            'status.in' => 'الحالة يجب أن تكون pending (قيد المراجعة) أو approved (موافق عليه) أو rejected (مرفوض)',
             'from_date.date' => 'تنسيق تاريخ البداية غير صحيح',
             'to_date.date' => 'تنسيق تاريخ النهاية غير صحيح',
             'to_date.after_or_equal' => 'تاريخ النهاية يجب أن يكون بعد أو يساوي تاريخ البداية',

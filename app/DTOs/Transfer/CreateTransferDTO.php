@@ -2,6 +2,7 @@
 
 namespace App\DTOs\Transfer;
 
+use App\Enums\NumericalStatusEnum;
 use App\Models\Transfer;
 use Spatie\LaravelData\Data;
 
@@ -28,7 +29,8 @@ class CreateTransferDTO extends Data
         public readonly string $transferType = Transfer::TYPE_INTERNAL,
         public readonly ?int $currentCompanyApproval = null,
         public readonly ?int $newCompanyApproval = null,
-        public readonly int $status = Transfer::STATUS_PENDING,
+        public readonly int $status = NumericalStatusEnum::PENDING->value,
+        public readonly ?array $notifySendTo = null,
     ) {}
 
     public static function fromRequest(array $data, int $companyId, int $employeeId, int $addedBy): self
@@ -66,7 +68,8 @@ class CreateTransferDTO extends Data
             transferType: $transferType,
             currentCompanyApproval: $currentCompanyApproval,
             newCompanyApproval: $newCompanyApproval,
-            status: Transfer::STATUS_PENDING,
+            status: NumericalStatusEnum::PENDING->value,
+            notifySendTo: $data['notify_send_to'] ?? null,
         );
     }
 
@@ -94,6 +97,7 @@ class CreateTransferDTO extends Data
             'current_company_approval' => $this->currentCompanyApproval,
             'new_company_approval' => $this->newCompanyApproval,
             'status' => $this->status,
+            'notify_send_to' => $this->notifySendTo,
             'created_at' => now()->format('Y-m-d H:i:s'),
         ];
     }

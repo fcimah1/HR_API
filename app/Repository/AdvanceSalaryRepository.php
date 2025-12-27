@@ -6,6 +6,7 @@ use App\Repository\Interface\AdvanceSalaryRepositoryInterface;
 use App\DTOs\AdvanceSalary\AdvanceSalaryFilterDTO;
 use App\DTOs\AdvanceSalary\CreateAdvanceSalaryDTO;
 use App\DTOs\AdvanceSalary\UpdateAdvanceSalaryDTO;
+use App\Enums\NumericalStatusEnum;
 use App\Models\AdvanceSalary;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
@@ -103,13 +104,13 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
      */
     public function findAdvance(int $id): ?AdvanceSalary
     {
-        return AdvanceSalary::with(['employee'])
+        return AdvanceSalary::with(['employee', 'approvals.staff'])
             ->find($id);
     }
 
     public function findAdvanceInCompany(int $id, int $companyId): ?AdvanceSalary
     {
-        return AdvanceSalary::with(['employee'])
+        return AdvanceSalary::with(['employee', 'approvals.staff'])
             ->where('advance_salary_id', $id)
             ->where('company_id', $companyId)
             ->first();
@@ -120,7 +121,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
      */
     public function findApprovedAdvanceInCompany(int $employeeId, int $companyId): ?AdvanceSalary
     {
-        return AdvanceSalary::with(['employee'])
+        return AdvanceSalary::with(['employee','approvals.staff'])
             ->where('employee_id', $employeeId)
             ->where('company_id', $companyId)
             ->where('status', '=', 1) // Approved
@@ -130,7 +131,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
 
     public function findPendingAdvanceInCompany(int $employeeId, int $companyId): ?AdvanceSalary
     {
-        return AdvanceSalary::with(['employee'])
+        return AdvanceSalary::with(['employee','approvals.staff'])
             ->where('employee_id', $employeeId)
             ->where('company_id', $companyId)
             ->where('status', '=', 0) // Pending
@@ -144,7 +145,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
      */
     public function findAdvanceForEmployee(int $id, int $employeeId): ?AdvanceSalary
     {
-        return AdvanceSalary::with(['employee'])
+        return AdvanceSalary::with(['employee','approvals.staff'])
             ->where('advance_salary_id', $id)
             ->where('employee_id', $employeeId)
             ->first();
@@ -200,7 +201,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
         ]);
 
         $advance->update([
-            'status' => 1, // Approved
+            'status' => NumericalStatusEnum::APPROVED->value, // Approved
         ]);
 
         // Create approval record
@@ -209,7 +210,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
             'staff_id' => $approvedBy,
             'module_option' => 'advance_salary_settings',
             'module_key_id' => $advance->advance_salary_id,
-            'status' => 1, // Approved
+            'status' => NumericalStatusEnum::APPROVED->value, // Approved
             'approval_level' => '1',
             'updated_at' => now(),
         ]);
@@ -236,7 +237,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
         ]);
 
         $advance->update([
-            'status' => 2, // Rejected
+            'status' => NumericalStatusEnum::REJECTED->value, // Rejected
             'reason' => $advance->reason . "\n\nسبب الرفض: " . $reason,
         ]);
 
@@ -246,7 +247,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
             'staff_id' => $rejectedBy,
             'module_option' => 'advance_salary_settings',
             'module_key_id' => $advance->advance_salary_id,
-            'status' => 2, // Rejected
+            'status' => NumericalStatusEnum::REJECTED->value, // Rejected
             'approval_level' => '1',
             'updated_at' => now(),
         ]);
@@ -276,30 +277,30 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
             ->count();
 
         $pendingCount = AdvanceSalary::where('company_id', $companyId)
-            ->where('status', 0)
+            ->where('status', NumericalStatusEnum::PENDING->value)
             ->count();
         $approvedCount = AdvanceSalary::where('company_id', $companyId)
-            ->where('status', 1)
+            ->where('status', NumericalStatusEnum::APPROVED->value)
             ->count();
         $rejectedCount = AdvanceSalary::where('company_id', $companyId)
-            ->where('status', 2)
+            ->where('status', NumericalStatusEnum::REJECTED->value)
             ->count();
 
         $totalAmount = AdvanceSalary::where('company_id', $companyId)
-            ->where('status', 1)
+            ->where('status', NumericalStatusEnum::APPROVED->value)
             ->sum('advance_amount');
         $totalPaid = AdvanceSalary::where('company_id', $companyId)
-            ->where('status', 1)
+            ->where('status', NumericalStatusEnum::APPROVED->value)
             ->sum('total_paid');
         $totalRemaining = $totalAmount - $totalPaid;
 
         $loanAmount = AdvanceSalary::where('company_id', $companyId)
             ->where('salary_type', 'loan')
-            ->where('status', 1)
+            ->where('status', NumericalStatusEnum::APPROVED->value)
             ->sum('advance_amount');
         $advanceAmount = AdvanceSalary::where('company_id', $companyId)
             ->where('salary_type', 'advance')
-            ->where('status', 1)
+            ->where('status', NumericalStatusEnum::APPROVED->value)
             ->sum('advance_amount');
 
         return [

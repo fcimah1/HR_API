@@ -5,7 +5,10 @@ namespace App\Repository;
 use App\DTOs\Complaint\CreateComplaintDTO;
 use App\DTOs\Complaint\ComplaintFilterDTO;
 use App\DTOs\Complaint\UpdateComplaintDTO;
+use App\Enums\NumericalStatusEnum;
+use App\Enums\StringStatusEnum;
 use App\Models\Complaint;
+use App\Models\StaffApproval;
 use App\Models\User;
 use App\Repository\Interface\ComplaintRepositoryInterface;
 use Illuminate\Support\Facades\Log;
@@ -17,7 +20,7 @@ class ComplaintRepository implements ComplaintRepositoryInterface
      */
     public function getPaginatedComplaints(ComplaintFilterDTO $filters, User $user): array
     {
-        $query = Complaint::with(['employee']);
+        $query = Complaint::with(['employee', 'approvals.staff']);
 
         // تطبيق فلتر الشركة
         if ($filters->companyId !== null) {
@@ -84,7 +87,7 @@ class ComplaintRepository implements ComplaintRepositoryInterface
      */
     public function findComplaintById(int $id, int $companyId): ?Complaint
     {
-        return Complaint::with(['employee'])
+        return Complaint::with(['employee', 'approvals.staff'])
             ->where('complaint_id', $id)
             ->where('company_id', $companyId)
             ->first();
@@ -95,7 +98,7 @@ class ComplaintRepository implements ComplaintRepositoryInterface
      */
     public function findComplaintForEmployee(int $id, int $employeeId): ?Complaint
     {
-        return Complaint::with(['employee'])
+        return Complaint::with(['employee', 'approvals.staff'])
             ->where('complaint_id', $id)
             ->where('complaint_from', $employeeId)
             ->first();
@@ -107,12 +110,7 @@ class ComplaintRepository implements ComplaintRepositoryInterface
     public function createComplaint(CreateComplaintDTO $dto): Complaint
     {
         $complaint = Complaint::create($dto->toArray());
-        $complaint->load(['employee']);
-
-        Log::info('Complaint created', [
-            'complaint_id' => $complaint->complaint_id,
-            'complaint_from' => $complaint->complaint_from,
-        ]);
+        $complaint->load(['employee', 'approvals.staff']);
 
         return $complaint;
     }
@@ -129,11 +127,7 @@ class ComplaintRepository implements ComplaintRepositoryInterface
         }
 
         $complaint->refresh();
-        $complaint->load(['employee']);
-
-        Log::info('Complaint updated', [
-            'complaint_id' => $complaint->complaint_id,
-        ]);
+        $complaint->load(['employee', 'approvals.staff']);
 
         return $complaint;
     }
@@ -141,14 +135,25 @@ class ComplaintRepository implements ComplaintRepositoryInterface
     /**
      * حذف شكوى
      */
-    public function deleteComplaint(Complaint $complaint): bool
+    public function deleteComplaint(Complaint $complaint, int $rejectedBy, ?string $description = null): bool
     {
-        Log::info('Complaint deleted', [
-            'complaint_id' => $complaint->complaint_id,
-            'complaint_from' => $complaint->complaint_from,
+        $complaint->update([
+            'status' => NumericalStatusEnum::REJECTED->value,
+            'description' => "تم إلغاء الشكوى بواسطة " . User::getFullNameById($rejectedBy) . " بتاريخ " . now()->format('Y-m-d H:i:s') . ($description ? " | السبب: " . $description : ""),
         ]);
 
-        return $complaint->delete();
+        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
+        StaffApproval::create([
+            'company_id' => $complaint->company_id,
+            'staff_id' => $rejectedBy,
+            'module_option' => 'complaint_settings',
+            'module_key_id' => $complaint->complaint_id,
+            'status' => NumericalStatusEnum::REJECTED->value,
+            'approval_level' => 1,
+            'updated_at' => now(),
+        ]);
+
+        return true;
     }
 
     /**
@@ -157,18 +162,23 @@ class ComplaintRepository implements ComplaintRepositoryInterface
     public function resolveComplaint(Complaint $complaint, int $resolvedBy, ?string $description = null): Complaint
     {
         $complaint->update([
-            'status' => Complaint::STATUS_RESOLVED,
-            'description' => $description . "__" . User::getFullNameById($resolvedBy) . " تم حل الشكوى بواسطة ",
+            'status' => NumericalStatusEnum::APPROVED->value,
+            'description' => $description . "__" . User::getFullNameById($resolvedBy) . " تم حل الشكوى بواسطة " . now()->format('Y-m-d H:i:s'),
+        ]);
+
+        // إنشاء سجل الحل/الموافقة في جدول ci_erp_notifications_approval
+        StaffApproval::create([
+            'company_id' => $complaint->company_id,
+            'staff_id' => $resolvedBy,
+            'module_option' => 'complaint_settings',
+            'module_key_id' => $complaint->complaint_id,
+            'status' => NumericalStatusEnum::APPROVED->value,
+            'approval_level' => 1,
+            'updated_at' => now(),
         ]);
 
         $complaint->refresh();
-        $complaint->load(['employee']);
-
-        Log::info('Complaint resolved', [
-            'complaint_id' => $complaint->complaint_id,
-            'resolved_by' => $resolvedBy,
-            'description' => $description,
-        ]);
+        $complaint->load(['employee', 'approvals.staff']);
 
         return $complaint;
     }
@@ -179,12 +189,23 @@ class ComplaintRepository implements ComplaintRepositoryInterface
     public function rejectComplaint(Complaint $complaint, int $rejectedBy, ?string $description = null): Complaint
     {
         $complaint->update([
-            'status' => Complaint::STATUS_REJECTED,
-            'description' => $description . "__" . User::getFullNameById($rejectedBy) . " تم رفض الشكوى بواسطة ",
+            'status' => NumericalStatusEnum::REJECTED->value,
+            'description' => $description . "__" . User::getFullNameById($rejectedBy) . " تم رفض الشكوى بواسطة " . now()->format('Y-m-d H:i:s'),
+        ]);
+
+        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
+        StaffApproval::create([
+            'company_id' => $complaint->company_id,
+            'staff_id' => $rejectedBy,
+            'module_option' => 'complaint_settings',
+            'module_key_id' => $complaint->complaint_id,
+            'status' => NumericalStatusEnum::REJECTED->value,
+            'approval_level' => 1,
+            'updated_at' => now(),
         ]);
 
         $complaint->refresh();
-        $complaint->load(['employee']);
+        $complaint->load(['employee', 'approvals.staff']);
 
         Log::info('Complaint rejected', [
             'complaint_id' => $complaint->complaint_id,

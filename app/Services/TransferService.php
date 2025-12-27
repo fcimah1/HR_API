@@ -6,15 +6,23 @@ use App\DTOs\Transfer\CreateTransferDTO;
 use App\DTOs\Transfer\TransferFilterDTO;
 use App\DTOs\Transfer\ApproveRejectTransferDTO;
 use App\DTOs\Transfer\UpdateTransferDTO;
+use App\DTOs\Transfer\CompanyApprovalDTO;
+use App\DTOs\Transfer\ExecuteTransferDTO;
 use App\Models\Transfer;
 use App\Models\User;
 use App\Repository\Interface\TransferRepositoryInterface;
 use App\Services\SimplePermissionService;
 use App\Services\NotificationService;
 use App\Enums\StringStatusEnum;
+use App\Enums\NumericalStatusEnum;
+use App\Jobs\SendEmailNotificationJob;
+use App\Mail\Transfer\TransferSubmitted;
+use App\Mail\Transfer\TransferApproved;
+use App\Mail\Transfer\TransferRejected;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
 
 class TransferService
 {
@@ -22,6 +30,7 @@ class TransferService
         protected TransferRepositoryInterface $transferRepository,
         protected SimplePermissionService $permissionService,
         protected NotificationService $notificationService,
+        protected CacheService $cacheService,
     ) {}
 
     /**
@@ -34,12 +43,23 @@ class TransferService
         if ($user->user_type == 'company') {
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
+            // الحفاظ على employee_id من الـ request إذا كان موجود
+            // (employee_id محفوظ بالفعل من $filters->toArray())
         } else {
             $subordinateIds = $this->getSubordinateEmployeeIds($user);
 
             if (!empty($subordinateIds)) {
                 $subordinateIds[] = $user->user_id;
-                $filterData['employee_ids'] = $subordinateIds;
+                // إذا تم تحديد employee_id في الـ request، تحقق أنه ضمن التابعين
+                if (isset($filterData['employee_id']) && $filterData['employee_id'] !== null) {
+                    if (!in_array($filterData['employee_id'], $subordinateIds)) {
+                        // الموظف المطلوب ليس ضمن التابعين
+                        $filterData['employee_id'] = null;
+                        $filterData['employee_ids'] = [];
+                    }
+                } else {
+                    $filterData['employee_ids'] = $subordinateIds;
+                }
                 $filterData['company_id'] = $user->company_id;
             } else {
                 $filterData['employee_id'] = $user->user_id;
@@ -80,6 +100,11 @@ class TransferService
         $user = $user ?? Auth::user();
 
         if (is_null($companyId) && is_null($userId)) {
+            Log::error('TransferService::getTransferById - Invalid arguments', [
+                'transfer_id' => $id,
+                'message' => 'يجب توفير معرف الشركة أو معرف المستخدم',
+                'user_id' => $user->user_id,
+            ]);
             throw new \InvalidArgumentException('يجب توفير معرف الشركة أو معرف المستخدم');
         }
 
@@ -93,6 +118,11 @@ class TransferService
 
                 $employee = User::find($transfer->employee_id);
                 if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::warning('TransferService::getTransferById - Permission denied', [
+                        'transfer_id' => $id,
+                        'message' => 'غير مسموح بعرض هذا النقل',
+                        'user_id' => $user->user_id,
+                    ]);
                     return null;
                 }
             }
@@ -107,6 +137,14 @@ class TransferService
     }
 
     /**
+     * الحصول على الشركات مع الفروع للنقل بين الشركات
+     */
+    public function getCompaniesWithBranches(): array
+    {
+        return $this->transferRepository->getCompaniesWithBranches();
+    }
+
+    /**
      * إنشاء نقل جديد
      */
     public function createTransfer(CreateTransferDTO $dto): Transfer
@@ -116,9 +154,19 @@ class TransferService
                 'employee_id' => $dto->employeeId,
             ]);
 
-            $transfer = $this->transferRepository->createTransfer($dto);
+            // التحقق من وجود طلب نقل معلق للموظف
+            $this->checkForExistingPendingTransfer($dto->employeeId);
+
+            // تعبئة البيانات القديمة من بيانات الموظف الحالية
+            $populateEmployeeData = $this->populateEmployeeData($dto);
+
+            $transfer = $this->transferRepository->createTransfer($populateEmployeeData);
 
             if (!$transfer) {
+                Log::warning('TransferService::createTransfer - Failed to create transfer', [
+                    'employee_id' => $dto->employeeId,
+                    'message' => 'فشل في إنشاء طلب النقل',
+                ]);
                 throw new \Exception('فشل في إنشاء طلب النقل');
             }
 
@@ -131,8 +179,98 @@ class TransferService
                 $dto->employeeId
             );
 
+            // إرسال إشعار للمستلم المحدد (إذا وجد)
+            if ($dto->notifySendTo) {
+                $this->notificationService->sendCustomNotification(
+                    'transfer_settings',
+                    (string)$transfer->transfer_id,
+                    $dto->notifySendTo,
+                    NumericalStatusEnum::PENDING->value
+                );
+            }
+
+            // Send email notification
+            $employee = User::find($dto->employeeId);
+            if ($employee && $employee->email) {
+                $fromDept = $transfer->from_department_name ?? 'غير محدد';
+                $toDept = $transfer->to_department_name ?? 'غير محدد';
+                $transferType = $transfer->transfer_type ?? 'نقل';
+
+                SendEmailNotificationJob::dispatch(
+                    new TransferSubmitted(
+                        employeeName: $employee->full_name ?? $employee->first_name,
+                        transferType: $transferType,
+                        fromDepartment: $fromDept,
+                        toDepartment: $toDept,
+                        reason: $dto->reason
+                    ),
+                    $employee->email
+                );
+            }
+
             return $transfer;
         });
+    }
+
+    /**
+     * تعبئة بيانات الموظف القديمة تلقائياً
+     */
+    private function populateEmployeeData(CreateTransferDTO $dto): CreateTransferDTO
+    {
+        $employee = User::find($dto->employeeId);
+        $employeeDetails = \App\Models\UserDetails::where('user_id', $dto->employeeId)->first();
+
+        if (!$employee || !$employeeDetails) {
+            return $dto;
+        }
+
+        // إنشاء DTO جديد مع البيانات القديمة المحدثة
+        return new CreateTransferDTO(
+            companyId: $dto->companyId,
+            employeeId: $dto->employeeId,
+            addedBy: $dto->addedBy,
+            transferDate: $dto->transferDate,
+            transferDepartment: $dto->transferDepartment,
+            transferDesignation: $dto->transferDesignation,
+            reason: $dto->reason,
+            oldSalary: $dto->oldSalary ?? (int) $employeeDetails->basic_salary,
+            oldDesignation: $dto->oldDesignation ?? $employeeDetails->designation_id,
+            oldDepartment: $dto->oldDepartment ?? $employeeDetails->department_id,
+            newSalary: $dto->newSalary,
+            oldCompanyId: $dto->oldCompanyId ?? $employee->company_id,
+            oldBranchId: $dto->oldBranchId ?? $employeeDetails->branch_id,
+            newCompanyId: $dto->newCompanyId,
+            newBranchId: $dto->newBranchId,
+            oldCurrency: $dto->oldCurrency ?? $employeeDetails->currency_id,
+            newCurrency: $dto->newCurrency,
+            transferType: $dto->transferType,
+            currentCompanyApproval: $dto->currentCompanyApproval,
+            newCompanyApproval: $dto->newCompanyApproval,
+            status: $dto->status,
+        );
+    }
+
+    /**
+     * التحقق من وجود طلب نقل معلق للموظف
+     */
+    private function checkForExistingPendingTransfer(int $employeeId): void
+    {
+        $existingTransfer = $this->transferRepository->findPendingTransferForEmployee($employeeId);
+
+        if ($existingTransfer) {
+            Log::warning('TransferService::checkForExistingPendingTransfer - Existing pending transfer found', [
+                'employee_id' => $employeeId,
+                'existing_transfer_id' => $existingTransfer->transfer_id,
+                'transfer_date' => $existingTransfer->transfer_date,
+                'message' => 'يوجد طلب نقل معلق لهذا الموظف بتاريخ ' . $existingTransfer->transfer_date .
+                    '. يرجى إلغائه أو انتظار معالجته قبل إنشاء طلب جديد.'
+            ]);
+
+            throw new \Exception(
+                'يوجد طلب نقل معلق لهذا الموظف بتاريخ ' . $existingTransfer->transfer_date .
+                    '. يرجى إلغائه أو انتظار معالجته قبل إنشاء طلب جديد.'
+            );
+        }
     }
 
     /**
@@ -145,16 +283,31 @@ class TransferService
             $transfer = $this->transferRepository->findTransferById($id, $effectiveCompanyId);
 
             if (!$transfer) {
+                Log::warning('TransferService::updateTransfer - Transfer not found', [
+                    'transfer_id' => $id,
+                    'message' => 'طلب النقل غير موجود',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception('طلب النقل غير موجود');
             }
 
             if ($transfer->status !== Transfer::STATUS_PENDING) {
+                Log::warning('TransferService::updateTransfer - Transfer not pending', [
+                    'transfer_id' => $id,
+                    'message' => 'لا يمكن تعديل طلب النقل بعد معالجته',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception('لا يمكن تعديل طلب النقل بعد معالجته');
             }
 
             // فقط مدير الشركة أو من أضاف الطلب يمكنه التعديل
             $isAdder = $transfer->added_by === $user->user_id;
             if (!$isAdder && $user->user_type !== 'company') {
+                Log::warning('TransferService::updateTransfer - Permission denied', [
+                    'transfer_id' => $id,
+                    'message' => 'ليس لديك صلاحية لتعديل هذا الطلب',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
             }
 
@@ -172,19 +325,52 @@ class TransferService
             $transfer = $this->transferRepository->findTransferById($id, $effectiveCompanyId);
 
             if (!$transfer) {
+                Log::warning('TransferService::deleteTransfer - Transfer not found', [
+                    'transfer_id' => $id,
+                    'message' => 'طلب النقل غير موجود',
+                    'user_id' => $user->user_id,
+                ]);
                 throw new \Exception('طلب النقل غير موجود');
             }
 
+            // 1. Status Check: Only Pending can be deleted
             if ($transfer->status !== Transfer::STATUS_PENDING) {
-                throw new \Exception('لا يمكن حذف طلب النقل بعد معالجته');
+                Log::info('TransferService::deleteTransfer - Transfer not pending', [
+                    'transfer_id' => $id,
+                    'message' => 'لا يمكن إلغاء طلب النقل بعد معالجته',
+                    'deleted_by' => $user->user_id,
+                ]);
+                throw new \Exception('لا يمكن إلغاء طلب النقل بعد معالجته');
             }
 
+            // 2. Permission Check
             $isAdder = $transfer->added_by === $user->user_id;
-            if (!$isAdder && $user->user_type !== 'company') {
-                throw new \Exception('ليس لديك صلاحية لحذف هذا الطلب');
+            $isCompany = $user->user_type === 'company';
+
+            // Check hierarchy permission (is a manager of the employee being transferred)
+            $isHierarchyManager = false;
+            if (!$isAdder && !$isCompany) {
+                $employee = User::find($transfer->employee_id);
+                if ($employee && $this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    $isHierarchyManager = true;
+                }
             }
 
-            return $this->transferRepository->deleteTransfer($transfer);
+            if (!$isAdder && !$isCompany && !$isHierarchyManager) {
+                Log::info('TransferService::deleteTransfer - Permission denied', [
+                    'transfer_id' => $id,
+                    'message' => 'ليس لديك صلاحية لإلغاء هذا الطلب',
+                    'deleted_by' => $user->user_id,
+                ]);
+                throw new \Exception('ليس لديك صلاحية لإلغاء هذا الطلب');
+            }
+
+            // Determine cancel reason based on who is cancelling
+            $cancelReason = $isAdder
+                ? 'تم إلغاء الطلب من قبل الموظف'
+                : 'تم إلغاء الطلب من قبل الإدارة';
+
+            return $this->transferRepository->rejectTransfer($transfer, $user->user_id, $cancelReason);
         });
     }
 
@@ -199,10 +385,20 @@ class TransferService
             $transfer = $this->transferRepository->findTransferById($id, $effectiveCompanyId);
 
             if (!$transfer) {
+                Log::info('TransferService::approveOrRejectTransfer - Transfer not found', [
+                    'transfer_id' => $id,
+                    'message' => 'طلب النقل غير موجود',
+                    'approved_by' => $user->user_id,
+                ]);
                 throw new \Exception('طلب النقل غير موجود');
             }
 
             if ($transfer->status !== Transfer::STATUS_PENDING) {
+                Log::info('TransferService::approveOrRejectTransfer - Transfer not pending', [
+                    'transfer_id' => $id,
+                    'message' => 'تم معالجة طلب النقل مسبقاً',
+                    'approved_by' => $user->user_id,
+                ]);
                 throw new \Exception('تم معالجة طلب النقل مسبقاً');
             }
 
@@ -210,6 +406,11 @@ class TransferService
             if ($user->user_type !== 'company') {
                 $employee = User::find($transfer->employee_id);
                 if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::info('TransferService::approveOrRejectTransfer - Permission denied', [
+                        'transfer_id' => $id,
+                        'message' => 'ليس لديك صلاحية لمعالجة طلب نقل هذا الموظف',
+                        'approved_by' => $user->user_id,
+                    ]);
                     throw new \Exception('ليس لديك صلاحية لمعالجة طلب نقل هذا الموظف');
                 }
             }
@@ -231,6 +432,21 @@ class TransferService
                     $processedTransfer->employee_id
                 );
 
+                // Send approval email
+                $employee = User::find($processedTransfer->employee_id);
+                if ($employee && $employee->email) {
+                    SendEmailNotificationJob::dispatch(
+                        new TransferApproved(
+                            employeeName: $employee->full_name ?? $employee->first_name,
+                            transferType: $processedTransfer->transfer_type ?? 'نقل',
+                            fromDepartment: $processedTransfer->from_department_name ?? 'غير محدد',
+                            toDepartment: $processedTransfer->to_department_name ?? 'غير محدد',
+                            remarks: $dto->remarks
+                        ),
+                        $employee->email
+                    );
+                }
+
                 return $processedTransfer;
             } else {
                 $processedTransfer = $this->transferRepository->rejectTransfer(
@@ -249,8 +465,247 @@ class TransferService
                     $processedTransfer->employee_id
                 );
 
+                // Send rejection email
+                $employee = User::find($processedTransfer->employee_id);
+                if ($employee && $employee->email) {
+                    SendEmailNotificationJob::dispatch(
+                        new TransferRejected(
+                            employeeName: $employee->full_name ?? $employee->first_name,
+                            transferType: $processedTransfer->transfer_type ?? 'نقل',
+                            fromDepartment: $processedTransfer->from_department_name ?? 'غير محدد',
+                            toDepartment: $processedTransfer->to_department_name ?? 'غير محدد',
+                            reason: $dto->remarks
+                        ),
+                        $employee->email
+                    );
+                }
+
                 return $processedTransfer;
             }
+        });
+    }
+
+    /**
+     * موافقة الشركة الحالية على النقل بين الشركات
+     */
+    public function approveByCurrentCompany(int $id, CompanyApprovalDTO $dto): Transfer
+    {
+        return DB::transaction(function () use ($id, $dto) {
+            $user = Auth::user();
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $transfer = $this->transferRepository->findTransferById($id, $effectiveCompanyId);
+
+            if (!$transfer) {
+                Log::info('TransferService::approveByCurrentCompany - Transfer not found', [
+                    'transfer_id' => $id,
+                    'message' => 'طلب النقل غير موجود',
+                    'approved_by' => $user->user_id,
+                ]);
+                throw new \Exception('طلب النقل غير موجود');
+            }
+
+            if ($transfer->transfer_type !== Transfer::TYPE_INTERCOMPANY) {
+                Log::info('TransferService::approveByCurrentCompany - Transfer not intercompany', [
+                    'transfer_id' => $id,
+                    'message' => 'هذا الطلب ليس نقل بين شركات',
+                    'approved_by' => $user->user_id,
+                ]);
+                throw new \Exception('هذا الطلب ليس نقل بين شركات');
+            }
+
+            if ($transfer->current_company_approval !== Transfer::APPROVAL_PENDING) {
+                Log::info('TransferService::approveByCurrentCompany - Transfer not pending', [
+                    'transfer_id' => $id,
+                    'message' => 'تمت معالجة موافقة الشركة الحالية مسبقاً',
+                    'approved_by' => $user->user_id,
+                ]);
+                throw new \Exception('تمت معالجة موافقة الشركة الحالية مسبقاً');
+            }
+
+            // التحقق من أن المستخدم من الشركة الحالية
+            if ($effectiveCompanyId !== $transfer->old_company_id) {
+                Log::info('TransferService::approveByCurrentCompany - Permission denied', [
+                    'transfer_id' => $id,
+                    'message' => 'ليس لديك صلاحية - يجب أن تكون من الشركة الحالية',
+                    'approved_by' => $user->user_id,
+                ]);
+                throw new \Exception('ليس لديك صلاحية - يجب أن تكون من الشركة الحالية');
+            }
+
+            if ($dto->isApprove()) {
+                $transfer->update([
+                    'current_company_approval' => Transfer::APPROVAL_APPROVED,
+                ]);
+
+                $this->notificationService->sendApprovalNotification(
+                    'transfer_settings',
+                    (string)$transfer->transfer_id,
+                    $effectiveCompanyId,
+                    'current_company_approved',
+                    $dto->approvedBy,
+                    null, // approval level
+                    $transfer->employee_id
+                );
+            } else {
+                $transfer->update([
+                    'current_company_approval' => Transfer::APPROVAL_REJECTED,
+                    'status' => Transfer::STATUS_REJECTED,
+                ]);
+
+                $this->notificationService->sendApprovalNotification(
+                    'transfer_settings',
+                    (string)$transfer->transfer_id,
+                    $effectiveCompanyId,
+                    StringStatusEnum::REJECTED->value,
+                    $dto->approvedBy,
+                    null, // approval level
+                    $transfer->employee_id
+                );
+            }
+
+            return $transfer->fresh();
+        });
+    }
+
+    /**
+     * موافقة الشركة الجديدة على النقل بين الشركات
+     */
+    public function approveByNewCompany(int $id, CompanyApprovalDTO $dto): Transfer
+    {
+        return DB::transaction(function () use ($id, $dto) {
+            $user = Auth::user();
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // البحث في الشركة الجديدة
+            $transfer = Transfer::where('transfer_id', $id)
+                ->where('new_company_id', $effectiveCompanyId)
+                ->first();
+
+            if (!$transfer) {
+                Log::info('TransferService::approveByNewCompany - Transfer not found', [
+                    'transfer_id' => $id,
+                    'message' => 'طلب النقل غير موجود',
+                    'approved_by' => $user->user_id,
+                ]);
+                throw new \Exception('طلب النقل غير موجود');
+            }
+
+            if ($transfer->transfer_type !== Transfer::TYPE_INTERCOMPANY) {
+                Log::info('TransferService::approveByNewCompany - Transfer not intercompany', [
+                    'transfer_id' => $id,
+                    'message' => 'هذا الطلب ليس نقل بين شركات',
+                    'approved_by' => $user->user_id,
+                ]);
+                throw new \Exception('هذا الطلب ليس نقل بين شركات');
+            }
+
+            if ($transfer->current_company_approval !== Transfer::APPROVAL_APPROVED) {
+                Log::info('TransferService::approveByNewCompany - Current company approval not approved', [
+                    'transfer_id' => $id,
+                    'message' => 'يجب موافقة الشركة الحالية أولاً',
+                    'approved_by' => $user->user_id,
+                ]);
+                throw new \Exception('يجب موافقة الشركة الحالية أولاً');
+            }
+
+            if ($transfer->new_company_approval !== Transfer::APPROVAL_PENDING) {
+                Log::info('TransferService::approveByNewCompany - New company approval not pending', [
+                    'transfer_id' => $id,
+                    'message' => 'تمت معالجة موافقة الشركة الجديدة مسبقاً',
+                    'approved_by' => $user->user_id,
+                ]);
+                throw new \Exception('تمت معالجة موافقة الشركة الجديدة مسبقاً');
+            }
+
+            if ($dto->isApprove()) {
+                // التحقق من المتطلبات قبل الموافقة النهائية
+                $validation = $this->validatePreTransferRequirements($transfer->employee_id);
+
+                if (!$validation['can_transfer']) {
+                    // حفظ أسباب المنع
+                    $blockedReasons = [];
+                    $blockerDetails = [];
+
+                    if (!$validation['validations']['active_leaves']['passed']) {
+                        $blockedReasons['active_leaves'] = true;
+                        $blockerDetails['active_leaves'] = [
+                            'message' => 'لديه إجازات نشطة',
+                            'count' => $validation['validations']['active_leaves']['count'],
+                        ];
+                    }
+                    if (!$validation['validations']['active_advances']['passed']) {
+                        $blockedReasons['active_advances'] = true;
+                        $blockerDetails['active_advances'] = [
+                            'message' => 'لديه سلف غير مسددة',
+                            'count' => $validation['validations']['active_advances']['count'],
+                        ];
+                    }
+                    if (!$validation['validations']['unreturned_custody']['passed']) {
+                        $blockedReasons['unreturned_custody'] = true;
+                        $blockerDetails['unreturned_custody'] = [
+                            'message' => 'لديه عهد غير مرتجعة',
+                            'count' => $validation['validations']['unreturned_custody']['count'],
+                        ];
+                    }
+
+                    $transfer->update([
+                        'validation_notes' => json_encode($validation['validations']),
+                        'blocked_reasons' => json_encode($blockedReasons),
+                    ]);
+
+                    // رمي exception مع التفاصيل
+                    throw new \Exception(json_encode([
+                        'message' => 'لا يمكن الموافقة - الموظف لديه متطلبات غير مستوفاة',
+                        'blockers' => $blockerDetails,
+                        'validations' => $validation['validations'],
+                    ]));
+                }
+
+                // إنشاء DTO للتنفيذ
+                $executeDTO = new ExecuteTransferDTO(
+                    executedBy: $dto->approvedBy,
+                    forceCustodyClearance: false,
+                    notes: $dto->remarks
+                );
+
+                $transfer->update([
+                    'new_company_approval' => Transfer::APPROVAL_APPROVED,
+                    'status' => Transfer::STATUS_APPROVED,
+                    'executed_at' => now(),
+                    'executed_by' => $executeDTO->executedBy,
+                    'validation_notes' => $executeDTO->notes,
+                ]);
+
+                // تنفيذ النقل - تحديث بيانات الموظف
+                $this->executeTransfer($transfer);
+
+                $this->notificationService->sendApprovalNotification(
+                    'transfer_settings',
+                    (string)$transfer->transfer_id,
+                    $effectiveCompanyId,
+                    StringStatusEnum::APPROVED->value,
+                    $dto->approvedBy,
+                    null, // approval level
+                    $transfer->employee_id
+                );
+            } else {
+                $transfer->update([
+                    'new_company_approval' => Transfer::APPROVAL_REJECTED,
+                    'status' => Transfer::STATUS_REJECTED,
+                ]);
+
+                $this->notificationService->sendApprovalNotification(
+                    'transfer_settings',
+                    (string)$transfer->transfer_id,
+                    $effectiveCompanyId,
+                    StringStatusEnum::REJECTED->value,
+                    $dto->approvedBy,
+                    null, // approval level
+                    $transfer->employee_id
+                );
+            }
+
+            return $transfer->fresh();
         });
     }
 
@@ -259,10 +714,49 @@ class TransferService
      */
     public function getTransferStatuses(): array
     {
+
         return [
-            ['value' => Transfer::STATUS_PENDING, 'label' => 'قيد المراجعة', 'label_en' => 'Pending'],
-            ['value' => Transfer::STATUS_APPROVED, 'label' => 'موافق عليه', 'label_en' => 'Approved'],
-            ['value' => Transfer::STATUS_REJECTED, 'label' => 'مرفوض', 'label_en' => 'Rejected'],
+            'cases' => \App\Enums\NumericalStatusEnum::toArray(),
+            'transfer_types' => \App\Enums\TransferTypeEnum::toArray(),
         ];
+    }
+
+    /**
+     * التحقق من المتطلبات قبل النقل (للنقل بين الشركات)
+     */
+    public function validatePreTransferRequirements(int $employeeId): array
+    {
+        $activeLeaves = $this->transferRepository->getActiveLeaves($employeeId);
+        $activeAdvances = $this->transferRepository->getActiveAdvances($employeeId);
+        $unreturnedCustody = $this->transferRepository->getUnreturnedCustody($employeeId);
+
+        return [
+            'can_transfer' => empty($activeLeaves) && empty($activeAdvances) && empty($unreturnedCustody),
+            'validations' => [
+                'active_leaves' => [
+                    'passed' => empty($activeLeaves),
+                    'count' => count($activeLeaves),
+                    'items' => $activeLeaves,
+                ],
+                'active_advances' => [
+                    'passed' => empty($activeAdvances),
+                    'count' => count($activeAdvances),
+                    'items' => $activeAdvances,
+                ],
+                'unreturned_custody' => [
+                    'passed' => empty($unreturnedCustody),
+                    'count' => count($unreturnedCustody),
+                    'items' => $unreturnedCustody,
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * تنفيذ النقل - تحديث بيانات الموظف
+     */
+    protected function executeTransfer(Transfer $transfer): void
+    {
+        $this->transferRepository->executeTransfer($transfer);
     }
 }

@@ -4,9 +4,13 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\StaffRole;
+use Illuminate\Support\Facades\Cache;
 
 class SimplePermissionService
 {
+    // Cache TTL for permissions (1 hour)
+    private const PERMISSION_CACHE_TTL = 3600;
+
     /**
      * التحقق من صلاحية المستخدم
      */
@@ -23,16 +27,8 @@ class SimplePermissionService
             return false;
         }
 
-        $role = StaffRole::where('role_id', $user->user_role_id)
-            ->where('company_id', $user->company_id)
-            ->first();
-
-        if (!$role) {
-            return false;
-        }
-
-        // التحقق من وجود الصلاحية في role_resources
-        $permissions = array_filter(explode(',', $role->role_resources ?? ''));
+        // استخدام الـ Cache للصلاحيات
+        $permissions = $this->getUserPermissions($user);
         return in_array($permission, $permissions);
     }
 
@@ -76,7 +72,7 @@ class SimplePermissionService
     }
 
     /**
-     * الحصول على جميع صلاحيات المستخدم
+     * الحصول على جميع صلاحيات المستخدم (مع Cache)
      */
     public function getUserPermissions(User $user): array
     {
@@ -91,15 +87,28 @@ class SimplePermissionService
             return [];
         }
 
-        $role = StaffRole::where('role_id', $user->user_role_id)
-            ->where('company_id', $user->company_id)
-            ->first();
+        // استخدام الـ Cache
+        $cacheKey = "user_permissions.{$user->user_id}";
 
-        if ($role) {
-            return array_filter(explode(',', $role->role_resources ?? ''));
-        }
+        return Cache::remember($cacheKey, self::PERMISSION_CACHE_TTL, function () use ($user) {
+            $role = StaffRole::where('role_id', $user->user_role_id)
+                ->where('company_id', $user->company_id)
+                ->first();
 
-        return [];
+            if ($role) {
+                return array_filter(explode(',', $role->role_resources ?? ''));
+            }
+
+            return [];
+        });
+    }
+
+    /**
+     * مسح cache صلاحيات المستخدم
+     */
+    public function clearUserPermissionsCache(int $userId): void
+    {
+        Cache::forget("user_permissions.{$userId}");
     }
 
     /**

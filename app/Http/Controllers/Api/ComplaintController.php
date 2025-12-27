@@ -8,6 +8,7 @@ use App\DTOs\Complaint\ResolveComplaintDTO;
 use App\DTOs\Complaint\UpdateComplaintDTO;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Complaint\CreateComplaintRequest;
+use App\Http\Requests\Complaint\DeleteComplaintRequest;
 use App\Http\Requests\Complaint\GetComplaintRequest;
 use App\Http\Requests\Complaint\ResolveComplaintRequest;
 use App\Http\Requests\Complaint\UpdateComplaintRequest;
@@ -239,10 +240,11 @@ class ComplaintController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"title", "description"},
+     *             required={"title", "description","complaint_against","complaint_date"},
      *             @OA\Property(property="title", type="string", example="شكوى بخصوص بيئة العمل", description="عنوان الشكوى - مطلوب"),
      *             @OA\Property(property="description", type="string", example="التكييف لا يعمل بشكل صحيح في المكتب مما يؤثر على الإنتاجية", description="وصف تفصيلي للشكوى - مطلوب"),
-     *             @OA\Property(property="complaint_against", type="integer", example=45, description="معرف الموظف المشتكى ضده (اختياري)")
+     *             @OA\Property(property="complaint_against", type="array", @OA\Items(type="integer"), example={45,703}, description="معرفات الموظفين المشتكى ضدهم (اختياري)"),
+     *             @OA\Property(property="complaint_date", type="string", format="date", example="2023-01-01", description="تاريخ الشكوى - مطلوب")
      *         )
      *     ),
      *     @OA\Response(
@@ -286,7 +288,11 @@ class ComplaintController extends Controller
                 'data' => new ComplaintResource($complaint),
             ], 201);
         } catch (\Exception $e) {
-            Log::error('ComplaintController::store - Error', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            Log::error('ComplaintController::store - Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'message' => 'فشل في إنشاء الشكوى',
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'فشل في إنشاء الشكوى',
@@ -312,6 +318,7 @@ class ComplaintController extends Controller
      *     @OA\RequestBody(
      *         @OA\JsonContent(
      *             @OA\Property(property="title", type="string", example="عنوان معدل للشكوى", description="العنوان الجديد"),
+     *             @OA\Property(property="complaint_date", type="string", format="date", example="2023-01-01", description="تاريخ الشكوى - مطلوب"),
      *             @OA\Property(property="description", type="string", example="وصف معدل للشكوى", description="الوصف الجديد")
      *         )
      *     ),
@@ -381,15 +388,18 @@ class ComplaintController extends Controller
      *     @OA\Response(response=500, description="Server error - خطأ في الخادم")
      * )
      */
-    public function destroy(int $id)
+    public function destroy(int $id, DeleteComplaintRequest $request)
     {
         try {
             $user = Auth::user();
             Log::info('ComplaintController::destroy - Deleting complaint', ['complaint_id' => $id, 'user_id' => $user->user_id]);
-            $this->complaintService->deleteComplaint($id, $user);
+            $this->complaintService->deleteComplaint($id, $user, $user->user_id, $request->validated()['description'] ?? null);
             return response()->json(['success' => true, 'message' => 'تم حذف الشكوى بنجاح']);
         } catch (\Exception $e) {
-            Log::error('ComplaintController::destroy - Error', ['complaint_id' => $id, 'error' => $e->getMessage()]);
+            Log::error('ComplaintController::destroy - Error', [
+                'complaint_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
             $statusCode = str_contains($e->getMessage(), 'غير موجود') ? 404 : (str_contains($e->getMessage(), 'صلاحية') ? 403 : 500);
             return response()->json(['success' => false, 'message' => $e->getMessage()], $statusCode);
         }

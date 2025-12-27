@@ -16,7 +16,7 @@ interface TravelRepositoryInterface
     public function findByIdAndCompany(int $id, int $companyId): ?Travel;
     public function getByCompany(int $companyId, TravelRequestFilterDTO $filters): array;
     public function getByEmployee(int $employeeId, TravelRequestFilterDTO $filters): array;
-    public function approve(int $id): Travel;
-    public function reject(int $id): Travel;
+    public function approve(int $id, int $approvedBy): Travel;
+    public function reject(int $id, int $rejectedBy): Travel;
     public function hasOverlappingTravel(int $employeeId, string $startDate, string $endDate, ?int $excludeTravelId = null): bool;
 }

@@ -2358,6 +2358,117 @@
                 }
             }
         },
+        "/api/biometric/logs": {
+            "post": {
+                "tags": [
+                    "Biometric Attendance"
+                ],
+                "summary": "تخزين مجموعة من سجلات البصمة",
+                "description": "استقبال وتخزين مجموعة من سجلات البصمة من الجهاز دفعة واحدة. يتم تخزين السجلات في جدول منفصل ليتم معالجتها لاحقاً.",
+                "operationId": "storeBulkBiometricLogs",
+                "requestBody": {
+                    "description": "بيانات سجلات البصمة من الجهاز",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BiometricBulkLogsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تخزين السجلات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تخزين 10 سجل بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_received": {
+                                                    "description": "عدد السجلات المستلمة",
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "total_stored": {
+                                                    "description": "عدد السجلات المخزنة",
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "total_matched": {
+                                                    "description": "عدد السجلات المطابقة لموظفين في النظام",
+                                                    "type": "integer",
+                                                    "example": 8
+                                                },
+                                                "total_unmatched": {
+                                                    "description": "عدد السجلات غير المطابقة",
+                                                    "type": "integer",
+                                                    "example": 2
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "خطأ في البيانات المدخلة"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "حدث خطأ أثناء تخزين السجلات"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/biometric/companies": {
             "get": {
                 "tags": [
@@ -2620,7 +2731,9 @@
                             "schema": {
                                 "required": [
                                     "title",
-                                    "description"
+                                    "description",
+                                    "complaint_against",
+                                    "complaint_date"
                                 ],
                                 "properties": {
                                     "title": {
@@ -2634,9 +2747,21 @@
                                         "example": "التكييف لا يعمل بشكل صحيح في المكتب مما يؤثر على الإنتاجية"
                                     },
                                     "complaint_against": {
-                                        "description": "معرف الموظف المشتكى ضده (اختياري)",
-                                        "type": "integer",
-                                        "example": 45
+                                        "description": "معرفات الموظفين المشتكى ضدهم (اختياري)",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            45,
+                                            703
+                                        ]
+                                    },
+                                    "complaint_date": {
+                                        "description": "تاريخ الشكوى - مطلوب",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2023-01-01"
                                     }
                                 },
                                 "type": "object"
@@ -2857,6 +2982,12 @@
                                         "description": "العنوان الجديد",
                                         "type": "string",
                                         "example": "عنوان معدل للشكوى"
+                                    },
+                                    "complaint_date": {
+                                        "description": "تاريخ الشكوى - مطلوب",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2023-01-01"
                                     },
                                     "description": {
                                         "description": "الوصف الجديد",
@@ -5870,6 +6001,104 @@
                 ]
             }
         },
+        "/api/jobs/stats": {
+            "get": {
+                "tags": [
+                    "Jobs Monitor"
+                ],
+                "summary": "Get queue jobs statistics",
+                "description": "الحصول على إحصائيات الـ Jobs",
+                "operationId": "02f1fdc00fcfa87510531eae1ad743d2",
+                "responses": {
+                    "200": {
+                        "description": "Statistics retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/jobs/failed": {
+            "get": {
+                "tags": [
+                    "Jobs Monitor"
+                ],
+                "summary": "Get list of failed jobs",
+                "description": "الحصول على قائمة الـ Jobs الفاشلة",
+                "operationId": "2c1e2d73bf2011beb2b4efe4f88046b1",
+                "responses": {
+                    "200": {
+                        "description": "Failed jobs retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Jobs Monitor"
+                ],
+                "summary": "Clear all failed jobs",
+                "description": "حذف جميع الـ Jobs الفاشلة",
+                "operationId": "9a64789e1b6b13942e1f2ebf0ac2eb45",
+                "responses": {
+                    "200": {
+                        "description": "Failed jobs cleared successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/jobs/retry/{uuid}": {
+            "post": {
+                "tags": [
+                    "Jobs Monitor"
+                ],
+                "summary": "Retry a failed job",
+                "description": "إعادة محاولة Job فاشل",
+                "operationId": "94ae516a9fcfc8ad3e95a404ef2e06e5",
+                "responses": {
+                    "200": {
+                        "description": "Job retried successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/jobs/retry-all": {
+            "post": {
+                "tags": [
+                    "Jobs Monitor"
+                ],
+                "summary": "Retry all failed jobs",
+                "description": "إعادة محاولة جميع الـ Jobs الفاشلة",
+                "operationId": "1ed30b392f4d566372a11980c8682599",
+                "responses": {
+                    "200": {
+                        "description": "All failed jobs retried"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/leaves/adjustments": {
             "get": {
                 "tags": [
@@ -5969,11 +6198,6 @@
                                                         "type": "integer",
                                                         "example": 37
                                                     },
-                                                    "duty_employee_id": {
-                                                        "type": "integer",
-                                                        "example": 118,
-                                                        "nullable": true
-                                                    },
                                                     "leave_type_id": {
                                                         "type": "integer",
                                                         "example": 323
@@ -6022,24 +6246,6 @@
                                                             }
                                                         },
                                                         "type": "object"
-                                                    },
-                                                    "dutyEmployee": {
-                                                        "properties": {
-                                                            "user_id": {
-                                                                "type": "integer",
-                                                                "example": 118
-                                                            },
-                                                            "full_name": {
-                                                                "type": "string",
-                                                                "example": "خالد سالم"
-                                                            },
-                                                            "email": {
-                                                                "type": "string",
-                                                                "example": "k.salem@example.com"
-                                                            }
-                                                        },
-                                                        "type": "object",
-                                                        "nullable": true
                                                     },
                                                     "leaveType": {
                                                         "properties": {
@@ -6215,10 +6421,6 @@
                                         "type": "string",
                                         "format": "date",
                                         "example": "2025-11-15"
-                                    },
-                                    "duty_employee_id": {
-                                        "type": "integer",
-                                        "example": 25
                                     }
                                 },
                                 "type": "object"
@@ -6591,10 +6793,6 @@
                                         "type": "string",
                                         "format": "date",
                                         "example": "2025-12-01"
-                                    },
-                                    "duty_employee_id": {
-                                        "type": "integer",
-                                        "example": 37
                                     }
                                 },
                                 "type": "object"
@@ -6740,13 +6938,13 @@
                 ]
             }
         },
-        "/api/leave-adjustments/enums": {
+        "/api/leaves/adjustments/enums": {
             "get": {
                 "tags": [
                     "Leave Adjustments"
                 ],
                 "summary": "Get leave enums as string and numeric values",
-                "operationId": "7422a4314a012eed9758487456656636",
+                "operationId": "0a6e6e47312ffac7ba262c8ebbdc17e9",
                 "responses": {
                     "200": {
                         "description": "Successful operation",
@@ -12416,6 +12614,48 @@
                                                             }
                                                         },
                                                         "type": "object"
+                                                    },
+                                                    "approvals": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "properties": {
+                                                                "status": {
+                                                                    "type": "integer",
+                                                                    "example": 1
+                                                                },
+                                                                "approval_level": {
+                                                                    "type": "integer",
+                                                                    "example": 1
+                                                                },
+                                                                "updated_at": {
+                                                                    "type": "string",
+                                                                    "format": "date-time",
+                                                                    "example": "2025-01-16 10:00:00"
+                                                                },
+                                                                "staff": {
+                                                                    "properties": {
+                                                                        "user_id": {
+                                                                            "type": "integer",
+                                                                            "example": 55
+                                                                        },
+                                                                        "full_name": {
+                                                                            "type": "string",
+                                                                            "example": "مدير القسم"
+                                                                        },
+                                                                        "department": {
+                                                                            "type": "string",
+                                                                            "example": "Department Name"
+                                                                        },
+                                                                        "position": {
+                                                                            "type": "string",
+                                                                            "example": "Manager"
+                                                                        }
+                                                                    },
+                                                                    "type": "object"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
                                                     }
                                                 },
                                                 "type": "object"
@@ -12450,160 +12690,6 @@
                     },
                     "401": {
                         "description": "Unauthenticated - غير مصرح"
-                    },
-                    "500": {
-                        "description": "Server error - خطأ في الخادم"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            },
-            "post": {
-                "tags": [
-                    "Transfer Management"
-                ],
-                "summary": "Create a new transfer request",
-                "description": "إنشاء طلب نقل جديد - يدعم النقل الداخلي (تغيير القسم/المسمى)، النقل بين الفروع، والنقل بين الشركات",
-                "operationId": "2479b7c75f4622d14cab33cfc53f533c",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "employee_id",
-                                    "transfer_date"
-                                ],
-                                "properties": {
-                                    "employee_id": {
-                                        "description": "معرف الموظف المطلوب نقله - مطلوب",
-                                        "type": "integer",
-                                        "example": 37
-                                    },
-                                    "transfer_date": {
-                                        "description": "تاريخ النقل الفعلي - مطلوب",
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2025-01-15"
-                                    },
-                                    "transfer_type": {
-                                        "description": "نوع النقل: internal (داخلي)، branch (بين الفروع)، intercompany (بين الشركات)",
-                                        "type": "string",
-                                        "enum": [
-                                            "internal",
-                                            "branch",
-                                            "intercompany"
-                                        ],
-                                        "example": "internal"
-                                    },
-                                    "transfer_department": {
-                                        "description": "القسم الجديد (للنقل الداخلي)",
-                                        "type": "integer",
-                                        "example": 10
-                                    },
-                                    "transfer_designation": {
-                                        "description": "المسمى الوظيفي الجديد (للنقل الداخلي)",
-                                        "type": "integer",
-                                        "example": 20
-                                    },
-                                    "transfer_salary": {
-                                        "description": "الراتب الجديد",
-                                        "type": "number",
-                                        "example": 5500
-                                    },
-                                    "new_branch_id": {
-                                        "description": "معرف الفرع الجديد (للنقل بين الفروع)",
-                                        "type": "integer",
-                                        "example": 2
-                                    },
-                                    "new_company_id": {
-                                        "description": "معرف الشركة الجديدة (للنقل بين الشركات)",
-                                        "type": "integer",
-                                        "example": 3
-                                    },
-                                    "description": {
-                                        "description": "سبب/وصف النقل",
-                                        "type": "string",
-                                        "example": "نقل بسبب إعادة الهيكلة"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Transfer created successfully - تم إنشاء طلب النقل بنجاح",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تم إنشاء طلب النقل بنجاح"
-                                        },
-                                        "data": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthenticated - غير مصرح"
-                    },
-                    "404": {
-                        "description": "Employee not found - الموظف غير موجود",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "الموظف غير موجود"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation error - خطأ في التحقق",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "فشل التحقق من البيانات"
-                                        },
-                                        "errors": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
@@ -12697,7 +12783,7 @@
                                                 "description": {
                                                     "type": "string"
                                                 },
-                                                "employee": {
+                                                "": {
                                                     "properties": {
                                                         "user_id": {
                                                             "type": "integer"
@@ -12707,6 +12793,43 @@
                                                         }
                                                     },
                                                     "type": "object"
+                                                },
+                                                "approvals": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "approval_level": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "updated_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            },
+                                                            "staff": {
+                                                                "properties": {
+                                                                    "user_id": {
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "full_name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "department": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "position": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
                                                 }
                                             },
                                             "type": "object"
@@ -12739,107 +12862,6 @@
                                 }
                             }
                         }
-                    },
-                    "500": {
-                        "description": "Server error - خطأ في الخادم"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            },
-            "put": {
-                "tags": [
-                    "Transfer Management"
-                ],
-                "summary": "Update a transfer request",
-                "description": "تحديث طلب نقل - يمكن فقط تعديل الطلبات المعلقة",
-                "operationId": "511d8b40f3d640cd3c9fa9a7cf4a6b0e",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Transfer ID - معرف طلب النقل",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "transfer_date": {
-                                        "description": "تاريخ النقل الجديد",
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2025-01-20"
-                                    },
-                                    "transfer_department": {
-                                        "description": "القسم الجديد",
-                                        "type": "integer",
-                                        "example": 15
-                                    },
-                                    "transfer_designation": {
-                                        "description": "المسمى الوظيفي الجديد",
-                                        "type": "integer",
-                                        "example": 25
-                                    },
-                                    "transfer_salary": {
-                                        "description": "الراتب الجديد",
-                                        "type": "number",
-                                        "example": 6000
-                                    },
-                                    "description": {
-                                        "description": "السبب/الوصف الجديد",
-                                        "type": "string",
-                                        "example": "وصف معدل"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Transfer updated successfully - تم تحديث طلب النقل بنجاح",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تم تحديث طلب النقل بنجاح"
-                                        },
-                                        "data": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Cannot update processed transfer - لا يمكن تعديل طلب تمت معالجته"
-                    },
-                    "401": {
-                        "description": "Unauthenticated - غير مصرح"
-                    },
-                    "403": {
-                        "description": "Forbidden - ليس لديك صلاحية"
-                    },
-                    "404": {
-                        "description": "Not found - غير موجود"
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
@@ -12892,6 +12914,822 @@
                     },
                     "400": {
                         "description": "Cannot delete processed transfer - لا يمكن حذف طلب تمت معالجته"
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/internal": {
+            "post": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Create a new internal transfer request",
+                "operationId": "dab8ac82a0b262a0e8a0473df10f0616",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "employee_id",
+                                    "transfer_date",
+                                    "reason",
+                                    "transfer_department",
+                                    "transfer_designation",
+                                    "new_salary",
+                                    "new_currency"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "description": "Employee ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "transfer_date": {
+                                        "description": "Transfer Date",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-01"
+                                    },
+                                    "reason": {
+                                        "description": "Reason for transfer",
+                                        "type": "string",
+                                        "example": "Promotion"
+                                    },
+                                    "transfer_department": {
+                                        "description": "New Department ID",
+                                        "type": "integer",
+                                        "example": 10
+                                    },
+                                    "transfer_designation": {
+                                        "description": "New Designation ID",
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "new_salary": {
+                                        "description": "New Salary",
+                                        "type": "number",
+                                        "example": 5000
+                                    },
+                                    "new_currency": {
+                                        "description": "New Currency ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "notify_send_to": {
+                                        "description": "User ID to notify (optional)",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            55,
+                                            703
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Transfer created successfully - تم إنشاء طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء طلب النقل بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "404": {
+                        "description": "Employee not found - الموظف غير موجود",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "الموظف غير موجود"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/branch": {
+            "post": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Create a new branch transfer request",
+                "operationId": "1da7d4bbfbed996d9d6a355f44f49d6b",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "employee_id",
+                                    "transfer_date",
+                                    "reason",
+                                    "new_branch_id"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "description": "Employee ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "transfer_date": {
+                                        "description": "Transfer Date",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-01"
+                                    },
+                                    "reason": {
+                                        "description": "Reason for transfer",
+                                        "type": "string",
+                                        "example": "Relocation"
+                                    },
+                                    "new_branch_id": {
+                                        "description": "New Branch ID",
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "new_currency": {
+                                        "description": "New Currency ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "new_salary": {
+                                        "description": "New Salary",
+                                        "type": "number",
+                                        "example": 5000
+                                    },
+                                    "notify_send_to": {
+                                        "description": "User ID to notify (optional)",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            55,
+                                            703
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Transfer created successfully - تم إنشاء طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء طلب النقل بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "404": {
+                        "description": "Employee not found - الموظف غير موجود",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "الموظف غير موجود"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/intercompany": {
+            "post": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Create a new intercompany transfer request",
+                "operationId": "773b3c732a43d5d5b782486f19cb80f8",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "employee_id",
+                                    "transfer_date",
+                                    "reason",
+                                    "new_company_id",
+                                    "new_salary",
+                                    "new_currency"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "description": "Employee ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "transfer_date": {
+                                        "description": "Transfer Date",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-01"
+                                    },
+                                    "reason": {
+                                        "description": "Reason for transfer",
+                                        "type": "string",
+                                        "example": "New Opportunity"
+                                    },
+                                    "new_company_id": {
+                                        "description": "New Company ID",
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "new_salary": {
+                                        "description": "New Salary",
+                                        "type": "number",
+                                        "example": 6000
+                                    },
+                                    "new_currency": {
+                                        "description": "New Currency ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "notify_send_to": {
+                                        "description": "User ID to notify (optional)",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            55,
+                                            703
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Transfer created successfully - تم إنشاء طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء طلب النقل بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "404": {
+                        "description": "Employee not found - الموظف غير موجود",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "الموظف غير موجود"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/internal/{id}": {
+            "put": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Update an internal transfer request",
+                "operationId": "4e63b5618537da7c76277ff83f38052e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Transfer ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "employee_id": {
+                                        "description": "Employee ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "transfer_date": {
+                                        "description": "Transfer Date",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-01"
+                                    },
+                                    "reason": {
+                                        "description": "Reason",
+                                        "type": "string",
+                                        "example": "Reason"
+                                    },
+                                    "transfer_department": {
+                                        "description": "New Department ID",
+                                        "type": "integer",
+                                        "example": 10
+                                    },
+                                    "transfer_designation": {
+                                        "description": "New Designation ID",
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "new_salary": {
+                                        "description": "New Salary",
+                                        "type": "number",
+                                        "example": 5000
+                                    },
+                                    "new_currency": {
+                                        "description": "New Currency ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "notify_send_to": {
+                                        "description": "User IDs to notify",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            55,
+                                            703
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Transfer updated successfully - تم تحديث طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث طلب النقل بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot update processed transfer - لا يمكن تعديل طلب تمت معالجته"
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/branch/{id}": {
+            "put": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Update a branch transfer request",
+                "operationId": "e397bb79c551fd9e49d1b3eb7d4cd323",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Transfer ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "employee_id": {
+                                        "description": "Employee ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "transfer_date": {
+                                        "description": "Transfer Date",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-01"
+                                    },
+                                    "reason": {
+                                        "description": "Reason",
+                                        "type": "string",
+                                        "example": "Reason"
+                                    },
+                                    "new_branch_id": {
+                                        "description": "New Branch ID",
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "notify_send_to": {
+                                        "description": "User IDs to notify",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            55,
+                                            703
+                                        ]
+                                    },
+                                    "new_salary": {
+                                        "description": "New Salary",
+                                        "type": "number",
+                                        "example": 5000
+                                    },
+                                    "new_currency": {
+                                        "description": "New Currency ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Transfer updated successfully - تم تحديث طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث طلب النقل بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot update processed transfer - لا يمكن تعديل طلب تمت معالجته"
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/intercompany/{id}": {
+            "put": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Update an intercompany transfer request",
+                "operationId": "2ca1a50d0741187dad638f0019536d65",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Transfer ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "employee_id": {
+                                        "description": "Employee ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "transfer_date": {
+                                        "description": "Transfer Date",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-01"
+                                    },
+                                    "reason": {
+                                        "description": "Reason",
+                                        "type": "string",
+                                        "example": "Reason"
+                                    },
+                                    "new_company_id": {
+                                        "description": "New Company ID",
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "new_salary": {
+                                        "description": "New Salary",
+                                        "type": "number",
+                                        "example": 6000
+                                    },
+                                    "new_currency": {
+                                        "description": "New Currency ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "notify_send_to": {
+                                        "description": "User IDs to notify",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            55,
+                                            703
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Transfer updated successfully - تم تحديث طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث طلب النقل بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot update processed transfer - لا يمكن تعديل طلب تمت معالجته"
                     },
                     "401": {
                         "description": "Unauthenticated - غير مصرح"
@@ -13025,6 +13863,305 @@
                 ]
             }
         },
+        "/api/transfers/{id}/approve-current-company": {
+            "post": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Approve or reject transfer by current company",
+                "description": "موافقة أو رفض النقل من قبل الشركة الحالية (للنقل بين الشركات فقط)",
+                "operationId": "cdd8d35d5bb6a48855a89ec8cdcafe7e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Transfer ID - معرف طلب النقل",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "action"
+                                ],
+                                "properties": {
+                                    "action": {
+                                        "type": "string",
+                                        "enum": [
+                                            "approve",
+                                            "reject"
+                                        ],
+                                        "example": "approve"
+                                    },
+                                    "remarks": {
+                                        "type": "string",
+                                        "example": "موافق على النقل"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Transfer processed successfully - تم معالجة طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تمت الموافقة من قبل الشركة الحالية"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Already processed - تمت المعالجة مسبقاً"
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/{id}/approve-new-company": {
+            "post": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Approve or reject transfer by new company",
+                "description": "موافقة أو رفض النقل من قبل الشركة الجديدة (للنقل بين الشركات فقط) - يتم التحقق من المتطلبات تلقائياً",
+                "operationId": "d7e72e0bf555308e856233d6511dc094",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Transfer ID - معرف طلب النقل",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "action"
+                                ],
+                                "properties": {
+                                    "action": {
+                                        "type": "string",
+                                        "enum": [
+                                            "approve",
+                                            "reject"
+                                        ],
+                                        "example": "approve"
+                                    },
+                                    "remarks": {
+                                        "type": "string",
+                                        "example": "موافق على استقبال الموظف"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Transfer processed successfully - تم معالجة طلب النقل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تمت الموافقة النهائية وتم تنفيذ النقل"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation failed - متطلبات غير مستوفاة",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "لا يمكن الموافقة - الموظف لديه متطلبات غير مستوفاة"
+                                        },
+                                        "blockers": {
+                                            "description": "تفاصيل المتطلبات غير المستوفاة",
+                                            "properties": {
+                                                "active_leaves": {
+                                                    "properties": {
+                                                        "message": {
+                                                            "type": "string",
+                                                            "example": "لديه إجازات نشطة"
+                                                        },
+                                                        "count": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "active_advances": {
+                                                    "properties": {
+                                                        "message": {
+                                                            "type": "string",
+                                                            "example": "لديه سلف غير مسددة"
+                                                        },
+                                                        "count": {
+                                                            "type": "integer",
+                                                            "example": 2
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "unreturned_custody": {
+                                                    "properties": {
+                                                        "message": {
+                                                            "type": "string",
+                                                            "example": "لديه عهد غير مرتجعة"
+                                                        },
+                                                        "count": {
+                                                            "type": "integer",
+                                                            "example": 3
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "validations": {
+                                            "description": "تفاصيل الفحوصات مع العناصر",
+                                            "properties": {
+                                                "active_leaves": {
+                                                    "properties": {
+                                                        "passed": {
+                                                            "type": "boolean",
+                                                            "example": false
+                                                        },
+                                                        "count": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "items": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "object"
+                                                            }
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "active_advances": {
+                                                    "properties": {
+                                                        "passed": {
+                                                            "type": "boolean",
+                                                            "example": true
+                                                        },
+                                                        "count": {
+                                                            "type": "integer",
+                                                            "example": 0
+                                                        },
+                                                        "items": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "object"
+                                                            }
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "unreturned_custody": {
+                                                    "properties": {
+                                                        "passed": {
+                                                            "type": "boolean",
+                                                            "example": true
+                                                        },
+                                                        "count": {
+                                                            "type": "integer",
+                                                            "example": 0
+                                                        },
+                                                        "items": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "object"
+                                                            }
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/transfers/statuses": {
             "get": {
                 "tags": [
@@ -13072,6 +14209,209 @@
                     },
                     "401": {
                         "description": "Unauthenticated - غير مصرح"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/available-companies": {
+            "get": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Get available companies for transfer",
+                "description": "الحصول على قائمة الشركات المتاحة للنقل إليها",
+                "operationId": "3daf37fdd932179df0b230b6e9293da5",
+                "responses": {
+                    "200": {
+                        "description": "Companies retrieved successfully - تم جلب الشركات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الشركات المتاحة بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "company_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "company_name": {
+                                                        "type": "string",
+                                                        "example": "شركة الأولى"
+                                                    },
+                                                    "branches": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "properties": {
+                                                                "branch_id": {
+                                                                    "type": "integer",
+                                                                    "example": 1
+                                                                },
+                                                                "branch_name": {
+                                                                    "type": "string",
+                                                                    "example": "فرع الأولى"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "unauthenticated - غير مصرح"
+                    },
+                    "500": {
+                        "description": "internal server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/{id}/pre-transfer-validation": {
+            "get": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Validate employee eligibility for transfer",
+                "description": "التحقق من أهلية الموظف للنقل - يتحقق من الإجازات النشطة، السلف، والعهد غير المرجعة",
+                "operationId": "849165ddab3bbc085a8c4e3bc4bf0cb5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Transfer ID - معرف طلب النقل",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Validation completed - تم التحقق بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم التحقق من المتطلبات بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "can_transfer": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                },
+                                                "validations": {
+                                                    "properties": {
+                                                        "active_leaves": {
+                                                            "properties": {
+                                                                "passed": {
+                                                                    "type": "boolean",
+                                                                    "example": false
+                                                                },
+                                                                "count": {
+                                                                    "type": "integer",
+                                                                    "example": 2
+                                                                },
+                                                                "items": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "object"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        },
+                                                        "active_advances": {
+                                                            "properties": {
+                                                                "passed": {
+                                                                    "type": "boolean",
+                                                                    "example": false
+                                                                },
+                                                                "count": {
+                                                                    "type": "integer",
+                                                                    "example": 1
+                                                                },
+                                                                "items": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "object"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        },
+                                                        "unreturned_custody": {
+                                                            "properties": {
+                                                                "passed": {
+                                                                    "type": "boolean",
+                                                                    "example": true
+                                                                },
+                                                                "count": {
+                                                                    "type": "integer",
+                                                                    "example": 0
+                                                                },
+                                                                "items": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "object"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "404": {
+                        "description": "Transfer not found - طلب النقل غير موجود"
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
@@ -14522,6 +15862,57 @@
     },
     "components": {
         "schemas": {
+            "BiometricBulkLogsRequest": {
+                "type": "array",
+                "items": {
+                    "required": [
+                        "company_id",
+                        "branch_id",
+                        "employee_id",
+                        "punch_time",
+                        "punch_type",
+                        "verify_mode"
+                    ],
+                    "properties": {
+                        "company_id": {
+                            "description": "رقم الشركة",
+                            "type": "integer",
+                            "example": 24
+                        },
+                        "branch_id": {
+                            "description": "رقم الفرع",
+                            "type": "integer",
+                            "example": 1
+                        },
+                        "employee_id": {
+                            "description": "رقم الموظف في جهاز البصمة",
+                            "type": "string",
+                            "example": "073323"
+                        },
+                        "punch_time": {
+                            "type": "string",
+                            "format": "datetime",
+                            "example": "2025-12-18 08:00:00"
+                        },
+                        "punch_type": {
+                            "description": "نوع البصمة",
+                            "type": "integer",
+                            "example": 0
+                        },
+                        "verify_mode": {
+                            "description": "طريقة التحقق",
+                            "type": "integer",
+                            "example": 1
+                        },
+                        "work_code": {
+                            "description": "كود العمل (اختياري)",
+                            "type": "integer",
+                            "example": 0
+                        }
+                    },
+                    "type": "object"
+                }
+            },
             "BaseEmployeeRequest": {
                 "title": "Base Employee Request",
                 "required": [
@@ -15352,6 +16743,10 @@
                         "type": "integer",
                         "example": 1
                     },
+                    "description": {
+                        "type": "string",
+                        "example": "وصف الرحلة"
+                    },
                     "status": {
                         "type": "integer",
                         "example": 0
@@ -15459,6 +16854,10 @@
         {
             "name": "Employees",
             "description": "Employees"
+        },
+        {
+            "name": "Jobs Monitor",
+            "description": "Jobs Monitor"
         },
         {
             "name": "System Logs",

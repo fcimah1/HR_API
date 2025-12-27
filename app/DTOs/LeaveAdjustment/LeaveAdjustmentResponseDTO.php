@@ -11,8 +11,6 @@ class LeaveAdjustmentResponseDTO
         public readonly int $companyId,
         public readonly int $employeeId,
         public readonly string $employeeName,
-        public readonly ?int $dutyEmployeeId,
-        public readonly ?string $dutyEmployeeName,
         public readonly int $leaveTypeId,
         public readonly string $leaveTypeName,
         public readonly float $adjustHours,
@@ -36,9 +34,6 @@ class LeaveAdjustmentResponseDTO
         }
         if (!$adjustment->relationLoaded('leaveType')) {
             $adjustment->load('leaveType');
-        }
-        if (!$adjustment->relationLoaded('dutyEmployee')) {
-            $adjustment->load('dutyEmployee');
         }
 
         $employee = $adjustment->employee ? [
@@ -66,9 +61,6 @@ class LeaveAdjustmentResponseDTO
             employeeId: $adjustment->employee_id,
             employeeName: $adjustment->employee ?
                 ($adjustment->employee->first_name . ' ' . $adjustment->employee->last_name) : 'غير محدد',
-            dutyEmployeeId: $adjustment->duty_employee_id,
-            dutyEmployeeName: $adjustment->dutyEmployee ?
-                ($adjustment->dutyEmployee->first_name . ' ' . $adjustment->dutyEmployee->last_name) : null,
             leaveTypeId: $adjustment->leave_type_id,
             leaveTypeName: $adjustment->leaveType ? $adjustment->leaveType->category_name : 'غير محدد',
             adjustHours: (float) $adjustment->adjust_hours,
@@ -99,8 +91,6 @@ class LeaveAdjustmentResponseDTO
             'company_id' => $this->companyId,
             'employee_id' => $this->employeeId,
             'employee_name' => $this->employeeName,
-            'duty_employee_id' => $this->dutyEmployeeId,
-            'duty_employee_name' => $this->dutyEmployeeName,
             'leave_type_id' => $this->leaveTypeId,
             'leave_type_name' => $this->leaveTypeName,
             'adjust_hours' => $this->adjustHours,

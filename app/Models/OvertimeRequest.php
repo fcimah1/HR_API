@@ -48,7 +48,7 @@ class OvertimeRequest extends Model
         'company_id' => 'integer',
         'staff_id' => 'integer',
         'overtime_reason' => OvertimeReasonEnum::class,
-        'additional_work_hours' => 'integer',
+        'additional_work_hours' => 'float',
         'compensation_type' => CompensationTypeEnum::class,
         'is_approved' => 'integer',
     ];
@@ -145,12 +145,16 @@ class OvertimeRequest extends Model
      */
     public function getStatusTextAttribute(): string
     {
-        return match($this->is_approved) {
-            0 => 'Pending',
-            1 => 'Approved',
-            2 => 'Rejected',
-            default => 'Unknown',
-        };
+        switch ($this->is_approved) {
+            case 0:
+                return 'Pending';
+            case 1:
+                return 'Approved';
+            case 2:
+                return 'Rejected';
+            default:
+                return 'Unknown';
+        }
     }
 
     /**

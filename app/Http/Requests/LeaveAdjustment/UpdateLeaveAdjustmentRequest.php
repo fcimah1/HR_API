@@ -58,33 +58,28 @@ class UpdateLeaveAdjustmentRequest extends FormRequest
                                 ->orWhere('company_id', 0); // الأنواع العامة
                         })
                         ->first();
-                        // Intentionally not logging here to avoid noise in logs
-                $leaveModel = new LeaveApplication();
-                $validTypes = $leaveModel->allLeaveTypeNameByCompanyId($companyId);
-                Log::info('Valid types: ' . json_encode($validTypes));
-                
-                // Check if the leave type ID exists in the valid types
-                if (!array_key_exists($value, $validTypes)) {
-                    $validList = [];
-                    foreach ($validTypes as $id => $name) {
-                        $validList[] = "[{$id} : ({$name})]";
+                    // Intentionally not logging here to avoid noise in logs
+                    $leaveModel = new LeaveApplication();
+                    $validTypes = $leaveModel->allLeaveTypeNameByCompanyId($companyId);
+                    Log::info('Valid types: ' . json_encode($validTypes));
+
+                    // Check if the leave type ID exists in the valid types
+                    if (!array_key_exists($value, $validTypes)) {
+                        $validList = [];
+                        foreach ($validTypes as $id => $name) {
+                            $validList[] = "[{$id} : ({$name})]";
+                        }
+                        $fail('نوع الإجازة المحدد غير صالح. القيم المسموحة هي: ' . implode(', ', $validList));
                     }
-                    $fail('نوع الإجازة المحدد غير صالح. القيم المسموحة هي: ' . implode(', ', $validList));
                 }
-            }
-            ],            
+            ],
             'adjust_hours' => [
                 'required',
                 'numeric',
                 'min:0.5', // على الأقل نصف ساعة
-            ],        
+            ],
             'reason_adjustment' => 'sometimes|string|max:1000',
             'adjustment_date' => 'sometimes|date',
-            'duty_employee_id' => [
-                'nullable',
-                'integer',
-                new \App\Rules\ValidDutyEmployee(),
-            ],
         ];
     }
 
@@ -100,9 +95,7 @@ class UpdateLeaveAdjustmentRequest extends FormRequest
             'adjust_hours.min' => 'ساعات التسوية لا يجب أن تقل عن 0.5 ساعة',
             'reason_adjustment.max' => 'سبب التسوية لا يجب أن يتجاوز 1000 حرف',
             'adjustment_date.date' => 'تاريخ التسوية يجب أن يكون تاريخاً صحيحاً',
-            'duty_employee_id.required' => 'الموظف البديل مطلوب',
-            'duty_employee_id.integer' => 'الموظف البديل يجب أن يكون رقم',
-            'duty_employee_id.exists' => 'الموظف البديل المحدد غير صحيح',
+
         ];
     }
 
@@ -112,25 +105,16 @@ class UpdateLeaveAdjustmentRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            // Check if duty employee belongs to same company
-            if ($this->filled('duty_employee_id')) {
-                $user = $this->user();
-                $dutyEmployee =  User::where('user_id', $this->duty_employee_id)
-                    ->where('company_name', $user->company_name)
-                    ->where('is_active', true)
-                    ->exists();
-
-                if (!$dutyEmployee) {
-                    $validator->errors()->add('duty_employee_id', 'الموظف البديل يجب أن يكون من نفس الشركة ونشط');
-                }
-            }
-
-            // Check if leave type belongs to user's company
+            // Check if leave type belongs to user's company using effective company id
             if ($this->filled('leave_type_id')) {
                 $user = $this->user();
-                $leaveTypes =  ErpConstant::getActiveLeaveTypesByCompanyName($user->company_name);
-                $availableIds = $leaveTypes->pluck('constants_id')->toArray();
-                
+                $permissionService = app(\App\Services\SimplePermissionService::class);
+                $companyId = $permissionService->getEffectiveCompanyId($user);
+
+                $leaveModel = new LeaveApplication();
+                $validTypes = $leaveModel->allLeaveTypeNameByCompanyId($companyId);
+                $availableIds = array_keys($validTypes);
+
                 if (!in_array($this->leave_type_id, $availableIds)) {
                     $validator->errors()->add('leave_type_id', 'نوع الإجازة غير متاح لشركتك');
                 }

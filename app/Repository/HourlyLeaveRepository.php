@@ -6,6 +6,7 @@ use App\DTOs\Leave\CreateHourlyLeaveDTO;
 use App\DTOs\Leave\HourlyLeaveFilterDTO;
 use App\DTOs\Leave\UpdateHourlyLeaveDTO;
 use App\Models\LeaveApplication;
+use App\Models\StaffApproval;
 use App\Models\User;
 use App\Repository\Interface\HourlyLeaveRepositoryInterface;
 use Illuminate\Support\Facades\Log;
@@ -18,7 +19,7 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
     public function getPaginatedHourlyLeaves(HourlyLeaveFilterDTO $filters, User $user): array
     {
         $companyId = $filters->companyId;
-        
+
         // فلتر طلبات الإجازة (leave_hours > 0 & leave_hours < 8)
         $query = LeaveApplication::where('company_id', $companyId)
             ->where('leave_hours', '>', 0) // ساعات أكبر من صفر
@@ -124,8 +125,8 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
     public function findHourlyLeaveForEmployee(int $id, int $employeeId): ?LeaveApplication
     {
         return LeaveApplication::where('employee_id', $employeeId)
-            ->where('leave_hours', '>', 0) 
-            ->where('leave_hours', '<',8)
+            ->where('leave_hours', '>', 0)
+            ->where('leave_hours', '<', 8)
             ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff'])
             ->find($id);
     }
@@ -150,6 +151,15 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
             'status' => LeaveApplication::STATUS_REJECTED,
             'remarks' => $reason,
         ]);
+        StaffApproval::create([
+            'company_id' => $application->company_id,
+            'staff_id' => $cancelledBy,
+            'module_option' => 'leave_settings',
+            'module_key_id' => $application->leave_id,
+            'status' => LeaveApplication::STATUS_REJECTED,
+            'approval_level' => 1,
+            'updated_at' => now(),
+        ]);
 
         $application->refresh();
         $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
@@ -167,6 +177,17 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
             'remarks' => $remarks,
         ]);
 
+        // إنشاء سجل الموافقة في جدول ci_erp_notifications_approval
+        StaffApproval::create([
+            'company_id' => $application->company_id,
+            'staff_id' => $approvedBy,
+            'module_option' => 'leave_settings',
+            'module_key_id' => $application->leave_id,
+            'status' => LeaveApplication::STATUS_APPROVED,
+            'approval_level' => 1,
+            'updated_at' => now(),
+        ]);
+
         $application->refresh();
         $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
 
@@ -181,6 +202,17 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
         $application->update([
             'status' => LeaveApplication::STATUS_REJECTED,
             'remarks' => $reason,
+        ]);
+
+        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
+        StaffApproval::create([
+            'company_id' => $application->company_id,
+            'staff_id' => $rejectedBy,
+            'module_option' => 'leave_settings',
+            'module_key_id' => $application->leave_id,
+            'status' => LeaveApplication::STATUS_REJECTED,
+            'approval_level' => 1,
+            'updated_at' => now(),
         ]);
 
         $application->refresh();
@@ -233,4 +265,3 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
         }
     }
 }
-

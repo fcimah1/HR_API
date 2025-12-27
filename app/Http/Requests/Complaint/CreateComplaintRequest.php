@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Complaint;
 
+use App\Rules\CanRequestComplaintForEmployee;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Foundation\Http\FormRequest;
@@ -25,9 +26,8 @@ class CreateComplaintRequest extends FormRequest
         return [
             'title' => 'required|string|max:255',
             'complaint_date' => 'required|date|before_or_equal:today',
-            'complaint_against' => ['nullable', 'string', 'max:255', new \App\Rules\CanRequestForEmployee()], // comma-separated user IDs (e.g., "703,725")
+            'complaint_against' => ['nullable', 'array', 'max:255', new CanRequestComplaintForEmployee()], // comma-separated user IDs (e.g., "703,725")
             'description' => 'nullable|string',
-            'notify_send_to' => ['nullable', 'string', 'max:255', new \App\Rules\CanRequestForEmployee()], // comma-separated user IDs (e.g., "100,200")
         ];
     }
 
@@ -39,10 +39,9 @@ class CreateComplaintRequest extends FormRequest
         return [
             'title.required' => 'عنوان الشكوى مطلوب',
             'title.max' => 'عنوان الشكوى يجب ألا يتجاوز 255 حرف',
-            'complaint_against.string' => 'يجب تحديد معرفات الأشخاص المشتكى عليهم (مفصولة بفاصلة)',
+            'complaint_against.array' => 'يجب تحديد معرفات الأشخاص المشتكى عليه',
             'complaint_date.date' => 'تنسيق تاريخ الشكوى غير صحيح',
             'complaint_date.before_or_equal' => 'تاريخ الشكوى يجب ألا يتجاوز تاريخ اليوم',
-            'notify_send_to.string' => 'يجب تحديد معرفات الأشخاص للإشعار (مفصولة بفاصلة)',
         ];
     }
 

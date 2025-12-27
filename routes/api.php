@@ -36,6 +36,8 @@ Route::post('/refresh', [AuthController::class, 'refresh']);
 
 // Biometric Device Integration (Public - لا يحتاج تسجيل دخول)
 Route::post('/biometric/punch', [BiometricAttendanceController::class, 'punch']);
+// Route::post('/biometric/logs', [BiometricAttendanceController::class, 'storeBulkLogs']);
+Route::post('/biometric/logs', [BiometricAttendanceController::class, 'storeBulkLogs'])->middleware('fix.biometric.json');
 Route::get('/biometric/companies', [BiometricAttendanceController::class, 'getCompaniesWithBranches']);
 
 
@@ -90,7 +92,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::delete('/hourly-leaves/{id}/cancel', [HourlyLeaveController::class, 'cancel']);
         Route::post('/hourly-leaves/{id}/approve-or-reject', [HourlyLeaveController::class, 'approveOrReject']);
 
-        Route::get('/leaves/enums', [LeaveAdjustmentController::class, 'getLeaveAdjustmentsEnums']);
+        Route::get('/leaves/adjustments/enums', [LeaveAdjustmentController::class, 'getLeaveAdjustmentsEnums']);
         Route::get('/leaves/adjustments', [LeaveAdjustmentController::class, 'getAdjustments']);
         Route::post('/leaves/adjustments', [LeaveAdjustmentController::class, 'createAdjustment']);
         Route::delete('/leaves/adjustments/{id}/cancel', [LeaveAdjustmentController::class, 'cancelAdjustment']);
@@ -256,12 +258,36 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
 
     // Transfers Management
     Route::prefix('transfers')->middleware('simple.permission:hr_transfers')->group(function () {
+        // Routes المحددة أولاً (قبل {id})
         Route::get('/', [TransferController::class, 'index'])->middleware('simple.permission:transfers1');
-        Route::post('/', [TransferController::class, 'store'])->middleware('simple.permission:transfers2');
         Route::get('/statuses', [TransferController::class, 'getStatuses'])->middleware('simple.permission:transfers1');
+        Route::get('/available-companies', [TransferController::class, 'getCompaniesWithBranches'])->middleware('simple.permission:transfers1');
+
+        // Create routes
+        Route::post('/internal', [TransferController::class, 'storeInternal'])->middleware('simple.permission:transfers2');
+        Route::post('/branch', [TransferController::class, 'storeBranch'])->middleware('simple.permission:transfers2');
+        Route::post('/intercompany', [TransferController::class, 'storeIntercompany'])->middleware('simple.permission:transfers2');
+
+        // Update routes
+        Route::put('/internal/{id}', [TransferController::class, 'updateInternal'])->middleware('simple.permission:transfers3');
+        Route::put('/branch/{id}', [TransferController::class, 'updateBranch'])->middleware('simple.permission:transfers3');
+        Route::put('/intercompany/{id}', [TransferController::class, 'updateIntercompany'])->middleware('simple.permission:transfers3');
+
+        // Routes العامة بـ {id} في الآخر
         Route::get('/{id}', [TransferController::class, 'show'])->middleware('simple.permission:transfers1');
-        Route::put('/{id}', [TransferController::class, 'update'])->middleware('simple.permission:transfers3');
+        Route::get('/{id}/pre-transfer-validation', [TransferController::class, 'getPreTransferValidation'])->middleware('simple.permission:transfers1');
         Route::delete('/{id}', [TransferController::class, 'destroy'])->middleware('simple.permission:transfers4');
         Route::post('/{id}/approve-or-reject', [TransferController::class, 'approveOrReject'])->middleware('simple.permission:transfers3');
+        Route::post('/{id}/approve-current-company', [TransferController::class, 'approveByCurrentCompany'])->middleware('simple.permission:transfers3');
+        Route::post('/{id}/approve-new-company', [TransferController::class, 'approveByNewCompany'])->middleware('simple.permission:transfers3');
+    });
+
+    // Jobs Monitor (للشركات فقط)
+    Route::prefix('jobs')->group(function () {
+        Route::get('/stats', [\App\Http\Controllers\Api\JobsMonitorController::class, 'getStats']);
+        Route::get('/failed', [\App\Http\Controllers\Api\JobsMonitorController::class, 'getFailedJobs']);
+        Route::post('/retry/{uuid}', [\App\Http\Controllers\Api\JobsMonitorController::class, 'retryJob']);
+        Route::post('/retry-all', [\App\Http\Controllers\Api\JobsMonitorController::class, 'retryAll']);
+        Route::delete('/failed', [\App\Http\Controllers\Api\JobsMonitorController::class, 'clearFailed']);
     });
 });

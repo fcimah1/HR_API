@@ -21,16 +21,17 @@ class Currency extends Model
     protected $primaryKey = 'currency_id';
 
     /**
+     * Indicates if the model should be timestamped.
+     */
+    public $timestamps = false;
+
+    /**
      * The attributes that are mass assignable.
      */
     protected $fillable = [
+        'country_name',
         'currency_name',
         'currency_code',
-        'currency_symbol',
-        'exchange_rate',
-        'is_default',
-        'created_at',
-        'updated_at',
     ];
 
     /**
@@ -38,8 +39,6 @@ class Currency extends Model
      */
     protected $casts = [
         'currency_id' => 'integer',
-        'exchange_rate' => 'decimal:4',
-        'is_default' => 'boolean',
     ];
 
     /**
@@ -48,14 +47,6 @@ class Currency extends Model
     public function userDetails(): HasMany
     {
         return $this->hasMany(UserDetails::class, 'currency_id', 'currency_id');
-    }
-
-    /**
-     * Scope to get default currency.
-     */
-    public function scopeDefault($query)
-    {
-        return $query->where('is_default', true);
     }
 
     /**

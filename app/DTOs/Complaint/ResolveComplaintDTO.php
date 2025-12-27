@@ -2,6 +2,7 @@
 
 namespace App\DTOs\Complaint;
 
+use App\Enums\NumericalStatusEnum;
 use App\Models\Complaint;
 use Spatie\LaravelData\Data;
 
@@ -25,9 +26,9 @@ class ResolveComplaintDTO extends Data
     public function getNewStatus(): int
     {
         return match ($this->action) {
-            'resolve' => Complaint::STATUS_RESOLVED,
-            'reject' => Complaint::STATUS_REJECTED,
-            default => Complaint::STATUS_PENDING,
+            'resolve' => NumericalStatusEnum::APPROVED->value,
+            'reject' => NumericalStatusEnum::REJECTED->value,
+            default => NumericalStatusEnum::PENDING->value,
         };
     }
 }

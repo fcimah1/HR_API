@@ -11,6 +11,7 @@ use App\DTOs\Leave\UpdateLeaveApplicationDTO;
 use App\Models\LeaveApplication;
 use App\Models\ErpConstant;
 use App\Models\LeaveAdjustment;
+use App\Models\StaffApproval;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 
@@ -202,6 +203,17 @@ class LeaveRepository implements LeaveRepositoryInterface
             'remarks' => $remarks,
         ]);
 
+        // إنشاء سجل الموافقة في جدول ci_erp_notifications_approval
+        StaffApproval::create([
+            'company_id' => $application->company_id,
+            'staff_id' => $approvedBy,
+            'module_option' => 'leave_settings',
+            'module_key_id' => $application->leave_id,
+            'status' => LeaveApplication::STATUS_APPROVED,
+            'approval_level' => 1,
+            'updated_at' => now(),
+        ]);
+
         $application->refresh();
         $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
 
@@ -215,8 +227,18 @@ class LeaveRepository implements LeaveRepositoryInterface
     {
         $application->update([
             'status' => LeaveApplication::STATUS_REJECTED,
-
             'remarks' => $reason,
+        ]);
+
+        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
+        StaffApproval::create([
+            'company_id' => $application->company_id,
+            'staff_id' => $rejectedBy,
+            'module_option' => 'leave_settings',
+            'module_key_id' => $application->leave_id,
+            'status' => LeaveApplication::STATUS_REJECTED,
+            'approval_level' => 1,
+            'updated_at' => now(),
         ]);
 
         $application->refresh();

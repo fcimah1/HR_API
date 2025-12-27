@@ -38,7 +38,7 @@ interface ComplaintRepositoryInterface
     /**
      * حذف شكوى
      */
-    public function deleteComplaint(Complaint $complaint): bool;
+    public function deleteComplaint(Complaint $complaint, int $rejectedBy, ?string $description = null): bool;
 
     /**
      * حل الشكوى

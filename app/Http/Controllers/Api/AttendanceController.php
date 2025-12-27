@@ -360,7 +360,8 @@ class AttendanceController extends Controller
     {
         try {
             $user = Auth::user();
-            $attendance = $this->attendanceService->lunchBreakIn($user->user_id);
+            $dto = UpdateAttendanceDTO::forLunchBreakIn();
+            $attendance = $this->attendanceService->lunchBreakIn($user->user_id, $dto);
 
             return response()->json([
                 'success' => true,
@@ -395,7 +396,8 @@ class AttendanceController extends Controller
     {
         try {
             $user = Auth::user();
-            $attendance = $this->attendanceService->lunchBreakOut($user->user_id);
+            $dto = UpdateAttendanceDTO::forLunchBreakOut();
+            $attendance = $this->attendanceService->lunchBreakOut($user->user_id, $dto);
 
             return response()->json([
                 'success' => true,

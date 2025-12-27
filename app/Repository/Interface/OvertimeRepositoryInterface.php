@@ -36,12 +36,12 @@ interface OvertimeRepositoryInterface
     /**
      * Approve an overtime request.
      */
-    public function approveRequest(OvertimeRequest $request): OvertimeRequest;
+    public function approveRequest(OvertimeRequest $request, int $approvedBy): OvertimeRequest;
 
     /**
      * Reject an overtime request.
      */
-    public function rejectRequest(OvertimeRequest $request, string $reason): OvertimeRequest;
+    public function rejectRequest(OvertimeRequest $request, int $rejectedBy, string $reason): OvertimeRequest;
 
     /**
      * Get overtime requests by manager (subordinates).
@@ -68,4 +68,3 @@ interface OvertimeRepositoryInterface
      */
     public function hasOverlappingOvertime(int $employeeId, string $requestDate, string $clockIn, string $clockOut, ?int $excludeRequestId = null): bool;
 }
-

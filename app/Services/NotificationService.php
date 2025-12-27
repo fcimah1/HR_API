@@ -26,7 +26,7 @@ class NotificationService
     /**
      * Send notification upon submission
      */
-    public function sendSubmissionNotification(string $moduleOption, string $moduleKeyId, int $companyId, int|string $status = NumericalStatusEnum::PENDING->value, ?int $submitterId = null): int 
+    public function sendSubmissionNotification(string $moduleOption, string $moduleKeyId, int $companyId, int|string $status = NumericalStatusEnum::PENDING->value, ?int $submitterId = null): int
     {
         $notifiers = $this->settingRepository->getSubmissionNotifiers($companyId, $moduleOption);
         Log::info('Submission notifiers', [
@@ -148,26 +148,38 @@ class NotificationService
             }
 
             if (!$submitterId) {
+                Log::debug('resolveNotifiers: No submitterId provided', ['notifier' => $notifier]);
                 continue;
             }
 
             if ($notifier === 'self') {
                 $resolvedIds[] = $submitterId;
+                Log::debug('resolveNotifiers: Added self', ['submitterId' => $submitterId]);
             } elseif ($notifier === 'manager') {
-                $details =  UserDetails::where('user_id', $submitterId)->first();
+                $details = UserDetails::where('user_id', $submitterId)->first();
                 if ($details && $details->reporting_manager) {
                     $resolvedIds[] = $details->reporting_manager;
+                    Log::debug('resolveNotifiers: Added manager', [
+                        'submitterId' => $submitterId,
+                        'managerId' => $details->reporting_manager
+                    ]);
+                } else {
+                    Log::debug('resolveNotifiers: No reporting_manager found', [
+                        'submitterId' => $submitterId,
+                        'hasDetails' => $details !== null
+                    ]);
                 }
             }
         }
 
+        Log::info('resolveNotifiers: Final resolved IDs', ['resolvedIds' => array_unique($resolvedIds)]);
         return array_unique($resolvedIds);
     }
 
     /**
      * Send custom notification to specific users
      */
-    public function sendCustomNotification(string $moduleOption, string $moduleKeyId, array $staffIds, int|string $status = NumericalStatusEnum::PENDING->value): int 
+    public function sendCustomNotification(string $moduleOption, string $moduleKeyId, array $staffIds, int|string $status = NumericalStatusEnum::PENDING->value): int
     {
         if (empty($staffIds)) {
             return 0;

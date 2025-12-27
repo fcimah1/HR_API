@@ -58,6 +58,8 @@ class ResignationResource extends JsonResource
                     'last_name' => $lastName ?: null,
                     'email' => $this->employee->email,
                     'full_name' => $fullName ?: 'غير محدد',
+                    'department' => $this->employee->user_details?->department?->name ?? null,
+                    'position' => $this->employee->user_details?->designation?->name ?? null,
                 ];
             }),
 

@@ -9,7 +9,7 @@ class UpdateOvertimeRequestDTO
         public readonly string $clockIn,
         public readonly string $clockOut,
         public readonly int $overtimeReason,
-        public readonly int $additionalWorkHours,
+        public readonly float $additionalWorkHours,
         public readonly int $compensationType,
         public readonly ?string $requestReason = null,
         public readonly ?string $straight = null,
@@ -20,17 +20,26 @@ class UpdateOvertimeRequestDTO
     ) {}
 
     /**
-     * Create DTO from request array.
+     * Create DTO from request array with enum string conversion.
      */
     public static function fromRequest(array $data): self
     {
+        // Convert enum strings to integers for business logic
+        $overtimeReasonInt = is_string($data['overtime_reason']) 
+            ? constant(\App\Enums\OvertimeReasonEnum::class . '::' . $data['overtime_reason'])->value
+            : $data['overtime_reason'];
+            
+        $compensationTypeInt = is_string($data['compensation_type']) 
+            ? constant(\App\Enums\CompensationTypeEnum::class . '::' . $data['compensation_type'])->value
+            : $data['compensation_type'];
+        
         return new self(
             requestDate: $data['request_date'],
             clockIn: $data['clock_in'],
             clockOut: $data['clock_out'],
-            overtimeReason: $data['overtime_reason'],
-            additionalWorkHours: $data['additional_work_hours'] ?? 0,
-            compensationType: $data['compensation_type'],
+            overtimeReason: $overtimeReasonInt,
+            additionalWorkHours: (float)($data['additional_work_hours'] ?? 0),
+            compensationType: $compensationTypeInt,
             requestReason: $data['request_reason'] ?? null,
             straight: $data['straight'] ?? null,
             timeAHalf: $data['time_a_half'] ?? null,

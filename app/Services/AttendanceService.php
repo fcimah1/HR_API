@@ -24,6 +24,7 @@ class AttendanceService
         protected HolidayService $holidayService,
         protected NotificationService $notificationService,
         protected UserRepositoryInterface $userRepository,
+        protected CacheService $cacheService,
     ) {}
 
     /**
@@ -370,17 +371,22 @@ class AttendanceService
      * @param int|null $workCode كود العمل
      * @return array
      */
-    public function biometricPunch(int $companyId, int $branchId, string $employeeIdnum, string $punchTime, ?int $verifyMode = null, ?int $punchType = null, ?int $workCode = null): array
+    public function biometricPunch(int $companyId, int $branchId, string $employeeId, string $punchTime, ?int $verifyMode = null, ?int $punchType = null, ?int $workCode = null): array
     {
-        return DB::transaction(function () use ($companyId, $branchId, $employeeIdnum, $punchTime, $verifyMode, $punchType, $workCode) {
+        return DB::transaction(function () use ($companyId, $branchId, $employeeId, $punchTime, $verifyMode, $punchType, $workCode) {
+            // تنضيف البيانات
+            $companyId = (int)$companyId;
+            $branchId = (int)($branchId ?? 0);
+            $employeeId = trim((string)$employeeId);
+
             // 1. البحث عن الموظف باستخدام المفتاح المركب
-            $userDetails = $this->userRepository->getUserByCompositeKey($companyId, $branchId, $employeeIdnum);
+            $userDetails = $this->userRepository->getUserByCompositeKey($companyId, $branchId, $employeeId);
 
             if (!$userDetails) {
                 Log::warning('Biometric punch - Employee not found', [
                     'company_id' => $companyId,
                     'branch_id' => $branchId,
-                    'employee_idnum' => $employeeIdnum,
+                    'employee_id' => $employeeId,
                 ]);
                 throw new \Exception('الموظف غير موجود في النظام');
             }
@@ -394,13 +400,24 @@ class AttendanceService
 
             // ============ التحققات الأساسية ============
 
-            // 1. التحقق من العطلات الرسمية
+            // متغيرات للحضور في العطلات
+            $isHolidayWork = false;
+            $holidayWorkReason = null;
+
+            // 1. التحقق من العطلات الرسمية - السماح بالتسجيل مع علامة
             if ($this->holidayService->isHoliday($punchDate, $companyId)) {
                 $holiday = $this->holidayService->getHolidayForDate($punchDate, $companyId);
-                throw new \Exception('لا يمكن تسجيل البصمة في يوم عطلة: ' . ($holiday['event_name'] ?? 'عطلة رسمية'));
+                $isHolidayWork = true;
+                $holidayWorkReason = 'عطلة رسمية: ' . ($holiday['event_name'] ?? 'عطلة');
+
+                Log::info('Biometric punch on official holiday', [
+                    'user_id' => $userId,
+                    'punch_date' => $punchDate,
+                    'holiday' => $holiday['event_name'] ?? 'عطلة',
+                ]);
             }
 
-            // 2. التحقق من الإجازات المعتمدة
+            // 2. التحقق من الإجازات المعتمدة - السماح بالتسجيل مع علامة
             $approvedLeave = \App\Models\LeaveApplication::forEmployee($userId)
                 ->forCompany($companyId)
                 ->approved()
@@ -408,7 +425,14 @@ class AttendanceService
                 ->first();
 
             if ($approvedLeave) {
-                throw new \Exception('لا يمكن تسجيل البصمة - لديك إجازة معتمدة لهذا اليوم');
+                $isHolidayWork = true;
+                $holidayWorkReason = 'إجازة معتمدة: ' . ($approvedLeave->leaveType->leave_type ?? 'إجازة');
+
+                Log::info('Biometric punch during approved leave', [
+                    'user_id' => $userId,
+                    'punch_date' => $punchDate,
+                    'leave_id' => $approvedLeave->leave_app_id,
+                ]);
             }
 
             // 3. الحصول على بيانات الشيفت
@@ -417,20 +441,28 @@ class AttendanceService
             $earlyLeaving = '00:00';
             $overtime = '00:00';
 
-            // جلب بيانات الفرع للإحداثيات
-            $branch = \App\Models\Branch::find($branchId);
+            // جلب بيانات الفرع للإحداثيات (مع Cache)
+            $branch = $this->cacheService->getBranch($branchId);
 
             if ($userDetails->office_shift_id) {
-                $officeShift = \App\Models\OfficeShift::find($userDetails->office_shift_id);
+                $officeShift = $this->cacheService->getOfficeShift($userDetails->office_shift_id);
 
                 if ($officeShift) {
-                    // 4. التحقق من أن اليوم ليس يوم عطلة أسبوعية (شيفت)
+                    // 4. التحقق من أن اليوم ليس يوم عطلة أسبوعية - السماح بالتسجيل مع علامة
                     if ($officeShift->isDayOff($punchDate)) {
-                        throw new \Exception('لا يمكن تسجيل البصمة - هذا اليوم عطلة أسبوعية حسب جدول الدوام');
+                        $isHolidayWork = true;
+                        $holidayWorkReason = $holidayWorkReason ?? 'عطلة أسبوعية';
+
+                        Log::info('Biometric punch on weekly day off', [
+                            'user_id' => $userId,
+                            'punch_date' => $punchDate,
+                        ]);
                     }
 
-                    // حساب التأخير للحضور
-                    $timeLate = $officeShift->calculateTimeLate($punchDate, $punchTime);
+                    // حساب التأخير للحضور (فقط إذا لم يكن يوم عطلة)
+                    if (!$isHolidayWork) {
+                        $timeLate = $officeShift->calculateTimeLate($punchDate, $punchTime);
+                    }
                 }
             }
 
@@ -447,7 +479,7 @@ class AttendanceService
 
             $baseResponseData = [
                 'user_id' => $userId,
-                'employee_idnum' => $employeeIdnum,
+                'employee_id' => $employeeId,
                 'branch_id' => $branchId,
                 'punch_time' => $punchTime,
                 'verify_mode' => $verifyMode,
@@ -463,7 +495,14 @@ class AttendanceService
                         throw new \Exception('تم تسجيل الحضور لهذا اليوم بالفعل');
                     }
 
-                    Log::info('Biometric clock in', array_merge($baseResponseData, ['time_late' => $timeLate]));
+                    // تحديد حالة الحضور بناءً على العطلة
+                    $attendanceStatus = $isHolidayWork ? 'Holiday Work' : 'Present';
+
+                    Log::info('Biometric clock in', array_merge($baseResponseData, [
+                        'time_late' => $timeLate,
+                        'is_holiday_work' => $isHolidayWork,
+                        'holiday_reason' => $holidayWorkReason,
+                    ]));
 
                     $dto = new CreateAttendanceDTO(
                         companyId: $companyId,
@@ -476,32 +515,142 @@ class AttendanceService
                         clockInLongitude: null,
                         shiftId: $userDetails->office_shift_id ?? 0,
                         workFromHome: 0,
+                        attendanceStatus: $attendanceStatus,
+                        status: $isHolidayWork ? 'Pending' : 'Approved', // الحضور في العطلة يحتاج مراجعة
                         timeLate: $timeLate,
                     );
 
                     $attendance = $this->attendanceRepository->clockIn($dto);
 
+                    // إرسال تنبيه للمدير إذا كان حضور في يوم عطلة
+                    if ($isHolidayWork) {
+                        // البحث عن المستخدمين ذوي المستوى الأعلى في نفس الشركة
+                        $employeeHierarchy = $userDetails->designation?->hierarchy_level ?? 5;
+
+                        $higherLevelUsers = \App\Models\UserDetails::where('company_id', $companyId)
+                            ->whereHas('designation', function ($query) use ($employeeHierarchy) {
+                                $query->where('hierarchy_level', '<', $employeeHierarchy)
+                                    ->whereNotNull('hierarchy_level');
+                            })
+                            ->pluck('user_id')
+                            ->toArray();
+
+                        // إذا لم يوجد مدراء بمستوى أعلى، أرسل للشركة
+                        // إضافة الشركة دائماً للتنبيهات
+                        $notifyUsers = array_merge($higherLevelUsers, [$companyId]);
+                        $notifyUsers = array_unique($notifyUsers);
+
+                        $this->notificationService->sendCustomNotification(
+                            moduleOption: 'attendance',
+                            moduleKeyId: (string) $attendance->time_attendance_id,
+                            staffIds: $notifyUsers,
+                            status: 'Pending'
+                        );
+
+                        Log::info('Holiday work notification sent to higher level', [
+                            'attendance_id' => $attendance->time_attendance_id,
+                            'employee_hierarchy' => $employeeHierarchy,
+                            'notify_users' => $notifyUsers,
+                            'reason' => $holidayWorkReason,
+                        ]);
+                    }
+
+                    $responseMessage = $isHolidayWork
+                        ? "تم تسجيل الحضور في عطلة ({$holidayWorkReason}) - بانتظار المراجعة"
+                        : 'تم تسجيل الحضور بنجاح';
+
                     return [
                         'success' => true,
                         'type' => 'clock_in',
-                        'message' => 'تم تسجيل الحضور بنجاح',
+                        'message' => $responseMessage,
+                        'is_holiday_work' => $isHolidayWork,
+                        'holiday_reason' => $holidayWorkReason,
                         'data' => array_merge($baseResponseData, [
                             'attendance_id' => $attendance->time_attendance_id,
                             'time_late' => $timeLate,
                             'shift_in_time' => $officeShift?->getInTimeForDate($punchDate),
                             'branch_name' => $branch?->branch_name,
+                            'attendance_status' => $attendanceStatus,
                         ])
                     ];
 
                 case 1: // Check-Out (انصراف)
+                    // السماح بالانصراف بدون حضور (للمراجعة من HR)
                     if (!$attendance) {
-                        throw new \Exception('يجب تسجيل الحضور أولاً قبل تسجيل الانصراف');
+                        Log::warning('Biometric clock out without clock in', $baseResponseData);
+
+                        // إنشاء سجل حضور جديد بدون clock_in للمراجعة من HR
+                        $dto = new CreateAttendanceDTO(
+                            companyId: $companyId,
+                            branchId: $branchId,
+                            employeeId: $userId,
+                            attendanceDate: $punchDate,
+                            clockIn: null, // بدون حضور
+                            clockInIpAddress: null,
+                            clockInLatitude: null,
+                            clockInLongitude: null,
+                            shiftId: $userDetails->office_shift_id ?? 0,
+                            workFromHome: 0,
+                            timeLate: null,
+                        );
+
+                        $attendance = $this->attendanceRepository->clockIn($dto);
+
+                        // تسجيل الانصراف مباشرة
+                        $updateDto = new UpdateAttendanceDTO(
+                            clockOut: $punchTime,
+                            clockOutIpAddress: 'biometric',
+                            clockOutLatitude: null,
+                            clockOutLongitude: null,
+                            totalWork: null, // لا يمكن حساب الوقت بدون حضور
+                            earlyLeaving: null,
+                            overtime: null,
+                            status: 'pending', // للمراجعة من HR
+                        );
+
+                        $updatedAttendance = $this->attendanceRepository->clockOut($attendance, $updateDto);
+
+                        // إرسال تنبيه للمستوى الأعلى والشركة
+                        $employeeHierarchy = $userDetails->designation?->hierarchy_level ?? 5;
+
+                        $higherLevelUsers = \App\Models\UserDetails::where('company_id', $companyId)
+                            ->whereHas('designation', function ($query) use ($employeeHierarchy) {
+                                $query->where('hierarchy_level', '<', $employeeHierarchy)
+                                    ->whereNotNull('hierarchy_level');
+                            })
+                            ->pluck('user_id')
+                            ->toArray();
+
+                        $notifyUsers = array_merge($higherLevelUsers, [$companyId]);
+                        $notifyUsers = array_unique($notifyUsers);
+
+                        $this->notificationService->sendCustomNotification(
+                            moduleOption: 'attendance',
+                            moduleKeyId: (string) $updatedAttendance->time_attendance_id,
+                            staffIds: $notifyUsers,
+                            status: 'Pending'
+                        );
+
+                        Log::info('Clock out without clock in notification sent', [
+                            'attendance_id' => $updatedAttendance->time_attendance_id,
+                            'notify_users' => $notifyUsers,
+                        ]);
+
+                        return [
+                            'success' => true,
+                            'type' => 'clock_out_without_clock_in',
+                            'message' => 'تم تسجيل الانصراف - يجب مراجعة الحضور من قسم HR',
+                            'warning' => 'لم يتم تسجيل حضور لهذا اليوم',
+                            'data' => array_merge($baseResponseData, [
+                                'attendance_id' => $updatedAttendance->time_attendance_id,
+                                'needs_hr_review' => true,
+                                'branch_name' => $branch?->branch_name,
+                            ])
+                        ];
                     }
+
                     if ($attendance->clock_out) {
                         throw new \Exception('تم تسجيل الانصراف لهذا اليوم بالفعل');
-                    }
-                    if ($attendance->lunch_breakin && !$attendance->lunch_breakout) {
-                        throw new \Exception('يجب تسجيل نهاية استراحة قبل تسجيل الانصراف');
                     }
 
                     // حساب الخروج المبكر والوقت الإضافي
@@ -549,9 +698,47 @@ class AttendanceService
                     ];
 
                 case 3: // Break In (بداية استراحة الغداء)
+                    // السماح ببداية الاستراحة بدون حضور (للمراجعة من HR)
                     if (!$attendance) {
-                        throw new \Exception('يجب تسجيل الحضور أولاً');
+                        Log::warning('Biometric break in without clock in', $baseResponseData);
+
+                        // إنشاء سجل حضور جديد بدون clock_in للمراجعة من HR
+                        $dto = new CreateAttendanceDTO(
+                            companyId: $companyId,
+                            branchId: $branchId,
+                            employeeId: $userId,
+                            attendanceDate: $punchDate,
+                            clockIn: null,
+                            clockInIpAddress: null,
+                            clockInLatitude: null,
+                            clockInLongitude: null,
+                            shiftId: $userDetails->office_shift_id ?? 0,
+                            workFromHome: 0,
+                            timeLate: null,
+                        );
+
+                        $attendance = $this->attendanceRepository->clockIn($dto);
+
+                        // تسجيل بداية الاستراحة مباشرة
+                        $updateDto = new UpdateAttendanceDTO(
+                            lunchBreakIn: $punchTime,
+                            status: 'pending',
+                        );
+
+                        $updatedAttendance = $this->attendanceRepository->lunchBreakIn($attendance, $updateDto);
+
+                        return [
+                            'success' => true,
+                            'type' => 'break_in_without_clock_in',
+                            'message' => 'تم تسجيل بداية الاستراحة - يجب مراجعة الحضور من قسم HR',
+                            'warning' => 'لم يتم تسجيل حضور لهذا اليوم',
+                            'data' => array_merge($baseResponseData, [
+                                'attendance_id' => $updatedAttendance->time_attendance_id,
+                                'needs_hr_review' => true,
+                            ])
+                        ];
                     }
+
                     if ($attendance->lunch_breakin && !$attendance->lunch_breakout) {
                         throw new \Exception('لقد بدأت استراحة الغداء بالفعل');
                     }
@@ -577,9 +764,47 @@ class AttendanceService
                     ];
 
                 case 2: // Break Out (نهاية استراحة الغداء)
+                    // السماح بنهاية الاستراحة بدون حضور (للمراجعة من HR)
                     if (!$attendance) {
-                        throw new \Exception('يجب تسجيل الحضور أولاً');
+                        Log::warning('Biometric break out without clock in', $baseResponseData);
+
+                        // إنشاء سجل حضور جديد بدون clock_in للمراجعة من HR
+                        $dto = new CreateAttendanceDTO(
+                            companyId: $companyId,
+                            branchId: $branchId,
+                            employeeId: $userId,
+                            attendanceDate: $punchDate,
+                            clockIn: null,
+                            clockInIpAddress: null,
+                            clockInLatitude: null,
+                            clockInLongitude: null,
+                            shiftId: $userDetails->office_shift_id ?? 0,
+                            workFromHome: 0,
+                            timeLate: null,
+                        );
+
+                        $attendance = $this->attendanceRepository->clockIn($dto);
+
+                        // تسجيل نهاية الاستراحة مباشرة
+                        $updateDto = new UpdateAttendanceDTO(
+                            lunchBreakOut: $punchTime,
+                            status: 'pending',
+                        );
+
+                        $updatedAttendance = $this->attendanceRepository->lunchBreakOut($attendance, $updateDto);
+
+                        return [
+                            'success' => true,
+                            'type' => 'break_out_without_clock_in',
+                            'message' => 'تم تسجيل نهاية الاستراحة - يجب مراجعة الحضور من قسم HR',
+                            'warning' => 'لم يتم تسجيل حضور لهذا اليوم',
+                            'data' => array_merge($baseResponseData, [
+                                'attendance_id' => $updatedAttendance->time_attendance_id,
+                                'needs_hr_review' => true,
+                            ])
+                        ];
                     }
+
                     if (!$attendance->lunch_breakin) {
                         throw new \Exception('يجب بدء استراحة الغداء أولاً');
                     }
@@ -612,22 +837,22 @@ class AttendanceService
                     // يمكن إضافة منطق العمل الإضافي هنا لاحقاً
                     Log::info('Biometric overtime punch', $baseResponseData);
 
-                    return [
-                        'success' => true,
-                        'type' => $punchType === 4 ? 'overtime_in' : 'overtime_out',
-                        'message' => $punchType === 4 ? 'تم تسجيل حضور العمل الإضافي' : 'تم تسجيل انصراف العمل الإضافي',
-                        'data' => $baseResponseData
-                    ];
+                    //     return [
+                    //         'success' => true,
+                    //         'type' => $punchType === 4 ? 'overtime_in' : 'overtime_out',
+                    //         'message' => $punchType === 4 ? 'تم تسجيل حضور العمل الإضافي' : 'تم تسجيل انصراف العمل الإضافي',
+                    //         'data' => $baseResponseData
+                    //     ];
 
                 case 255: // Unspecified - سيتم تحديده تلقائياً
                 default:
                     // التحديد التلقائي بناءً على حالة الحضور
                     if (!$attendance) {
                         // لا يوجد سجل = حضور
-                        return $this->biometricPunch($companyId, $branchId, $employeeIdnum, $punchTime, $verifyMode, 0, $workCode);
+                        return $this->biometricPunch($companyId, $branchId, $employeeId, $punchTime, $verifyMode, 0, $workCode);
                     } elseif (!$attendance->clock_out) {
                         // يوجد حضور بدون انصراف = انصراف
-                        return $this->biometricPunch($companyId, $branchId, $employeeIdnum, $punchTime, $verifyMode, 1, $workCode);
+                        return $this->biometricPunch($companyId, $branchId, $employeeId, $punchTime, $verifyMode, 1, $workCode);
                     } else {
                         throw new \Exception('تم تسجيل الحضور والانصراف لهذا اليوم بالفعل');
                     }

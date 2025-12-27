@@ -72,7 +72,7 @@ class CanRequestForEmployee implements ValidationRule
 
                 // Finally check hierarchy permissions
                 if (!$user->canMakeRequestFor($targetEmployee)) {
-                    $fail('ليس لديك صلاحية لتقديم طلب لهذا الموظف. يجب أن تكون في مستوى هرمي أعلى أو المدير المباشر.');
+                    $fail('ليس لديك صلاحية لتقديم او تعديل طلب لهذا الموظف. يجب أن تكون في مستوى هرمي أعلى أو المدير المباشر.');
                 }
             }
         }else{

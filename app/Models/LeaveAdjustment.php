@@ -16,12 +16,18 @@ class LeaveAdjustment extends Model
     public $timestamps = false;
 
     /**
+     * The attributes that should be hidden for arrays.
+     */
+    protected $hidden = [
+        'duty_employee_id',
+    ];
+
+    /**
      * The attributes that are mass assignable.
      */
     protected $fillable = [
         'company_id',
         'employee_id',
-        'duty_employee_id',
         'leave_type_id',
         'adjust_hours',
         'reason_adjustment',
@@ -36,7 +42,6 @@ class LeaveAdjustment extends Model
     protected $casts = [
         'company_id' => 'integer',
         'employee_id' => 'integer',
-        'duty_employee_id' => 'integer',
         'leave_type_id' => 'integer',
         'status' => 'integer',
         'adjustment_date' => 'date',
@@ -69,13 +74,7 @@ class LeaveAdjustment extends Model
         return $this->belongsTo(User::class, 'employee_id', 'user_id');
     }
 
-    /**
-     * Get the duty employee
-     */
-    public function dutyEmployee(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'duty_employee_id', 'user_id');
-    }
+
 
     /**
      * Get the leave type
@@ -132,5 +131,54 @@ class LeaveAdjustment extends Model
     public function scopeApproved(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_APPROVED);
+    }
+
+    /**
+     * Custom toArray method to format the response
+     */
+    public function toArray(): array
+    {
+        $array = parent::toArray();
+
+        // Format employee data
+        if (isset($this->employee)) {
+            $array['employee'] = [
+                'user_id' => $this->employee->user_id,
+                'first_name' => $this->employee->first_name,
+                'last_name' => $this->employee->last_name,
+                'full_name' => $this->employee->full_name,
+                'email' => $this->employee->email,
+                'department' => $this->employee->user_details?->department?->name ?? null,
+                'position' => $this->employee->user_details?->designation?->name ?? null,
+            ];
+        }
+
+
+        // Format leave_type data
+        if (isset($this->leaveType)) {
+            $array['leave_type'] = [
+                'constants_id' => $this->leaveType->constants_id,
+                'category_name' => $this->leaveType->category_name
+            ];
+        }
+        if (isset($this->approvals)) {
+            $array['approvals'] = $this->approvals->map(function ($approval) {
+                return [
+                    'status' => $approval->status,
+                    'approval_level' => $approval->approval_level ?? 1,
+                    'updated_at' => $approval->updated_at,
+                    'staff' => isset($approval->staff) ? [
+                        'user_id' => $approval->staff->user_id,
+                        'first_name' => $approval->staff->first_name,
+                        'last_name' => $approval->staff->last_name,
+                        'full_name' => $approval->staff->full_name,
+                        'department' => $approval->staff->user_details?->department?->name ?? null,
+                        'position' => $approval->staff->user_details?->designation?->name ?? null,
+                    ] : null
+                ];
+            })->toArray();
+        }
+
+        return $array;
     }
 }

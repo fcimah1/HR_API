@@ -6,6 +6,7 @@ use App\DTOs\Resignation\CreateResignationDTO;
 use App\DTOs\Resignation\ResignationFilterDTO;
 use App\DTOs\Resignation\UpdateResignationDTO;
 use App\Models\Resignation;
+use App\Models\StaffApproval;
 use App\Models\User;
 use App\Repository\Interface\ResignationRepositoryInterface;
 use Illuminate\Support\Facades\Log;
@@ -17,7 +18,7 @@ class ResignationRepository implements ResignationRepositoryInterface
      */
     public function getPaginatedResignations(ResignationFilterDTO $filters, User $user): array
     {
-        $query = Resignation::with(['employee', 'addedBy']);
+        $query = Resignation::with(['employee', 'addedBy', 'approvals.staff']);
 
         // تطبيق فلتر الشركة
         if ($filters->companyId !== null) {
@@ -82,7 +83,7 @@ class ResignationRepository implements ResignationRepositoryInterface
      */
     public function findResignationById(int $id, int $companyId): ?Resignation
     {
-        return Resignation::with(['employee', 'addedBy'])
+        return Resignation::with(['employee', 'addedBy', 'approvals.staff'])
             ->where('resignation_id', $id)
             ->where('company_id', $companyId)
             ->first();
@@ -93,7 +94,7 @@ class ResignationRepository implements ResignationRepositoryInterface
      */
     public function findResignationForEmployee(int $id, int $employeeId): ?Resignation
     {
-        return Resignation::with(['employee', 'addedBy'])
+        return Resignation::with(['employee', 'addedBy', 'approvals.staff'])
             ->where('resignation_id', $id)
             ->where('employee_id', $employeeId)
             ->first();
@@ -160,6 +161,17 @@ class ResignationRepository implements ResignationRepositoryInterface
             'is_signed' => 1,
         ]);
 
+        // إنشاء سجل الموافقة في جدول ci_erp_notifications_approval
+        StaffApproval::create([
+            'company_id' => $resignation->company_id,
+            'staff_id' => $approvedBy,
+            'module_option' => 'resignation_settings',
+            'module_key_id' => $resignation->resignation_id,
+            'status' => Resignation::STATUS_APPROVED,
+            'approval_level' => 1,
+            'updated_at' => now(),
+        ]);
+
         // تعطيل حساب الموظف عند الموافقة على الاستقالة
         $employee = User::find($resignation->employee_id);
         if ($employee) {
@@ -171,7 +183,7 @@ class ResignationRepository implements ResignationRepositoryInterface
         }
 
         $resignation->refresh();
-        $resignation->load(['employee', 'addedBy']);
+        $resignation->load(['employee', 'addedBy', 'approvals.staff']);
 
         Log::info('Resignation approved', [
             'resignation_id' => $resignation->resignation_id,
@@ -191,8 +203,19 @@ class ResignationRepository implements ResignationRepositoryInterface
             'status' => Resignation::STATUS_REJECTED,
         ]);
 
+        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
+        StaffApproval::create([
+            'company_id' => $resignation->company_id,
+            'staff_id' => $rejectedBy,
+            'module_option' => 'resignation_settings',
+            'module_key_id' => $resignation->resignation_id,
+            'status' => Resignation::STATUS_REJECTED,
+            'approval_level' => 1,
+            'updated_at' => now(),
+        ]);
+
         $resignation->refresh();
-        $resignation->load(['employee', 'addedBy']);
+        $resignation->load(['employee', 'addedBy', 'approvals.staff']);
 
         Log::info('Resignation rejected', [
             'resignation_id' => $resignation->resignation_id,
