@@ -35,8 +35,8 @@ class CanRequestForEmployee implements ValidationRule
 
         if ($employee->user_type === 'company') {
             return;
-        }elseif ($employee->user_type === 'staff') {
- 
+        } elseif ($employee->user_type === 'staff') {
+
             // For staff users: check employee exists first
             $targetEmployee = User::query()
                 ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
@@ -48,11 +48,6 @@ class CanRequestForEmployee implements ValidationRule
 
             if ($targetEmployee) {
 
-                if (!$targetEmployee) {
-                    $fail('الموظف المحدد يجب أن يكون من نفس الشركة ونشط');
-                    return;
-                }
-
                 // Company users can create requests for any employee in their company
                 if ($user->user_type === 'company') {
                     return;
@@ -63,21 +58,16 @@ class CanRequestForEmployee implements ValidationRule
                     return;
                 }
 
-                // Then check department
-                $userDepartmentId = $user->user_details?->department_id;
-                if ($targetEmployee->department_id != $userDepartmentId) {
-                    $fail('الموظف المحدد يجب أن يكون من نفس القسم');
+                // استخدام SimplePermissionService للتحقق من الصلاحيات الهرمية والقيود
+                // بدلاً من التحقق من القسم فقط
+                if (!$permissionService->canViewEmployeeRequests($user, $targetEmployee)) {
+                    $fail('ليس لديك صلاحية لتقديم أو تعديل طلب لهذا الموظف. يجب أن تكون في مستوى هرمي أعلى.');
                     return;
                 }
-
-                // Finally check hierarchy permissions
-                if (!$user->canMakeRequestFor($targetEmployee)) {
-                    $fail('ليس لديك صلاحية لتقديم او تعديل طلب لهذا الموظف. يجب أن تكون في مستوى هرمي أعلى أو المدير المباشر.');
-                }
             }
-        }else{
+        } else {
             $fail('الموظف المحدد يجب أن يكون موظفاً ');
             return;
+        }
     }
-}
 }

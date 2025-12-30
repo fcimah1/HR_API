@@ -179,7 +179,6 @@ class TransferRepository implements TransferRepositoryInterface
         return $transfer->update([
             'status' => NumericalStatusEnum::REJECTED->value,
         ]);
-        
     }
 
     /**
@@ -410,6 +409,16 @@ class TransferRepository implements TransferRepositoryInterface
                     })
                 ];
             })
+            ->toArray();
+    }
+    /**
+     * الحصول على فروع الشركة
+     */
+    public function getBranchesByCompany(int $companyId): array
+    {
+        return \App\Models\Branch::where('company_id', $companyId)
+            ->select(['branch_id', 'branch_name'])
+            ->get()
             ->toArray();
     }
 }

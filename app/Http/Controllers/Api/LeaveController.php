@@ -1113,15 +1113,6 @@ class LeaveController extends Controller
         $user = Auth::user();
         try {
 
-            // if (!in_array($user->user_type, ['company', 'admin', 'hr', 'manager'])) {
-            //     return response()->json([
-            //         'success' => false,
-            //         'message' => 'غير مصرح لك بعرض الإحصائيات',
-            //         'created by' => $user->full_name
-            //     ], 403);
-            // }
-            // effective company id
-
             $companyId = $this->permissionService->getEffectiveCompanyId($user);
 
             $stats = $this->leaveService->getLeaveStatistics($companyId);

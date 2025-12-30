@@ -112,9 +112,6 @@ class CanNotifyUser implements ValidationRule, DataAwareRule
                 continue;
             }
 
-            // 3- التحقق من أنه أعلى في المستوى الهرمي
-            // ملاحظة: تم إزالة فحص القسم - يُسمح بإرسال الإشعارات لأي قسم
-
             // يجب أن يكون أعلى في المستوى الهرمي (رقم أقل = مستوى أعلى)
             if ($subjectHierarchyLevel === null || $targetHierarchyLevel === null) {
                 // تمليح: إذا لم نتمكن من تحديد المستوى، قد نمررها أو نرفضها. هنا سنرفض لضمان الصحة.

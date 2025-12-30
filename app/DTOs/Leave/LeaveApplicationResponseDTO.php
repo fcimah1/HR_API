@@ -4,6 +4,7 @@ namespace App\DTOs\Leave;
 
 use App\Enums\DeductedStatus;
 use App\Enums\LeavePlaceEnum;
+use App\Enums\NumericalStatusEnum;
 use App\Models\LeaveApplication;
 
 class LeaveApplicationResponseDTO
@@ -121,11 +122,11 @@ class LeaveApplicationResponseDTO
     private static function getStatusText($status): string
     {
         switch ($status) {
-            case 1:
+            case NumericalStatusEnum::PENDING->value:
                 return 'pending';
-            case 2:
+            case NumericalStatusEnum::APPROVED->value:
                 return 'approved';
-            case 3:
+            case NumericalStatusEnum::REJECTED->value:
                 return 'rejected';
             default:
                 return 'pending';

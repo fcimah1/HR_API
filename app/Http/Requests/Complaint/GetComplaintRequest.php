@@ -18,13 +18,35 @@ class GetComplaintRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // تحويل النصوص إلى أرقام (يطابق Model Constants)
+        // STATUS_PENDING = 0, STATUS_RESOLVED = 1, STATUS_REJECTED = 2
+        $statusMap = [
+            'pending' => 0,
+            'resolved' => 1,
+            'rejected' => 2,
+        ];
+
+        if ($this->has('status') && is_string($this->status) && !is_numeric($this->status)) {
+            $status = strtolower($this->status);
+            if (isset($statusMap[$status])) {
+                $this->merge(['status' => $statusMap[$status]]);
+            }
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
     {
         return [
+            'employee_id' => ['nullable','integer',new \App\Rules\CanRequestForEmployee()],
             'search' => 'nullable|string|max:255',
-            'status' => 'nullable|integer|in:1,2,3',
+            'status' => 'nullable|integer|in:0,1,2',
             'from_date' => 'nullable|date',
             'to_date' => 'nullable|date|after_or_equal:from_date',
             'page' => 'nullable|integer|min:1',
@@ -38,7 +60,8 @@ class GetComplaintRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'status.in' => 'الحالة يجب أن تكون 1 (قيد المراجعة) أو 2 (تم الحل) أو 3 (مرفوض)',
+            'employee_id.exists' => 'معرف الموظف غير صحيح',
+            'status.in' => 'الحالة يجب أن تكون 0 (قيد المراجعة) أو 1 (تم الحل) أو 2 (مرفوض)',
             'from_date.date' => 'تنسيق تاريخ البداية غير صحيح',
             'to_date.date' => 'تنسيق تاريخ النهاية غير صحيح',
             'to_date.after_or_equal' => 'تاريخ النهاية يجب أن يكون بعد أو يساوي تاريخ البداية',

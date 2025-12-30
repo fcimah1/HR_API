@@ -16,7 +16,7 @@ class CreateResignationDTO extends Data
         public readonly int $addedBy,
         public readonly ?string $documentFile = null,
         public readonly int $isSigned = 0,
-        public readonly ?string $notifySendTo = null,
+        public readonly ?array $notifySendTo = [],
         public readonly int $status = Resignation::STATUS_PENDING,
     ) {}
 
@@ -31,7 +31,7 @@ class CreateResignationDTO extends Data
             addedBy: $addedBy,
             documentFile: $data['document_file'] ?? null,
             isSigned: $data['is_signed'] ?? 0,
-            notifySendTo: $data['notify_send_to'] ?? null,
+            notifySendTo: $data['notify_send_to'] ?? [],
             status: Resignation::STATUS_PENDING,
         );
     }
@@ -46,8 +46,8 @@ class CreateResignationDTO extends Data
             'reason' => $this->reason,
             'added_by' => $this->addedBy,
             'document_file' => $this->documentFile,
+            'notify_send_to' => is_array($this->notifySendTo) ? implode(',', $this->notifySendTo) : $this->notifySendTo,
             'is_signed' => $this->isSigned,
-            'notify_send_to' => $this->notifySendTo,
             'status' => $this->status,
             'created_at' => now()->format('Y-m-d H:i:s'),
         ];

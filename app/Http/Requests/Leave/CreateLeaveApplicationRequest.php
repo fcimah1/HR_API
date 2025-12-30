@@ -71,23 +71,23 @@ class CreateLeaveApplicationRequest extends FormRequest
                                 ->orWhere('company_id', 0); // الأنواع العامة
                         })
                         ->first();
-                        // Intentionally not logging here to avoid noise in logs
-                $leaveModel = new LeaveApplication();
-                $validTypes = $leaveModel->allLeaveTypeNameByCompanyId($companyId);
-                Log::info('Valid types: ' . json_encode($validTypes));
-                
-                // Check if the leave type ID exists in the valid types
-                if (!array_key_exists($value, $validTypes)) {
-                    $validList = [];
-                    foreach ($validTypes as $id => $name) {
-                        $validList[] = "[{$id} : ({$name})]";
+                    // Intentionally not logging here to avoid noise in logs
+                    $leaveModel = new LeaveApplication();
+                    $validTypes = $leaveModel->allLeaveTypeNameByCompanyId($companyId);
+                    Log::info('Valid types: ' . json_encode($validTypes));
+
+                    // Check if the leave type ID exists in the valid types
+                    if (!array_key_exists($value, $validTypes)) {
+                        $validList = [];
+                        foreach ($validTypes as $id => $name) {
+                            $validList[] = "[{$id} : ({$name})]";
+                        }
+                        $fail('نوع الإجازة المحدد غير صالح. القيم المسموحة هي: ' . implode(', ', $validList));
                     }
-                    $fail('نوع الإجازة المحدد غير صالح. القيم المسموحة هي: ' . implode(', ', $validList));
                 }
-            }
             ],
-            'from_date' => 'required|date|after_or_equal:today',
-            'to_date' => 'required|date|after_or_equal:from_date',
+            'from_date' => 'required|date_format:Y-m-d|after_or_equal:today',
+            'to_date' => 'required|date_format:Y-m-d|after_or_equal:from_date',
             'reason' => 'required|string|max:1000',
             'duty_employee_id' => [
                 'nullable',
@@ -109,9 +109,10 @@ class CreateLeaveApplicationRequest extends FormRequest
             'leave_type_id.required' => 'نوع الإجازة مطلوب',
             'leave_type_id.exists' => 'نوع الإجازة المحدد غير صحيح',
             'from_date.required' => 'تاريخ بداية الإجازة مطلوب',
-            'from_date.date' => 'تاريخ بداية الإجازة غير صحيح',
+            'from_date.date_format' => 'تاريخ بداية الإجازة يجب أن يكون بصيغة YYYY-MM-DD',
             'from_date.after_or_equal' => 'تاريخ بداية الإجازة يجب أن يكون بعد أو يساوي تاريخ اليوم',
             'to_date.required' => 'تاريخ نهاية الإجازة مطلوب',
+            'to_date.date_format' => 'تاريخ نهاية الإجازة يجب أن يكون بصيغة YYYY-MM-DD',
             'to_date.after_or_equal' => 'تاريخ نهاية الإجازة يجب أن يكون بعد أو يساوي تاريخ البداية',
             'reason.required' => 'سبب الإجازة مطلوب',
             'reason.max' => 'سبب الإجازة لا يجب أن يتجاوز 1000 حرف',

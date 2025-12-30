@@ -17,6 +17,15 @@ class CreateResignationRequest extends FormRequest
         return Auth::check();
     }
 
+    protected function prepareForValidation()
+    {
+        if ($this->has('notify_send_to') && is_string($this->notify_send_to)) {
+            $this->merge([
+                'notify_send_to' => explode(',', $this->notify_send_to)
+            ]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      */
@@ -32,7 +41,8 @@ class CreateResignationRequest extends FormRequest
             'resignation_date' => 'required|date|after_or_equal:notice_date|after_or_equal:today',
             'reason' => 'required|string',
             'document_file' => 'nullable|file|mimes:pdf|max:5120', // 5MB max
-            'notify_send_to' => ['nullable', 'integer', new \App\Rules\CanNotifyUser()],
+            'notify_send_to' => ['nullable', 'array'],
+            'notify_send_to.*' => ['nullable', 'integer', new \App\Rules\CanNotifyUser()],
         ];
     }
 
@@ -49,7 +59,6 @@ class CreateResignationRequest extends FormRequest
             'resignation_date.required' => 'تاريخ الاستقالة مطلوب',
             'resignation_date.date' => 'تنسيق تاريخ الاستقالة غير صحيح',
             'resignation_date.after_or_equal' => 'تاريخ الاستقالة يجب أن يكون بعد أو يساوي تاريخ الإخطار',
-            'resignation_date.after_or_equal' => 'تاريخ الاستقالة يجب أن يكون بعد أو يساوي تاريخ اليوم',
             'reason.required' => 'سبب الاستقالة مطلوب',
             'reason.string' => 'سبب الاستقالة يجب أن يكون نصاً',
             'employee_id.can_request_for_employee' => 'لا يمكنك تقديم طلب استقالة نيابة عن هذا الموظف',
@@ -57,7 +66,8 @@ class CreateResignationRequest extends FormRequest
             'document_file.file' => 'الملف يجب أن يكون ملفاً',
             'document_file.mimes' => 'الملف يجب أن يكون من نوع pdf',
             'document_file.max' => 'الملف يجب أن يكون أقل من 5MB', // does not work with max??
-            'notify_send_to.integer' => 'معرف الموظف المستلم للإشعار يجب أن يكون رقم',
+            'notify_send_to.array' => 'قائمة معرفات الموظفين المستلمين يجب أن تكون مصفوفة',
+            'notify_send_to.*.integer' => 'معرف الموظف المستلم للإشعار يجب أن يكون رقم',
         ];
     }
 

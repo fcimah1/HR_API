@@ -2,6 +2,8 @@
 
 namespace App\DTOs\Leave;
 
+use App\Enums\NumericalStatusEnum;
+
 class HourlyLeaveFilterDTO
 {
     public function __construct(
@@ -26,12 +28,12 @@ class HourlyLeaveFilterDTO
         // Handle status conversion properly
         $status = null;
         if (array_key_exists('status', $data) && $data['status'] !== null) {
-            if ($data['status'] === 'approved' || $data['status'] === 2) {
-                $status = 2;
-            } else if ($data['status'] === 'rejected' || $data['status'] === 3) {
-                $status = 3;
-            } else if ($data['status'] === 'pending' || $data['status'] === 1) {
-                $status = 1;
+            if ($data['status'] === 'approved' || $data['status'] === NumericalStatusEnum::APPROVED->value) {
+                $status = NumericalStatusEnum::APPROVED->value;
+            } else if ($data['status'] === 'rejected' || $data['status'] === NumericalStatusEnum::REJECTED->value) {
+                $status = NumericalStatusEnum::REJECTED->value;
+            } else if ($data['status'] === 'pending' || $data['status'] === NumericalStatusEnum::PENDING->value) {
+                $status = NumericalStatusEnum::PENDING->value;
             } else {
                 $status = null;
             }

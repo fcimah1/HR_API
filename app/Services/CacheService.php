@@ -145,7 +145,7 @@ class CacheService
     /**
      * جلب أنواع الإجازات للشركة
      */
-    public function getLeaveTypes(int $companyId): Collection
+    public function getLeaveTypes(int $companyId): array
     {
         $cacheKey = "leave_types.company.{$companyId}";
 
@@ -155,7 +155,15 @@ class CacheService
                     $query->where('company_id', $companyId);
                 })
                 ->select(['constants_id', 'company_id', 'type', 'category_name'])
-                ->get();
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'leave_type_id' => $item->constants_id,
+                        'leave_type_name' => $item->category_name,
+                        'company_id' => $item->company_id,
+                    ];
+                })
+                ->toArray();
         });
     }
 

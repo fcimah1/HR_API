@@ -25,13 +25,11 @@ class ResignationRepository implements ResignationRepositoryInterface
             $query->where('company_id', $filters->companyId);
         }
 
-        // تطبيق فلتر الموظف المحدد
+        // تطبيق فلتر الموظف المحدد (أولوية على قائمة الموظفين)
         if ($filters->employeeId !== null) {
             $query->where('employee_id', $filters->employeeId);
-        }
-
-        // تطبيق فلتر قائمة الموظفين (للمديرين)
-        if ($filters->employeeIds !== null && !empty($filters->employeeIds)) {
+        } elseif ($filters->employeeIds !== null && !empty($filters->employeeIds)) {
+            // تطبيق فلتر قائمة الموظفين (للمديرين) فقط إذا لم يُحدد موظف معين
             $query->whereIn('employee_id', $filters->employeeIds);
         }
 

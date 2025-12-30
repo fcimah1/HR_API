@@ -21,8 +21,6 @@ use Illuminate\Validation\Rule;
  *     @OA\Property(property="visit_place", type="string", description="مكان الزيارة"),
  *     @OA\Property(property="travel_mode", type="integer", description="وضع السفر (1-5)"),
  *     @OA\Property(property="arrangement_type", type="integer", description="نوع ترتيب السفر"),
- *     @OA\Property(property="expected_budget", type="number", format="float", description="الميزانية المتوقعة"),
- *     @OA\Property(property="actual_budget", type="number", format="float", description="الميزانية الفعلية"),
  *     @OA\Property(property="description", type="string", description="الوصف"),
  *     @OA\Property(property="associated_goals", type="string", description="الأهداف المرتبطة")
  * )
@@ -49,8 +47,6 @@ class UpdateTravelRequest extends FormRequest
             'visit_place' => 'sometimes|required|string|max:255',
             'travel_mode' => ['sometimes', 'required', 'integer', Rule::in(TravelModeEnum::cases())],
             'arrangement_type' => ['sometimes', 'required', 'integer', Rule::in(Travel::getArrangementTypes())],
-            'expected_budget' => 'sometimes|required|numeric|min:0',
-            'actual_budget' => 'sometimes|required|numeric|min:0',
             'description' => 'nullable|string',
             'associated_goals' => 'nullable|string',
         ];
@@ -70,10 +66,6 @@ class UpdateTravelRequest extends FormRequest
             'travel_mode.in' => 'يجب أن يكون إجابة Travel Mode من القيم: ' . implode(',', array_map(fn($c) => $c->value, TravelModeEnum::cases())),
             'arrangement_type.integer' => 'نوع ترتيب السفر يجب أن يكون عددًا صحيحًا.',
             'arrangement_type.in' => 'نوع ترتيب السفر يجب أن يكون موجودا.',
-            'expected_budget.numeric' => 'الميزانية المتوقعة يجب أن تكون رقمًا.',
-            'expected_budget.min' => 'الميزانية المتوقعة يجب أن تكون أكبر من أو تساوي 0.',
-            'actual_budget.numeric' => 'الميزانية الفعلية يجب أن تكون رقمًا.',
-            'actual_budget.min' => 'الميزانية الفعلية يجب أن تكون أكبر من أو تساوي 0.',
             'description.string' => 'الوصف يجب أن يكون سلسلة نصية.',
             'associated_goals.string' => 'الأهداف المرتبطة يجب أن تكون نصاً.',
         ];
@@ -88,8 +80,6 @@ class UpdateTravelRequest extends FormRequest
             'visit_place' => 'مكان الزيارة',
             'travel_mode' => 'وضع السفر',
             'arrangement_type' => 'نوع ترتيب السفر',
-            'expected_budget' => 'الميزانية المتوقعة',
-            'actual_budget' => 'الميزانية الفعلية',
             'description' => 'الوصف',
             'associated_goals' => 'الأهداف المرتبطة',
         ];

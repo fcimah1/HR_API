@@ -26,13 +26,38 @@ class LeaveTypeService
         $this->cacheService = $cacheService;
     }
 
-    public function getActiveLeaveTypes(int $companyId, array $filters): array
+    public function getActiveLeaveTypes(int $companyId, array $filters, ?User $user = null): array
     {
 
         $result = $this->leaveTypeRepository->getActiveLeaveTypes($companyId, $filters);
 
-        // تحويل البيانات إلى الصيغة المطلوبة
-        $result['data'] = array_map(function ($constant) {
+        // الحصول على أنواع الإجازات المحظورة للموظف
+        $restrictedLeaveTypeIds = [];
+        if ($user && $user->user_type !== 'company') {
+            $restriction = \App\Models\OperationRestriction::where('user_id', $user->user_id)
+                ->where('company_id', $companyId)
+                ->first();
+
+            if ($restriction) {
+                $restrictedOperations = $restriction->restricted_operations;
+                // استخراج IDs من leave_type_{id}
+                foreach ($restrictedOperations as $operation) {
+                    if (preg_match('/^leave_type_(\d+)$/', $operation, $matches)) {
+                        $restrictedLeaveTypeIds[] = (int) $matches[1];
+                    }
+                }
+            }
+        }
+
+        // تحويل البيانات إلى الصيغة المطلوبة وفلترة المحظور
+        $filteredData = array_values(array_filter(array_map(function ($constant) use ($restrictedLeaveTypeIds) {
+            $leaveTypeId = $constant['constants_id'];
+
+            // تجاوز أنواع الإجازات المحظورة
+            if (in_array($leaveTypeId, $restrictedLeaveTypeIds)) {
+                return null;
+            }
+
             $leaveData = unserialize($constant['field_one']);
             $quotaAssign = $leaveData['quota_assign'] ?? [];
 
@@ -57,7 +82,14 @@ class LeaveTypeService
                 'yearly_breakdown_hours' => $yearlyBreakdown_hours,
 
             ];
-        }, $result['data']);
+        }, $result['data']), fn($item) => $item !== null));
+
+        // تحديث الـ pagination بعد الفلترة
+        $result['data'] = $filteredData;
+        $filteredCount = count($filteredData);
+        $result['total'] = $filteredCount;
+        $result['to'] = $filteredCount > 0 ? $filteredCount : null;
+        $result['last_page'] = max(1, ceil($filteredCount / ($result['per_page'] ?? 15)));
 
         return $result;
     }

@@ -79,4 +79,10 @@ interface TransferRepositoryInterface
      * البحث عن طلب نقل معلق للموظف
      */
     public function findPendingTransferForEmployee(int $employeeId): ?Transfer;
+
+
+    /**
+     * الحصول على فروع الشركة
+     */
+    public function getBranchesByCompany(int $companyId): array;
 }

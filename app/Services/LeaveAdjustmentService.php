@@ -128,6 +128,20 @@ class LeaveAdjustmentService
     {
         return DB::transaction(function () use ($data) {
 
+            // التحقق من قيود نوع الإجازة
+            $user = User::find($data->employeeId);
+            if ($user) {
+                $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $data->companyId);
+                if (in_array($data->leaveTypeId, $restrictedIds)) {
+                    Log::warning('LeaveAdjustmentService::createAdjust - Restricted leave type selected', [
+                        'employee_id' => $data->employeeId,
+                        'leave_type_id' => $data->leaveTypeId,
+                        'company_id' => $data->companyId
+                    ]);
+                    throw new \Exception('نوع الإجازة المختار غير متاح لهذا الموظف');
+                }
+            }
+
             // إذا كانت التسوية خصم من رصيد الإجازات (ساعات سالبة)، تحقق من أن الرصيد يكفي
             if ($data->adjustHours < 0) {
                 $availableBalance = $this->getAvailableLeaveBalance(
@@ -577,10 +591,43 @@ class LeaveAdjustmentService
         ]);
 
         $leavetypes = $this->cacheService->getLeaveTypes($companyId);
+
+        // فلترة أنواع الإجازات المحظورة للموظف
+        $restrictedLeaveTypeIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
+        if (!empty($restrictedLeaveTypeIds)) {
+            $leavetypes = array_values(array_filter($leavetypes, function ($leaveType) use ($restrictedLeaveTypeIds) {
+                $leaveTypeId = $leaveType['leave_type_id'] ?? $leaveType['constants_id'] ?? null;
+                return !in_array((int) $leaveTypeId, $restrictedLeaveTypeIds);
+            }));
+        }
+
         return [
             'statuses_string' => StringStatusEnum::toArray(),
             'statuses_numeric' => \App\Enums\NumericalStatusEnum::toArray(),
             'leave_types' => $leavetypes
         ];
+    }
+
+    /**
+     * الحصول على أنواع الإجازات المحظورة للمستخدم
+     */
+    protected function getRestrictedLeaveTypeIds(User $user, int $companyId): array
+    {
+        $restrictedIds = [];
+        if ($user->user_type !== 'company') {
+            $restriction = \App\Models\OperationRestriction::where('user_id', $user->user_id)
+                ->where('company_id', $companyId)
+                ->first();
+
+            if ($restriction) {
+                $restrictedOperations = $restriction->restricted_operations;
+                foreach ($restrictedOperations as $operation) {
+                    if (preg_match('/^leave_type_(\d+)$/', $operation, $matches)) {
+                        $restrictedIds[] = (int) $matches[1];
+                    }
+                }
+            }
+        }
+        return $restrictedIds;
     }
 }

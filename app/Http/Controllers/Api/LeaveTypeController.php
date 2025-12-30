@@ -25,120 +25,119 @@ class LeaveTypeController extends Controller
     protected $leaveTypeService;
     protected $permissionService;
     public function __construct(
-          LeaveTypeService $leaveTypeService,
-          SimplePermissionService $permissionService
+        LeaveTypeService $leaveTypeService,
+        SimplePermissionService $permissionService
     ) {
         $this->leaveTypeService = $leaveTypeService;
         $this->permissionService = $permissionService;
     }
-/**
- * @OA\Get(
- *     path="/api/leave-types",
- *     summary="Get all leave types with search and pagination",
- *     tags={"Leave Type Management"},
- *     security={{"bearerAuth":{}}},
- *     @OA\Parameter(
- *         name="search",
- *         in="query",
- *         required=false,
- *         @OA\Schema(type="string"),
- *         description="Search term for leave type name or description"
- *     ),
- *     @OA\Parameter(
- *         name="per_page",
- *         in="query",
- *         required=false,
- *         @OA\Schema(type="integer", default=15),
- *         description="Number of items per page"
- *     ),
- *     @OA\Parameter(
- *         name="page",
- *         in="query",
- *         required=false,
- *         @OA\Schema(type="integer", default=1),
- *         description="Page number"
- *     ),
- *     @OA\Response(
- *         response=200,
- *         description="Leave types retrieved successfully",
- *         @OA\JsonContent(
- *             @OA\Property(property="success", type="boolean", example=true),
- *             @OA\Property(property="message", type="string", example="تم جلب أنواع الإجازات بنجاح"),
- *             @OA\Property(property="data", type="object")
- *         )
- *     ),
- *     @OA\Response(
- *         response=401,
- *         description="Unauthenticated",
- *         @OA\JsonContent(
- *             @OA\Property(property="message", type="string", example="Unauthenticated")
- *         )
- *     ),
- *     @OA\Response(
- *         response=403,
- *         description="Forbidden",
- *         @OA\JsonContent(
- *             @OA\Property(property="success", type="boolean", example=false),
- *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض أنواع الإجازات")
- *         )
- *     ),
- *     @OA\Response(
- *         response=422,
- *         description="Validation error",
- *         @OA\JsonContent(
- *             @OA\Property(property="success", type="boolean", example=false),
- *             @OA\Property(property="message", type="string"),
- *             @OA\Property(property="errors", type="object")
- *         )
- *     ),
- *     @OA\Response(
- *         response=500,
- *         description="Server error",
- *         @OA\JsonContent(
- *             @OA\Property(property="success", type="boolean", example=false),
- *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")
- *         )
- *     )
- * )
- */
-public function index(Request $request)
-{
-    try {
-        $user = Auth::user();
-        
-        // التحقق من الصلاحيات
-        if (!$this->permissionService->checkPermission($user, 'view_leave_types')) {
+    /**
+     * @OA\Get(
+     *     path="/api/leave-types",
+     *     summary="Get all leave types with search and pagination",
+     *     tags={"Leave Type Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         required=false,
+     *         @OA\Schema(type="string"),
+     *         description="Search term for leave type name or description"
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=15),
+     *         description="Number of items per page"
+     *     ),
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=1),
+     *         description="Page number"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Leave types retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب أنواع الإجازات بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض أنواع الإجازات")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")
+     *         )
+     *     )
+     * )
+     */
+    public function index(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            // التحقق من الصلاحيات
+            if (!$this->permissionService->checkPermission($user, 'leave_type1')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بعرض أنواع الإجازات'
+                ], 403);
+            }
+
+            // الحصول على معرف الشركة الفعال
+            $effectiveCompanyId = $request->attributes->get('effective_company_id') ?? $user->company_id;
+
+            $filters = LeaveTypeFilterDTO::fromRequest($request);
+            // جلب البيانات مع الترقيم وفلترة القيود
+            $leaveTypes = $this->leaveTypeService->getActiveLeaveTypes($effectiveCompanyId, $filters->toArray(), $user);
+
+            return response()->json([
+                'success' => true,
+                'data' => $leaveTypes
+            ]);
+        } catch (\Exception $e) {
+            Log::error('LeaveTypeController::index - Error: ' . $e->getMessage(), [
+                'user_id' => $user->id ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'غير مصرح لك بعرض أنواع الإجازات'
-            ], 403);
+                'message' => 'حدث خطأ أثناء استرجاع أنواع الإجازات',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
-
-        // الحصول على معرف الشركة الفعال
-        $effectiveCompanyId = $request->attributes->get('effective_company_id') ?? $user->company_id;
-
-        $filters = LeaveTypeFilterDTO::fromRequest($request);
-        // جلب البيانات مع الترقيم
-        $leaveTypes = $this->leaveTypeService->getActiveLeaveTypes($effectiveCompanyId, $filters->toArray());
-
-        return response()->json([
-            'success' => true,
-            'data' => $leaveTypes
-        ]);
-
-    } catch (\Exception $e) {
-        Log::error('LeaveTypeController::index - Error: ' . $e->getMessage(), [
-            'user_id' => $user->id ?? null,
-            'trace' => $e->getTraceAsString()
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'message' => 'حدث خطأ أثناء استرجاع أنواع الإجازات',
-            'error' => config('app.debug') ? $e->getMessage() : null
-        ], 500);
     }
-}
 
     /**
      * @OA\Post(
@@ -275,42 +274,42 @@ public function index(Request $request)
      *     )
      * )
      */
-public function updateLeaveType(UpdateLeaveTypeRequest $request, int $id)
-{
-    try {
-        $user = Auth::user();
-        $isUserHasThisPermission = $this->permissionService->checkPermission($user, 'leave_type3');
-        if (!$isUserHasThisPermission) {
+    public function updateLeaveType(UpdateLeaveTypeRequest $request, int $id)
+    {
+        try {
+            $user = Auth::user();
+            $isUserHasThisPermission = $this->permissionService->checkPermission($user, 'leave_type3');
+            if (!$isUserHasThisPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بتعديل أنواع الإجازات'
+                ], 403);
+            }
+
+            // إضافة معرف نوع الإجازة إلى البيانات
+            $data = $request->validated();
+            $data['leave_type_id'] = $id;  // هنا نضيف معرف نوع الإجازة
+
+            $dto = UpdateLeaveTypeDTO::fromRequest($data);
+
+            $leaveType = $this->leaveTypeService->updateLeaveType($dto);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث نوع الإجازة بنجاح',
+                'data' => $leaveType
+            ]);
+        } catch (\Exception $e) {
+            Log::error('LeaveTypeController::update failed', [
+                'error' => $e->getMessage(),
+                'created by' => $user->full_name
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'غير مصرح لك بتعديل أنواع الإجازات'
-            ], 403);
+                'message' => $e->getMessage()
+            ], 422);
         }
-
-        // إضافة معرف نوع الإجازة إلى البيانات
-        $data = $request->validated();
-        $data['leave_type_id'] = $id;  // هنا نضيف معرف نوع الإجازة
-
-        $dto = UpdateLeaveTypeDTO::fromRequest($data);
-
-        $leaveType = $this->leaveTypeService->updateLeaveType($dto);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'تم تحديث نوع الإجازة بنجاح',
-            'data' => $leaveType
-        ]);
-    } catch (\Exception $e) {
-        Log::error('LeaveTypeController::update failed', [
-            'error' => $e->getMessage(),
-            'created by' => $user->full_name
-        ]);
-        return response()->json([
-            'success' => false,
-            'message' => $e->getMessage()
-        ], 422);
     }
-}
 
     /**
      * @OA\Delete(
