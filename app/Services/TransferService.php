@@ -16,6 +16,7 @@ use App\Services\SimplePermissionService;
 use App\Services\NotificationService;
 use App\Enums\StringStatusEnum;
 use App\Enums\NumericalStatusEnum;
+use App\Enums\TransferTypeEnum;
 use App\Jobs\SendEmailNotificationJob;
 use App\Mail\Transfer\TransferSubmitted;
 use App\Mail\Transfer\TransferApproved;
@@ -736,8 +737,8 @@ class TransferService
     {
 
         return [
-            'cases' => \App\Enums\NumericalStatusEnum::toArray(),
-            'transfer_types' => \App\Enums\TransferTypeEnum::toArray(),
+            'cases' => NumericalStatusEnum::toArray(),
+            'transfer_types' => TransferTypeEnum::toArray(),
         ];
     }
 
