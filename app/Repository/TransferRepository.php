@@ -31,6 +31,10 @@ class TransferRepository implements TransferRepositoryInterface
             'newDepartment',
             'oldDesignation',
             'newDesignation',
+            'oldBranch',
+            'newBranch',
+            'oldCurrency',
+            'newCurrency',
             'oldCompany',
             'newCompany',
             'approvals.staff'

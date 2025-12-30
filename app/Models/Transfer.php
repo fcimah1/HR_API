@@ -153,6 +153,38 @@ class Transfer extends Model
     }
 
     /**
+     * Get the old branch.
+     */
+    public function oldBranch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class, 'old_branch_id', 'branch_id');
+    }
+
+    /**
+     * Get the new branch.
+     */
+    public function newBranch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class, 'new_branch_id', 'branch_id');
+    }
+
+    /**
+     * Get the old currency.
+     */
+    public function oldCurrency(): BelongsTo
+    {
+        return $this->belongsTo(Currency::class, 'old_currency', 'currency_id');
+    }
+
+    /**
+     * Get the new currency.
+     */
+    public function newCurrency(): BelongsTo
+    {
+        return $this->belongsTo(Currency::class, 'new_currency', 'currency_id');
+    }
+
+    /**
      * Get the old company.
      */
     public function oldCompany(): BelongsTo
