@@ -32,7 +32,7 @@ class ResignationResource extends JsonResource
             'signed_date' => $this->signed_date,
             'reason' => $this->reason,
             'added_by' => $this->added_by,
-            'notify_send_to' => $this->notify_send_to,
+            'notify_send_to' => $this->notify_send_to ? explode(',', $this->notify_send_to) : [],
             'status' => $this->status,
             'status_text' => $this->status_text,
             'status_text_en' => $this->status_text_en,
@@ -68,6 +68,26 @@ class ResignationResource extends JsonResource
                 $this->relationLoaded('addedBy'),
                 fn() => $this->addedBy ? ($this->addedBy->first_name . ' ' . $this->addedBy->last_name) : 'غير محدد'
             ),
+
+            // معلومات الموافقات
+            'approvals' => $this->when($this->relationLoaded('approvals'), function () {
+                return $this->approvals->map(function ($approval) {
+                    return [
+                        'status' => $approval->status,
+                        'approval_level' => $approval->approval_level ?? 1,
+                        'updated_at' => $approval->updated_at,
+                        'staff' => isset($approval->staff) ? [
+                            'user_id' => $approval->staff->user_id,
+                            'first_name' => $approval->staff->first_name,
+                            'last_name' => $approval->staff->last_name,
+                            'full_name' => $approval->staff->full_name,
+                            'email' => $approval->staff->email,
+                            'department' => $approval->staff->user_details?->department?->name ?? null,
+                            'position' => $approval->staff->user_details?->designation?->name ?? null,
+                        ] : null
+                    ];
+                });
+            }),
         ];
     }
 }

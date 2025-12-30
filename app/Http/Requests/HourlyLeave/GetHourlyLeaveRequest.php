@@ -21,7 +21,7 @@ class GetHourlyLeaveRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
+            'employee_id' => ['nullable','integer',new \App\Rules\CanRequestForEmployee()],
             'status' => 'nullable|string|in:pending,approved,rejected',
             'leave_type_id' => 'nullable|integer',
             'from_date' => 'nullable|date',
@@ -40,7 +40,7 @@ class GetHourlyLeaveRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'employee_id.exists' => 'الموظف المحدد غير موجود',
+            'employee_id.required' => 'معرف الموظف مطلوب',
             'status.in' => 'الحالة يجب أن تكون: pending, approved, أو rejected',
             'from_date.date' => 'تاريخ البداية غير صحيح',
             'to_date.date' => 'تاريخ النهاية غير صحيح',

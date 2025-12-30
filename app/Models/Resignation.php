@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Resignation extends Model
 {
@@ -73,6 +74,15 @@ class Resignation extends Model
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by', 'user_id');
+    }
+
+    /**
+     * Get the approvals for this resignation.
+     */
+    public function approvals(): HasMany
+    {
+        return $this->hasMany(StaffApproval::class, 'module_key_id', 'resignation_id')
+            ->where('module_option', 'resignation');
     }
 
     /**

@@ -111,6 +111,16 @@ class LeaveService
         ]);
 
         $leavetypes = $this->cacheService->getLeaveTypes($companyId);
+
+        // فلترة أنواع الإجازات المحظورة للموظف
+        $restrictedLeaveTypeIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
+        if (!empty($restrictedLeaveTypeIds)) {
+            $leavetypes = array_values(array_filter($leavetypes, function ($leaveType) use ($restrictedLeaveTypeIds) {
+                $leaveTypeId = $leaveType['leave_type_id'] ?? $leaveType['constants_id'] ?? null;
+                return !in_array((int) $leaveTypeId, $restrictedLeaveTypeIds);
+            }));
+        }
+
         return [
             'statuses_string' => StringStatusEnum::toArray(),
             'statuses_numeric' => NumericalStatusEnum::toArray(),
@@ -118,6 +128,29 @@ class LeaveService
             'leave_place' => LeavePlaceEnum::toArray(),
             'leave_types' => $leavetypes
         ];
+    }
+
+    /**
+     * الحصول على أنواع الإجازات المحظورة للمستخدم
+     */
+    protected function getRestrictedLeaveTypeIds(User $user, int $companyId): array
+    {
+        $restrictedIds = [];
+        if ($user->user_type !== 'company') {
+            $restriction = \App\Models\OperationRestriction::where('user_id', $user->user_id)
+                ->where('company_id', $companyId)
+                ->first();
+
+            if ($restriction) {
+                $restrictedOperations = $restriction->restricted_operations;
+                foreach ($restrictedOperations as $operation) {
+                    if (preg_match('/^leave_type_(\d+)$/', $operation, $matches)) {
+                        $restrictedIds[] = (int) $matches[1];
+                    }
+                }
+            }
+        }
+        return $restrictedIds;
     }
 
     /**
@@ -130,6 +163,21 @@ class LeaveService
     public function createApplication(CreateLeaveApplicationDTO $dto): array
     {
         return DB::transaction(function () use ($dto) {
+
+            // التحقق من قيود نوع الإجازة
+            // Check for restricted leave types
+            $user = User::find($dto->employeeId);
+            if ($user) {
+                $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $dto->companyId);
+                if (in_array($dto->leaveTypeId, $restrictedIds)) {
+                    Log::warning('LeaveService::createApplication - Restricted leave type selected', [
+                        'employee_id' => $dto->employeeId,
+                        'leave_type_id' => $dto->leaveTypeId,
+                        'company_id' => $dto->companyId
+                    ]);
+                    throw new \Exception('نوع الإجازة المختار غير متاح لهذا الموظف');
+                }
+            }
 
             // حساب الساعات المطلوبة للإجازة
             if (!is_null($dto->leaveHours) && $dto->leaveHours !== '') {
@@ -159,56 +207,6 @@ class LeaveService
                 throw new \Exception(
                     'ساعات الإجازة المطلوبة (' . $requestedHours . ' ساعة) أكبر من الرصيد المتاح (' . $availableBalance . ' ساعة) لهذا النوع.'
                 );
-            }
-
-            // التحقق من صلاحيات المستوى الهرمي إذا كان الطلب لموظف آخر
-            // Check hierarchy permissions if request is for another employee
-            if ($dto->createdBy && $dto->employeeId !== $dto->createdBy) {
-                $requester = User::find($dto->createdBy);
-                $targetEmployee = User::find($dto->employeeId);
-
-                if (!$requester || !$targetEmployee) {
-                    Log::info('LeaveService::createApplication - User or target employee not found', [
-                        'created_by' => $dto->createdBy,
-                        'employee_id' => $dto->employeeId,
-                        'message' => 'User or target employee not found'
-                    ]);
-                    throw new \Exception('المستخدم أو الموظف المستهدف غير موجود');
-                }
-
-                // Company users can create requests for any employee in their company
-                if ($requester->user_type === 'company') {
-                    if ($requester->user_id !== $targetEmployee->company_id) {
-                        throw new \Exception('الموظف يجب أن يكون من نفس الشركة');
-                    }
-                    Log::info('Company user creating leave for employee - allowed', [
-                        'requester_id' => $requester->user_id,
-                        'requester_type' => $requester->user_type,
-                        'employee_id' => $targetEmployee->user_id,
-                    ]);
-                } else if ($requester->user_type === 'staff') {
-                    // For staff users: check hierarchy level, department, and reporting manager
-                    if ($requester->company_id !== $targetEmployee->company_id) {
-                        throw new \Exception('الموظف يجب أن يكون من نفس الشركة');
-                    }
-
-                    // Check hierarchy: requester must have LOWER level number (higher authority)
-                    // Example: Level 2 can create for Level 3,4,5 but NOT for Level 1,2
-                    // If the requester is not the target employee, check hierarchy level
-                    if ($requester->user_id != $targetEmployee->user_id && $requester->hierarchy_level >= $targetEmployee->hierarchy_level) {
-                        Log::info('LeaveService::createApplication - Hierarchy permission denied', [
-                            'requester_id' => $requester->user_id,
-                            'target_employee_id' => $targetEmployee->user_id,
-                            'requester_hierarchy_level' => $requester->hierarchy_level,
-                            'target_employee_hierarchy_level' => $targetEmployee->hierarchy_level,
-                            'message' => 'Hierarchy permission denied'
-                        ]);
-                        throw new \Exception(
-                            'ليس لديك صلاحية لتقديم طلب لهذا الموظف. ' .
-                                'يجب أن تكون في مستوى هرمي أعلى (رقم أقل) من الموظف المستهدف.'
-                        );
-                    }
-                }
             }
 
             $leave = $this->leaveRepository->createApplication($dto);
@@ -738,6 +736,20 @@ class LeaveService
      */
     public function getAvailableLeaveBalance(int $employeeId, int $leaveTypeId, int $companyId): float
     {
+        // التحقق من أن نوع الإجازة غير محظور
+        $user = User::find($employeeId);
+        if ($user) {
+            $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
+            if (in_array($leaveTypeId, $restrictedIds)) {
+                Log::info('LeaveService::getAvailableLeaveBalance - Restricted leave type check', [
+                    'employee_id' => $employeeId,
+                    'leave_type_id' => $leaveTypeId,
+                    'message' => 'Returning 0 balance for restricted leave type'
+                ]);
+                return 0;
+            }
+        }
+
         // 1. Get total granted leave
         $totalGranted = $this->leaveRepository->getTotalGrantedLeave(
             $employeeId,
@@ -789,6 +801,19 @@ class LeaveService
                 'company_id' => $constant->company_id ?? null,
             ];
         })->filter()->values()->toArray();
+
+        // Filter restricted leave types
+        $user = User::find($employeeId);
+        if ($user) {
+            $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
+            if (!empty($restrictedIds)) {
+                $leaveTypes = array_values(array_filter($leaveTypes, function ($type) use ($restrictedIds) {
+                    return !in_array((int)($type['leave_type_id'] ?? 0), $restrictedIds);
+                }));
+            }
+        }
+
+
 
         if ($leaveTypeId !== null) {
             $leaveTypes = array_values(array_filter($leaveTypes, function (array $type) use ($leaveTypeId) {
@@ -919,8 +944,19 @@ class LeaveService
             ];
         })->filter()->values()->toArray();
 
+        // فلترة أنواع الإجازات المحظورة للموظف
+        $user = User::find($employeeId);
+        if ($user) {
+            $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
+            if (!empty($restrictedIds)) {
+                $leaveTypes = array_values(array_filter($leaveTypes, function ($type) use ($restrictedIds) {
+                    return !in_array((int)($type['leave_type_id'] ?? 0), $restrictedIds);
+                }));
+            }
+        }
+
         // Get employee details for assigned_hours
-        $employee =  User::find($employeeId);
+        $employee =  $user; // Already found above
         $assignedHours = [];
 
         if ($employee) {

@@ -244,8 +244,8 @@ class ResignationController extends Controller
      *                 @OA\Property(property="notice_date", type="string", format="date", example="2025-01-15", description="تاريخ تقديم الإشعار - مطلوب"),
      *                 @OA\Property(property="resignation_date", type="string", format="date", example="2025-02-01", description="تاريخ الاستقالة المطلوب - مطلوب"),
      *                 @OA\Property(property="reason", type="string", example="فرصة عمل أفضل في شركة أخرى", description="سبب الاستقالة - مطلوب"),
-     *                 @OA\Property(property="document_file", type="string", format="binary", description="ملف المستند (pdf, doc, docx, jpg, jpeg, png) - حد أقصى 5MB"),
-     *                 @OA\Property(property="notify_send_to", type="string", example="employee_id", description="معرف الموظف المستلم للإشعار")
+     *                 @OA\Property(property="document_file", type="string", format="binary", description="ملف المستند (pdf) - حد أقصى 5MB"),
+     *                 @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example="[5,10]", description="قائمة معرفات الموظفين المستلمين للإشعار")
      *             )
      *         )
      *     ),

@@ -24,7 +24,7 @@ class GetTransferRequest extends FormRequest
     {
         return [
             'search' => 'nullable|string|max:255',
-            'employee_id' => 'nullable|integer',
+            'employee_id' => ['nullable','integer',new \App\Rules\CanRequestForEmployee()],
             'status' => 'nullable|string|in:pending,approved,rejected',
             'department_id' => 'nullable|integer',
             'transfer_type' => 'nullable|string|in:internal,branch,intercompany',

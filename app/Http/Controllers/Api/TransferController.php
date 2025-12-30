@@ -13,7 +13,9 @@ use App\Http\Requests\Transfer\CreateBranchTransferRequest;
 use App\Http\Requests\Transfer\CreateIntercompanyTransferRequest;
 use App\Http\Requests\Transfer\GetTransferRequest;
 use App\Http\Requests\Transfer\ApproveRejectTransferRequest;
+use App\Http\Requests\Transfer\GetBranchesRequest;
 use App\Http\Requests\Transfer\UpdateInternalTransferRequest;
+use App\DTOs\Transfer\GetBranchesDTO;
 use App\Http\Requests\Transfer\UpdateBranchTransferRequest;
 use App\Http\Requests\Transfer\UpdateIntercompanyTransferRequest;
 use App\Http\Resources\TransferResource;
@@ -775,6 +777,7 @@ class TransferController extends Controller
         }
     }
 
+
     /**
      * @OA\Post(
      *     path="/api/transfers/{id}/approve-current-company",
@@ -1075,6 +1078,71 @@ class TransferController extends Controller
 
     /**
      * @OA\Get(
+     *     path="/api/transfers/branches",
+     *     summary="Get branches for a specific company",
+     *     description="الحصول على فروع شركة محددة لاستخدامها في نموذج النقل",
+     *     tags={"Transfer Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="company_id",
+     *         in="query",
+     *         required=true,
+     *         description="Company ID - معرف الشركة",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Branches retrieved successfully - تم جلب الفروع بنجاح",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب الفروع بنجاح"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="branch_id", type="integer", example=1),
+     *                     @OA\Property(property="branch_name", type="string", example="Branch Name")
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthenticated - غير مصرح"),
+     *     @OA\Response(response=422, description="Validation error - خطأ في التحقق"),
+     *     @OA\Response(response=500, description="Server error - خطأ في الخادم")
+     * )
+     */
+    public function getBranches(GetBranchesRequest $request)
+    {
+        try {
+            $user = Auth::user();
+            Log::info('TransferController::getBranches - Request received', [
+                'user_id' => $user->user_id,
+                'company_id' => $request->company_id
+            ]);
+
+            $dto = GetBranchesDTO::fromRequest($request->validated());
+            $branches = $this->transferService->getBranchesByCompany($dto);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم جلب الفروع بنجاح',
+                'data' => $branches,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('TransferController::getBranches - Error', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب الفروع',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
+    /**
+     * @OA\Get(
      *     path="/api/transfers/{id}/pre-transfer-validation",
      *     summary="Validate employee eligibility for transfer",
      *     description="التحقق من أهلية الموظف للنقل - يتحقق من الإجازات النشطة، السلف، والعهد غير المرجعة",
@@ -1167,6 +1235,66 @@ class TransferController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'حدث خطأ أثناء التحقق من المتطلبات',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    /**
+     * @OA\Get(
+     *     path="/api/transfers/employees",
+     *     summary="Get employees for transfer (Hierarchy Based)",
+     *     description="الحصول على قائمة الموظفين المتاحين لطلب النقل بناءً على الصلاحيات الهرمية والقيود",
+     *     tags={"Transfer Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Employees retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب الموظفين بنجاح"),
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object"))
+     *         )
+     *     )
+     * )
+     */
+    public function getTransferableEmployees(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            $employees = $this->permissionService->getEmployeesByHierarchy(
+                $user->user_id,
+                $effectiveCompanyId,
+                false // Don't include self
+            );
+
+            // تحويل النتيجة إلى format مناسب (التعامل مع كائن أو مصفوفة)
+            $formattedEmployees = array_map(function ($emp) {
+                // Convert to array if it's an object
+                $empData = is_object($emp) ? (array)$emp : $emp;
+                return [
+                    'employee_id' => $empData['user_id'] ?? $empData['id'] ?? null,
+                    'name' => ($empData['first_name'] ?? '') . ' ' . ($empData['last_name'] ?? ''),
+                    'designation_id' => $empData['designation_id'] ?? null,
+                    'designation_name' => $empData['designation_name'] ?? null,
+                    'hierarchy_level' => $empData['hierarchy_level'] ?? null,
+                    'department_id' => $empData['department_id'] ?? null,
+                    'department_name' => $empData['department_name'] ?? null,
+                ];
+            }, $employees);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم جلب الموظفين المتاحين للنقل بنجاح',
+                'data' => $formattedEmployees,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('TransferController::getTransferableEmployees - Error', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب الموظفين',
                 'error' => $e->getMessage(),
             ], 500);
         }

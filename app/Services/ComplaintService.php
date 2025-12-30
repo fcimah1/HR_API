@@ -41,6 +41,8 @@ class ComplaintService
             // مدير الشركة: يرى جميع شكاوى شركته
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
+            // الحفاظ على employee_id من الـ request إذا كان موجوداً (للتصفية)
+            // (employee_id محفوظ بالفعل من $filters->toArray())
         } else {
             // موظف (staff): يرى شكاواه + شكاوى الموظفين التابعين له
             $subordinateIds = $this->getSubordinateEmployeeIds($user);
@@ -48,7 +50,17 @@ class ComplaintService
             if (!empty($subordinateIds)) {
                 // لديه موظفين تابعين: شكاواه + شكاوى التابعين
                 $subordinateIds[] = $user->user_id;
-                $filterData['employee_ids'] = $subordinateIds;
+
+                // إذا تم تحديد employee_id في الـ request، تحقق أنه ضمن التابعين
+                if (isset($filterData['employee_id']) && $filterData['employee_id'] !== null) {
+                    if (!in_array($filterData['employee_id'], $subordinateIds)) {
+                        // الموظف المطلوب ليس ضمن التابعين - لا نعرض شيء
+                        $filterData['employee_id'] = null;
+                        $filterData['employee_ids'] = [];
+                    }
+                } else {
+                    $filterData['employee_ids'] = $subordinateIds;
+                }
                 $filterData['company_id'] = $user->company_id;
             } else {
                 // ليس لديه موظفين تابعين: شكاواه فقط

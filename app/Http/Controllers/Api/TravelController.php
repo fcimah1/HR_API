@@ -184,7 +184,7 @@ class TravelController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"employee_id", "start_date","end_date","visit_purpose","visit_place","travel_mode","arrangement_type","expected_budget","actual_budget"},
+     *             required={"employee_id", "start_date","end_date","visit_purpose","visit_place","travel_mode","arrangement_type"},
      *             @OA\Property(property="employee_id", type="integer", example=755, description="معرف الموظف (اختياري)"),
      *             @OA\Property(property="start_date", type="string", format="date", example="2026-01-01", description="تاريخ بداية السفر"),
      *             @OA\Property(property="end_date", type="string", format="date", example="2026-01-03", description="تاريخ نهاية السفر"),
@@ -192,8 +192,6 @@ class TravelController extends Controller
      *             @OA\Property(property="visit_place", type="string", example="الرياض", description="مكان الزيارة"),
      *             @OA\Property(property="travel_mode", type="integer", example=1, description="طريقة السفر (1-5)"),
      *             @OA\Property(property="arrangement_type", type="integer", example=335, description="نوع ترتيب السفر"),
-     *             @OA\Property(property="expected_budget", type="number", format="float", example=1000.00, description="الميزانية المتوقعة"),
-     *             @OA\Property(property="actual_budget", type="number", format="float", example=900.00, description="الميزانية الفعلية"),
      *             @OA\Property(property="description", type="string", example="وصف الرحلة", description="وصف (اختياري)"),
      *             @OA\Property(property="associated_goals", type="string", example="هدف 1، هدف 2", description="الأهداف المرتبطة (اختياري)"),
      *             @OA\Property(property="remarks", type="string", example="ملاحظات إضافية", description="ملاحظات (اختياري)")
@@ -392,8 +390,6 @@ class TravelController extends Controller
      *             @OA\Property(property="visit_place", type="string", example="الرياض"),
      *             @OA\Property(property="travel_mode", type="integer", example=1),
      *             @OA\Property(property="arrangement_type", type="integer", example=1),
-     *             @OA\Property(property="expected_budget", type="number", format="float", example=1000.00),
-     *             @OA\Property(property="actual_budget", type="number", format="float", example=900.00),
      *             @OA\Property(property="description", type="string", example="وصف معدل"),
      *             @OA\Property(property="associated_goals", type="string", example="هدف 1، هدف 2", description="الأهداف المرتبطة (اختياري)"),
      *             @OA\Property(property="remarks", type="string", example="ملاحظات معدلة")

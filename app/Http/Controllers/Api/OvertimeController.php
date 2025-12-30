@@ -55,13 +55,13 @@ class OvertimeController extends Controller
      *         name="from_date",
      *         in="query",
      *         description="Filter from date (Y-m-d)",
-     *         @OA\Schema(type="string", format="date", example="2025-01-01")
+     *         @OA\Schema(type="string", format="date")
      *     ),
      *     @OA\Parameter(
      *         name="to_date",
      *         in="query",
      *         description="Filter to date (Y-m-d)",
-     *         @OA\Schema(type="string", format="date", example="2025-12-31")
+     *         @OA\Schema(type="string", format="date")
      *     ),
      *     @OA\Parameter(
      *         name="per_page",

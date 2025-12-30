@@ -9467,8 +9467,7 @@
                         "description": "Filter from date (Y-m-d)",
                         "schema": {
                             "type": "string",
-                            "format": "date",
-                            "example": "2025-01-01"
+                            "format": "date"
                         }
                     },
                     {
@@ -9477,8 +9476,7 @@
                         "description": "Filter to date (Y-m-d)",
                         "schema": {
                             "type": "string",
-                            "format": "date",
-                            "example": "2025-12-31"
+                            "format": "date"
                         }
                     },
                     {
@@ -10798,14 +10796,17 @@
                                         "example": "فرصة عمل أفضل في شركة أخرى"
                                     },
                                     "document_file": {
-                                        "description": "ملف المستند (pdf, doc, docx, jpg, jpeg, png) - حد أقصى 5MB",
+                                        "description": "ملف المستند (pdf) - حد أقصى 5MB",
                                         "type": "string",
                                         "format": "binary"
                                     },
                                     "notify_send_to": {
-                                        "description": "معرف الموظف المستلم للإشعار",
-                                        "type": "string",
-                                        "example": "employee_id"
+                                        "description": "قائمة معرفات الموظفين المستلمين للإشعار",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": "[5,10]"
                                     }
                                 },
                                 "type": "object"
@@ -14296,6 +14297,79 @@
                 ]
             }
         },
+        "/api/transfers/branches": {
+            "get": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Get branches for a specific company",
+                "description": "الحصول على فروع شركة محددة لاستخدامها في نموذج النقل",
+                "operationId": "4ea87b094d5a20063a68911cd9fa936a",
+                "parameters": [
+                    {
+                        "name": "company_id",
+                        "in": "query",
+                        "description": "Company ID - معرف الشركة",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Branches retrieved successfully - تم جلب الفروع بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الفروع بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "branch_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "branch_name": {
+                                                        "type": "string",
+                                                        "example": "Branch Name"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق"
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/transfers/{id}/pre-transfer-validation": {
             "get": {
                 "tags": [
@@ -14415,6 +14489,49 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transfers/employees": {
+            "get": {
+                "tags": [
+                    "Transfer Management"
+                ],
+                "summary": "Get employees for transfer (Hierarchy Based)",
+                "description": "الحصول على قائمة الموظفين المتاحين لطلب النقل بناءً على الصلاحيات الهرمية والقيود",
+                "operationId": "43544ac26b0a33a369fdcae49c4d28d8",
+                "responses": {
+                    "200": {
+                        "description": "Employees retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الموظفين بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -14661,9 +14778,7 @@
                                     "visit_purpose",
                                     "visit_place",
                                     "travel_mode",
-                                    "arrangement_type",
-                                    "expected_budget",
-                                    "actual_budget"
+                                    "arrangement_type"
                                 ],
                                 "properties": {
                                     "employee_id": {
@@ -14702,18 +14817,6 @@
                                         "description": "نوع ترتيب السفر",
                                         "type": "integer",
                                         "example": 335
-                                    },
-                                    "expected_budget": {
-                                        "description": "الميزانية المتوقعة",
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 1000
-                                    },
-                                    "actual_budget": {
-                                        "description": "الميزانية الفعلية",
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 900
                                     },
                                     "description": {
                                         "description": "وصف (اختياري)",
@@ -15019,16 +15122,6 @@
                                     "arrangement_type": {
                                         "type": "integer",
                                         "example": 1
-                                    },
-                                    "expected_budget": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 1000
-                                    },
-                                    "actual_budget": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 900
                                     },
                                     "description": {
                                         "type": "string",
@@ -16576,9 +16669,7 @@
                     "visit_purpose",
                     "visit_place",
                     "travel_mode",
-                    "arrangement_type",
-                    "expected_budget",
-                    "actual_budget"
+                    "arrangement_type"
                 ],
                 "properties": {
                     "employee_id": {
@@ -16610,16 +16701,6 @@
                     "arrangement_type": {
                         "description": "نوع ترتيب السفر",
                         "type": "integer"
-                    },
-                    "expected_budget": {
-                        "description": "الميزانية المتوقعة",
-                        "type": "number",
-                        "format": "float"
-                    },
-                    "actual_budget": {
-                        "description": "الميزانية الفعلية",
-                        "type": "number",
-                        "format": "float"
                     },
                     "description": {
                         "description": "الوصف",
@@ -16664,16 +16745,6 @@
                     "arrangement_type": {
                         "description": "نوع ترتيب السفر",
                         "type": "integer"
-                    },
-                    "expected_budget": {
-                        "description": "الميزانية المتوقعة",
-                        "type": "number",
-                        "format": "float"
-                    },
-                    "actual_budget": {
-                        "description": "الميزانية الفعلية",
-                        "type": "number",
-                        "format": "float"
                     },
                     "description": {
                         "description": "الوصف",

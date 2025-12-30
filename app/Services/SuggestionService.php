@@ -32,9 +32,10 @@ class SuggestionService
 
         // التحقق من نوع المستخدم (company أو staff فقط)
         if ($user->user_type == 'company') {
-            // مدير الشركة: يرى جميع اقتراحات شركته
+            // مدير الشركة: يرى جميع اقتراحات شركته، يحترم فلتر employee_id
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
+            // employee_id is already in filterData from request if provided
         } else {
             // موظف (staff): يرى اقتراحاته + اقتراحات الموظفين التابعين له
             $subordinateIds = $this->getSubordinateEmployeeIds($user);
@@ -42,7 +43,20 @@ class SuggestionService
             if (!empty($subordinateIds)) {
                 // لديه موظفين تابعين: اقتراحاته + اقتراحات التابعين
                 $subordinateIds[] = $user->user_id;
-                $filterData['employee_ids'] = $subordinateIds;
+
+                // إذا تم تحديد employee_id في الـ request، تحقق أنه ضمن التابعين
+                if (isset($filterData['employee_id']) && $filterData['employee_id'] !== null) {
+                    $requestedEmployeeId = (int) $filterData['employee_id'];
+                    if (!in_array($requestedEmployeeId, $subordinateIds, true)) {
+                        // الموظف المطلوب ليس ضمن التابعين - استخدم ID مستحيل
+                        $filterData['employee_id'] = -1;
+                        $filterData['employee_ids'] = null;
+                    }
+                    // else keep employee_id from request
+                } else {
+                    // لم يتم تحديد موظف معين، اعرض كل التابعين
+                    $filterData['employee_ids'] = $subordinateIds;
+                }
                 $filterData['company_id'] = $user->company_id;
             } else {
                 // ليس لديه موظفين تابعين: اقتراحاته فقط
@@ -88,7 +102,7 @@ class SuggestionService
 
         if (is_null($companyId) && is_null($userId)) {
             Log::warning('SuggestionService::getSuggestionById - Invalid arguments', [
-                'id'=> $id,
+                'id' => $id,
                 'message' => 'Invalid arguments'
             ]);
             throw new \InvalidArgumentException('يجب توفير معرف الشركة أو معرف المستخدم');

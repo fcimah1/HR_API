@@ -2,6 +2,8 @@
 
 namespace App\DTOs\Overtime;
 
+use App\Enums\NumericalStatusEnum;
+
 class OvertimeRequestFilterDTO
 {
     public function __construct(
@@ -20,6 +22,29 @@ class OvertimeRequestFilterDTO
     ) {}
 
     /**
+     * Convert string status to integer.
+     */
+    private static function prepareStatus($status): ?int
+    {
+        if ($status === null) {
+            return null;
+        }
+
+        // If already an integer
+        if (is_numeric($status)) {
+            return (int) $status;
+        }
+
+        // Convert string to integer
+        return match (strtolower((string) $status)) {
+            'pending' => NumericalStatusEnum::PENDING->value,
+            'approved' => NumericalStatusEnum::APPROVED->value,
+            'rejected' => NumericalStatusEnum::REJECTED->value,
+            default => null,
+        };
+    }
+
+    /**
      * Create DTO from request parameters.
      */
     public static function fromRequest(array $params): self
@@ -27,7 +52,7 @@ class OvertimeRequestFilterDTO
         return new self(
             employeeId: isset($params['employee_id']) ? (int) $params['employee_id'] : null,
             employeeIds: $params['employee_ids'] ?? null,
-            status: isset($params['status']) ? (int) $params['status'] : null,
+            status: self::prepareStatus($params['status'] ?? null), 
             overtimeReason: isset($params['overtime_reason']) ? (int) $params['overtime_reason'] : null,
             fromDate: $params['from_date'] ?? null,
             toDate: $params['to_date'] ?? null,

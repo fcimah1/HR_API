@@ -275,7 +275,8 @@ class EmployeeRepository implements EmployeeRepositoryInterface
     public function getDutyEmployee(int $id, ?string $search = null, ?int $employeeId = null, ?int $departmentId = null): array
     {
         $query = User::where('company_id', $id)
-            ->where('is_active', 1);
+            ->where('is_active', 1)
+            ->where('user_type', 'staff');
 
         // Filter by employee_id if provided
         if ($employeeId !== null) {
@@ -338,8 +339,9 @@ class EmployeeRepository implements EmployeeRepositoryInterface
      * @param string|null $search Optional search term
      * @return \Illuminate\Support\Collection
      */
-    public function getEmployeesForNotify(int $companyId, int $currentUserId, ?int $currentHierarchyLevel = null, ?int $currentDepartmentId = null, ?string $search = null): array {
-        
+    public function getEmployeesForNotify(int $companyId, int $currentUserId, ?int $currentHierarchyLevel = null, ?int $currentDepartmentId = null, ?string $search = null): array
+    {
+
         $query = User::with('user_details.designation')
             ->where('company_id', $companyId)
             ->where('is_active', 1)

@@ -25,13 +25,11 @@ class OvertimeRepository implements OvertimeRepositoryInterface
             $query->forCompany($filters->companyId);
         }
 
-        // Apply employee filter
+        // Apply employee filter (single employee OR list, not both)
         if ($filters->employeeId) {
             $query->forEmployee($filters->employeeId);
-        }
-
-        // Apply employee IDs filter
-        if ($filters->employeeIds !== null && is_array($filters->employeeIds) && !empty($filters->employeeIds)) {
+        } elseif ($filters->employeeIds !== null && is_array($filters->employeeIds) && !empty($filters->employeeIds)) {
+            // Only apply employee IDs filter if single employee filter is not set
             $query->whereIn('staff_id', $filters->employeeIds);
         }
 

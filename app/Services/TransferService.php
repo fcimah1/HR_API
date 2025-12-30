@@ -8,6 +8,7 @@ use App\DTOs\Transfer\ApproveRejectTransferDTO;
 use App\DTOs\Transfer\UpdateTransferDTO;
 use App\DTOs\Transfer\CompanyApprovalDTO;
 use App\DTOs\Transfer\ExecuteTransferDTO;
+use App\DTOs\Transfer\GetBranchesDTO;
 use App\Models\Transfer;
 use App\Models\User;
 use App\Repository\Interface\TransferRepositoryInterface;
@@ -156,6 +157,25 @@ class TransferService
 
             // التحقق من وجود طلب نقل معلق للموظف
             $this->checkForExistingPendingTransfer($dto->employeeId);
+
+            // التحقق من صلاحية المستخدم لطلب النقل لهذا الموظف (IDOR Protection)
+            $currentUser = Auth::user();
+            if ($currentUser && $currentUser->user_type !== 'company') { // Company owner can always transfer
+                $targetEmployee = User::find($dto->employeeId);
+                // If target is self, usually allowed, but check canViewEmployeeRequests logic just in case (it handles self if needed or we skip)
+                // Actually manager requesting for self is valid? Usually yes.
+                // canViewEmployeeRequests returns false if manager=level 4 and employee=level 4 (peers).
+                // But users can often request for themselves.
+                if ($targetEmployee && $currentUser->user_id !== $targetEmployee->user_id) {
+                    if (!$this->permissionService->canViewEmployeeRequests($currentUser, $targetEmployee)) {
+                        Log::warning('TransferService::createTransfer - Unauthorized attempt', [
+                            'user_id' => $currentUser->user_id,
+                            'target_employee_id' => $dto->employeeId,
+                        ]);
+                        throw new \Illuminate\Auth\Access\AuthorizationException('ليس لديك صلاحية لطلب النقل لهذا الموظف');
+                    }
+                }
+            }
 
             // تعبئة البيانات القديمة من بيانات الموظف الحالية
             $populateEmployeeData = $this->populateEmployeeData($dto);
@@ -758,5 +778,13 @@ class TransferService
     protected function executeTransfer(Transfer $transfer): void
     {
         $this->transferRepository->executeTransfer($transfer);
+    }
+
+    /**
+     * الحصول على فروع الشركة
+     */
+    public function getBranchesByCompany(GetBranchesDTO $dto): array
+    {
+        return $this->transferRepository->getBranchesByCompany($dto->companyId);
     }
 }

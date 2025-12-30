@@ -149,6 +149,20 @@ class HourlyLeaveService
     public function createHourlyLeave(CreateHourlyLeaveDTO $dto): object
     {
         return DB::transaction(function () use ($dto) {
+            // التحقق من قيود نوع الإجازة
+            $user = User::find($dto->employeeId); // نفترض أن الموظف هو المستخدم الحالي أو الموظف المستهدف
+            if ($user) {
+                $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $dto->companyId);
+                if (in_array($dto->leaveTypeId, $restrictedIds)) {
+                    Log::warning('HourlyLeaveService::createHourlyLeave - Restricted leave type selected', [
+                        'employee_id' => $dto->employeeId,
+                        'leave_type_id' => $dto->leaveTypeId,
+                        'company_id' => $dto->companyId
+                    ]);
+                    throw new \Exception('نوع الإجازة المختار غير متاح لهذا الموظف');
+                }
+            }
+
             // حساب ساعات الإجازة
             $startTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockInM);
             $endTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockOutM);
@@ -593,6 +607,20 @@ class HourlyLeaveService
      */
     private function getAvailableLeaveBalance(int $employeeId, int $leaveTypeId, int $companyId): float
     {
+        // التحقق من أن نوع الإجازة غير محظور
+        $user = User::find($employeeId);
+        if ($user) {
+            $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
+            if (in_array($leaveTypeId, $restrictedIds)) {
+                Log::info('HourlyLeaveService::getAvailableLeaveBalance - Restricted leave type check', [
+                    'employee_id' => $employeeId,
+                    'leave_type_id' => $leaveTypeId,
+                    'message' => 'Returning 0 balance for restricted leave type'
+                ]);
+                return 0;
+            }
+        }
+
         // استخدام LeaveRepository للحصول على الرصيد
         $leaveRepository = app(\App\Repository\Interface\LeaveRepositoryInterface::class);
 
@@ -633,6 +661,17 @@ class HourlyLeaveService
         ]);
 
         $leavetypes = $this->cacheService->getLeaveTypes($companyId);
+
+        // فلترة أنواع الإجازات المحظورة للموظف
+        $restrictedLeaveTypeIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
+        if (!empty($restrictedLeaveTypeIds)) {
+            $leavetypes = array_values(array_filter($leavetypes, function ($leaveType) use ($restrictedLeaveTypeIds) {
+                // Ensure leaveTypeId is correctly extracted handling both array and object formats if cache service changes back
+                $leaveTypeId = is_array($leaveType) ? ($leaveType['leave_type_id'] ?? $leaveType['constants_id'] ?? null) : ($leaveType->leave_type_id ?? $leaveType->constants_id ?? null);
+                return !in_array((int) $leaveTypeId, $restrictedLeaveTypeIds);
+            }));
+        }
+
         return [
             'statuses_string' => StringStatusEnum::toArray(),
             'statuses_numeric' => NumericalStatusEnum::toArray(),
@@ -640,5 +679,28 @@ class HourlyLeaveService
             'leave_place' => LeavePlaceEnum::toArray(),
             'deducted_status' => DeductedStatus::toArray(),
         ];
+    }
+
+    /**
+     * الحصول على أنواع الإجازات المحظورة للمستخدم
+     */
+    protected function getRestrictedLeaveTypeIds(User $user, int $companyId): array
+    {
+        $restrictedIds = [];
+        if ($user->user_type !== 'company') {
+            $restriction = \App\Models\OperationRestriction::where('user_id', $user->user_id)
+                ->where('company_id', $companyId)
+                ->first();
+
+            if ($restriction) {
+                $restrictedOperations = $restriction->restricted_operations;
+                foreach ($restrictedOperations as $operation) {
+                    if (preg_match('/^leave_type_(\d+)$/', $operation, $matches)) {
+                        $restrictedIds[] = (int) $matches[1];
+                    }
+                }
+            }
+        }
+        return $restrictedIds;
     }
 }

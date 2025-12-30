@@ -38,16 +38,32 @@ class ResignationService
         $filterData = $filters->toArray();
 
         if ($user->user_type == 'company') {
+            // Company users: get all requests, respect employee_id filter if provided
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
+            // employee_id is already in filterData from request if provided
         } else {
             $subordinateIds = $this->getSubordinateEmployeeIds($user);
 
             if (!empty($subordinateIds)) {
                 $subordinateIds[] = $user->user_id;
-                $filterData['employee_ids'] = $subordinateIds;
+
+                // If employee_id is provided, verify it's in subordinates
+                if (isset($filterData['employee_id']) && $filterData['employee_id'] !== null) {
+                    $requestedEmployeeId = (int) $filterData['employee_id'];
+                    if (!in_array($requestedEmployeeId, $subordinateIds, true)) {
+                        // Requested employee not in subordinates - use impossible ID
+                        $filterData['employee_id'] = -1;
+                        $filterData['employee_ids'] = null;
+                    }
+                    // else keep employee_id from request
+                } else {
+                    // No specific employee requested, show all subordinates
+                    $filterData['employee_ids'] = $subordinateIds;
+                }
                 $filterData['company_id'] = $user->company_id;
             } else {
+                // No subordinates, only own requests
                 $filterData['employee_id'] = $user->user_id;
                 $filterData['company_id'] = $user->company_id;
             }

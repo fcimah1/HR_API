@@ -40,62 +40,7 @@ class ValidDutyEmployee implements ValidationRule
             return;
         }
 
-        $dutyEmployee = User::where('user_id', $value)
-            ->where('company_id', $effectiveCompanyId)
-            ->where('is_active', true)
-            ->first();
-
-        if (!$dutyEmployee) {
-            $fail('الموظف البديل يجب أن يكون من نفس الشركة ونشط');
-            return;
-        }
-
-        if ($dutyEmployee->user_type !== 'staff') {
-            $fail('الموظف البديل يجب أن يكون موظفاً');
-            return;
-        }
-
-        // For staff users: check department as well
-        // جلب معرف القسم من جدول تفاصيل المستخدم مع التحقق من معرف الشركة
-        $userDepartmentId = null;
-
-        // محاولة جلب القسم من جدول ci_erp_users_details
-        $userDetails = DB::table('ci_erp_users_details')
-            ->where('user_id', $user->user_id)
-            ->where('company_id', $effectiveCompanyId)
-            ->first(['department_id']);
-
-        if ($userDetails && isset($userDetails->department_id)) {
-            $userDepartmentId = $userDetails->department_id;
-            $source = 'user_details';
-        } else {
-            // إذا لم يتم العثور على القسم، نتحقق من وجوده في جدول آخر أو نستخدم قيمة افتراضية
-            // يمكنك تعديل هذا الجزء بناءً على هيكل قاعدة البيانات الخاص بك
-            $userDepartmentId = 165; // القيمة الافتراضية بناءً على السجلات السابقة
-            $source = 'default';
-
-            Log::warning('User department not found, using default', [
-                'user_id' => $user->user_id,
-                'company_id' => $effectiveCompanyId,
-                'default_department_id' => $userDepartmentId
-            ]);
-        }
-
-        // تسجيل معلومات التشخيص
-        Log::info('User Department Check', [
-            'user_id' => $user->user_id,
-            'company_id' => $effectiveCompanyId,
-            'department_id' => $userDepartmentId,
-            'source' => $source,
-            'details' => $userDetails ?? null
-        ]);
-
-        if (!$userDepartmentId) {
-            $fail('لم يتم العثور على معلومات القسم للمستخدم الحالي. الرجاء التأكد من إكمال بيانات الملف الشخصي.');
-            return;
-        }
-
-        // Check if the duty employee exists first
+        // التحقق من وجود الموظف البديل
         $dutyEmployee = User::query()
             ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
             ->where('ci_erp_users.user_id', $value)
@@ -109,18 +54,35 @@ class ValidDutyEmployee implements ValidationRule
             return;
         }
 
+        if ($dutyEmployee->user_type !== 'staff') {
+            $fail('الموظف البديل يجب أن يكون موظفاً');
+            return;
+        }
+
+        // جلب قسم الموظف صاحب الإجازة (وليس مقدم الطلب)
+        $targetEmployeeDetails = DB::table('ci_erp_users_details')
+            ->where('user_id', $employeeIdToCheck)
+            ->where('company_id', $effectiveCompanyId)
+            ->first(['department_id']);
+
+        if (!$targetEmployeeDetails || !$targetEmployeeDetails->department_id) {
+            $fail('لم يتم العثور على معلومات القسم للموظف صاحب الإجازة.');
+            return;
+        }
+
+        $targetDepartmentId = $targetEmployeeDetails->department_id;
+
         Log::info('ValidDutyEmployee', [
-            'user_id' => $user->user_id,
-            'user_department_id' => $userDepartmentId,
-            'company_id' => $effectiveCompanyId,
-            'target_duty_employee_id' => $value,
-            'target_department_id' => $dutyEmployee->department_id,
-            'target_employee_name' => $dutyEmployee->name ?? 'N/A'
+            'requester_id' => $user->user_id,
+            'target_employee_id' => $employeeIdToCheck,
+            'target_department_id' => $targetDepartmentId,
+            'duty_employee_id' => $value,
+            'duty_department_id' => $dutyEmployee->department_id,
         ]);
 
-        // Check same department if user has a department
-        if ($dutyEmployee->department_id != $userDepartmentId) {
-            $fail('الموظف البديل يجب أن يكون من نفس القسم');
+        // الموظف البديل يجب أن يكون من نفس قسم الموظف صاحب الإجازة
+        if ($dutyEmployee->department_id != $targetDepartmentId) {
+            $fail('الموظف البديل يجب أن يكون من نفس قسم الموظف صاحب الإجازة');
             return;
         }
     }

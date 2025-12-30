@@ -31,15 +31,14 @@ class TravelRepository implements TravelRepositoryInterface
 
     public function findById(int $id): ?Travel
     {
-        return Travel::with(['employee', 'arrangementType:constants_id,category_name'])->load(['employee', 'approvals.staff'])->find($id);
+        return Travel::with(['employee', 'arrangementType:constants_id,category_name', 'approvals.staff'])->find($id);
     }
 
     public function findByIdAndCompany(int $id, int $companyId): ?Travel
     {
         return Travel::where('travel_id', $id)
             ->where('company_id', $companyId)
-            ->with(['employee', 'arrangementType:constants_id,category_name'])
-            ->load(['employee', 'approvals.staff'])
+            ->with(['employee', 'arrangementType:constants_id,category_name', 'approvals.staff'])
             ->first();
     }
 

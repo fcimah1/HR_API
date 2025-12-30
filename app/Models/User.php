@@ -202,6 +202,29 @@ class User extends Authenticatable
     }
 
     /**
+     * Get hierarchy level from designation
+     */
+    public function getHierarchyLevelAttribute()
+    {
+        $level = $this->user_details?->designation?->hierarchy_level;
+
+        // If no hierarchy level found and user is staff, assign default level 5 (lowest)
+        if ($level === null && $this->user_type === 'staff') {
+            return 5;
+        }
+
+        return $level;
+    }
+
+    /**
+     * Get department ID from user details
+     */
+    public function getDepartmentIdAttribute()
+    {
+        return $this->user_details?->department_id;
+    }
+
+    /**
      * الحصول على مستخدمي نفس الشركة
      */
     public function scopeSameCompany(Builder $query): Builder

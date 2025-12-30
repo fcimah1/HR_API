@@ -11,8 +11,6 @@ class UpdateTravelDTO
         public ?string $visit_place = null,
         public ?int $travel_mode = null,
         public ?int $arrangement_type = null,
-        public ?float $expected_budget = null,
-        public ?float $actual_budget = null,
         public ?string $description = null,
         public ?string $associated_goals = null,
     ) {}
@@ -26,8 +24,6 @@ class UpdateTravelDTO
             visit_place: $request->input('visit_place') ?: null,
             travel_mode: $request->input('travel_mode') ?: null,
             arrangement_type: $request->input('arrangement_type') ?: null,
-            expected_budget: $request->input('expected_budget') ?: null,
-            actual_budget: $request->input('actual_budget') ?: null,
             description: $request->input('description') ?: null,
             associated_goals: $request->input('associated_goals') ?: null
         );
@@ -42,8 +38,6 @@ class UpdateTravelDTO
             'visit_place' => $this->visit_place,
             'travel_mode' => $this->travel_mode,
             'arrangement_type' => $this->arrangement_type,
-            'expected_budget' => $this->expected_budget,
-            'actual_budget' => $this->actual_budget,
             'description' => $this->description,
             'associated_goals' => $this->associated_goals,
         ], fn($value) => $value !== null);

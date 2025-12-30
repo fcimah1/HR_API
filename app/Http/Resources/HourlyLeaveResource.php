@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Enums\DeductedStatus;
 use App\Enums\LeavePlaceEnum;
+use App\Enums\NumericalStatusEnum;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -109,9 +110,9 @@ class HourlyLeaveResource extends JsonResource
     private function getStatusText($status): string
     {
         return match ($status) {
-            1 => 'pending',
-            2 => 'approved',
-            3 => 'rejected',
+            NumericalStatusEnum::PENDING->value => 'pending',
+            NumericalStatusEnum::APPROVED->value => 'approved',
+            NumericalStatusEnum::REJECTED->value => 'rejected',
             default => 'pending',
         };
     }

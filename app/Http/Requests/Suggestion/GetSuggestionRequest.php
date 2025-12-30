@@ -23,6 +23,7 @@ class GetSuggestionRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'employee_id' => ['nullable', 'integer', new \App\Rules\CanRequestComplaintForEmployee()],
             'search' => 'nullable|string|max:255',
             'from_date' => 'nullable|date',
             'to_date' => 'nullable|date|after_or_equal:from_date',
@@ -37,6 +38,7 @@ class GetSuggestionRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'employee_id.can_request_complaint_for_employee' => 'الموظف غير موجود أو لا ينتمي لنفس الشركة.',
             'from_date.date' => 'تنسيق تاريخ البداية غير صحيح',
             'to_date.date' => 'تنسيق تاريخ النهاية غير صحيح',
             'to_date.after_or_equal' => 'تاريخ النهاية يجب أن يكون بعد أو يساوي تاريخ البداية',

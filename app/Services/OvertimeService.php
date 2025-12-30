@@ -42,9 +42,9 @@ class OvertimeService
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
         if ($user->user_type === 'company') {
-            // Company users: get all requests
+            // Company users: get all requests, respect employee_id filter if provided
             $modifiedFilters = new OvertimeRequestFilterDTO(
-                employeeId: $filters->employeeId,
+                employeeId: $filters->employeeId, // Preserve employee_id from request
                 status: $filters->status,
                 overtimeReason: $filters->overtimeReason,
                 fromDate: $filters->fromDate,
@@ -82,10 +82,31 @@ class OvertimeService
 
             if ($canViewOthers && !empty($subordinateIds)) {
                 // Manager: get requests for employees they can view
-                // Don't apply hierarchy filtering by default to avoid issues
+                // If employee_id is provided, verify it's in subordinates
+                $effectiveEmployeeId = null;
+                $effectiveEmployeeIds = $subordinateIds;
+
+                if ($filters->employeeId !== null) {
+                    $requestedEmployeeId = (int) $filters->employeeId;
+                    Log::info('OvertimeService::getPaginatedRequests - Checking employee_id filter', [
+                        'requested_employee_id' => $requestedEmployeeId,
+                        'subordinate_ids' => $subordinateIds,
+                        'in_array_result' => in_array($requestedEmployeeId, $subordinateIds, true),
+                    ]);
+
+                    if (in_array($requestedEmployeeId, $subordinateIds, true)) {
+                        $effectiveEmployeeId = $requestedEmployeeId;
+                        $effectiveEmployeeIds = null; // Use single employee filter
+                    } else {
+                        // Requested employee not in subordinates - use impossible ID to return empty
+                        $effectiveEmployeeId = -1;
+                        $effectiveEmployeeIds = null;
+                    }
+                }
+
                 $modifiedFilters = new OvertimeRequestFilterDTO(
-                    employeeId: null, // Don't filter by specific employee
-                    employeeIds: $subordinateIds, // Add subordinate IDs
+                    employeeId: $effectiveEmployeeId,
+                    employeeIds: $effectiveEmployeeIds,
                     status: $filters->status,
                     overtimeReason: $filters->overtimeReason,
                     fromDate: $filters->fromDate,

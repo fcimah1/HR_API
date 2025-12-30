@@ -554,7 +554,7 @@ class BiometricAttendanceController extends Controller
             ], 500);
         }
     }
-
+    
     /**
      * الحصول على الشركات مع الفروع
      * Get all companies with their branches

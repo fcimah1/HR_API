@@ -14,7 +14,7 @@ class CreateComplaintDTO extends Data
         public readonly string $complaintDate,
         public readonly ?array $complaintAgainst,
         public readonly ?string $description,
-        public readonly ?string $notifySendTo = null,
+        public readonly ?array $notifySendTo = null,
         public readonly int $status = Complaint::STATUS_PENDING,
     ) {}
 
@@ -41,7 +41,7 @@ class CreateComplaintDTO extends Data
             'complaint_date' => $this->complaintDate,
             'complaint_against' => is_array($this->complaintAgainst) ? implode(',', $this->complaintAgainst) : null,
             'description' => $this->description,
-            'notify_send_to' => $this->notifySendTo,
+            'notify_send_to' => is_array($this->notifySendTo) ? implode(',', $this->notifySendTo) : $this->notifySendTo,
             'status' => $this->status,
             'created_at' => now()->format('Y-m-d H:i:s'),
         ];

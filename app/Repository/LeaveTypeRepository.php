@@ -24,7 +24,15 @@ class LeaveTypeRepository implements LeaveTypeRepositoryInterface
         $perPage = $filters['per_page'] ?? 10;
         $paginator = $query->paginate($perPage, ['*'], 'page', $filters['page'] ?? 1);
 
-        return $paginator->toArray();
+        return [
+            'data' => $paginator->items(),
+            'total' => $paginator->total(),
+            'per_page' => $paginator->perPage(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'from' => $paginator->firstItem(),
+            'to' => $paginator->lastItem(),
+        ];
     }
 
     public function findById(int $id): ?object
