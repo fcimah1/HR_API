@@ -31,8 +31,6 @@ class CreateIntercompanyTransferRequest extends FormRequest
 
             // النقل بين الشركات
             'new_company_id' => 'required|integer|exists:ci_erp_users,user_id',
-            'new_salary' => 'required|numeric|min:0',
-            'new_currency' => 'required|integer|exists:ci_currencies,currency_id',
         ];
     }
 
@@ -48,11 +46,6 @@ class CreateIntercompanyTransferRequest extends FormRequest
             'notify_send_to.exists' => 'أحد المستلمين غير موجود',
             'new_company_id.required' => 'الشركة الجديدة مطلوبة',
             'new_company_id.exists' => 'الشركة الجديدة غير موجودة',
-            'new_salary.required' => 'الراتب الجديد مطلوب',
-            'new_salary.numeric' => 'الراتب يجب أن يكون رقماً',
-            'new_salary.min' => 'الراتب لا يمكن أن يكون سالباً',
-            'new_currency.required' => 'العملة الجديدة مطلوبة',
-            'new_currency.exists' => 'العملة الجديدة غير موجودة',
         ];
     }
 

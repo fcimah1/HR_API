@@ -305,14 +305,12 @@ class TransferController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"employee_id", "transfer_date", "reason", "transfer_department", "transfer_designation", "new_salary", "new_currency"},
+     *             required={"employee_id", "transfer_date", "reason", "transfer_department", "transfer_designation"},
      *             @OA\Property(property="employee_id", type="integer", example=1, description="Employee ID"),
      *             @OA\Property(property="transfer_date", type="string", format="date", example="2024-01-01", description="Transfer Date"),
      *             @OA\Property(property="reason", type="string", example="Promotion", description="Reason for transfer"),
      *             @OA\Property(property="transfer_department", type="integer", example=10, description="New Department ID"),
      *             @OA\Property(property="transfer_designation", type="integer", example=5, description="New Designation ID"),
-     *             @OA\Property(property="new_salary", type="number", example=5000, description="New Salary"),
-     *             @OA\Property(property="new_currency", type="integer", example=1, description="New Currency ID"),
      *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User ID to notify (optional)")
      *         )
      *     ),
@@ -366,8 +364,6 @@ class TransferController extends Controller
      *             @OA\Property(property="transfer_date", type="string", format="date", example="2024-01-01", description="Transfer Date"),
      *             @OA\Property(property="reason", type="string", example="Relocation", description="Reason for transfer"),
      *             @OA\Property(property="new_branch_id", type="integer", example=3, description="New Branch ID"),
-     *             @OA\Property(property="new_currency", type="integer", example=1, description="New Currency ID"),
-     *             @OA\Property(property="new_salary", type="number", example=5000, description="New Salary"),
      *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User ID to notify (optional)")
      *         )
      *     ),
@@ -416,13 +412,11 @@ class TransferController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"employee_id", "transfer_date", "reason", "new_company_id", "new_salary", "new_currency"},
+     *             required={"employee_id", "transfer_date", "reason", "new_company_id"},
      *             @OA\Property(property="employee_id", type="integer", example=1, description="Employee ID"),
      *             @OA\Property(property="transfer_date", type="string", format="date", example="2024-01-01", description="Transfer Date"),
      *             @OA\Property(property="reason", type="string", example="New Opportunity", description="Reason for transfer"),
      *             @OA\Property(property="new_company_id", type="integer", example=2, description="New Company ID"),
-     *             @OA\Property(property="new_salary", type="number", example=6000, description="New Salary"),
-     *             @OA\Property(property="new_currency", type="integer", example=1, description="New Currency ID"),
      *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User ID to notify (optional)")
      *         )
      *     ),
@@ -532,8 +526,6 @@ class TransferController extends Controller
      *             @OA\Property(property="reason", type="string", example="Reason", description="Reason"),
      *             @OA\Property(property="transfer_department", type="integer", example=10, description="New Department ID"),
      *             @OA\Property(property="transfer_designation", type="integer", example=5, description="New Designation ID"),
-     *             @OA\Property(property="new_salary", type="number", example=5000, description="New Salary"),
-     *             @OA\Property(property="new_currency", type="integer", example=1, description="New Currency ID"),
      *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User IDs to notify")
      *         )
      *     ),
@@ -573,9 +565,7 @@ class TransferController extends Controller
      *             @OA\Property(property="transfer_date", type="string", format="date", example="2024-01-01", description="Transfer Date"),
      *             @OA\Property(property="reason", type="string", example="Reason", description="Reason"),
      *             @OA\Property(property="new_branch_id", type="integer", example=3, description="New Branch ID"),
-     *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User IDs to notify"),
-     *             @OA\Property(property="new_salary", type="number", example=5000, description="New Salary"),
-     *             @OA\Property(property="new_currency", type="integer", example=1, description="New Currency ID"),
+     *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User IDs to notify")
      *         )
      *     ),
      *     @OA\Response(
@@ -614,8 +604,6 @@ class TransferController extends Controller
      *             @OA\Property(property="transfer_date", type="string", format="date", example="2024-01-01", description="Transfer Date"),
      *             @OA\Property(property="reason", type="string", example="Reason", description="Reason"),
      *             @OA\Property(property="new_company_id", type="integer", example=2, description="New Company ID"),
-     *             @OA\Property(property="new_salary", type="number", example=6000, description="New Salary"),
-     *             @OA\Property(property="new_currency", type="integer", example=1, description="New Currency ID"),
      *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User IDs to notify")
      *         )
      *     ),

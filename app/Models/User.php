@@ -41,9 +41,9 @@ class User extends Authenticatable
             $this->load('staffRole');
         }
 
-        // Load user_details with department and designation if not already loaded
+        // Load user_details with department, designation and branch if not already loaded
         if (!$this->relationLoaded('user_details')) {
-            $this->load(['user_details.department', 'user_details.designation']);
+            $this->load(['user_details.department', 'user_details.designation', 'user_details.branch']);
         }
 
         return [
@@ -51,9 +51,13 @@ class User extends Authenticatable
             'role_id' => $this->user_role_id,
             'role_name' => $this->staffRole?->role_name ?? null,
             'role_access' => $this->staffRole?->role_access ?? null,
+            'department_id' => $this->user_details?->department_id ?? null,
             'department_name' => $this->user_details?->department?->department_name ?? null,
+            'designation_id' => $this->user_details?->designation_id ?? null,
             'designation_name' => $this->user_details?->designation?->designation_name ?? null,
             'hierarchy_level'  => $this->user_details?->designation?->hierarchy_level ?? null,
+            'branch_id' => $this->user_details?->branch_id ?? null,
+            'branch_name' => $this->user_details?->branch?->branch_name ?? null,
         ];
     }
 
