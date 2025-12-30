@@ -29,9 +29,7 @@ class UpdateBranchTransferRequest extends FormRequest
 
             // النقل بين الفروع
             'new_branch_id' => 'required|integer|exists:ci_branchs,branch_id',
-            'new_designation_id'=> 'required|integer|exists:ci_designations,designation_id',
-            'new_salary' => 'required|numeric|min:0',
-            'new_currency' => 'required|integer|exists:ci_currencies,currency_id',
+            'new_designation_id' => 'required|integer|exists:ci_designations,designation_id',
         ];
     }
 
@@ -47,8 +45,6 @@ class UpdateBranchTransferRequest extends FormRequest
             'notify_send_to.exists' => 'أحد المستلمين غير موجود',
             'new_branch_id.exists' => 'الفرع الجديد غير موجود',
             'new_branch_id.required' => 'الفرع الجديد مطلوب',
-            'new_salary.required' => 'الراتب مطلوب',
-            'new_currency.required' => 'العملة مطلوبة',
         ];
     }
 

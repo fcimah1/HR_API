@@ -205,7 +205,7 @@ class EmployeeService
      * Based on CanNotifyUser rules:
      * 1- user_type = company for same company
      * 2- hierarchy_level = 1 (top level)
-     * 3- Same department and higher hierarchy level
+     * 3- Higher hierarchy level (regardless of department)
      *
      * @param int $companyId
      * @param int $currentUserId
@@ -245,11 +245,9 @@ class EmployeeService
                 return true;
             }
 
-            // 3- Same department and higher hierarchy level
-            $employeeDepartmentId = $employee->user_details?->department_id;
-
+            // 3- Higher hierarchy level (regardless of department)
+            // Note: Department check removed to match CanNotifyUser validation rule
             if (
-                $currentDepartmentId === $employeeDepartmentId &&
                 $employeeHierarchyLevel !== null &&
                 $currentHierarchyLevel !== null &&
                 $employeeHierarchyLevel < $currentHierarchyLevel
