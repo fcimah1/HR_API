@@ -1063,6 +1063,74 @@ class TransferController extends Controller
 
     /**
      * @OA\Get(
+     *     path="/api/transfers/branches",
+     *     summary="Get branches for a specific company",
+     *     description="الحصول على فروع شركة محددة لاستخدامها في نموذج النقل",
+     *     tags={"Transfer Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="company_id",
+     *         in="query",
+     *         required=true,
+     *         description="Company ID - معرف الشركة",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Branches retrieved successfully - تم جلب الفروع بنجاح",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="branch_id", type="integer", example=1),
+     *                     @OA\Property(property="branch_name", type="string", example="الفرع الرئيسي")
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthenticated - غير مصرح"),
+     *     @OA\Response(response=422, description="Validation error - خطأ في التحقق"),
+     *     @OA\Response(response=500, description="Server error - خطأ في الخادم")
+     * )
+     */
+    public function getBranches(Request $request)
+    {
+        try {
+            $request->validate([
+                'company_id' => 'required|integer|exists:ci_erp_users,user_id',
+            ]);
+
+            $companyId = $request->query('company_id');
+            $branches = \App\Models\Branch::forCompany($companyId)->get(['branch_id', 'branch_name']);
+
+            return response()->json([
+                'success' => true,
+                'data' => $branches
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل التحقق من البيانات',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('TransferController::getBranches - Error', [
+                'error' => $e->getMessage(),
+                'company_id' => $request->query('company_id')
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب الفروع: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
      *     path="/api/transfers/{id}/pre-transfer-validation",
      *     summary="Validate employee eligibility for transfer",
      *     description="التحقق من أهلية الموظف للنقل - يتحقق من الإجازات النشطة، السلف، والعهد غير المرجعة",

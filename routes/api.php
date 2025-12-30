@@ -262,6 +262,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('/', [TransferController::class, 'index'])->middleware('simple.permission:transfers1');
         Route::get('/statuses', [TransferController::class, 'getStatuses'])->middleware('simple.permission:transfers1');
         Route::get('/available-companies', [TransferController::class, 'getCompaniesWithBranches'])->middleware('simple.permission:transfers1');
+        Route::get('/branches', [TransferController::class, 'getBranches'])->middleware('simple.permission:transfers1');
 
         // Create routes
         Route::post('/internal', [TransferController::class, 'storeInternal'])->middleware('simple.permission:transfers2');
