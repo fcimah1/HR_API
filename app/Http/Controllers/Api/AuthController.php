@@ -107,13 +107,27 @@ class AuthController extends Controller
         // Remove staffRole relationship completely from the user object
         unset($user->staffRole);
 
+        // Clean UTF-8 encoding
+        $userData = $user->toArray();
+        array_walk_recursive($userData, function(&$value) {
+            if (is_string($value)) {
+                $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+            }
+        });
+        
+        array_walk_recursive($permissionData, function(&$value) {
+            if (is_string($value)) {
+                $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+            }
+        });
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
             'access_token' => $token,
             'refresh_token' => $refreshToken,
             'expires_in_minutes' => $tokenResult->token->expires_at->diffInMinutes(now()), // in minutes
-            'user' => $user,
+            'user' => $userData,
             'permissionData' => $permissionData,
 
         ]);

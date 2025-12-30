@@ -173,7 +173,7 @@ class TransferController extends Controller
         try {
             $user = Auth::user();
             Log::info('TransferController::index - Request received', [
-                'user_id' => $user->user_id,
+                'user_id' => $user->id,
                 'user_type' => $user->user_type,
             ]);
             $filters = TransferFilterDTO::fromRequest($request->validated());
