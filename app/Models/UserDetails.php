@@ -126,6 +126,11 @@ class UserDetails extends Model
         return $this->belongsTo(OfficeShift::class, 'office_shift_id', 'office_shift_id');
     }
 
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class, 'branch_id', 'branch_id');
+    }
+
     /**
      * البحث عن الموظف باستخدام المفتاح المركب من جهاز البصمة
      * Find user by biometric composite key
