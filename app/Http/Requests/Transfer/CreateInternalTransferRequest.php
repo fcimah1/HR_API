@@ -31,8 +31,6 @@ class CreateInternalTransferRequest extends FormRequest
             // النقل الداخلي
             'transfer_department' => 'required|integer|exists:ci_departments,department_id',
             'transfer_designation' => 'required|integer|exists:ci_designations,designation_id',
-            'new_salary' => 'required|numeric|min:0',
-            'new_currency' => 'required|integer|exists:ci_currencies,currency_id',
         ];
     }
 
@@ -47,15 +45,10 @@ class CreateInternalTransferRequest extends FormRequest
             'reason.required' => 'سبب النقل مطلوب',
             'notify_send_to.array' => 'حقل الإشعار يجب أن يكون مصفوفة',
             'notify_send_to.exists' => 'أحد المستلمين غير موجود',
-            'transfer_department.required' => 'القسم الجديد مطلوب', 
+            'transfer_department.required' => 'القسم الجديد مطلوب',
             'transfer_department.exists' => 'القسم غير موجود',
             'transfer_designation.required' => 'المسمى الوظيفي الجديد مطلوب',
             'transfer_designation.exists' => 'المسمى الوظيفي غير موجود',
-            'new_salary.required' => 'الراتب الجديد مطلوب',
-            'new_salary.numeric' => 'الراتب يجب أن يكون رقماً',
-            'new_salary.min' => 'الراتب لا يمكن أن يكون سالباً',
-            'new_currency.required' => 'العملة الجديدة مطلوبة',
-            'new_currency.exists' => 'العملة الجديدة غير موجودة',
         ];
     }
 
