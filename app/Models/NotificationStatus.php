@@ -26,6 +26,7 @@ class NotificationStatus extends Model
         'module_key_id',
         'staff_id',
         'is_read',
+        'additional_data',
     ];
 
     protected $casts = [
@@ -39,6 +40,45 @@ class NotificationStatus extends Model
     public function staff()
     {
         return $this->belongsTo(User::class, 'staff_id', 'user_id');
+    }
+
+    /**
+     * Relationship: Travel (when module_option is travel_settings)
+     */
+    public function travel()
+    {
+        return $this->belongsTo(Travel::class, 'module_key_id', 'travel_id');
+    }
+
+    /**
+     * Get policy result for travel notifications
+     * Returns the travel allowance based on employee hierarchy level
+     */
+    public function getPolicyResultAttribute()
+    {
+        if ($this->module_option !== 'travel_settings') {
+            return null;
+        }
+
+        $travel = $this->travel;
+        if (!$travel) {
+            return null;
+        }
+
+        // Get employee's hierarchy level
+        $employeeHierarchyLevel = $travel->employee
+            ?->user_details
+            ?->designation
+            ?->hierarchy_level;
+
+        if (!$employeeHierarchyLevel) {
+            return null;
+        }
+
+        return PolicyResult::where('policy_id', 1) // 1 = Travel
+            ->where('hierarchy_level', $employeeHierarchyLevel)
+            ->where('company_id', $travel->company_id)
+            ->first();
     }
 
     /**

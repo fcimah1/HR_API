@@ -17,7 +17,9 @@ class TravelApproved extends Mailable
         public string $destination,
         public string $startDate,
         public string $endDate,
-        public ?string $remarks = null
+        public ?string $remarks = null,
+        public ?float $allowanceAmount = null,
+        public ?string $currency = null,
     ) {}
 
     public function envelope(): Envelope

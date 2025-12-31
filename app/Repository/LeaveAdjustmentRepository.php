@@ -71,6 +71,11 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
             $query->where('leave_type_id', $filters->leaveTypeId);
         }
 
+        // Exclude restricted leave types
+        if ($filters->excludedLeaveTypeIds !== null && !empty($filters->excludedLeaveTypeIds)) {
+            $query->whereNotIn('leave_type_id', $filters->excludedLeaveTypeIds);
+        }
+
         // تطبيق الفرز
         $sortBy = in_array($filters->sortBy, ['created_at', 'adjustment_date', 'status'])
             ? $filters->sortBy
@@ -118,7 +123,7 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
      */
     public function findAdjustmentInCompany(int $id, int $companyId): ?LeaveAdjustment
     {
-        return LeaveAdjustment::with(['employee', 'leaveType','approvals.staff'])
+        return LeaveAdjustment::with(['employee', 'leaveType', 'approvals.staff'])
             ->where('adjustment_id', $id)
             ->where('company_id', $companyId)
             ->first();

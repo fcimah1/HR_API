@@ -155,9 +155,24 @@ class BiometricAttendanceController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
+            // تحديد رسالة الخطأ بناءً على نوع الخطأ
+            $errorMessage = $e->getMessage();
+            
+            if (str_contains($errorMessage, 'Column not found')) {
+                $userMessage = 'حدث خطأ في قاعدة البيانات. يرجى التواصل مع الدعم الفني.';
+            } elseif (str_contains($errorMessage, 'Duplicate entry')) {
+                $userMessage = 'هذه البصمة مسجلة مسبقاً.';
+            } elseif (str_contains($errorMessage, 'employee_id') || str_contains($errorMessage, 'company_id')) {
+                $userMessage = 'بيانات الموظف أو الشركة غير صحيحة.';
+            } else {
+                $userMessage = 'فشل تسجيل البصمة. يرجى المحاولة مرة أخرى.';
+            }
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => $userMessage,
+                'error_code' => 'BIOMETRIC_PUNCH_FAILED',
+                'details' => app()->environment('local') ? $errorMessage : null
             ], 400);
         }
     }

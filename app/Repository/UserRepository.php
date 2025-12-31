@@ -5,45 +5,40 @@ namespace App\Repository;
 use App\Models\User;
 use App\Models\UserDetails;
 use App\Repository\Interface\UserRepositoryInterface;
+use App\Services\SimplePermissionService;
 use Illuminate\Support\Facades\DB;
 
 class UserRepository implements UserRepositoryInterface
 {
     public function __construct(
-        private readonly User $model
+        private readonly User $model,
+        private readonly SimplePermissionService $permissionService
     ) {}
 
     /**
      * Get all subordinate employee IDs using recursive reporting structure
      * Filters by same department and lower hierarchy levels
      * 
-     * @param int $managerId
+     * @param User $manager
      * @return array
      */
-    public function getSubordinateEmployeeIds(int $managerId): array
+    public function getSubordinateEmployeeIds(User $manager)
     {
-        // Get manager's department and hierarchy level
-        $manager = DB::table('ci_erp_users_details')
-            ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
-            ->where('ci_erp_users_details.user_id', $managerId)
-            ->first(['ci_erp_users_details.department_id', 'ci_designations.hierarchy_level']);
+        // الحصول على جميع الموظفين في نفس الشركة
+        $allEmployees = User::where('company_id', $manager->company_id)
+            ->where('user_type', 'staff')
+            ->get();
 
-        if (!$manager) {
-            return [];
+        $subordinateIds = [];
+
+        foreach ($allEmployees as $employee) {
+            // التحقق إذا كان المدير يمكنه عرض طلبات هذا الموظف
+            if ($this->permissionService->canViewEmployeeRequests($manager, $employee)) {
+                $subordinateIds[] = $employee->user_id;
+            }
         }
 
-        // Get employees in same department with lower hierarchy levels
-        $subordinates = DB::table('ci_erp_users_details')
-            ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
-            ->join('ci_erp_users', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
-            ->where('ci_erp_users_details.department_id', $manager->department_id)
-            ->where('ci_designations.hierarchy_level', '>', $manager->hierarchy_level)
-            ->where('ci_designations.hierarchy_level', '!=', 1) // Exclude highest level if needed
-            ->where('ci_erp_users.is_active', 1)
-            ->pluck('ci_erp_users_details.user_id')
-            ->toArray();
-
-        return array_map('intval', $subordinates);
+        return $subordinateIds;
     }
 
     public function getUserByCompositeKey(int $companyId, int $branchId, string $employeeId): ?UserDetails
@@ -64,5 +59,8 @@ class UserRepository implements UserRepositoryInterface
             ->where('employee_id', $employeeId)
             ->first();
     }
+
+
+    
 
 }

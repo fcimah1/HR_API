@@ -111,6 +111,23 @@ class User extends Authenticatable
     ];
 
     /**
+     * Convert the model instance to an array.
+     * Overridden to ensure all strings are UTF-8 encoded.
+     */
+    public function toArray()
+    {
+        $attributes = parent::toArray();
+
+        array_walk_recursive($attributes, function (&$value) {
+            if (is_string($value) && !mb_check_encoding($value, 'UTF-8')) {
+                $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+            }
+        });
+
+        return $attributes;
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

@@ -31,14 +31,14 @@ class TravelRepository implements TravelRepositoryInterface
 
     public function findById(int $id): ?Travel
     {
-        return Travel::with(['employee', 'arrangementType:constants_id,category_name', 'approvals.staff'])->find($id);
-    }
+        return Travel::with(['employee', 'arrangementTypeRelation:constants_id,category_name', 'approvals.staff'])->find($id);
+    }   
 
     public function findByIdAndCompany(int $id, int $companyId): ?Travel
     {
         return Travel::where('travel_id', $id)
             ->where('company_id', $companyId)
-            ->with(['employee', 'arrangementType:constants_id,category_name', 'approvals.staff'])
+            ->with(['employee', 'arrangementTypeRelation:constants_id,category_name', 'approvals.staff'])
             ->first();
     }
 
@@ -82,6 +82,11 @@ class TravelRepository implements TravelRepositoryInterface
             $query->where('arrangement_type', $filters->arrangementType);
         }
 
+        // Filter excluded arrangement types (restrictions)
+        if ($filters->excludedArrangementTypes && !empty($filters->excludedArrangementTypes)) {
+            $query->whereNotIn('arrangement_type', $filters->excludedArrangementTypes);
+        }
+
         if ($filters->search) {
             $searchTerm = "%{$filters->search}%";
             $query->where(function ($q) use ($searchTerm) {
@@ -103,7 +108,7 @@ class TravelRepository implements TravelRepositoryInterface
 
         $query->orderBy("{$filters->orderBy}", $filters->order);
 
-        $query->with(['employee', 'arrangementType:constants_id,category_name', 'approvals.staff']);
+        $query->with(['employee', 'arrangementTypeRelation:constants_id,category_name', 'approvals.staff']);
 
         $paginator = $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
         return [
@@ -152,6 +157,11 @@ class TravelRepository implements TravelRepositoryInterface
             $query->where('arrangement_type', $filters->arrangementType);
         }
 
+        // Filter excluded arrangement types (restrictions)
+        if ($filters->excludedArrangementTypes && !empty($filters->excludedArrangementTypes)) {
+            $query->whereNotIn('arrangement_type', $filters->excludedArrangementTypes);
+        }
+
         if ($filters->search) {
             $searchTerm = "%{$filters->search}%";
             $query->where(function ($q) use ($searchTerm) {
@@ -172,7 +182,7 @@ class TravelRepository implements TravelRepositoryInterface
         }
 
         $query->orderBy("{$filters->orderBy}", $filters->order);
-        $query->with(['employee', 'arrangementType:constants_id,category_name', 'approvals.staff']);
+        $query->with(['employee', 'arrangementTypeRelation:constants_id,category_name', 'approvals.staff']);
         $paginator = $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
         return [
             'data' => $paginator->items(),

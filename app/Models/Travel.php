@@ -48,40 +48,89 @@ class Travel extends Model
         return $this->belongsTo(User::class, 'employee_id', 'user_id');
     }
 
+    public function approvals()
+    {
+        return $this->hasMany(StaffApproval::class, 'module_key_id', 'travel_id')
+            ->where('module_option', 'travel_settings');
+    }
+
     public function addedBy()
     {
         return $this->belongsTo(User::class, 'added_by', 'user_id');
     }
 
-    public function arrangementType()
+    /**
+     * Get policy result for this travel based on employee's hierarchy level
+     */
+    public function policyResult()
+    {
+        // Get employee's hierarchy level
+        $hierarchyLevel = $this->employee
+            ?->user_details
+            ?->designation
+            ?->hierarchy_level;
+
+        if (!$hierarchyLevel) {
+            return null;
+        }
+
+        return PolicyResult::where('policy_id', 1) // 1 = Travel
+            ->where('hierarchy_level', $hierarchyLevel)
+            ->where('company_id', $this->company_id)
+            ->first();
+    }
+
+    public function arrangementType(int $companyId)
     {
         return $this->belongsTo(ErpConstant::class, 'arrangement_type', 'constants_id')
-            ->where('type', 'travel_type');
+            ->where('type', 'travel_type')
+            ->where('company_id', $companyId)
+            ->orWhere('company_id', 0);
+    }
+
+    /**
+     * Relationship for eager loading - uses model's own company_id
+     */
+    public function arrangementTypeRelation()
+    {
+        return $this->belongsTo(ErpConstant::class, 'arrangement_type', 'constants_id');
     }
 
     // get all arrangement types names
-    public static function allArrangementTypeName(): array
+    public static function allArrangementTypeName(int $companyId): array
     {
         return \App\Models\ErpConstant::where('type', 'travel_type')
+            ->where(function ($query) use ($companyId) {
+                $query->where('company_id', $companyId)
+                    ->orWhere('company_id', 0);
+            })
             ->pluck('category_name', 'constants_id')
             ->toArray();
     }
 
-    public static function arrangementTypeName(int $arrangement_id)
+    public static function arrangementTypeName(int $arrangement_id, int $companyId): ?string
     {
         return \App\Models\ErpConstant::where('constants_id', $arrangement_id)
             ->where('type', 'travel_type')
+            ->where(function ($query) use ($companyId) {
+                $query->where('company_id', $companyId)
+                    ->orWhere('company_id', 0);
+            })
             ->pluck('category_name')
-            ->first();
+            ->first() ?? null;
     }
 
     /**
      * الحصول على جميع أنواع الترتيب المتاحة للتحقق من الصحة 
      */
-    public static function getArrangementTypes(): array
+    public static function getArrangementTypes(int $companyId): array
     {
         // جلب أنواع الترتيب من قاعدة البيانات
         return \App\Models\ErpConstant::where('type', 'travel_type')
+            ->where(function ($query) use ($companyId) {
+                $query->where('company_id', $companyId)
+                    ->orWhere('company_id', 0);
+            })
             ->pluck('constants_id')
             ->toArray();
     }
@@ -89,14 +138,7 @@ class Travel extends Model
 
 
 
-    /**
-     * Get the approvals for this travel request
-     */
-    public function approvals()
-    {
-        return $this->hasMany(StaffApproval::class, 'module_key_id', 'travel_id')
-            ->where('module_option', 'travel_request_settings');
-    }
+
 
     const STATUS_PENDING = TravelStatusEnum::PENDING->value;
     const STATUS_APPROVED = TravelStatusEnum::APPROVED->value;

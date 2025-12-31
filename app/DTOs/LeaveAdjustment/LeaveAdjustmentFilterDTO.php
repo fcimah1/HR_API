@@ -11,6 +11,7 @@ class LeaveAdjustmentFilterDTO
         public readonly ?int $companyId = null,
         public readonly ?int $employeeId = null,
         public readonly ?array $employeeIds = null,
+        public readonly ?array $excludedLeaveTypeIds = null, // Exclude restricted leave types
         public readonly ?int $status = null,
         public readonly ?int $leaveTypeId = null,
         public readonly ?string $search = null,
@@ -41,6 +42,7 @@ class LeaveAdjustmentFilterDTO
             companyId: $data['company_id'] ?? null,
             employeeId: $data['employee_id'] ?? null,
             employeeIds: $data['employee_ids'] ?? null,
+            excludedLeaveTypeIds: $data['excluded_leave_type_ids'] ?? null,
             status: $status,
             leaveTypeId: $data['leave_type_id'] ?? null,
             search: $data['search'] ?? null,
@@ -58,6 +60,7 @@ class LeaveAdjustmentFilterDTO
             'company_id' => $this->companyId,
             'employee_id' => $this->employeeId,
             'employee_ids' => $this->employeeIds,
+            'excluded_leave_type_ids' => $this->excludedLeaveTypeIds,
             'status' => $this->status,
             'leave_type_id' => $this->leaveTypeId,
             'search' => $this->search,

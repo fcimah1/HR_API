@@ -73,7 +73,13 @@ class TravelTypeService
     public function getTravelTypes(User $user)
     {
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-        return $this->travelTypeRepository->getByCompany($effectiveCompanyId);
+
+        $restrictedIds = [];
+        if (!$this->permissionService->isCompanyOwner($user)) {
+            $restrictedIds = $this->permissionService->getRestrictedValues($user->user_id, $effectiveCompanyId, 'travel_type_');
+        }
+
+        return $this->travelTypeRepository->getByCompany($effectiveCompanyId, 15, $restrictedIds);
     }
 
     public function getTravelType(int $id, User $user): object
@@ -91,6 +97,12 @@ class TravelTypeService
     public function searchTravelTypes(User $user, string $query)
     {
         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-        return $this->travelTypeRepository->search($effectiveCompanyId, $query);
+
+        $restrictedIds = [];
+        if (!$this->permissionService->isCompanyOwner($user)) {
+            $restrictedIds = $this->permissionService->getRestrictedValues($user->user_id, $effectiveCompanyId, 'travel_type_');
+        }
+
+        return $this->travelTypeRepository->search($effectiveCompanyId, $query, 15, $restrictedIds);
     }
 }

@@ -11,14 +11,15 @@ class CreateLeaveAdjustmentDTO
         public readonly int $companyId,
         public readonly int $employeeId,
         public readonly int $leaveTypeId,
-        public readonly float $adjustHours,  // تغيير من string إلى float
+        public readonly float $adjustHours,
         public readonly string $reasonAdjustment,
-        public readonly string $adjustmentDate, // إزالة القيمة الافتراضية
-        public readonly ?int $status = null
+        public readonly string $adjustmentDate,
+        public readonly ?int $status = null,
+        public readonly ?int $createdBy = null // Added createdBy
     ) {}
 
 
-    public static function fromRequest(array $data, int $companyId, int $employeeId): self
+    public static function fromRequest(array $data, int $companyId, int $employeeId, ?int $createdBy = null): self
     {
         return new self(
             companyId: $companyId,
@@ -27,6 +28,7 @@ class CreateLeaveAdjustmentDTO
             adjustHours: (float)$data['adjust_hours'],
             reasonAdjustment: $data['reason_adjustment'],
             adjustmentDate: $data['adjustment_date'],
+            createdBy: $createdBy
         );
     }
     public function toArray(): array

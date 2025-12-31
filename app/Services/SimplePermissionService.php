@@ -92,18 +92,37 @@ class SimplePermissionService
         // استخدام الـ Cache
         $cacheKey = "user_permissions.{$user->user_id}";
 
-        return Cache::remember($cacheKey, self::PERMISSION_CACHE_TTL, function () use ($user) {
-            $role = StaffRole::where('role_id', $user->user_role_id)
-                ->where('company_id', $user->company_id)
-                ->first();
+        // Try to get data from cache
+        $cachedData = Cache::get($cacheKey);
 
-            if ($role) {
-                return array_filter(explode(',', $role->role_resources ?? ''));
-            }
+        // Check if cache is valid and matches current role
+        // This ensures that if the user changes role, we don't return stale permissions
+        if ($cachedData && is_array($cachedData) && isset($cachedData['role_id']) && $cachedData['role_id'] == $user->user_role_id) {
+            return $cachedData['permissions'] ?? [];
+        }
 
-            return [];
-        });
+        // Cache miss or stale (role mismatch) -> Fetch from DB
+        // Note: We use first() directly. If stricter company check is needed, consider it.
+        // User::getUserPermissions uses strict !== check on company_id.
+        // Here we rely on query where('company_id', $user->company_id).
+        $role = StaffRole::where('role_id', $user->user_role_id)
+            ->where('company_id', $user->company_id)
+            ->first();
+
+        $permissions = [];
+        if ($role) {
+            $permissions = array_filter(explode(',', $role->role_resources ?? ''));
+        }
+
+        // Store result in cache with role_id for future validation
+        Cache::put($cacheKey, [
+            'role_id' => $user->user_role_id,
+            'permissions' => $permissions
+        ], self::PERMISSION_CACHE_TTL);
+
+        return $permissions;
     }
+
 
     /**
      * مسح cache صلاحيات المستخدم
@@ -124,6 +143,53 @@ class SimplePermissionService
     public function isEmployee(User $user): bool
     {
         return $user->company_id > 0 && $user->user_role_id > 0;
+    }
+
+    /**
+     * Check if requester can override restrictions for target user
+     * (Company Owner or Superior)
+     */
+    public function canOverrideRestriction(User $requester, User $target, ?string $restrictionPrefix = null, ?int $restrictionValue = null): bool
+    {
+        // 1. Company Owner Override (Always can override)
+        if ($this->isCompanyOwner($requester)) {
+            return true;
+        }
+
+        // If checking specific restriction, verify requester doesn't have the same restriction
+        if ($restrictionPrefix && $restrictionValue !== null) {
+            $requesterRestrictions = $this->getRestrictedValues($requester->user_id, $requester->company_id, $restrictionPrefix);
+            if (in_array($restrictionValue, $requesterRestrictions)) {
+                return false; // Requester is also restricted, so cannot override
+            }
+        }
+
+        // Self-request cannot override own restrictions (unless company owner)
+        if ($requester->user_id === $target->user_id) {
+            return false;
+        }
+
+        // 2. Hierarchy Override (Superior requests for Subordinate)
+        // Must be same company
+        if ($requester->company_id !== $target->company_id) {
+            return false;
+        }
+
+        // Ensure relationships are loaded
+        $requester->loadMissing('user_details.designation');
+        $target->loadMissing('user_details.designation');
+
+        $requesterLevel = $requester->user_details?->designation?->hierarchy_level ?? null;
+        $targetLevel = $target->user_details?->designation?->hierarchy_level ?? null;
+
+        if (!is_null($requesterLevel) && !is_null($targetLevel)) {
+            // Requester must be higher rank (numerically lower)
+            if ($requesterLevel < $targetLevel) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -405,8 +471,8 @@ class SimplePermissionService
                 ->toArray();
         }
 
-        // 4. بناء الاستعلام لجلب الموظفين المسموح بهم
-        $query = DB::table('ci_erp_users')
+        // 4. بناء الاستعلام مع الشروط
+        $baseQuery = DB::table('ci_erp_users')
             ->select(
                 'ci_erp_users.user_id',
                 'ci_erp_users.first_name',
@@ -417,30 +483,195 @@ class SimplePermissionService
                 'ci_erp_users_details.department_id',
                 'ci_departments.department_name as department_name'
             )
-            ->join('ci_erp_users_details', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
+            ->leftJoin('ci_erp_users_details', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
             ->leftJoin('ci_designations', 'ci_designations.designation_id', '=', 'ci_erp_users_details.designation_id')
             ->leftJoin('ci_departments', 'ci_departments.department_id', '=', 'ci_erp_users_details.department_id')
             ->where('ci_erp_users.company_id', $companyId)
             ->where('ci_erp_users.user_type', 'staff')
             ->where('ci_erp_users.is_active', 1);
 
-        // الشرط الجوهري: الموظف المستهدف يجب أن يكون في مستوى أدنى (رقم أعلى) أو مساوي
-        $query->where('ci_designations.hierarchy_level', '>=', $currentHierarchyLevel);
+        $baseQuery->where(function ($masterQ) use ($userId, $includeSelf, $currentHierarchyLevel, $restrictedDepartments, $restrictedBranches) {
 
-        // تطبيق استبعاد الأقسام المحظورة
-        if (!empty($restrictedDepartments)) {
-            $query->whereNotIn('ci_erp_users_details.department_id', $restrictedDepartments);
-        }
+            // Group 1: Matches Hierarchy & Restrictions & Staff Type
+            $masterQ->where(function ($q) use ($currentHierarchyLevel, $restrictedDepartments, $restrictedBranches) {
+                $q->where('ci_erp_users.user_type', 'staff');
 
-        // تطبيق استبعاد الفروع المحظورة
-        if (!empty($restrictedBranches)) {
-            $query->whereNotIn('ci_erp_users_details.branch_id', $restrictedBranches);
-        }
+                // Hierarchy Level Check (Level 0 sees all, otherwise check level)
+                if ($currentHierarchyLevel > 0) {
+                    $q->where('ci_designations.hierarchy_level', '>=', $currentHierarchyLevel);
+                }
+
+                // Restrictions
+                if (!empty($restrictedDepartments)) {
+                    $q->whereNotIn('ci_erp_users_details.department_id', $restrictedDepartments);
+                }
+                if (!empty($restrictedBranches)) {
+                    $q->whereNotIn('ci_erp_users_details.branch_id', $restrictedBranches);
+                }
+            });
+
+            // Group 2: Include Self (Explicitly allowed regardless of above)
+            if ($includeSelf) {
+                $masterQ->orWhere('ci_erp_users.user_id', $userId);
+            }
+        });
 
         if (!$includeSelf) {
-            $query->where('ci_erp_users.user_id', '!=', $userId);
+            $baseQuery->where('ci_erp_users.user_id', '!=', $userId);
         }
 
-        return $query->get()->toArray();
+        return $baseQuery->get()->toArray();
+    }
+
+    /**
+     * Get restricted values for a specific prefix (e.g., 'travel_', 'designation_')
+     * Returns an array of IDs extracted from the restricted operations list.
+     * 
+     * @param int $userId
+     * @param int $companyId
+     * @param string $prefix
+     * @return array
+     */
+    public function getRestrictedValues(int $userId, int $companyId, string $prefix): array
+    {
+        $restrictedValues = [];
+
+        $restriction = OperationRestriction::where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if ($restriction && !empty($restriction->restricted_operations)) {
+            $operations = $restriction->restricted_operations;
+            if (is_string($operations)) {
+                $operations = explode(',', $operations);
+            }
+
+            foreach ($operations as $op) {
+                $op = trim($op);
+                if (str_starts_with($op, $prefix)) {
+                    // Extract ID by removing prefix. Handling potential malformed strings or empty values.
+                    $val = str_replace($prefix, '', $op);
+                    if (is_numeric($val)) {
+                        $restrictedValues[] = (int)$val;
+                    }
+                }
+            }
+        }
+
+        return $restrictedValues;
+    }
+
+    /**
+     * Check if a specific operation string exists in user restrictions
+     * (e.g., 'view_salary', 'report_attendance')
+     * 
+     * @param int $userId
+     * @param int $companyId
+     * @param string $operationKey
+     * @return bool
+     */
+    public function hasRestriction(int $userId, int $companyId, string $operationKey): bool
+    {
+        $restriction = OperationRestriction::where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if ($restriction && !empty($restriction->restricted_operations)) {
+            $operations = is_string($restriction->restricted_operations)
+                ? explode(',', $restriction->restricted_operations)
+                : $restriction->restricted_operations;
+
+            $operations = array_map('trim', $operations);
+
+            return in_array($operationKey, $operations);
+        }
+
+        return false;
+    }
+
+    /**
+     * Get all restrictions for a user categorized by type.
+     * Use this for efficient bulk checking or passing restrictions to frontend.
+     *
+     * @param int $userId
+     * @param int $companyId
+     * @return array
+     */
+    public function getAllUserRestrictions(int $userId, int $companyId): array
+    {
+        $result = [
+            'leave_types' => [],
+            'travel_types' => [],
+            'award_types' => [],
+            'incident_types' => [],
+            'goal_types' => [],
+            'assets_categories' => [],
+            'product_categories' => [],
+            'competencies' => [],
+            'competencies2' => [],
+            'departments' => [],
+            'branches' => [],
+            'employee_sections' => [], // employee_contract, employee_salary, etc.
+            'reports' => [], // report_projects, report_salary, etc.
+            'raw_flags' => [] // Any other unclassified flags
+        ];
+
+        $restriction = OperationRestriction::where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if ($restriction && !empty($restriction->restricted_operations)) {
+            $operations = is_string($restriction->restricted_operations)
+                ? explode(',', $restriction->restricted_operations)
+                : $restriction->restricted_operations;
+
+            foreach ($operations as $op) {
+                $op = trim($op);
+                if (empty($op)) continue;
+
+                if (str_starts_with($op, 'leave_type_')) {
+                    $val = str_replace('leave_type_', '', $op);
+                    if (is_numeric($val)) $result['leave_types'][] = (int)$val;
+                } elseif (str_starts_with($op, 'travel_type_')) {
+                    $val = str_replace('travel_type_', '', $op);
+                    if (is_numeric($val)) $result['travel_types'][] = (int)$val;
+                } elseif (str_starts_with($op, 'award_type_')) {
+                    $val = str_replace('award_type_', '', $op);
+                    if (is_numeric($val)) $result['award_types'][] = (int)$val;
+                } elseif (str_starts_with($op, 'incident_type_')) {
+                    $val = str_replace('incident_type_', '', $op);
+                    if (is_numeric($val)) $result['incident_types'][] = (int)$val;
+                } elseif (str_starts_with($op, 'goal_type_')) {
+                    $val = str_replace('goal_type_', '', $op);
+                    if (is_numeric($val)) $result['goal_types'][] = (int)$val;
+                } elseif (str_starts_with($op, 'assets_category_')) {
+                    $val = str_replace('assets_category_', '', $op);
+                    if (is_numeric($val)) $result['assets_categories'][] = (int)$val;
+                } elseif (str_starts_with($op, 'product_category_')) {
+                    $val = str_replace('product_category_', '', $op);
+                    if (is_numeric($val)) $result['product_categories'][] = (int)$val;
+                } elseif (str_starts_with($op, 'competencies_')) {
+                    $val = str_replace('competencies_', '', $op);
+                    if (is_numeric($val)) $result['competencies'][] = (int)$val;
+                } elseif (str_starts_with($op, 'competencies2_')) {
+                    $val = str_replace('competencies2_', '', $op);
+                    if (is_numeric($val)) $result['competencies2'][] = (int)$val;
+                } elseif (str_starts_with($op, 'dept_')) {
+                    $val = str_replace('dept_', '', $op);
+                    if (is_numeric($val)) $result['departments'][] = (int)$val;
+                } elseif (str_starts_with($op, 'branch_')) {
+                    $val = str_replace('branch_', '', $op);
+                    if (is_numeric($val)) $result['branches'][] = (int)$val;
+                } elseif (str_starts_with($op, 'employee_')) {
+                    $result['employee_sections'][] = $op;
+                } elseif (str_starts_with($op, 'report_')) {
+                    $result['reports'][] = $op;
+                } else {
+                    $result['raw_flags'][] = $op;
+                }
+            }
+        }
+
+        return $result;
     }
 }

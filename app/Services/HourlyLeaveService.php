@@ -54,6 +54,14 @@ class HourlyLeaveService
 
             if (!empty($subordinateIds)) {
                 // لديه موظفين تابعين: طلباته + طلبات التابعين
+
+                // Filter subordinates based on restrictions
+                $subordinateIds = array_filter($subordinateIds, function ($empId) use ($user) {
+                    $emp = User::find($empId);
+                    if (!$emp) return false;
+                    return $this->permissionService->canViewEmployeeRequests($user, $emp);
+                });
+
                 $subordinateIds[] = $user->user_id; // إضافة نفسه
                 $filterData['employee_ids'] = $subordinateIds;
                 $filterData['company_id'] = $user->company_id;
@@ -63,6 +71,17 @@ class HourlyLeaveService
                 $filterData['company_id'] = $user->company_id;
             }
         }
+
+        // إضافة أنواع الإجازات المحظورة للمستخدم الحالي (للتصفية)
+        // Managers should see all types of requests from their subordinates even if they are personally restricted
+        $hasSubordinates = isset($subordinateIds) && !empty($subordinateIds);
+
+        $companyIdForRestriction = $filterData['company_id'] ?? $user->company_id;
+        $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyIdForRestriction);
+        if (!empty($restrictedIds) && !$hasSubordinates) {
+            $filterData['excluded_leave_type_ids'] = $restrictedIds;
+        }
+
 
         // إنشاء DTO جديد مع البيانات المحدثة
         $updatedFilters = HourlyLeaveFilterDTO::fromRequest($filterData);
@@ -113,6 +132,14 @@ class HourlyLeaveService
             if ($user && $user->user_type !== 'company') {
                 // Allow users to view their own requests
                 if ($application->employee_id === $user->user_id) {
+                    // Still check operation restrictions even for own requests
+                    $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+                    $restrictedTypes = $this->permissionService->getRestrictedValues(
+                        $user->user_id,
+                        $effectiveCompanyId,
+                        'leave_type_'
+                    );
+                    // For own requests, we allow viewing even if restricted (since actions are restricted elsewhere)
                     return $application;
                 }
 
@@ -127,6 +154,22 @@ class HourlyLeaveService
                         'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'requester_department' => $this->permissionService->getUserDepartmentId($user),
                         'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                    ]);
+                    return null;
+                }
+
+                // Check operation restrictions for viewing other's requests
+                $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+                $restrictedTypes = $this->permissionService->getRestrictedValues(
+                    $user->user_id,
+                    $effectiveCompanyId,
+                    'leave_type_'
+                );
+                if (in_array($application->leave_type_id, $restrictedTypes) && !$this->permissionService->canOverrideRestriction($user, $employee)) {
+                    Log::warning('HourlyLeaveService::getHourlyLeaveById - Operation restriction denied', [
+                        'application_id' => $id,
+                        'leave_type_id' => $application->leave_type_id,
+                        'restricted_types' => $restrictedTypes,
                     ]);
                     return null;
                 }
@@ -150,10 +193,20 @@ class HourlyLeaveService
     {
         return DB::transaction(function () use ($dto) {
             // التحقق من قيود نوع الإجازة
-            $user = User::find($dto->employeeId); // نفترض أن الموظف هو المستخدم الحالي أو الموظف المستهدف
+            $user = User::find($dto->employeeId);
+
+            // Check if requester can override restrictions
+            $canOverride = false;
+            if ($dto->createdBy) {
+                $requester = User::find($dto->createdBy);
+                if ($requester && $user && $this->permissionService->canOverrideRestriction($requester, $user, 'leave_type_', (int)$dto->leaveTypeId)) {
+                    $canOverride = true;
+                }
+            }
+
             if ($user) {
                 $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $dto->companyId);
-                if (in_array($dto->leaveTypeId, $restrictedIds)) {
+                if (!$canOverride && in_array($dto->leaveTypeId, $restrictedIds)) {
                     Log::warning('HourlyLeaveService::createHourlyLeave - Restricted leave type selected', [
                         'employee_id' => $dto->employeeId,
                         'leave_type_id' => $dto->leaveTypeId,
@@ -307,6 +360,31 @@ class HourlyLeaveService
             }
 
             // 2. Permission Check
+
+            // Enforce restrictions on cancel
+            $targetEmployee = User::find($application->employee_id);
+
+            // Check if requester can override restrictions
+            $canOverride = false;
+            if ($user->user_id !== $targetEmployee->user_id) {
+                if ($this->permissionService->canOverrideRestriction($user, $targetEmployee, 'leave_type_', (int)$application->leave_type_id)) {
+                    $canOverride = true;
+                }
+            }
+
+            if (!$canOverride && $user->user_type !== 'company') {
+                $restrictedIds = $this->getRestrictedLeaveTypeIds($targetEmployee, $effectiveCompanyId);
+                if (in_array($application->leave_type_id, $restrictedIds)) {
+                    Log::warning('HourlyLeaveService::cancelHourlyLeave - Restricted leave type cancel attempt', [
+                        'application_id' => $id,
+                        'leave_type_id' => $application->leave_type_id,
+                        'user_id' => $user->user_id,
+                        'message' => 'نوع الإجازة في هذا الطلب مقيد، لا يمكن إلغاء الطلب.'
+                    ]);
+                    throw new \Exception('نوع الإجازة في هذا الطلب مقيد، لا يمكن إلغاء الطلب.');
+                }
+            }
+
             $isOwner = $application->employee_id === $user->user_id;
             $isCompany = $user->user_type === 'company';
 
@@ -539,6 +617,30 @@ class HourlyLeaveService
                 throw new \Exception('لا يمكن تعديل الطلب بعد المراجعة');
             }
 
+            // Enforce restrictions on update
+            $targetEmployee = User::find($application->employee_id);
+
+            // Check if requester can override restrictions
+            $canOverride = false;
+            if ($user->user_id !== $targetEmployee->user_id) {
+                if ($this->permissionService->canOverrideRestriction($user, $targetEmployee, 'leave_type_', (int)$application->leave_type_id)) {
+                    $canOverride = true;
+                }
+            }
+
+            if (!$canOverride) {
+                $restrictedIds = $this->getRestrictedLeaveTypeIds($targetEmployee, $effectiveCompanyId);
+                if (in_array($application->leave_type_id, $restrictedIds)) {
+                    Log::warning('HourlyLeaveService::updateHourlyLeave - Restricted leave type update attempt', [
+                        'application_id' => $id,
+                        'leave_type_id' => $application->leave_type_id,
+                        'user_id' => $user->user_id,
+                        'message' => 'نوع الإجازة في هذا الطلب مقيد، لا يمكن تعديل الطلب.'
+                    ]);
+                    throw new \Exception('نوع الإجازة في هذا الطلب مقيد، لا يمكن تعديل الطلب.');
+                }
+            }
+
             // التحقق من الساعات إذا تم تحديث الأوقات
             if ($dto->clockInM !== null && $dto->clockOutM !== null && $dto->date !== null) {
                 $startTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockInM);
@@ -686,21 +788,10 @@ class HourlyLeaveService
      */
     protected function getRestrictedLeaveTypeIds(User $user, int $companyId): array
     {
-        $restrictedIds = [];
-        if ($user->user_type !== 'company') {
-            $restriction = \App\Models\OperationRestriction::where('user_id', $user->user_id)
-                ->where('company_id', $companyId)
-                ->first();
-
-            if ($restriction) {
-                $restrictedOperations = $restriction->restricted_operations;
-                foreach ($restrictedOperations as $operation) {
-                    if (preg_match('/^leave_type_(\d+)$/', $operation, $matches)) {
-                        $restrictedIds[] = (int) $matches[1];
-                    }
-                }
-            }
-        }
-        return $restrictedIds;
+        return $this->permissionService->getRestrictedValues(
+            $user->user_id,
+            $companyId,
+            'leave_type_'
+        );
     }
 }

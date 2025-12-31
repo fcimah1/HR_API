@@ -16,9 +16,12 @@ use App\Http\Requests\Transfer\ApproveRejectTransferRequest;
 use App\Http\Requests\Transfer\GetBranchesRequest;
 use App\Http\Requests\Transfer\UpdateInternalTransferRequest;
 use App\DTOs\Transfer\GetBranchesDTO;
+use App\Enums\TransferTypeEnum;
 use App\Http\Requests\Transfer\UpdateBranchTransferRequest;
 use App\Http\Requests\Transfer\UpdateIntercompanyTransferRequest;
+use App\Http\Requests\Transfer\ApproveIntercompanyTransferRequest;
 use App\Http\Resources\TransferResource;
+use App\Models\Transfer;
 use App\Models\User;
 use App\Services\TransferService;
 use App\Services\SimplePermissionService;
@@ -548,7 +551,7 @@ class TransferController extends Controller
      */
     public function updateInternal(int $id, UpdateInternalTransferRequest $request)
     {
-        return $this->processUpdateTransferRequest($id, $request);
+        return $this->processUpdateTransferRequest($id, $request, TransferTypeEnum::INTERNAL->value);
     }
 
     /**
@@ -587,7 +590,7 @@ class TransferController extends Controller
      */
     public function updateBranch(int $id, UpdateBranchTransferRequest $request)
     {
-        return $this->processUpdateTransferRequest($id, $request);
+        return $this->processUpdateTransferRequest($id, $request, TransferTypeEnum::BRANCH->value);
     }
 
     /**
@@ -626,19 +629,19 @@ class TransferController extends Controller
      */
     public function updateIntercompany(int $id, UpdateIntercompanyTransferRequest $request)
     {
-        return $this->processUpdateTransferRequest($id, $request);
+        return $this->processUpdateTransferRequest($id, $request, TransferTypeEnum::INTERCOMPANY->value);
     }
 
     /**
      * Helper method to process update transfer requests
      */
-    private function processUpdateTransferRequest(int $id, $request)
+    private function processUpdateTransferRequest(int $id, $request, ?string $expectedType = null)
     {
         try {
             $user = Auth::user();
             Log::info('TransferController::update - Updating transfer', ['transfer_id' => $id, 'user_id' => $user->user_id]);
             $dto = UpdateTransferDTO::fromRequest($request->validated());
-            $transfer = $this->transferService->updateTransfer($id, $dto, $user);
+            $transfer = $this->transferService->updateTransfer($id, $dto, $user, $expectedType);
             return response()->json([
                 'success' => true,
                 'message' => 'تم تحديث طلب النقل بنجاح',
@@ -802,7 +805,7 @@ class TransferController extends Controller
      *     @OA\Response(response=404, description="Not found - غير موجود")
      * )
      */
-    public function approveByCurrentCompany(int $id, ApproveRejectTransferRequest $request)
+    public function approveByCurrentCompany(int $id, ApproveIntercompanyTransferRequest $request)
     {
         try {
             $user = Auth::user();
@@ -927,7 +930,7 @@ class TransferController extends Controller
      *     @OA\Response(response=404, description="Not found - غير موجود")
      * )
      */
-    public function approveByNewCompany(int $id, ApproveRejectTransferRequest $request)
+    public function approveByNewCompany(int $id, ApproveIntercompanyTransferRequest $request)
     {
         try {
             $user = Auth::user();
@@ -1227,64 +1230,65 @@ class TransferController extends Controller
             ], 500);
         }
     }
-    /**
-     * @OA\Get(
-     *     path="/api/transfers/employees",
-     *     summary="Get employees for transfer (Hierarchy Based)",
-     *     description="الحصول على قائمة الموظفين المتاحين لطلب النقل بناءً على الصلاحيات الهرمية والقيود",
-     *     tags={"Transfer Management"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Response(
-     *         response=200,
-     *         description="Employees retrieved successfully",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="تم جلب الموظفين بنجاح"),
-     *             @OA\Property(property="data", type="array", @OA\Items(type="object"))
-     *         )
-     *     )
-     * )
-     */
-    public function getTransferableEmployees(Request $request)
-    {
-        try {
-            $user = Auth::user();
 
-            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+    // /**
+    //  * @OA\Get(
+    //  *     path="/api/transfers/employees",
+    //  *     summary="Get employees for transfer (Hierarchy Based)",
+    //  *     description="الحصول على قائمة الموظفين المتاحين لطلب النقل بناءً على الصلاحيات الهرمية والقيود",
+    //  *     tags={"Transfer Management"},
+    //  *     security={{"bearerAuth":{}}},
+    //  *     @OA\Response(
+    //  *         response=200,
+    //  *         description="Employees retrieved successfully",
+    //  *         @OA\JsonContent(
+    //  *             @OA\Property(property="success", type="boolean", example=true),
+    //  *             @OA\Property(property="message", type="string", example="تم جلب الموظفين بنجاح"),
+    //  *             @OA\Property(property="data", type="array", @OA\Items(type="object"))
+    //  *         )
+    //  *     )
+    //  * )
+    //  */
+    // public function getTransferableEmployees(Request $request)
+    // {
+    //     try {
+    //         $user = Auth::user();
 
-            $employees = $this->permissionService->getEmployeesByHierarchy(
-                $user->user_id,
-                $effectiveCompanyId,
-                false // Don't include self
-            );
+    //         $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            // تحويل النتيجة إلى format مناسب (التعامل مع كائن أو مصفوفة)
-            $formattedEmployees = array_map(function ($emp) {
-                // Convert to array if it's an object
-                $empData = is_object($emp) ? (array)$emp : $emp;
-                return [
-                    'employee_id' => $empData['user_id'] ?? $empData['id'] ?? null,
-                    'name' => ($empData['first_name'] ?? '') . ' ' . ($empData['last_name'] ?? ''),
-                    'designation_id' => $empData['designation_id'] ?? null,
-                    'designation_name' => $empData['designation_name'] ?? null,
-                    'hierarchy_level' => $empData['hierarchy_level'] ?? null,
-                    'department_id' => $empData['department_id'] ?? null,
-                    'department_name' => $empData['department_name'] ?? null,
-                ];
-            }, $employees);
+    //         $employees = $this->permissionService->getEmployeesByHierarchy(
+    //             $user->user_id,
+    //             $effectiveCompanyId,
+    //             false // Don't include self
+    //         );
 
-            return response()->json([
-                'success' => true,
-                'message' => 'تم جلب الموظفين المتاحين للنقل بنجاح',
-                'data' => $formattedEmployees,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('TransferController::getTransferableEmployees - Error', ['error' => $e->getMessage()]);
-            return response()->json([
-                'success' => false,
-                'message' => 'حدث خطأ أثناء جلب الموظفين',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
+    //         // تحويل النتيجة إلى format مناسب (التعامل مع كائن أو مصفوفة)
+    //         $formattedEmployees = array_map(function ($emp) {
+    //             // Convert to array if it's an object
+    //             $empData = is_object($emp) ? (array)$emp : $emp;
+    //             return [
+    //                 'employee_id' => $empData['user_id'] ?? $empData['id'] ?? null,
+    //                 'name' => ($empData['first_name'] ?? '') . ' ' . ($empData['last_name'] ?? ''),
+    //                 'designation_id' => $empData['designation_id'] ?? null,
+    //                 'designation_name' => $empData['designation_name'] ?? null,
+    //                 'hierarchy_level' => $empData['hierarchy_level'] ?? null,
+    //                 'department_id' => $empData['department_id'] ?? null,
+    //                 'department_name' => $empData['department_name'] ?? null,
+    //             ];
+    //         }, $employees);
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'تم جلب الموظفين المتاحين للنقل بنجاح',
+    //             'data' => $formattedEmployees,
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         Log::error('TransferController::getTransferableEmployees - Error', ['error' => $e->getMessage()]);
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'حدث خطأ أثناء جلب الموظفين',
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 }

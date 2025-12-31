@@ -10,10 +10,14 @@ use App\DTOs\Employee\UpdateEmployeeDTO;
 use App\Models\User;
 use App\Models\UserDetails;
 
+use App\Services\SimplePermissionService;
+use Exception;
+
 class EmployeeService
 {
     public function __construct(
-        private readonly EmployeeRepositoryInterface $employeeRepository
+        private readonly EmployeeRepositoryInterface $employeeRepository,
+        private readonly SimplePermissionService $permissionService
     ) {}
 
     /**
@@ -299,5 +303,53 @@ class EmployeeService
             'hierarchy_level' => $user->getHierarchyLevel(),
             'department_id' => $user->user_details?->department_id,
         ];
+    }
+
+    /**
+     * Get backup employees (duty alternatives) based on target employee's department.
+     * Enforces that the requester has permission to view the target employee.
+     *
+     * @param User $requester
+     * @param int $targetEmployeeId
+     * @return array
+     * @throws Exception
+     */
+    public function getBackupEmployees(User $requester, ?int $targetEmployeeId = null, ?string $search = null, ?int $employeeId = null): array
+    {
+        $departmentId = null;
+        $excludeEmployeeId = null;
+
+        // Default to requester if no target provided
+        if ($targetEmployeeId === null) {
+            $targetEmployeeId = $requester->user_id;
+        }
+
+        if ($targetEmployeeId) {
+            $targetEmployee = User::with('user_details')->find($targetEmployeeId);
+
+            if (!$targetEmployee) {
+                throw new Exception('الموظف غير موجود');
+            }
+
+            // Permission check: Can requester view target employee?
+            if ($requester->user_id !== $targetEmployee->user_id && !$this->permissionService->canViewEmployeeRequests($requester, $targetEmployee)) {
+                throw new Exception('ليس لديك صلاحية. يجب أن تكون في مستوى أعلى.');
+            }
+
+            $departmentId = $targetEmployee->user_details->department_id ?? null;
+            $excludeEmployeeId = $targetEmployeeId;
+        }
+
+        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($requester);
+
+        // Call repository to get employees
+        // If departmentId is null (no target specified or target has no department), it will fetch all staff in company (filtered by search/id if present)
+        return $this->employeeRepository->getDutyEmployee(
+            id: $effectiveCompanyId,
+            search: $search,
+            employeeId: $employeeId,
+            departmentId: $departmentId,
+            excludeEmployeeId: $excludeEmployeeId
+        );
     }
 }

@@ -21,6 +21,7 @@ use App\Jobs\SendEmailNotificationJob;
 use App\Mail\Transfer\TransferSubmitted;
 use App\Mail\Transfer\TransferApproved;
 use App\Mail\Transfer\TransferRejected;
+use App\Repository\Interface\UserRepositoryInterface;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -33,6 +34,7 @@ class TransferService
         protected SimplePermissionService $permissionService,
         protected NotificationService $notificationService,
         protected CacheService $cacheService,
+        protected UserRepositoryInterface $userRepository,
     ) {}
 
     /**
@@ -43,27 +45,37 @@ class TransferService
         $filterData = $filters->toArray();
 
         if ($user->user_type == 'company') {
+
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
             // الحفاظ على employee_id من الـ request إذا كان موجود
             // (employee_id محفوظ بالفعل من $filters->toArray())
         } else {
-            $subordinateIds = $this->getSubordinateEmployeeIds($user);
+
+            $subordinateIds = $this->userRepository->getSubordinateEmployeeIds($user);
 
             if (!empty($subordinateIds)) {
-                $subordinateIds[] = $user->user_id;
-                // إذا تم تحديد employee_id في الـ request، تحقق أنه ضمن التابعين
-                if (isset($filterData['employee_id']) && $filterData['employee_id'] !== null) {
-                    if (!in_array($filterData['employee_id'], $subordinateIds)) {
-                        // الموظف المطلوب ليس ضمن التابعين
-                        $filterData['employee_id'] = null;
-                        $filterData['employee_ids'] = [];
-                    }
-                } else {
-                    $filterData['employee_ids'] = $subordinateIds;
-                }
+                // لديه موظفين تابعين: طلباته + طلبات التابعين
+
+                // Filter subordinates based on restrictions (Department/Branch restrictions from OperationRestriction)
+                $subordinateIds = array_filter($subordinateIds, function ($empId) use ($user) {
+                    $emp = User::find($empId);
+                    if (!$emp) return false;
+                    return $this->permissionService->canViewEmployeeRequests($user, $emp);
+                });
+
+                $subordinateIds[] = $user->user_id; // إضافة نفسه
+                $filterData['employee_ids'] = $subordinateIds;
                 $filterData['company_id'] = $user->company_id;
+
+                // إضافة فلترة المستويات الهرمية للموظفين التابعين
+                $hierarchyLevels = $this->permissionService->getUserHierarchyLevel($user);
+                if ($hierarchyLevels !== null) {
+                    // جلب المستويات الأعلى من مستوى المدير
+                    $filterData['hierarchy_levels'] = range($hierarchyLevels + 1, 5);
+                }
             } else {
+                // ليس لديه موظفين تابعين: طلباته فقط
                 $filterData['employee_id'] = $user->user_id;
                 $filterData['company_id'] = $user->company_id;
             }
@@ -297,9 +309,9 @@ class TransferService
     /**
      * تحديث نقل
      */
-    public function updateTransfer(int $id, UpdateTransferDTO $dto, User $user): Transfer
+    public function updateTransfer(int $id, UpdateTransferDTO $dto, User $user, ?string $expectedType = null): Transfer
     {
-        return DB::transaction(function () use ($id, $dto, $user) {
+        return DB::transaction(function () use ($id, $dto, $user, $expectedType) {
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $transfer = $this->transferRepository->findTransferById($id, $effectiveCompanyId);
 
@@ -310,6 +322,17 @@ class TransferService
                     'user_id' => $user->user_id,
                 ]);
                 throw new \Exception('طلب النقل غير موجود');
+            }
+
+            // Check for expected type mismatch
+            if ($expectedType !== null && $transfer->transfer_type !== $expectedType) {
+                Log::warning('TransferService::updateTransfer - Type mismatch', [
+                    'transfer_id' => $id,
+                    'expected_type' => $expectedType,
+                    'actual_type' => $transfer->transfer_type,
+                    'user_id' => $user->user_id,
+                ]);
+                throw new \Exception("لا يمكنك تعديل طلب من نوع ({$transfer->transfer_type_text}) من خلال هذا الرابط.");
             }
 
             if ($transfer->status !== Transfer::STATUS_PENDING) {
@@ -391,7 +414,8 @@ class TransferService
                 ? 'تم إلغاء الطلب من قبل الموظف'
                 : 'تم إلغاء الطلب من قبل الإدارة';
 
-            return $this->transferRepository->rejectTransfer($transfer, $user->user_id, $cancelReason);
+            $this->transferRepository->rejectTransfer($transfer, $user->user_id, $cancelReason);
+            return true;
         });
     }
 

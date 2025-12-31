@@ -201,6 +201,21 @@ class TravelTypeController extends Controller
                 ], 403);
             }
             $travelType = $this->travelTypeService->getTravelType($id, $user);
+
+            if ($user->user_type !== 'company') {
+                $restrictedTypes = $this->permissionService->getRestrictedValues(
+                    $user->user_id,
+                    $this->permissionService->getEffectiveCompanyId($user),
+                    'travel_type_'
+                );
+
+                if (in_array($travelType->constants_id, $restrictedTypes)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'غير مصرح لك بعرض هذا النوع من السفر (قيود العمليات)'
+                    ], 403);
+                }
+            }
             return response()->json(['success' => true, 'data' => $travelType]);
         } catch (\Exception $e) {
             Log::error('TravelTypeController::show failed', [
@@ -237,6 +252,27 @@ class TravelTypeController extends Controller
                     'message' => 'غير مصرح لك بتعديل أنواع السفر'
                 ], 403);
             }
+
+            // Check operation restrictions
+            if (!$this->permissionService->isCompanyOwner($user)) {
+                $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+                $restrictedTypes = $this->permissionService->getRestrictedValues(
+                    $user->user_id,
+                    $effectiveCompanyId,
+                    'travel_type_'
+                );
+
+                // Get the current record to check if it's restricted
+                $currentRecord = $this->travelTypeService->getTravelType($id, $user);
+
+                if (in_array($currentRecord->constants_id, $restrictedTypes)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'غير مصرح لك بتعديل نوع السفر هذا (قيود العمليات)'
+                    ], 403);
+                }
+            }
+
             $dto = UpdateTravelTypeDTO::fromRequest($request);
             $travelType = $this->travelTypeService->updateTravelType($id, $dto, Auth::user());
             return response()->json(['success' => true, 'message' => 'تم تحديث نوع السفر بنجاح', 'data' => $travelType]);
@@ -270,6 +306,26 @@ class TravelTypeController extends Controller
                     'success' => false,
                     'message' => 'غير مصرح لك بحذف أنواع السفر'
                 ], 403);
+            }
+
+            // Check operation restrictions
+            if (!$this->permissionService->isCompanyOwner($user)) {
+                $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+                $restrictedTypes = $this->permissionService->getRestrictedValues(
+                    $user->user_id,
+                    $effectiveCompanyId,
+                    'travel_type_'
+                );
+
+                // Get the current record to check if it's restricted
+                $currentRecord = $this->travelTypeService->getTravelType($id, $user);
+
+                if (in_array($currentRecord->constants_id, $restrictedTypes)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'غير مصرح لك بحذف نوع السفر هذا (قيود العمليات)'
+                    ], 403);
+                }
             }
             $this->travelTypeService->deleteTravelType($id, Auth::user());
             return response()->json(['success' => true, 'message' => 'تم حذف نوع السفر بنجاح']);

@@ -81,7 +81,7 @@ interface EmployeeRepositoryInterface
      * @param int|null $departmentId Optional department ID to filter by same department
      * @return array
      */
-    public function getDutyEmployee(int $id, ?string $search = null, ?int $employeeId = null, ?int $departmentId = null): array;
+    public function getDutyEmployee(int $id, ?string $search = null, ?int $employeeId = null, ?int $departmentId = null, ?int $excludeEmployeeId = null): array;
 
     /**
      * Get employees for notification

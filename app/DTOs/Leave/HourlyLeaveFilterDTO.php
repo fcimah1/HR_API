@@ -10,6 +10,7 @@ class HourlyLeaveFilterDTO
         public readonly ?int $companyId = null,
         public readonly ?int $employeeId = null,
         public readonly ?array $employeeIds = null,
+        public readonly ?array $excludedLeaveTypeIds = null, // Exclude restricted leave types
         public readonly ?int $status = null, // 1 for pending, 2 for approved, 3 for rejected
         public readonly ?int $leaveTypeId = null,
         public readonly ?string $clockInM = null,
@@ -43,6 +44,7 @@ class HourlyLeaveFilterDTO
             companyId: $data['company_id'] ?? null,
             employeeId: $data['employee_id'] ?? null,
             employeeIds: $data['employee_ids'] ?? null,
+            excludedLeaveTypeIds: $data['excluded_leave_type_ids'] ?? null,
             status: $status,
             leaveTypeId: $data['leave_type_id'] ?? null,
             clockInM: $data['clock_in_m'] ?? null,
@@ -63,6 +65,7 @@ class HourlyLeaveFilterDTO
             'company_id' => $this->companyId,
             'employee_id' => $this->employeeId,
             'employee_ids' => $this->employeeIds,
+            'excluded_leave_type_ids' => $this->excludedLeaveTypeIds,
             'status' => $this->status,
             'leave_type_id' => $this->leaveTypeId,
             'clock_in_m' => $this->clockInM,
@@ -77,4 +80,3 @@ class HourlyLeaveFilterDTO
         ];
     }
 }
-

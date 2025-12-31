@@ -41,19 +41,25 @@ class TravelTypeRepository implements TravelTypeRepositoryInterface
             ->first();
     }
 
-    public function getByCompany(int $companyId, int $perPage = 15): LengthAwarePaginator
+    public function getByCompany(int $companyId, int $perPage = 15, array $excludedIds = []): LengthAwarePaginator
     {
         return ErpConstant::where('company_id', $companyId)
             ->where('type', 'travel_type')
+            ->when(!empty($excludedIds), function ($q) use ($excludedIds) {
+                $q->whereNotIn('constants_id', $excludedIds);
+            })
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
     }
 
-    public function search(int $companyId, string $query, int $perPage = 15): LengthAwarePaginator
+    public function search(int $companyId, string $query, int $perPage = 15, array $excludedIds = []): LengthAwarePaginator
     {
         return ErpConstant::where('company_id', $companyId)
             ->where('type', 'travel_type')
             ->where('category_name', 'like', "%{$query}%")
+            ->when(!empty($excludedIds), function ($q) use ($excludedIds) {
+                $q->whereNotIn('constants_id', $excludedIds);
+            })
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
     }

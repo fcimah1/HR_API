@@ -68,7 +68,6 @@ class NotificationService
         int $companyId,
         int|string $status = NumericalStatusEnum::APPROVED->value,
         ?int $approverId = null,
-        ?int $approvalLevel = null,
         ?int $submitterId = null
     ): int {
         $notifiers = $this->settingRepository->getApprovalNotifiers($companyId, $moduleOption);
@@ -92,7 +91,8 @@ class NotificationService
         }
 
         // If approval level is not specified, try to determine it from settings
-        if ($approvalLevel === null && $approverId !== null) {
+        $approvalLevel = null;
+        if ($approverId !== null) {
             $setting = $this->settingRepository->getSettingByModule($companyId, $moduleOption);
             if ($setting) {
                 // Check levels 1 to 5
@@ -115,7 +115,7 @@ class NotificationService
             $approverId,
             $approvalLevel,
             $submitterId,
-            $resolvedNotifiers
+            $resolvedNotifiers,
         );
 
         return count($resolvedNotifiers);
@@ -203,8 +203,28 @@ class NotificationService
     {
         $notifications = $this->statusRepository->getUserNotifications($userId, $moduleOption, $perPage);
 
+        // Transform notifications to include policy result for travel
+        $transformedData = collect($notifications->items())->map(function ($notification) {
+            $data = $notification->toArray();
+
+            // Add travel allowance info for travel notifications
+            if ($notification->module_option === 'travel_settings') {
+                $policyResult = $notification->policy_result; // Uses the accessor
+                $data['travel_allowance'] = $policyResult ? [
+                    'total_amount' => $policyResult->total_amount,
+                    'currency' => $policyResult->currency_local,
+                    'daily_rate' => $policyResult->daily_rate,
+                    'total_days' => $policyResult->total_days,
+                ] : [
+                    'message' => 'لم يحدد بعد'
+                ];
+            }
+
+            return $data;
+        })->toArray();
+
         return [
-            'data' => $notifications->items(),
+            'data' => $transformedData,
             'pagination' => [
                 'current_page' => $notifications->currentPage(),
                 'last_page' => $notifications->lastPage(),

@@ -96,6 +96,18 @@
                 <div class="value">{{ $endDate }}</div>
             </div>
 
+            @if(isset($allowanceAmount) && $allowanceAmount)
+            <div class="info-row">
+                <div class="label">إجمالي بدل السفر:</div>
+                <div class="value">{{ number_format($allowanceAmount, 2) }} {{ $currency ?? '' }}</div>
+            </div>
+            @else
+            <div class="info-row">
+                <div class="label">إجمالي بدل السفر:</div>
+                <div class="value">غير محدد</div>
+            </div>
+            @endif
+
             @if($remarks)
             <div class="info-row">
                 <div class="label">ملاحظات:</div>
