@@ -75,6 +75,11 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
             $query->where('leave_type_id', $filters->leaveTypeId);
         }
 
+        // Exclude restricted leave types
+        if ($filters->excludedLeaveTypeIds !== null && !empty($filters->excludedLeaveTypeIds)) {
+            $query->whereNotIn('leave_type_id', $filters->excludedLeaveTypeIds);
+        }
+
         // فلتر تاريخ البداية
         if ($filters->fromDate !== null) {
             $query->where('from_date', '>=', $filters->fromDate);

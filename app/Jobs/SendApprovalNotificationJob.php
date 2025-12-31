@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\DTOs\Notification\ApprovalActionDTO;
 use App\DTOs\Notification\CreateNotificationDTO;
+use App\Enums\NumericalStatusEnum;
 use App\Repository\Interface\NotificationApprovalRepositoryInterface;
 use App\Repository\Interface\NotificationStatusRepositoryInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -35,7 +36,8 @@ class SendApprovalNotificationJob implements ShouldQueue
         public ?int $approverId,
         public ?int $approvalLevel,
         public ?int $submitterId,
-        public array $resolvedNotifiers
+        public array $resolvedNotifiers,
+        public ?string $additionalData = null
     ) {}
 
     /**
@@ -72,7 +74,8 @@ class SendApprovalNotificationJob implements ShouldQueue
                     $this->moduleOption,
                     $this->status,
                     $this->moduleKeyId,
-                    $this->resolvedNotifiers
+                    $this->resolvedNotifiers,
+                    $this->additionalData
                 );
 
                 $count = $statusRepository->createNotifications($dto);
@@ -99,10 +102,10 @@ class SendApprovalNotificationJob implements ShouldQueue
     private function convertStatusToInt(string $status): int
     {
         return match ($status) {
-            'pending' => 1,
-            'approved' => 2,
-            'rejected' => 3,
-            default => 1,
+            'pending' => NumericalStatusEnum::PENDING->value,
+            'approved' => NumericalStatusEnum::APPROVED->value,
+            'rejected' => NumericalStatusEnum::REJECTED->value,
+            default => NumericalStatusEnum::PENDING->value,
         };
     }
 }

@@ -20,6 +20,7 @@ use App\Enums\StringStatusEnum;
 use App\Enums\TravelModeEnum;
 use App\Enums\TravelStatusEnum;
 use App\Models\Travel;
+use Illuminate\Support\Facades\Auth;
 
 class TravelService
 {
@@ -34,8 +35,29 @@ class TravelService
 
     public function getTravelEnums(): array
     {
-        // get arrangement type of travel
-        $arrangementTypes = $this->travel->allArrangementTypeName();
+        $user = Auth::user();
+        if ($user) {
+            $companyId = $user->company_id;
+            if ($companyId === 0) {
+                $companyId = $this->permissionService->getEffectiveCompanyId($user);
+            }
+
+
+            $arrangementTypes = $this->travel->allArrangementTypeName($companyId);
+            Log::info('TravelService::getTravelEnums - arrangementTypes', [
+                'companyId' => $companyId,
+                'arrangementTypes' => $arrangementTypes,
+            ]);
+            $restrictedTypes = $this->permissionService->getRestrictedValues($user->user_id, $companyId, 'travel_type_');
+            Log::info('TravelService::getTravelEnums - restrictedTypes', [
+                'restrictedTypes' => $restrictedTypes,
+            ]);
+            if (!empty($restrictedTypes)) {
+                $arrangementTypes = array_filter($arrangementTypes, function ($key) use ($restrictedTypes) {
+                    return !in_array($key, $restrictedTypes);
+                }, ARRAY_FILTER_USE_KEY);
+            }
+        }
 
         return [
             'statuses' => TravelStatusEnum::toArray(),
@@ -63,6 +85,33 @@ class TravelService
                         'message' => 'ليس لديك صلاحية لإنشاء طلب سفر لهذا الموظف',
                     ]);
                     throw new \Exception('ليس لديك صلاحية لإنشاء طلب سفر لهذا الموظف');
+                }
+            }
+
+            $currentEmployee = User::find($dto->employee_id);
+            if ($currentEmployee) {
+                // Check for restricted travel types
+                // Check for restricted travel types
+                $restrictedTravelTypes = $this->permissionService->getRestrictedValues($dto->employee_id, $dto->company_id, 'travel_type_');
+
+                // Check if restriction override is possible (Company Owner or Superior)
+                // Use the user who is physically creating the request ($user) vs the target employee ($currentEmployee)
+                $canOverride = $this->permissionService->canOverrideRestriction(
+                    $user,
+                    $currentEmployee,
+                    'travel_type_',
+                    $dto->arrangement_type
+                );
+
+                if (!$canOverride && in_array($dto->arrangement_type, $restrictedTravelTypes)) {
+                    Log::warning('TravelService::createTravel - Restricted travel type', [
+                        'employee_id' => $dto->employee_id,
+                        'arrangement_type' => $dto->arrangement_type,
+                        'restricted_types' => $restrictedTravelTypes,
+                        'user_id' => $user->user_id,
+                        'message' => 'هذا النوع من السفر مقيد لهذا الموظف',
+                    ]);
+                    throw new \Exception('هذا النوع من السفر مقيد لهذا الموظف');
                 }
             }
 
@@ -184,6 +233,32 @@ class TravelService
                 throw new \Exception(' لا يمكن تحديث طلب سفر بعد رفضه');
             }
 
+            // Enforce restrictions on update
+            $targetEmployee = User::find($travel->employee_id);
+            $typeToCheck = $dto->arrangement_type ?? $travel->arrangement_type;
+
+            // Check if requester can override restrictions
+            $canOverride = false;
+            // Check override: Requester != Target AND canOverrideRestriction
+            if ($user->user_id !== $targetEmployee->user_id) {
+                if ($this->permissionService->canOverrideRestriction($user, $targetEmployee, 'travel_type_', (int)$typeToCheck)) {
+                    $canOverride = true;
+                }
+            }
+
+            if (!$canOverride) {
+                $restrictedTypes = $this->permissionService->getRestrictedValues($targetEmployee->user_id, $effectiveCompanyId, 'travel_type_');
+                if (in_array($typeToCheck, $restrictedTypes)) {
+                    Log::warning('TravelService::updateTravel - Restricted travel type update attempt', [
+                        'travel_id' => $id,
+                        'arrangement_type' => $typeToCheck,
+                        'user_id' => $user->user_id,
+                        'message' => 'نوع السفر في هذا الطلب مقيد، لا يمكن تعديل الطلب.'
+                    ]);
+                    throw new \Exception('نوع السفر في هذا الطلب مقيد، لا يمكن تعديل الطلب.');
+                }
+            }
+
             // Check for overlapping travel dates (if dates are being updated)
             $startDate = $dto->start_date ?? $travel->start_date;
             $endDate = $dto->end_date ?? $travel->end_date;
@@ -248,6 +323,32 @@ class TravelService
             }
 
             // 2. Permission Check
+
+            // Enforce restrictions on cancel
+            $targetEmployee = User::find($travel->employee_id);
+            $typeToCheck = $travel->arrangement_type;
+
+            // Check if requester can override restrictions
+            $canOverride = false;
+            if ($user->user_id !== $targetEmployee->user_id) {
+                if ($this->permissionService->canOverrideRestriction($user, $targetEmployee, 'travel_type_', (int)$typeToCheck)) {
+                    $canOverride = true;
+                }
+            }
+
+            if (!$canOverride && $user->user_type !== 'company') {
+                $restrictedTypes = $this->permissionService->getRestrictedValues($targetEmployee->user_id, $effectiveCompanyId, 'travel_type_');
+                if (in_array($typeToCheck, $restrictedTypes)) {
+                    Log::warning('TravelService::cancelTravel - Restricted travel type cancel attempt', [
+                        'travel_id' => $id,
+                        'arrangement_type' => $typeToCheck,
+                        'user_id' => $user->user_id,
+                        'message' => 'نوع السفر في هذا الطلب مقيد، لا يمكن إلغاء الطلب.'
+                    ]);
+                    throw new \Exception('نوع السفر في هذا الطلب مقيد، لا يمكن إلغاء الطلب.');
+                }
+            }
+
             $isOwner = $travel->employee_id === $user->user_id;
             $isCompany = $user->user_type === 'company';
 
@@ -349,14 +450,30 @@ class TravelService
 
             $travel = $this->travelRepository->approve($id, $user->user_id);
 
-            // Send approval notification
+            // Get employee's hierarchy level for policy lookup
+            $employee = User::find($travel->employee_id);
+            $employeeHierarchyLevel = $this->permissionService->getUserHierarchyLevel($employee);
+
+            // Get travel allowance from PolicyResult based on policy_id=1 (Travel) and hierarchy_level
+            $allowanceAmount = null;
+            $currency = null;
+            $policyResult = \App\Models\PolicyResult::where('policy_id', 1) // 1 = Travel
+                ->where('hierarchy_level', $employeeHierarchyLevel)
+                ->where('company_id', $effectiveCompanyId)
+                ->first();
+
+            if ($policyResult) {
+                $allowanceAmount = $policyResult->total_amount;
+                $currency = $policyResult->currency_local;
+            }
+
+
             $this->notificationService->sendApprovalNotification(
                 'travel_settings',
                 (string)$travel->travel_id,
                 $effectiveCompanyId,
                 StringStatusEnum::APPROVED->value,
                 $user->user_id,  // Approver ID
-                null,
                 $travel->employee_id // Submitter ID
             );
 
@@ -371,7 +488,9 @@ class TravelService
                         destination: $travel->visit_place,
                         startDate: $travel->start_date,
                         endDate: $travel->end_date,
-                        remarks: null
+                        remarks: null,
+                        allowanceAmount: $allowanceAmount,
+                        currency: $currency
                     ),
                     $employeeEmail
                 );
@@ -507,6 +626,9 @@ class TravelService
             }
 
             if ($canViewOthers && !empty($subordinateIds)) {
+                // Filter restricted types for the viewing user (manager)
+                $restrictedTypes = $this->permissionService->getRestrictedValues($user->user_id, $effectiveCompanyId, 'travel_type_');
+
                 // Manager: get requests for employees they can view (subordinates only)
                 $newFilters = new TravelRequestFilterDTO(
                     employeeId: null, // Don't filter by specific employee
@@ -524,6 +646,7 @@ class TravelService
                     page: $filters->page,
                     orderBy: $filters->orderBy,
                     order: $filters->order,
+                    excludedArrangementTypes: [], // Managers should see all types of requests from their subordinates even if they are personally restricted
                 );
 
                 return $this->travelRepository->getByCompany($effectiveCompanyId, $newFilters);
@@ -565,6 +688,27 @@ class TravelService
                     'message' => 'غير مسموح بعرض طلب سفر هذا الموظف',
                 ]);
                 throw new \Exception('غير مسموح بعرض طلب سفر هذا الموظف');
+            }
+        }
+
+        // Check operation restrictions
+        if ($user->user_type !== 'company') {
+            $restrictedTypes = $this->permissionService->getRestrictedValues(
+                $user->user_id,
+                $effectiveCompanyId,
+                'travel_type_'
+            );
+
+            $isOwner = $travel->employee_id === $user->user_id;
+            $canOverride = $this->permissionService->canOverrideRestriction($user, $travel->employee);
+
+            if (in_array($travel->arrangement_type, $restrictedTypes) && !$canOverride && !$isOwner) {
+                Log::warning('TravelService::getTravel - Operation restriction denied', [
+                    'travel_id' => $id,
+                    'arrangement_type' => $travel->arrangement_type,
+                    'restricted_types' => $restrictedTypes,
+                ]);
+                throw new \Exception('ليس لديك الصلاحية لعرض نوع السفر هذا');
             }
         }
 

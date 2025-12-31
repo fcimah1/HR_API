@@ -237,6 +237,21 @@ class LeaveTypeController extends Controller
 
             $leaveType = $this->leaveTypeService->getLeaveType($id);
 
+            if ($user->user_type !== 'company') {
+                $restrictedTypes = $this->permissionService->getRestrictedValues(
+                    $user->user_id,
+                    $this->permissionService->getEffectiveCompanyId($user),
+                    'leave_type_'
+                );
+
+                if (in_array($leaveType['leave_type_id'], $restrictedTypes)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'غير مصرح لك بعرض هذا النوع من الإجازة'
+                    ], 403);
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => $leaveType
@@ -284,6 +299,24 @@ class LeaveTypeController extends Controller
                     'success' => false,
                     'message' => 'غير مصرح لك بتعديل أنواع الإجازات'
                 ], 403);
+            }
+
+            // Check operation restrictions
+            if (!$this->permissionService->isCompanyOwner($user)) {
+                $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+                $restrictedTypes = $this->permissionService->getRestrictedValues(
+                    $user->user_id,
+                    $effectiveCompanyId,
+                    'leave_type_'
+                );
+
+                // Check if the ID we are updating is in restricted list
+                if (in_array($id, $restrictedTypes)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'غير مصرح لك بتعديل نوع الإجازة هذا (قيود العمليات)'
+                    ], 403);
+                }
             }
 
             // إضافة معرف نوع الإجازة إلى البيانات
@@ -339,6 +372,23 @@ class LeaveTypeController extends Controller
                     'success' => false,
                     'message' => 'غير مصرح لك بحذف أنواع الإجازات'
                 ], 403);
+            }
+
+            // Check operation restrictions
+            if (!$this->permissionService->isCompanyOwner($user)) {
+                $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+                $restrictedTypes = $this->permissionService->getRestrictedValues(
+                    $user->user_id,
+                    $effectiveCompanyId,
+                    'leave_type_'
+                );
+
+                if (in_array($id, $restrictedTypes)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'غير مصرح لك بحذف نوع الإجازة هذا (قيود العمليات)'
+                    ], 403);
+                }
             }
 
             $this->leaveTypeService->deleteLeaveType($id, $user);

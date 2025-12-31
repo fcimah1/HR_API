@@ -4,6 +4,7 @@ namespace App\Http\Requests\Travel;
 
 use App\Enums\TravelModeEnum;
 use App\Models\Travel;
+use App\Services\SimplePermissionService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
@@ -50,7 +51,7 @@ class CreateTravelRequest extends FormRequest
             'visit_place' => 'required|string|max:255',
             'travel_mode' => ['required', 'integer', Rule::in(TravelModeEnum::cases())],
             // 'arrangement_type' => 'required|integer|in:' . implode(',', Travel::getArrangementTypes()),
-            'arrangement_type' => ['required', 'integer', Rule::in(Travel::getArrangementTypes())],
+            'arrangement_type' => ['required', 'integer', Rule::in(Travel::getArrangementTypes(app(SimplePermissionService::class)->getEffectiveCompanyId(Auth::user())))],
             'description' => 'nullable|string',
             'associated_goals' => 'nullable|string',
             'remarks' => 'nullable|string',

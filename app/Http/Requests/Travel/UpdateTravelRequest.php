@@ -4,6 +4,7 @@ namespace App\Http\Requests\Travel;
 
 use App\Enums\TravelModeEnum;
 use App\Models\Travel;
+use App\Services\SimplePermissionService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
@@ -41,12 +42,12 @@ class UpdateTravelRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'start_date' => 'sometimes|required|date',
+            'start_date' => 'sometimes|required|date|before_or_equal:end_date',
             'end_date' => 'sometimes|required|date|after_or_equal:start_date',
             'visit_purpose' => 'sometimes|required|string|max:255',
             'visit_place' => 'sometimes|required|string|max:255',
             'travel_mode' => ['sometimes', 'required', 'integer', Rule::in(TravelModeEnum::cases())],
-            'arrangement_type' => ['sometimes', 'required', 'integer', Rule::in(Travel::getArrangementTypes())],
+            'arrangement_type' => ['sometimes', 'required', 'integer', Rule::in(Travel::getArrangementTypes(app(SimplePermissionService::class)->getEffectiveCompanyId(Auth::user())))],
             'description' => 'nullable|string',
             'associated_goals' => 'nullable|string',
         ];
@@ -58,6 +59,7 @@ class UpdateTravelRequest extends FormRequest
             'start_date.date' => 'تاريخ البداية يجب أن يكون تاريخًا صالحًا.',
             'end_date.date' => 'تاريخ النهاية يجب أن يكون تاريخًا صالحًا.',
             'end_date.after_or_equal' => 'تاريخ النهاية يجب أن يكون على أو بعد تاريخ البداية.',
+            'start_date.before_or_equal' => 'تاريخ البداية يجب أن يكون قبل أو يساوي تاريخ النهاية.',
             'visit_purpose.string' => 'غرض الزيارة يجب أن يكون سلسلة نصية.',
             'visit_purpose.max' => 'غرض الزيارة يجب أن يكون أقل من أو يساوي 255 حرفًا.',
             'visit_place.string' => 'مكان الزيارة يجب أن يكون سلسلة نصية.',

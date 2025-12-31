@@ -188,8 +188,8 @@ class CacheService
 
         return Cache::remember($cacheKey, self::TTL_DAY, function () use ($companyId, $year) {
             return Holiday::where('company_id', $companyId)
-                ->whereYear('event_start_date', $year)
-                ->orWhereYear('event_end_date', $year)
+                ->whereYear('start_date', $year)
+                ->orWhereYear('end_date', $year)
                 ->get();
         });
     }

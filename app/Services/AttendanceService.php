@@ -405,16 +405,28 @@ class AttendanceService
             $holidayWorkReason = null;
 
             // 1. التحقق من العطلات الرسمية - السماح بالتسجيل مع علامة
-            if ($this->holidayService->isHoliday($punchDate, $companyId)) {
-                $holiday = $this->holidayService->getHolidayForDate($punchDate, $companyId);
-                $isHolidayWork = true;
-                $holidayWorkReason = 'عطلة رسمية: ' . ($holiday['event_name'] ?? 'عطلة');
+            try {
+                if ($this->holidayService->isHoliday($punchDate, $companyId)) {
+                    $holiday = $this->holidayService->getHolidayForDate($punchDate, $companyId);
+                    $isHolidayWork = true;
+                    $holidayWorkReason = 'عطلة رسمية: ' . ($holiday['event_name'] ?? 'عطلة');
 
-                Log::info('Biometric punch on official holiday', [
+                    Log::info('Biometric punch on official holiday', [
+                        'user_id' => $userId,
+                        'punch_date' => $punchDate,
+                        'holiday' => $holiday['event_name'] ?? 'عطلة',
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Holiday check failed in biometric punch', [
                     'user_id' => $userId,
                     'punch_date' => $punchDate,
-                    'holiday' => $holiday['event_name'] ?? 'عطلة',
+                    'company_id' => $companyId,
+                    'error' => $e->getMessage(),
                 ]);
+                
+                // إيقاف العملية بالكامل عند فشل التحقق من العطلات
+                throw new \Exception('فشل التحقق من بيانات العطلات الرسمية. يرجى التواصل مع الدعم الفني.');
             }
 
             // 2. التحقق من الإجازات المعتمدة - السماح بالتسجيل مع علامة

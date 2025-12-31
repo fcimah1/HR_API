@@ -311,7 +311,8 @@ class LeaveAdjustmentController extends Controller
             $dto = CreateLeaveAdjustmentDTO::fromRequest(
                 $validated,
                 $effectiveCompanyId,
-                $validated['employee_id'] ?? $user->user_id
+                $validated['employee_id'] ?? $user->user_id,
+                $user->user_id // Pass creator ID
             );
 
             $adjustment = $this->leaveAdjustmentService->createAdjust($dto);

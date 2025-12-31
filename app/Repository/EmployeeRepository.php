@@ -270,9 +270,10 @@ class EmployeeRepository implements EmployeeRepositoryInterface
      * @param string|null $search Optional search term to filter users by name, email, or company name
      * @param int|null $employeeId Optional employee ID to filter by specific employee
      * @param int|null $departmentId Optional department ID to filter by same department
+     * @param int|null $excludeEmployeeId Optional employee ID to exclude (e.g. the target employee)
      * @return array
      */
-    public function getDutyEmployee(int $id, ?string $search = null, ?int $employeeId = null, ?int $departmentId = null): array
+    public function getDutyEmployee(int $id, ?string $search = null, ?int $employeeId = null, ?int $departmentId = null, ?int $excludeEmployeeId = null): array
     {
         $query = User::where('company_id', $id)
             ->where('is_active', 1)
@@ -281,6 +282,11 @@ class EmployeeRepository implements EmployeeRepositoryInterface
         // Filter by employee_id if provided
         if ($employeeId !== null) {
             $query->where('user_id', $employeeId);
+        }
+
+        // Exclude employee_id if provided
+        if ($excludeEmployeeId !== null) {
+            $query->where('user_id', '!=', $excludeEmployeeId);
         }
 
         // Filter by department_id if provided
@@ -323,6 +329,11 @@ class EmployeeRepository implements EmployeeRepositoryInterface
                     'first_name' => $user->first_name,
                     'last_name' => $user->last_name,
                     'company_name' => $user->company_name,
+                    'hierarchy_level' => $user->user_details->designation->hierarchy_level,
+                    'department_id' => $user->user_details->department_id,
+                    'department_name' => $user->user_details->department->name,
+                    'designation_id' => $user->user_details->designation_id,
+                    'designation_name' => $user->user_details->designation->name,
                 ];
             })
             ->toArray();

@@ -61,6 +61,13 @@ class LeaveAdjustmentService
             $filterData['company_id'] = $effectiveCompanyId;
         }
 
+        // Add restricted leave types filter
+        $companyIdForRestriction = $filterData['company_id'] ?? $user->company_id;
+        $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyIdForRestriction);
+        if (!empty($restrictedIds)) {
+            $filterData['excluded_leave_type_ids'] = $restrictedIds;
+        }
+
         // Create DTO from filter data
         $filters = LeaveAdjustmentFilterDTO::fromRequest($filterData);
 
@@ -82,26 +89,25 @@ class LeaveAdjustmentService
         // إنشاء filters جديد بناءً على صلاحيات المستخدم
         $filterData = $filters->toArray();
 
-        // إذا كان صاحب الشركة، يمكنه رؤية جميع طلبات شركته
-        if ($this->permissionService->isCompanyOwner($user)) {
+        // التحقق من نوع المستخدم (company أو staff فقط)
+        if ($user->user_type == 'company') {
+            // مدير الشركة: يرى جميع طلبات شركته
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
-        }
-        // إذا كان مدير/إداري (admin/hr/manager) في الشركة، يمكنه رؤية جميع طلبات الشركة
-        elseif (in_array(strtolower($user->user_type), ['admin', 'hr', 'manager'])) {
-            $filterData['company_id'] = $user->company_id;
-        }
-        // إذا كان موظف لديه صلاحية عرض جميع الطلبات
-        elseif ($this->permissionService->checkPermission($user, 'leave.view.all')) {
-            $filterData['company_id'] = $user->company_id;
-        }
-        // إذا كان موظف عادي، يرى طلباته الشخصية أو طلبات مرؤوسيه إذا كان مديراً
-        else {
-            // استخدام المنطق المشابه لـ LeaveService
-            $subordinateIds = $this->userRepository->getSubordinateEmployeeIds($user->user_id);
+        } else {
+            // موظف (staff): يرى طلباته + طلبات الموظفين التابعين له
+            $subordinateIds = $this->userRepository->getSubordinateEmployeeIds($user);
 
             if (!empty($subordinateIds)) {
                 // لديه موظفين تابعين: طلباته + طلبات التابعين
+
+                // Filter subordinates based on restrictions
+                $subordinateIds = array_filter($subordinateIds, function ($empId) use ($user) {
+                    $emp = User::find($empId);
+                    if (!$emp) return false;
+                    return $this->permissionService->canViewEmployeeRequests($user, $emp);
+                });
+
                 $subordinateIds[] = $user->user_id; // إضافة نفسه
                 $filterData['employee_ids'] = $subordinateIds;
                 $filterData['company_id'] = $user->company_id;
@@ -110,6 +116,16 @@ class LeaveAdjustmentService
                 $filterData['employee_id'] = $user->user_id;
                 $filterData['company_id'] = $user->company_id;
             }
+        }
+
+        // إضافة أنواع الإجازات المحظورة للمستخدم الحالي (للتصفية)
+        // Managers should see all types of requests from their subordinates even if they are personally restricted
+        $hasSubordinates = isset($subordinateIds) && !empty($subordinateIds);
+
+        $companyIdForRestriction = $filterData['company_id'] ?? $user->company_id;
+        $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyIdForRestriction);
+        if (!empty($restrictedIds) && !$hasSubordinates) {
+            $filterData['excluded_leave_type_ids'] = $restrictedIds;
         }
 
         $updatedFilters = LeaveAdjustmentFilterDTO::fromRequest($filterData);
@@ -122,6 +138,73 @@ class LeaveAdjustmentService
         ];
     }
     /**
+     * Get leave adjustment by ID
+     */
+    public function getAdjustmentById(int $id, ?int $companyId = null, ?int $userId = null, ?User $user = null): ?array
+    {
+        $user = $user ?? Auth::user();
+
+        if (is_null($companyId) && is_null($userId)) {
+            Log::info('LeaveAdjustmentService::getAdjustmentById - Invalid arguments', [
+                'message' => 'يجب توفير معرف الشركة أو معرف المستخدم'
+            ]);
+            throw new \InvalidArgumentException('يجب توفير معرف الشركة أو معرف المستخدم');
+        }
+
+        if ($companyId !== null) {
+            $adjustment = $this->leaveAdjustmentRepository->findAdjustmentInCompany($id, $companyId);
+
+            if ($user && $user->user_type !== 'company' && $adjustment) {
+                // Allow users to view their own requests
+                if ($adjustment->employee_id === $user->user_id) {
+                    return $adjustment->toArray();
+                }
+
+                $employee = User::find($adjustment->employee_id);
+                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                    Log::warning('LeaveAdjustmentService::getAdjustmentById - Hierarchy permission denied', [
+                        'adjustment_id' => $id,
+                        'requester_id' => $user->user_id,
+                        'requester_type' => $user->user_type,
+                        'employee_id' => $adjustment->employee_id,
+                        'message' => 'تم رفض طلب الإجازة بسبب قيود الصلاحيات'
+                    ]);
+                    return null;
+                }
+
+                // Check operation restrictions
+                $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+                $restrictedTypes = $this->permissionService->getRestrictedValues(
+                    $user->user_id,
+                    $effectiveCompanyId,
+                    'leave_type_'
+                );
+
+                if (in_array($adjustment->leave_type_id, $restrictedTypes) && !$this->permissionService->canOverrideRestriction($user, $employee)) {
+                    Log::warning('LeaveAdjustmentService::getAdjustmentById - Operation restriction denied', [
+                        'adjustment_id' => $id,
+                        'leave_type_id' => $adjustment->leave_type_id,
+                        'restricted_types' => $restrictedTypes,
+                        'message' => 'تم رفض طلب الإجازة بسبب قيود الصلاحيات'
+                    ]);
+                    return null;
+                }
+            }
+            return $adjustment ? $adjustment->toArray() : null;
+        }
+
+        if ($userId !== null) {
+            $adjustment = $this->leaveAdjustmentRepository->findAdjustmentForEmployee($id, $userId);
+            if ($adjustment) {
+
+                return $adjustment->toArray();
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Create leave adjustment
      */
     public function createAdjust(CreateLeaveAdjustmentDTO $data): array
@@ -130,13 +213,24 @@ class LeaveAdjustmentService
 
             // التحقق من قيود نوع الإجازة
             $user = User::find($data->employeeId);
+
+            // Check if requester can override restrictions
+            $canOverride = false;
+            if ($data->createdBy) {
+                $requester = User::find($data->createdBy);
+                if ($requester && $user && $this->permissionService->canOverrideRestriction($requester, $user, 'leave_type_', (int)$data->leaveTypeId)) {
+                    $canOverride = true;
+                }
+            }
+
             if ($user) {
                 $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $data->companyId);
-                if (in_array($data->leaveTypeId, $restrictedIds)) {
+                if (!$canOverride && in_array($data->leaveTypeId, $restrictedIds)) {
                     Log::warning('LeaveAdjustmentService::createAdjust - Restricted leave type selected', [
                         'employee_id' => $data->employeeId,
                         'leave_type_id' => $data->leaveTypeId,
-                        'company_id' => $data->companyId
+                        'company_id' => $data->companyId,
+                        'message' => 'نوع الإجازة المختار غير متاح لهذا الموظف'
                     ]);
                     throw new \Exception('نوع الإجازة المختار غير متاح لهذا الموظف');
                 }
@@ -156,7 +250,7 @@ class LeaveAdjustmentService
                     Log::info('LeaveAdjustmentService::createAdjustment - Not enough balance', [
                         'employee_id' => $data->employeeId,
                         'leave_type_id' => $data->leaveTypeId,
-                        'message' => 'Not enough balance',
+                        'message' => 'الرصيد المتاح (' . $availableBalance . ' ساعة) غير كافٍ لتسوية ' . $hoursToDeduct . ' ساعة.',
                         'adjust_hours' => $data->adjustHours,
                         'available_balance' => $availableBalance,
                         'hours_to_deduct' => $hoursToDeduct
@@ -209,7 +303,7 @@ class LeaveAdjustmentService
             if (!$adjustment) {
                 Log::info('LeaveAdjustmentService::approveAdjustment - Adjustment not found', [
                     'id' => $id,
-                    'message' => 'Adjustment not found',
+                    'message' => 'تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة',
                     'company_id' => $companyId
                 ]);
                 throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
@@ -218,7 +312,7 @@ class LeaveAdjustmentService
             if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
                 Log::info('LeaveAdjustmentService::approveAdjustment - Adjustment not pending', [
                     'id' => $id,
-                    'message' => 'Adjustment not pending',
+                    'message' => 'لا يمكن الموافقة على هذا الطلب لأنه تم معالجته مسبقاً',
                     'company_id' => $companyId,
                     'status' => $adjustment->status
                 ]);
@@ -233,7 +327,7 @@ class LeaveAdjustmentService
                     Log::warning('LeaveAdjustmentService::approveAdjustment - Hierarchy permission denied', [
                         'adjustment_id' => $id,
                         'approver_id' => $approvedBy,
-                        'message' => 'Hierarchy permission denied',
+                        'message' => 'ليس لديك صلاحية للموافقة على طلب هذا الموظف',
                         'employee_id' => $adjustment->employee_id
                     ]);
                     throw new \Exception('ليس لديك صلاحية للموافقة على طلب هذا الموظف');
@@ -284,7 +378,7 @@ class LeaveAdjustmentService
             if (!$adjustment) {
                 Log::info('LeaveAdjustmentService::rejectAdjustment - Adjustment not found', [
                     'adjustment_id' => $id,
-                    'message' => 'Adjustment not found',
+                    'message' => 'تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة',
                     'company_id' => $companyId
                 ]);
                 throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
@@ -293,7 +387,7 @@ class LeaveAdjustmentService
             if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
                 Log::info('LeaveAdjustmentService::rejectAdjustment - Adjustment not pending', [
                     'adjustment_id' => $id,
-                    'message' => 'Adjustment not pending',
+                    'message' => 'لا يمكن رفض هذا الطلب لأنه تم معالجته مسبقاً',
                     'company_id' => $companyId,
                     'status' => $adjustment->status
                 ]);
@@ -308,7 +402,7 @@ class LeaveAdjustmentService
                     Log::warning('LeaveAdjustmentService::rejectAdjustment - Hierarchy permission denied', [
                         'adjustment_id' => $id,
                         'rejector_id' => $rejectedBy,
-                        'message' => 'Hierarchy permission denied',
+                        'message' => 'ليس لديك صلاحية لرفض طلب هذا الموظف',
                         'employee_id' => $adjustment->employee_id
                     ]);
                     throw new \Exception('ليس لديك صلاحية لرفض طلب هذا الموظف');
@@ -363,7 +457,7 @@ class LeaveAdjustmentService
             if (!$adjustment) {
                 Log::info('LeaveAdjustmentService::updateAdjustment - Adjustment not found', [
                     'adjustment_id' => $id,
-                    'message' => 'Adjustment not found',
+                    'message' => 'التسوية غير موجودة',
                     'company_id' => $effectiveCompanyId
                 ]);
                 throw new \Exception('التسوية غير موجودة');
@@ -390,7 +484,7 @@ class LeaveAdjustmentService
                     Log::info('LeaveAdjustmentService::updateAdjustment - Unauthorized update attempt', [
                         'user_id' => $user->user_id,
                         'adjustment_id' => $id,
-                        'message' => 'Unauthorized update attempt'
+                        'message' => 'ليس لديك صلاحية لتعديل هذا الطلب'
                     ]);
                     throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
                 }
@@ -399,11 +493,37 @@ class LeaveAdjustmentService
             if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
                 Log::info('LeaveAdjustmentService::updateAdjustment - Adjustment not pending', [
                     'adjustment_id' => $id,
-                    'message' => 'Adjustment not pending',
+                    'message' => 'لا يمكن تعديل التسوية بعد المراجعة',
                     'company_id' => $effectiveCompanyId,
                     'status' => $adjustment->status
                 ]);
                 throw new \Exception('لا يمكن تعديل التسوية بعد المراجعة');
+            }
+
+            // Enforce restrictions on update
+            $targetEmployee = User::find($adjustment->employee_id);
+            $leaveTypeIdToCheck = $dto->leaveTypeId ?? $adjustment->leave_type_id;
+
+            // Check if requester can override restrictions
+            $canOverride = false;
+            // Check override: Requester != Target AND canOverrideRestriction
+            if ($user->user_id !== $targetEmployee->user_id) {
+                if ($this->permissionService->canOverrideRestriction($user, $targetEmployee, 'leave_type_', (int)$leaveTypeIdToCheck)) {
+                    $canOverride = true;
+                }
+            }
+
+            if (!$canOverride) {
+                $restrictedIds = $this->getRestrictedLeaveTypeIds($targetEmployee, $effectiveCompanyId);
+                if (in_array((int)$leaveTypeIdToCheck, $restrictedIds)) {
+                    Log::warning('LeaveAdjustmentService::updateAdjustment - Restricted leave type update attempt', [
+                        'adjustment_id' => $id,
+                        'leave_type_id' => $leaveTypeIdToCheck,
+                        'user_id' => $user->user_id,
+                        'message' => 'نوع الإجازة المختار غير متاح لهذا الموظف'
+                    ]);
+                    throw new \Exception('نوع الإجازة المختار غير متاح لهذا الموظف');
+                }
             }
 
             $updatedAdjustment = $this->leaveAdjustmentRepository->updateAdjustment($adjustment, $dto);
@@ -442,7 +562,7 @@ class LeaveAdjustmentService
             if (!$adjustment) {
                 Log::info('LeaveAdjustmentService::cancelAdjustment - Adjustment not found', [
                     'adjustment_id' => $id,
-                    'message' => 'Adjustment not found',
+                    'message' => 'التسوية غير موجودة أو لا تنتمي لهذه الشركة',
                     'company_id' => $effectiveCompanyId
                 ]);
                 throw new \Exception('التسوية غير موجودة أو لا تنتمي لهذه الشركة');
@@ -452,7 +572,7 @@ class LeaveAdjustmentService
             if ($adjustment->status !== LeaveAdjustment::STATUS_PENDING) {
                 Log::info('LeaveAdjustmentService::cancelAdjustment - Adjustment not pending', [
                     'adjustment_id' => $id,
-                    'message' => 'Adjustment not pending',
+                    'message' => 'لا يمكن إلغاء الطلب بعد المراجعة (موافق عليه أو مرفوض)',
                     'company_id' => $effectiveCompanyId,
                     'status' => $adjustment->status
                 ]);
@@ -460,6 +580,31 @@ class LeaveAdjustmentService
             }
 
             // 2. Permission Check
+
+            // Enforce restrictions on cancel
+            $targetEmployee = User::find($adjustment->employee_id);
+
+            // Check if requester can override restrictions
+            $canOverride = false;
+            if ($user->user_id !== $targetEmployee->user_id) {
+                if ($this->permissionService->canOverrideRestriction($user, $targetEmployee, 'leave_type_', (int)$adjustment->leave_type_id)) {
+                    $canOverride = true;
+                }
+            }
+
+            if (!$canOverride && $user->user_type !== 'company') {
+                $restrictedIds = $this->getRestrictedLeaveTypeIds($targetEmployee, $effectiveCompanyId);
+                if (in_array($adjustment->leave_type_id, $restrictedIds)) {
+                    Log::warning('LeaveAdjustmentService::cancelAdjustment - Restricted leave type cancel attempt', [
+                        'adjustment_id' => $id,
+                        'leave_type_id' => $adjustment->leave_type_id,
+                        'user_id' => $user->user_id,
+                        'message' => 'نوع الإجازة في هذا الطلب مقيد، لا يمكن إلغاء الطلب.'
+                    ]);
+                    throw new \Exception('نوع الإجازة في هذا الطلب مقيد، لا يمكن إلغاء الطلب.');
+                }
+            }
+
             $isOwner = $adjustment->employee_id === $user->user_id;
             $isCompany = $user->user_type === 'company';
 
@@ -476,7 +621,7 @@ class LeaveAdjustmentService
                 Log::info('LeaveAdjustmentService::cancelAdjustment - Unauthorized cancellation attempt', [
                     'user_id' => $user->user_id,
                     'adjustment_id' => $id,
-                    'message' => 'Unauthorized cancellation attempt'
+                    'message' => 'ليس لديك صلاحية لإلغاء هذا الطلب'
                 ]);
                 throw new \Exception('ليس لديك صلاحية لإلغاء هذا الطلب');
             }
@@ -541,7 +686,7 @@ class LeaveAdjustmentService
         if (!$adjustment) {
             Log::info('LeaveAdjustmentService::showLeaveAdjustment - Adjustment not found', [
                 'adjustment_id' => $id,
-                'message' => 'Adjustment not found',
+                'message' => 'تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة',
                 'company_id' => $effectiveCompanyId
             ]);
             throw new \Exception('تسوية الإجازة غير موجودة أو لا تنتمي إلى هذه الشركة');
@@ -560,7 +705,7 @@ class LeaveAdjustmentService
                         Log::info('LeaveAdjustmentService::showLeaveAdjustment - Unauthorized view attempt', [
                             'user_id' => $user->user_id,
                             'adjustment_id' => $id,
-                            'message' => 'Unauthorized view attempt'
+                            'message' => 'ليس لديك صلاحية لعرض تفاصيل هذه التسوية'
                         ]);
                         throw new \Exception('ليس لديك صلاحية لعرض تفاصيل هذه التسوية');
                     }
@@ -613,21 +758,10 @@ class LeaveAdjustmentService
      */
     protected function getRestrictedLeaveTypeIds(User $user, int $companyId): array
     {
-        $restrictedIds = [];
-        if ($user->user_type !== 'company') {
-            $restriction = \App\Models\OperationRestriction::where('user_id', $user->user_id)
-                ->where('company_id', $companyId)
-                ->first();
-
-            if ($restriction) {
-                $restrictedOperations = $restriction->restricted_operations;
-                foreach ($restrictedOperations as $operation) {
-                    if (preg_match('/^leave_type_(\d+)$/', $operation, $matches)) {
-                        $restrictedIds[] = (int) $matches[1];
-                    }
-                }
-            }
-        }
-        return $restrictedIds;
+        return $this->permissionService->getRestrictedValues(
+            $user->user_id,
+            $companyId,
+            'leave_type_'
+        );
     }
 }

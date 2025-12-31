@@ -7,6 +7,7 @@ use App\DTOs\Employee\CreateEmployeeDTO;
 use App\DTOs\Employee\UpdateEmployeeDTO;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Employee\CreateEmployeeRequest;
+use App\Http\Requests\Employee\GetBackupEmployeesRequest;
 use App\Http\Requests\Employee\UpdateEmployeeRequest;
 use App\Models\User;
 use App\Services\EmployeeService;
@@ -14,6 +15,7 @@ use App\Services\SimplePermissionService;
 use Carbon\Exceptions\Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class EmployeeController extends Controller
@@ -129,6 +131,73 @@ class EmployeeController extends Controller
         }
     }
 
+
+    /**
+     * @OA\Get(
+     *     path="/api/employees/duty-employees",
+     *     summary="Get duty employees based on target employee's department",
+     *     description="Returns employees in the same department as the target employee, regardless of hierarchy.",
+     *     tags={"Employee Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="target_employee_id",
+     *         in="query",
+     *         required=false,
+     *         description="ID of the employee who needs a duty",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         required=false,
+     *         description="Search by name, email, etc.",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
+     *         name="employee_id",
+     *         in="query",
+     *         required=false,
+     *         description="Filter by specific employee ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Duty employees retrieved successfully"
+     *     )
+     * )
+     */
+
+    public function getDutyEmployeesForEmployee(GetBackupEmployeesRequest $request)
+    {
+        try {
+            $user = Auth::user();
+            $targetEmployeeId = $request->input('target_employee_id');
+            $search = $request->input('search');
+            $employeeId = $request->input('employee_id');
+
+            $dutyEmployees = $this->employeeService->getBackupEmployees($user, $targetEmployeeId, $search, $employeeId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم جلب الموظفين المناوبين بنجاح',
+                'data' => $dutyEmployees
+            ]);
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getDutyEmployeesForEmployee failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            $statusCode = $e->getCode() === 403 ? 403 : 500;
+            if ($e->getMessage() === 'الموظف غير موجود') $statusCode = 404;
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
     // get employees for notify (employees who can receive notifications)
     /**
      * @OA\Get(
@@ -214,6 +283,60 @@ class EmployeeController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'فشل في الحصول على الموظفين: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/employees/subordinates",
+     *     summary="Get subordinates based on hierarchy and restrictions",
+     *     description="Get list of employees that the current user can manage/view based on hierarchy level and operation restrictions",
+     *     tags={"Employee Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Subordinates retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب الموظفين التابعين بنجاح"),
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object"))
+     *         )
+     *     )
+     * )
+     */
+    public function getSubordinates(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // Get subordinates using the centralized permission logic
+            $subordinates = $this->permissionService->getEmployeesByHierarchy(
+                $user->user_id,
+                $effectiveCompanyId,
+                true // Include self
+            );
+
+            // Accessing properties safely since getEmployeesByHierarchy might return objects or arrays
+            // But based on implementation it returns array of objects/arrays.
+            // Let's format specifically if needed, but the service returns a good structure.
+            // We might just return directly.
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم جلب الموظفين التابعين بنجاح',
+                'data' => $subordinates
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getSubordinates failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب الموظفين',
+                'error' => $e->getMessage()
             ], 500);
         }
     }

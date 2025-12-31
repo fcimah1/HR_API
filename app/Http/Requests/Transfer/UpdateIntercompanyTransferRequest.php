@@ -14,6 +14,43 @@ class UpdateIntercompanyTransferRequest extends FormRequest
         return Auth::check();
     }
 
+    protected function prepareForValidation()
+    {
+        $transferId = $this->route('id');
+        $transfer = \App\Models\Transfer::find($transferId);
+
+        if (!$transfer) {
+            throw new HttpResponseException(response()->json([
+                'success' => false,
+                'message' => 'الطلب غير موجود',
+                'errors' => []
+            ], 404));
+        }
+
+        // Check company ownership
+        $user = Auth::user();
+        $permissionService = app(\App\Services\SimplePermissionService::class);
+        $effectiveCompanyId = $permissionService->getEffectiveCompanyId($user);
+
+        if ($transfer->company_id !== $effectiveCompanyId) {
+            throw new HttpResponseException(response()->json([
+                'success' => false,
+                'message' => 'الطلب غير موجود',
+                'errors' => []
+            ], 404));
+        }
+
+        if ($transfer->transfer_type !== \App\Enums\TransferTypeEnum::INTERCOMPANY->value) {
+            throw new HttpResponseException(response()->json([
+                'success' => false,
+                'message' => 'فشل التحقق من البيانات',
+                'errors' => [
+                    'transfer_id' => ["لا يمكنك تعديل طلب من نوع ({$transfer->transfer_type_text}) عبر هذا المسار."]
+                ]
+            ], 422));
+        }
+    }
+
     public function rules(): array
     {
         return [

@@ -3411,6 +3411,55 @@
                 ]
             }
         },
+        "/api/employees/duty-employees": {
+            "get": {
+                "tags": [
+                    "Employee Management"
+                ],
+                "summary": "Get duty employees based on target employee's department",
+                "description": "Returns employees in the same department as the target employee, regardless of hierarchy.",
+                "operationId": "11bfe04c8942a5a3cf318ba868b12b96",
+                "parameters": [
+                    {
+                        "name": "target_employee_id",
+                        "in": "query",
+                        "description": "ID of the employee who needs a duty",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by name, email, etc.",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Filter by specific employee ID",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Duty employees retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/employees/employees-for-notify": {
             "get": {
                 "tags": [
@@ -3511,6 +3560,49 @@
                                         "message": {
                                             "type": "string",
                                             "example": "فشل في الحصول على الموظفين"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/subordinates": {
+            "get": {
+                "tags": [
+                    "Employee Management"
+                ],
+                "summary": "Get subordinates based on hierarchy and restrictions",
+                "description": "Get list of employees that the current user can manage/view based on hierarchy level and operation restrictions",
+                "operationId": "707ec73e6bdef5977780391820a0aac5",
+                "responses": {
+                    "200": {
+                        "description": "Subordinates retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الموظفين التابعين بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
                                         }
                                     },
                                     "type": "object"
@@ -12953,9 +13045,7 @@
                                     "transfer_date",
                                     "reason",
                                     "transfer_department",
-                                    "transfer_designation",
-                                    "new_salary",
-                                    "new_currency"
+                                    "transfer_designation"
                                 ],
                                 "properties": {
                                     "employee_id": {
@@ -12983,16 +13073,6 @@
                                         "description": "New Designation ID",
                                         "type": "integer",
                                         "example": 5
-                                    },
-                                    "new_salary": {
-                                        "description": "New Salary",
-                                        "type": "number",
-                                        "example": 5000
-                                    },
-                                    "new_currency": {
-                                        "description": "New Currency ID",
-                                        "type": "integer",
-                                        "example": 1
                                     },
                                     "notify_send_to": {
                                         "description": "User ID to notify (optional)",
@@ -13132,16 +13212,6 @@
                                         "type": "integer",
                                         "example": 3
                                     },
-                                    "new_currency": {
-                                        "description": "New Currency ID",
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "new_salary": {
-                                        "description": "New Salary",
-                                        "type": "number",
-                                        "example": 5000
-                                    },
                                     "notify_send_to": {
                                         "description": "User ID to notify (optional)",
                                         "type": "array",
@@ -13256,9 +13326,7 @@
                                     "employee_id",
                                     "transfer_date",
                                     "reason",
-                                    "new_company_id",
-                                    "new_salary",
-                                    "new_currency"
+                                    "new_company_id"
                                 ],
                                 "properties": {
                                     "employee_id": {
@@ -13281,16 +13349,6 @@
                                         "description": "New Company ID",
                                         "type": "integer",
                                         "example": 2
-                                    },
-                                    "new_salary": {
-                                        "description": "New Salary",
-                                        "type": "number",
-                                        "example": 6000
-                                    },
-                                    "new_currency": {
-                                        "description": "New Currency ID",
-                                        "type": "integer",
-                                        "example": 1
                                     },
                                     "notify_send_to": {
                                         "description": "User ID to notify (optional)",
@@ -13440,16 +13498,6 @@
                                         "type": "integer",
                                         "example": 5
                                     },
-                                    "new_salary": {
-                                        "description": "New Salary",
-                                        "type": "number",
-                                        "example": 5000
-                                    },
-                                    "new_currency": {
-                                        "description": "New Currency ID",
-                                        "type": "integer",
-                                        "example": 1
-                                    },
                                     "notify_send_to": {
                                         "description": "User IDs to notify",
                                         "type": "array",
@@ -13569,16 +13617,6 @@
                                             55,
                                             703
                                         ]
-                                    },
-                                    "new_salary": {
-                                        "description": "New Salary",
-                                        "type": "number",
-                                        "example": 5000
-                                    },
-                                    "new_currency": {
-                                        "description": "New Currency ID",
-                                        "type": "integer",
-                                        "example": 1
                                     }
                                 },
                                 "type": "object"
@@ -13677,16 +13715,6 @@
                                         "description": "New Company ID",
                                         "type": "integer",
                                         "example": 2
-                                    },
-                                    "new_salary": {
-                                        "description": "New Salary",
-                                        "type": "number",
-                                        "example": 6000
-                                    },
-                                    "new_currency": {
-                                        "description": "New Currency ID",
-                                        "type": "integer",
-                                        "example": 1
                                     },
                                     "notify_send_to": {
                                         "description": "User IDs to notify",

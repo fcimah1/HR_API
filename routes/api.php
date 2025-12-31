@@ -14,7 +14,6 @@ use App\Http\Controllers\Api\SuggestionController;
 use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\ResignationController;
 use App\Http\Controllers\Api\TransferController;
-use App\Http\Controllers\Api\EnumController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -56,8 +55,14 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     // Employees for duty employee - no permissions required (must come before /employees/{id})
     Route::get('/employees/employees-for-duty-employee', [EmployeeController::class, 'getEmployeesForDutyEmployee']);
 
+    // Backup employees based on target employee department
+    Route::get('/employees/duty-employees', [EmployeeController::class, 'getDutyEmployeesForEmployee']);
+
     // Employees for notify - returns employees who can receive notifications
     Route::get('/employees/employees-for-notify', [EmployeeController::class, 'getEmployeesForNotify']);
+
+    // Employees subordinates - returns employees based on hierarchy and restrictions
+    Route::get('/employees/subordinates', [EmployeeController::class, 'getSubordinates']);
 
     Route::get('/employees/{id}', [EmployeeController::class, 'show']);
 
@@ -263,7 +268,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('/statuses', [TransferController::class, 'getStatuses'])->middleware('simple.permission:transfers1');
         Route::get('/available-companies', [TransferController::class, 'getCompaniesWithBranches'])->middleware('simple.permission:transfers1');
         Route::get('/branches', [TransferController::class, 'getBranches'])->middleware('simple.permission:transfers1');
-        Route::get('/employees', [TransferController::class, 'getTransferableEmployees'])->middleware('simple.permission:transfers1');
+        // Route::get('/employees', [TransferController::class, 'getTransferableEmployees'])->middleware('simple.permission:transfers1');
 
         // Create routes
         Route::post('/internal', [TransferController::class, 'storeInternal'])->middleware('simple.permission:transfers2');

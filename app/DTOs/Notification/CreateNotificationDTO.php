@@ -18,7 +18,7 @@ class CreateNotificationDTO
         string $moduleOption,
         string $moduleStatus,
         string $moduleKeyId,
-        array $staffIds
+        array $staffIds,
     ): self {
         return new self(
             moduleOption: $moduleOption,

@@ -20,6 +20,7 @@ class TravelRequestFilterDTO
         public readonly int $page = 1,
         public readonly string $orderBy = 'created_at',
         public readonly string $order = 'desc',
+        public readonly ?array $excludedArrangementTypes = null,
     ) {}
 
     /**
@@ -43,6 +44,7 @@ class TravelRequestFilterDTO
             page: isset($params['page']) ? (int) $params['page'] : 1,
             orderBy: $params['order_by'] ?? 'created_at',
             order: $params['order'] ?? 'desc',
+            excludedArrangementTypes: $params['excluded_arrangement_types'] ?? null,
         );
     }
 

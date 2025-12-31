@@ -7,6 +7,7 @@ use App\DTOs\Holiday\CreateHolidayDTO;
 use App\DTOs\Holiday\UpdateHolidayDTO;
 use App\DTOs\Holiday\HolidayResponseDTO;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class HolidayService
 {
@@ -93,19 +94,30 @@ class HolidayService
      */
     public function isHoliday(string $date, int $companyId): bool
     {
-        $year = (int)date('Y', strtotime($date));
-        $holidays = $this->cacheService->getHolidays($companyId, $year);
+        try {
+            $year = (int)date('Y', strtotime($date));
+            $holidays = $this->cacheService->getHolidays($companyId, $year);
 
-        foreach ($holidays as $holiday) {
-            $startDate = $holiday->event_start_date ?? ($holiday['event_start_date'] ?? null);
-            $endDate = $holiday->event_end_date ?? ($holiday['event_end_date'] ?? null);
+            foreach ($holidays as $holiday) {
+                $startDate = $holiday->start_date ?? ($holiday['start_date'] ?? null);
+                $endDate = $holiday->end_date ?? ($holiday['end_date'] ?? null);
 
-            if ($startDate && $endDate && $date >= $startDate && $date <= $endDate) {
-                return true;
+                if ($startDate && $endDate && $date >= $startDate && $date <= $endDate) {
+                    return true;
+                }
             }
-        }
 
-        return false;
+            return false;
+        } catch (\Exception $e) {
+            Log::error('HolidayService::isHoliday - Database error', [
+                'company_id' => $companyId,
+                'date' => $date,
+                'error' => $e->getMessage(),
+            ]);
+            
+            // في حالة خطأ في قاعدة البيانات، نرجع false لتجنب إيقاف العملية
+            return false;
+        }
     }
 
     /**
@@ -113,24 +125,34 @@ class HolidayService
      */
     public function getHolidayForDate(string $date, int $companyId): ?array
     {
-        $year = (int)date('Y', strtotime($date));
-        $holidays = $this->cacheService->getHolidays($companyId, $year);
+        try {
+            $year = (int)date('Y', strtotime($date));
+            $holidays = $this->cacheService->getHolidays($companyId, $year);
 
-        foreach ($holidays as $holiday) {
-            $startDate = $holiday->event_start_date ?? ($holiday['event_start_date'] ?? null);
-            $endDate = $holiday->event_end_date ?? ($holiday['event_end_date'] ?? null);
+            foreach ($holidays as $holiday) {
+                $startDate = $holiday->start_date ?? ($holiday['start_date'] ?? null);
+                $endDate = $holiday->end_date ?? ($holiday['end_date'] ?? null);
 
-            if ($startDate && $endDate && $date >= $startDate && $date <= $endDate) {
-                return [
-                    'event_id' => $holiday->event_id ?? ($holiday['event_id'] ?? null),
-                    'event_name' => $holiday->event_name ?? ($holiday['event_name'] ?? null),
-                    'event_start_date' => $startDate,
-                    'event_end_date' => $endDate,
-                ];
+                if ($startDate && $endDate && $date >= $startDate && $date <= $endDate) {
+                    return [
+                        'event_id' => $holiday->event_id ?? ($holiday['event_id'] ?? null),
+                        'event_name' => $holiday->event_name ?? ($holiday['event_name'] ?? null),
+                        'event_start_date' => $startDate,
+                        'event_end_date' => $endDate,
+                    ];
+                }
             }
-        }
 
-        return null;
+            return null;
+        } catch (\Exception $e) {
+            Log::error('HolidayService::getHolidayForDate - Database error', [
+                'company_id' => $companyId,
+                'date' => $date,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return null;
+        }
     }
 
     /**
