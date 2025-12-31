@@ -561,11 +561,12 @@ class TransferController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
+     *             required={"employee_id", "transfer_date", "reason", "new_branch_id"},
      *             @OA\Property(property="employee_id", type="integer", example=1, description="Employee ID"),
      *             @OA\Property(property="transfer_date", type="string", format="date", example="2024-01-01", description="Transfer Date"),
      *             @OA\Property(property="reason", type="string", example="Reason", description="Reason"),
      *             @OA\Property(property="new_branch_id", type="integer", example=3, description="New Branch ID"),
-     *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User IDs to notify")
+     *             @OA\Property(property="notify_send_to", type="array", @OA\Items(type="integer"), example={55,703}, description="User IDs to notify (optional)")
      *         )
      *     ),
      *     @OA\Response(

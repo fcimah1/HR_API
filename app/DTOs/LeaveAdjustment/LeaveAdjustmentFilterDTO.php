@@ -24,15 +24,16 @@ class LeaveAdjustmentFilterDTO
     {
         // Handle status conversion properly
         $status = null;
-        if (array_key_exists('status', $data) && $data['status'] !== null) {
-            if ($data['status'] === 'approved' || $data['status'] === 1) {
+        if (array_key_exists('status', $data) && $data['status'] !== null && $data['status'] !== '') {
+            // Convert numeric strings to integers for proper comparison
+            $inputStatus = is_numeric($data['status']) ? (int)$data['status'] : $data['status'];
+
+            if ($inputStatus === 'approved' || $inputStatus === 1) {
                 $status = 1;
-            } else if ($data['status'] === 'rejected' || $data['status'] === 2) {
+            } else if ($inputStatus === 'rejected' || $inputStatus === 2) {
                 $status = 2;
-            } else if ($data['status'] === 'pending' || $data['status'] === 0) {
+            } else if ($inputStatus === 'pending' || $inputStatus === 0) {
                 $status = 0;
-            } else {
-                $status = null;
             }
         }
 

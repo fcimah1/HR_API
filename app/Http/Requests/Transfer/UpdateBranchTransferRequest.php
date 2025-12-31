@@ -29,7 +29,6 @@ class UpdateBranchTransferRequest extends FormRequest
 
             // النقل بين الفروع
             'new_branch_id' => 'required|integer|exists:ci_branchs,branch_id',
-            'new_designation_id' => 'required|integer|exists:ci_designations,designation_id',
         ];
     }
 
