@@ -108,6 +108,15 @@ class CustodyClearance extends Model
     }
 
     /**
+     * Get the approvals for this clearance.
+     */
+    public function approvals()
+    {
+        return $this->hasMany(StaffApproval::class, 'module_key_id', 'clearance_id')
+            ->where('module_option', 'custody_clearance');
+    }
+
+    /**
      * Scope for pending clearances.
      */
     public function scopePending($query)

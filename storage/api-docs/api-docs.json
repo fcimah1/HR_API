@@ -3279,6 +3279,605 @@
                 ]
             }
         },
+        "/api/assets": {
+            "get": {
+                "tags": [
+                    "Assets & Custody Clearance"
+                ],
+                "summary": "عرض الأصول",
+                "operationId": "8617eaf511f6e254bd595806326d951a",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "معرف الموظف",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "حالة الأصل",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "working",
+                                "damaged",
+                                "disposed"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب العهد بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب العهد بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "assets_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "لابتوب Dell"
+                                                    },
+                                                    "serial_number": {
+                                                        "type": "string",
+                                                        "example": "SN123456"
+                                                    },
+                                                    "company_asset_code": {
+                                                        "type": "string",
+                                                        "example": "AST-001"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "working"
+                                                    },
+                                                    "purchase_date": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                        "example": "2024-01-01"
+                                                    },
+                                                    "brand_name": {
+                                                        "type": "string",
+                                                        "example": "Dell"
+                                                    },
+                                                    "assets_category": {
+                                                        "type": "string",
+                                                        "example": "Laptops"
+                                                    },
+                                                    "employee": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 101
+                                                            },
+                                                            "name": {
+                                                                "type": "string",
+                                                                "example": "أحمد محمد"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 75
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "غير مصرح"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/custody-clearances": {
+            "get": {
+                "tags": [
+                    "Assets & Custody Clearance"
+                ],
+                "summary": "عرض طلبات إخلاء الطرف",
+                "operationId": "939416c4e67b65ae89b84013ec415070",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "approved",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "clearance_type",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "resignation",
+                                "termination",
+                                "transfer",
+                                "other"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الطلبات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب طلبات إخلاء الطرف بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "clearance_id": {
+                                                        "type": "integer",
+                                                        "example": 10
+                                                    },
+                                                    "employee_id": {
+                                                        "type": "integer",
+                                                        "example": 101
+                                                    },
+                                                    "clearance_date": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                        "example": "2026-01-15"
+                                                    },
+                                                    "clearance_type": {
+                                                        "type": "string",
+                                                        "example": "resignation"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "pending"
+                                                    },
+                                                    "notes": {
+                                                        "type": "string",
+                                                        "example": "إخلاء طرف بسبب الاستقالة"
+                                                    },
+                                                    "employee": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 101
+                                                            },
+                                                            "name": {
+                                                                "type": "string",
+                                                                "example": "أحمد محمد"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2026-01-01 10:00:00"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Assets & Custody Clearance"
+                ],
+                "summary": "إنشاء طلب إخلاء طرف جديد",
+                "operationId": "6e23a696905b600f38df820bef81ba21",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "employee_id": {
+                                        "type": "integer"
+                                    },
+                                    "clearance_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "clearance_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "resignation",
+                                            "termination",
+                                            "transfer",
+                                            "other"
+                                        ]
+                                    },
+                                    "asset_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "notes": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء الطلب بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء طلب إخلاء الطرف بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "clearance_id": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "pending"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "خطأ في البيانات"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/custody-clearances/{id}": {
+            "get": {
+                "tags": [
+                    "Assets & Custody Clearance"
+                ],
+                "summary": "عرض تفاصيل طلب إخلاء طرف",
+                "operationId": "c10b57b22d4888d34b42a8ca294fd700",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الطلب بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب تفاصيل الطلب بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "clearance_id": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "employee_id": {
+                                                    "type": "integer",
+                                                    "example": 101
+                                                },
+                                                "clearance_date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-01-15"
+                                                },
+                                                "clearance_type": {
+                                                    "type": "string",
+                                                    "example": "resignation"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "pending"
+                                                },
+                                                "notes": {
+                                                    "type": "string",
+                                                    "example": "ملاحظات"
+                                                },
+                                                "items": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "item_id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "asset_id": {
+                                                                "type": "integer",
+                                                                "example": 5
+                                                            },
+                                                            "asset": {
+                                                                "properties": {
+                                                                    "name": {
+                                                                        "type": "string",
+                                                                        "example": "Laptop"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "example": "AST-001"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "approvals": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "level": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "approved"
+                                                            },
+                                                            "approver_name": {
+                                                                "type": "string",
+                                                                "example": "مدير القسم"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الطلب غير موجود"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/custody-clearances/{id}/approve-or-reject": {
+            "post": {
+                "tags": [
+                    "Assets & Custody Clearance"
+                ],
+                "summary": "الموافقة أو رفض طلب إخلاء الطرف",
+                "operationId": "6bb0d0b91d3fe38ef076d1c03f7c63b4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "action"
+                                ],
+                                "properties": {
+                                    "action": {
+                                        "type": "string",
+                                        "enum": [
+                                            "approve",
+                                            "reject"
+                                        ]
+                                    },
+                                    "remarks": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تمت معالجة الطلب بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تمت الموافقة على طلب إخلاء الطرف بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "clearance_id": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "approved"
+                                                },
+                                                "approved_by": {
+                                                    "type": "integer",
+                                                    "example": 202
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "خطأ في المعالجة"
+                    },
+                    "403": {
+                        "description": "غير مصرح"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/employees/employees-for-duty-employee": {
             "get": {
                 "tags": [
@@ -17026,6 +17625,10 @@
         {
             "name": "Complaint Management",
             "description": "إدارة الشكاوى - Complaints management endpoints"
+        },
+        {
+            "name": "Assets & Custody Clearance",
+            "description": "إدارة الأصول وإخلاء طرف العهد"
         },
         {
             "name": "Holidays",
