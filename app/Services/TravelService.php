@@ -523,12 +523,18 @@ class TravelService
             );
 
             if (!$canApprove) {
+                $denialInfo = $this->approvalService->getApprovalDenialReason(
+                    $user->user_id,
+                    $travel->travel_id,
+                    $travel->employee_id,
+                    'travel_settings'
+                );
                 Log::info('TravelService::approveTravel - Multi-level approval denied', [
                     'user_id' => $user->user_id,
                     'travel_id' => $id,
-                    'message' => 'ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية'
+                    'message' => $denialInfo['message']
                 ]);
-                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+                throw new \Exception($denialInfo['message']);
             }
 
             // Check if this is the final approval

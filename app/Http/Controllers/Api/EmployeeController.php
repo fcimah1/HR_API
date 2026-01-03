@@ -1907,4 +1907,102 @@ class EmployeeController extends Controller
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
+
+    /**
+     * Get approval levels (approvers) for an employee.
+     *
+     * @OA\Get(
+     *     path="/api/employees/approval-levels",
+     *     summary="Get approval levels for an employee",
+     *     description="Returns the configured approval chain with user details. If employee_id is not provided, returns approval levels for the authenticated user.",
+     *     tags={"Employee Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="employee_id",
+     *         in="query",
+     *         required=false,
+     *         description="Employee ID to get approval levels for. If not provided, uses authenticated user.",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Approval levels retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب مستويات الاعتماد بنجاح"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="employee", type="object",
+     *                     @OA\Property(property="user_id", type="integer", example=24),
+     *                     @OA\Property(property="full_name", type="string", example="محمد أحمد"),
+     *                     @OA\Property(property="email", type="string", example="m.ahmed@example.com"),
+     *                     @OA\Property(property="designation", type="string", example="مهندس"),
+     *                     @OA\Property(property="hierarchy_level", type="integer", example=4)
+     *                 ),
+     *                 @OA\Property(property="approval_levels", type="array", @OA\Items(
+     *                     @OA\Property(property="level", type="integer", example=1),
+     *                     @OA\Property(property="user_id", type="integer", example=15),
+     *                     @OA\Property(property="full_name", type="string", example="خالد عبدالله"),
+     *                     @OA\Property(property="email", type="string", example="k.abdullah@example.com"),
+     *                     @OA\Property(property="designation", type="string", example="مدير القسم"),
+     *                     @OA\Property(property="hierarchy_level", type="integer", example=2)
+     *                 )),
+     *                 @OA\Property(property="reporting_manager", type="object", nullable=true),
+     *                 @OA\Property(property="total_levels", type="integer", example=2)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - No permission to view employee approval levels",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="ليس لديك صلاحية لعرض بيانات هذا الموظف")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Employee not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="الموظف غير موجود")
+     *         )
+     *     )
+     * )
+     */
+    public function getApprovalLevels(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $targetEmployeeId = $request->query('employee_id');
+
+            // Parse as integer if provided
+            $targetEmployeeId = $targetEmployeeId ? (int) $targetEmployeeId : null;
+
+            $approvalLevels = $this->employeeService->getApprovalLevels($user, $targetEmployeeId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم جلب مستويات الاعتماد بنجاح',
+                'data' => $approvalLevels
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getApprovalLevels failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'target_employee_id' => $request->query('employee_id')
+            ]);
+
+            $statusCode = 500;
+            if (str_contains($e->getMessage(), 'غير موجود')) {
+                $statusCode = 404;
+            } elseif (str_contains($e->getMessage(), 'ليس لديك صلاحية')) {
+                $statusCode = 403;
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $statusCode);
+        }
+    }
 }
