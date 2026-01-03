@@ -526,7 +526,18 @@ class TransferService
             );
 
             if (!$canApprove) {
-                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+                $denialInfo = $this->approvalService->getApprovalDenialReason(
+                    $user->user_id,
+                    $transfer->transfer_id,
+                    $transfer->employee_id,
+                    'transfer_settings'
+                );
+                Log::warning('TransferService::approveOrRejectTransfer - Approval denied', [
+                    'transfer_id' => $id,
+                    'message' => $denialInfo['message'],
+                    'approved_by' => $user->user_id,
+                ]);
+                throw new \Exception($denialInfo['message']);
             }
 
             if ($dto->action === 'approve') {

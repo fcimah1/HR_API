@@ -208,7 +208,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
         \App\Models\StaffApproval::create([
             'company_id' => $advance->company_id,
             'staff_id' => $approvedBy,
-            'module_option' => 'advance_salary_settings',
+            'module_option' => 'loan_request_settings',
             'module_key_id' => $advance->advance_salary_id,
             'status' => NumericalStatusEnum::APPROVED->value, // Approved
             'approval_level' => '1',
@@ -245,7 +245,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
         \App\Models\StaffApproval::create([
             'company_id' => $advance->company_id,
             'staff_id' => $rejectedBy,
-            'module_option' => 'advance_salary_settings',
+            'module_option' => 'loan_request_settings',
             'module_key_id' => $advance->advance_salary_id,
             'status' => NumericalStatusEnum::REJECTED->value, // Rejected
             'approval_level' => '1',

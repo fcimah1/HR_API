@@ -19,7 +19,7 @@ class ApprovalService
     public function getRequiredApprovalLevels(int $employeeId): array
     {
         $userDetails = UserDetails::where('user_id', $employeeId)->first();
-        
+
         if (!$userDetails) {
             Log::warning('ApprovalService: UserDetails not found', ['employee_id' => $employeeId]);
             return [];
@@ -51,7 +51,7 @@ class ApprovalService
      */
     public function getCurrentApprovalLevel(int $requestId, string $moduleOption): int
     {
-        $count = StaffApproval::forOvertime()
+        $count = StaffApproval::where('module_option', $moduleOption)
             ->forRequest($requestId)
             ->approved()
             ->count();
@@ -72,7 +72,7 @@ class ApprovalService
     public function canUserApprove(int $userId, int $requestId, int $employeeId, string $moduleOption): bool
     {
         $approvalChain = $this->getRequiredApprovalLevels($employeeId);
-        
+
         if (empty($approvalChain)) {
             Log::warning('ApprovalService: No approval chain configured', [
                 'user_id' => $userId,
@@ -98,6 +98,80 @@ class ApprovalService
     }
 
     /**
+     * Get detailed info about why user cannot approve.
+     * Returns array with next approver info for better error messages.
+     */
+    public function getApprovalDenialReason(int $userId, int $requestId, int $employeeId, string $moduleOption): array
+    {
+        $approvalChain = $this->getRequiredApprovalLevels($employeeId);
+
+        if (empty($approvalChain)) {
+            return [
+                'reason' => 'no_chain',
+                'message' => 'لا توجد سلسلة اعتماد مُعدة لهذا الموظف',
+                'next_approver' => null,
+                'current_level' => 0,
+                'total_levels' => 0,
+            ];
+        }
+
+        $currentLevel = $this->getCurrentApprovalLevel($requestId, $moduleOption);
+        $totalLevels = count($approvalChain);
+
+        // Check if all approvals done
+        if ($currentLevel >= $totalLevels) {
+            return [
+                'reason' => 'already_fully_approved',
+                'message' => 'تمت الموافقة على هذا الطلب بالكامل مسبقاً',
+                'next_approver' => null,
+                'current_level' => $currentLevel,
+                'total_levels' => $totalLevels,
+            ];
+        }
+
+        $nextApproverId = $approvalChain[$currentLevel];
+        $nextApprover = \App\Models\User::find($nextApproverId);
+
+        $nextApproverName = $nextApprover
+            ? trim($nextApprover->first_name . ' ' . $nextApprover->last_name)
+            : 'غير معروف';
+
+        // Check if user is in the chain at all
+        $userPositionInChain = array_search($userId, $approvalChain);
+
+        if ($userPositionInChain === false) {
+            return [
+                'reason' => 'not_in_chain',
+                'message' => "أنت لست ضمن سلسلة الاعتماد لهذا الموظف. المعتمد التالي المطلوب: {$nextApproverName}",
+                'next_approver' => [
+                    'user_id' => $nextApproverId,
+                    'name' => $nextApproverName,
+                    'level' => $currentLevel + 1,
+                ],
+                'current_level' => $currentLevel,
+                'total_levels' => $totalLevels,
+            ];
+        }
+
+        // User is in chain but not their turn
+        $userLevel = $userPositionInChain + 1;
+        $requiredLevel = $currentLevel + 1;
+
+        return [
+            'reason' => 'not_your_turn',
+            'message' => "يجب أن يوافق {$nextApproverName} (المستوى {$requiredLevel}) أولاً. أنت في المستوى {$userLevel} من سلسلة الاعتماد.",
+            'next_approver' => [
+                'user_id' => $nextApproverId,
+                'name' => $nextApproverName,
+                'level' => $requiredLevel,
+            ],
+            'your_level' => $userLevel,
+            'current_level' => $currentLevel,
+            'total_levels' => $totalLevels,
+        ];
+    }
+
+    /**
      * Record an approval or rejection in the database.
      * 
      * @param int $requestId The request ID
@@ -108,9 +182,9 @@ class ApprovalService
      * @param int $companyId Company ID
      */
     public function recordApproval(
-        int $requestId, 
-        int $approverId, 
-        int $status, 
+        int $requestId,
+        int $approverId,
+        int $status,
         int $approvalLevel,
         string $moduleOption,
         int $companyId
@@ -138,13 +212,13 @@ class ApprovalService
     {
         $approvalChain = $this->getRequiredApprovalLevels($employeeId);
         $totalLevels = count($approvalChain);
-        
+
         if ($totalLevels === 0) {
             return true; // No approval chain means first approval is final
         }
 
         $currentLevel = $this->getCurrentApprovalLevel($requestId, $moduleOption);
-        
+
         // Final approval is when current level + 1 equals total levels
         $isFinal = ($currentLevel + 1) === $totalLevels;
 
@@ -192,4 +266,3 @@ class ApprovalService
             ->exists();
     }
 }
-

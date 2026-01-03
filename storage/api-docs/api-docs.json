@@ -4567,6 +4567,164 @@
                 ]
             }
         },
+        "/api/employees/approval-levels": {
+            "get": {
+                "tags": [
+                    "Employee Management"
+                ],
+                "summary": "Get approval levels for an employee",
+                "description": "Returns the configured approval chain with user details. If employee_id is not provided, returns approval levels for the authenticated user.",
+                "operationId": "41649bf24c5e807618a601eae829eefb",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Employee ID to get approval levels for. If not provided, uses authenticated user.",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Approval levels retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب مستويات الاعتماد بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "employee": {
+                                                    "properties": {
+                                                        "user_id": {
+                                                            "type": "integer",
+                                                            "example": 24
+                                                        },
+                                                        "full_name": {
+                                                            "type": "string",
+                                                            "example": "محمد أحمد"
+                                                        },
+                                                        "email": {
+                                                            "type": "string",
+                                                            "example": "m.ahmed@example.com"
+                                                        },
+                                                        "designation": {
+                                                            "type": "string",
+                                                            "example": "مهندس"
+                                                        },
+                                                        "hierarchy_level": {
+                                                            "type": "integer",
+                                                            "example": 4
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "approval_levels": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "level": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "user_id": {
+                                                                "type": "integer",
+                                                                "example": 15
+                                                            },
+                                                            "full_name": {
+                                                                "type": "string",
+                                                                "example": "خالد عبدالله"
+                                                            },
+                                                            "email": {
+                                                                "type": "string",
+                                                                "example": "k.abdullah@example.com"
+                                                            },
+                                                            "designation": {
+                                                                "type": "string",
+                                                                "example": "مدير القسم"
+                                                            },
+                                                            "hierarchy_level": {
+                                                                "type": "integer",
+                                                                "example": 2
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "reporting_manager": {
+                                                    "type": "object",
+                                                    "nullable": true
+                                                },
+                                                "total_levels": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - No permission to view employee approval levels",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "ليس لديك صلاحية لعرض بيانات هذا الموظف"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Employee not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "الموظف غير موجود"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/holidays": {
             "get": {
                 "tags": [
@@ -13585,6 +13743,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
+                                "required": [
+                                    "employee_id",
+                                    "transfer_date",
+                                    "reason",
+                                    "new_branch_id"
+                                ],
                                 "properties": {
                                     "employee_id": {
                                         "description": "Employee ID",
@@ -13608,7 +13772,7 @@
                                         "example": 3
                                     },
                                     "notify_send_to": {
-                                        "description": "User IDs to notify",
+                                        "description": "User IDs to notify (optional)",
                                         "type": "array",
                                         "items": {
                                             "type": "integer"
@@ -14517,49 +14681,6 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/transfers/employees": {
-            "get": {
-                "tags": [
-                    "Transfer Management"
-                ],
-                "summary": "Get employees for transfer (Hierarchy Based)",
-                "description": "الحصول على قائمة الموظفين المتاحين لطلب النقل بناءً على الصلاحيات الهرمية والقيود",
-                "operationId": "43544ac26b0a33a369fdcae49c4d28d8",
-                "responses": {
-                    "200": {
-                        "description": "Employees retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تم جلب الموظفين بنجاح"
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
                     }
                 },
                 "security": [

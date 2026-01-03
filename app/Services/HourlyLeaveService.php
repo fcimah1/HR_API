@@ -604,12 +604,18 @@ class HourlyLeaveService
             );
 
             if (!$canApprove) {
+                $denialInfo = $this->approvalService->getApprovalDenialReason(
+                    $user->user_id,
+                    $application->leave_id,
+                    $application->employee_id,
+                    'hourly_leave_settings'
+                );
                 Log::info('HourlyLeaveService::approveOrRejectHourlyLeave - Multi-level approval denied', [
                     'user_id' => $user->user_id,
                     'leave_id' => $id,
-                    'message' => 'ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية'
+                    'message' => $denialInfo['message']
                 ]);
-                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+                throw new \Exception($denialInfo['message']);
             }
 
             if ($dto->action === 'approve') {

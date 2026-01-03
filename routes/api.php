@@ -64,6 +64,9 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     // Employees subordinates - returns employees based on hierarchy and restrictions
     Route::get('/employees/subordinates', [EmployeeController::class, 'getSubordinates']);
 
+    // Employee approval levels - returns approval chain for an employee
+    Route::get('/employees/approval-levels', [EmployeeController::class, 'getApprovalLevels']);
+
     Route::get('/employees/{id}', [EmployeeController::class, 'show']);
 
     // Employee filters and exports

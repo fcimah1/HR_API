@@ -445,7 +445,18 @@ class ComplaintService
             );
 
             if (!$canApprove) {
-                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+                $denialInfo = $this->approvalService->getApprovalDenialReason(
+                    $user->user_id,
+                    $complaint->complaint_id,
+                    $complaint->complaint_from,
+                    'complaint_settings'
+                );
+                Log::warning('ComplaintService::approveOrRejectComplaint - Approval denied', [
+                    'complaint_id' => $complaint->complaint_id,
+                    'message' => $denialInfo['message'],
+                    'approved_by' => $user->user_id,
+                ]);
+                throw new \Exception($denialInfo['message']);
             }
 
             if ($dto->action === 'resolve') {

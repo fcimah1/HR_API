@@ -114,7 +114,7 @@ class AdvanceSalaryService
 
                 // Send submission notification
                 $this->notificationService->sendSubmissionNotification(
-                    'advance_salary_settings',
+                    'loan_request_settings',
                     (string)$advance->advance_salary_id,
                     $dto->companyId,
                     StringStatusEnum::SUBMITTED->value,
@@ -524,13 +524,13 @@ class AdvanceSalaryService
                         $approvedBy,
                         1, // approved
                         1, // final level
-                        'advance_salary_settings',
+                        'loan_request_settings',
                         $companyId
                     );
 
                     // Send approval notification
                     $this->notificationService->sendApprovalNotification(
-                        'advance_salary_settings',
+                        'loan_request_settings',
                         (string)$approvedAdvance->advance_salary_id,
                         $companyId,
                         StringStatusEnum::APPROVED->value,
@@ -572,18 +572,24 @@ class AdvanceSalaryService
                     $approvedBy,
                     $advance->advance_salary_id,
                     $advance->employee_id,
-                    'advance_salary_settings'
+                    'loan_request_settings'
                 );
 
                 if (!$canApprove) {
-                    throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+                    $denialInfo = $this->approvalService->getApprovalDenialReason(
+                        $approvedBy,
+                        $advance->advance_salary_id,
+                        $advance->employee_id,
+                        'loan_request_settings'
+                    );
+                    throw new \Exception($denialInfo['message']);
                 }
 
                 // Check if this is the final approval
                 $isFinal = $this->approvalService->isFinalApproval(
                     $advance->advance_salary_id,
                     $advance->employee_id,
-                    'advance_salary_settings'
+                    'loan_request_settings'
                 );
 
                 if ($isFinal) {
@@ -596,13 +602,13 @@ class AdvanceSalaryService
                         $approvedBy,
                         1,
                         1,
-                        'advance_salary_settings',
+                        'loan_request_settings',
                         $companyId
                     );
 
                     // Send approval notification
                     $this->notificationService->sendApprovalNotification(
-                        'advance_salary_settings',
+                        'loan_request_settings',
                         (string)$approvedAdvance->advance_salary_id,
                         $companyId,
                         StringStatusEnum::APPROVED->value,
@@ -644,13 +650,13 @@ class AdvanceSalaryService
                         $approvedBy,
                         1, // approved
                         0, // intermediate level
-                        'advance_salary_settings',
+                        'loan_request_settings',
                         $companyId
                     );
 
                     // Send intermediate approval notification
                     $this->notificationService->sendApprovalNotification(
-                        'advance_salary_settings',
+                        'loan_request_settings',
                         (string)$advance->advance_salary_id,
                         $companyId,
                         StringStatusEnum::APPROVED->value,
@@ -741,13 +747,13 @@ class AdvanceSalaryService
                         $rejectedBy,
                         2, // rejected
                         2, // rejection level
-                        'advance_salary_settings',
+                        'loan_request_settings',
                         $companyId
                     );
 
                     // Send rejection notification
                     $this->notificationService->sendApprovalNotification(
-                        'advance_salary_settings',
+                        'loan_request_settings',
                         (string)$rejectedAdvance->advance_salary_id,
                         $companyId,
                         StringStatusEnum::REJECTED->value,
@@ -790,7 +796,7 @@ class AdvanceSalaryService
                     $rejectedBy,
                     $advance->advance_salary_id,
                     $advance->employee_id,
-                    'advance_salary_settings'
+                    'loan_request_settings'
                 );
 
                 if (!$canApprove) {
@@ -805,13 +811,13 @@ class AdvanceSalaryService
                     $rejectedBy,
                     2, // rejected
                     2, // rejection level
-                    'advance_salary_settings',
+                    'loan_request_settings',
                     $companyId
                 );
 
                 // Send rejection notification
                 $this->notificationService->sendApprovalNotification(
-                    'advance_salary_settings',
+                    'loan_request_settings',
                     (string)$rejectedAdvance->advance_salary_id,
                     $companyId,
                     StringStatusEnum::REJECTED->value,

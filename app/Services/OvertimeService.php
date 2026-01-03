@@ -573,12 +573,18 @@ class OvertimeService
             );
 
             if (!$canApprove) {
+                $denialInfo = $this->approvalService->getApprovalDenialReason(
+                    $approver->user_id,
+                    $request->time_request_id,
+                    $request->staff_id,
+                    'overtime_request_settings'
+                );
                 Log::info('OvertimeService::approveRequest - Permission denied', [
                     'user_id' => $approver->user_id,
                     'request_id' => $id,
-                    'message' => 'ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية'
+                    'message' => $denialInfo['message']
                 ]);
-                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+                throw new \Exception($denialInfo['message']);
             }
 
             $isFinal = $this->approvalService->isFinalApproval(
@@ -665,7 +671,7 @@ class OvertimeService
     public function rejectRequest(int $id, User $rejector, string $reason): OvertimeRequestResponseDTO
     {
         return DB::transaction(function () use ($id, $rejector, $reason) {
-            
+
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($rejector);
             $request = $this->overtimeRepository->findRequestInCompany($id, $effectiveCompanyId);
 
