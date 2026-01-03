@@ -292,6 +292,16 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/{id}/approve-new-company', [TransferController::class, 'approveByNewCompany'])->middleware('simple.permission:transfers3');
     });
 
+    // Custody Clearance Management - إخلاء طرف العهد
+    Route::get('/assets', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getAssets']);
+    Route::get('/custodies', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getCustodies']);
+    Route::prefix('custody-clearances')->group(function () {
+        Route::get('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'index']);
+        Route::post('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'store']);
+        Route::get('/{id}', [App\Http\Controllers\Api\CustodyClearanceController::class, 'show']);
+        Route::post('/{id}/approve-or-reject', [App\Http\Controllers\Api\CustodyClearanceController::class, 'approveOrReject']);
+    });
+
     // Jobs Monitor (للشركات فقط)
     Route::prefix('jobs')->group(function () {
         Route::get('/stats', [\App\Http\Controllers\Api\JobsMonitorController::class, 'getStats']);

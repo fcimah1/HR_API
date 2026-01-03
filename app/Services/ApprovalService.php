@@ -73,10 +73,41 @@ class ApprovalService
     {
         $approvalChain = $this->getRequiredApprovalLevels($employeeId);
 
+        // If no approval chain configured
         if (empty($approvalChain)) {
-            Log::warning('ApprovalService: No approval chain configured', [
+            Log::info('ApprovalService: No approval chain, checking hierarchy', [
+                'employee_id' => $employeeId,
                 'user_id' => $userId,
-                'employee_id' => $employeeId
+                'message' => 'ليس لديك صلاحية لإعتماد هذا الطلب'
+            ]);
+
+            // Fallback: Check if user has hierarchical permission to approve
+            try {
+                $permissionService = app(\App\Services\SimplePermissionService::class);
+                $user = \App\Models\User::find($userId);
+                $employee = \App\Models\User::find($employeeId);
+
+                if ($user && $employee && $permissionService->canApproveEmployeeRequests($user, $employee)) {
+                    Log::info('ApprovalService: Hierarchy check passed', [
+                        'employee_id' => $employeeId,
+                        'user_id' => $userId,
+                        'message' => ' تمت الموافقة على هذا الطلب __ ملحوظة: هذا الموظف ليس لديه سلسلة اعتماد مُعدة'
+                    ]);
+                    return true;
+                }
+            } catch (\Exception $e) {
+                Log::error('ApprovalService: Hierarchy check failed', [
+                    'error' => $e->getMessage(),
+                    'employee_id' => $employeeId,
+                    'user_id' => $userId,
+                    'message' => 'ليس لديك صلاحية لإعتماد هذا الطلب'
+                ]);
+            }
+
+            Log::warning('ApprovalService: No approval chain and hierarchy check failed', [
+                'employee_id' => $employeeId,
+                'user_id' => $userId,
+                'message' => 'ليس لديك صلاحية لإعتماد هذا الطلب'
             ]);
             return false;
         }
