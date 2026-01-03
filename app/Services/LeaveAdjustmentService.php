@@ -18,6 +18,7 @@ use App\Mail\LeaveAdjustment\LeaveAdjustmentRejected;
 use App\Mail\LeaveAdjustment\LeaveAdjustmentSubmitted;
 use App\Enums\StringStatusEnum;
 use App\Models\LeaveApplication;
+use App\Services\ApprovalService;
 use Illuminate\Support\Facades\Auth;
 
 class LeaveAdjustmentService
@@ -28,6 +29,7 @@ class LeaveAdjustmentService
     protected $notificationService;
     protected $userRepository;
     protected $cacheService;
+    protected $approvalService;
 
     public function __construct(
         SimplePermissionService $permissionService,
@@ -35,7 +37,8 @@ class LeaveAdjustmentService
         LeaveAdjustmentRepositoryInterface $leaveAdjustmentRepository,
         NotificationService $notificationService,
         UserRepositoryInterface $userRepository,
-        CacheService $cacheService
+        CacheService $cacheService,
+        ApprovalService $approvalService
     ) {
         $this->permissionService = $permissionService;
         $this->leaveService = $leaveService;
@@ -43,6 +46,7 @@ class LeaveAdjustmentService
         $this->notificationService = $notificationService;
         $this->userRepository = $userRepository;
         $this->cacheService = $cacheService;
+        $this->approvalService = $approvalService;
     }
 
     /**
@@ -319,11 +323,11 @@ class LeaveAdjustmentService
                 throw new \Exception('لا يمكن الموافقة على هذا الطلب لأنه تم معالجته مسبقاً');
             }
 
-            // Check hierarchy permissions for staff users
+            // Check hierarchy permissions for staff users (strict: must be higher level)
             $approvingUser = User::find($approvedBy);
             if ($approvingUser && $approvingUser->user_type !== 'company') {
                 $employee = User::find($adjustment->employee_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($approvingUser, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($approvingUser, $employee)) {
                     Log::warning('LeaveAdjustmentService::approveAdjustment - Hierarchy permission denied', [
                         'adjustment_id' => $id,
                         'approver_id' => $approvedBy,
@@ -334,36 +338,144 @@ class LeaveAdjustmentService
                 }
             }
 
-            $approvedAdjustment = $this->leaveAdjustmentRepository->approveAdjustment($adjustment, $approvedBy);
+            $userType = strtolower(trim($approvingUser->user_type ?? ''));
 
-            // Send approval notification
-            $this->notificationService->sendApprovalNotification(
-                'leave_adjustment_settings',
-                (string)$approvedAdjustment->id,
-                $companyId,
-                StringStatusEnum::APPROVED->value,
-                $approvedBy  // Approver ID
-            );
+            // Company user can approve directly
+            if ($userType === 'company') {
+                $approvedAdjustment = $this->leaveAdjustmentRepository->approveAdjustment($adjustment, $approvedBy);
 
-            // Send email notification
-            $employeeEmail = $approvedAdjustment->employee->email ?? null;
-            $employeeName = $approvedAdjustment->employee->full_name ?? 'Employee';
-            $leaveTypeName = $approvedAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
-
-            if ($employeeEmail) {
-                SendEmailNotificationJob::dispatch(
-                    new LeaveAdjustmentApproved(
-                        employeeName: $employeeName,
-                        leaveType: $leaveTypeName,
-                        adjustHours: $approvedAdjustment->adjust_hours,
-                        reason: $approvedAdjustment->reason_adjustment,
-                        remarks: null
-                    ),
-                    $employeeEmail
+                // Record final approval
+                $this->approvalService->recordApproval(
+                    $approvedAdjustment->id,
+                    $approvedBy,
+                    1, // approved
+                    1, // final level
+                    'leave_adjustment_settings',
+                    $companyId
                 );
+
+                // Send approval notification
+                $this->notificationService->sendApprovalNotification(
+                    'leave_adjustment_settings',
+                    (string)$approvedAdjustment->id,
+                    $companyId,
+                    StringStatusEnum::APPROVED->value,
+                    $approvedBy,
+                    null,
+                    $adjustment->employee_id
+                );
+
+                // Send email notification
+                $employeeEmail = $approvedAdjustment->employee->email ?? null;
+                $employeeName = $approvedAdjustment->employee->full_name ?? 'Employee';
+                $leaveTypeName = $approvedAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new LeaveAdjustmentApproved(
+                            employeeName: $employeeName,
+                            leaveType: $leaveTypeName,
+                            adjustHours: $approvedAdjustment->adjust_hours,
+                            reason: $approvedAdjustment->reason_adjustment,
+                            remarks: null
+                        ),
+                        $employeeEmail
+                    );
+                }
+
+                return $approvedAdjustment;
             }
 
-            return $approvedAdjustment;
+            // For staff users, verify approval levels
+            $canApprove = $this->approvalService->canUserApprove(
+                $approvedBy,
+                $adjustment->id,
+                $adjustment->employee_id,
+                'leave_adjustment_settings'
+            );
+
+            if (!$canApprove) {
+                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+            }
+
+            // Check if this is the final approval
+            $isFinal = $this->approvalService->isFinalApproval(
+                $adjustment->id,
+                $adjustment->employee_id,
+                'leave_adjustment_settings'
+            );
+
+            if ($isFinal) {
+                // Final approval
+                $approvedAdjustment = $this->leaveAdjustmentRepository->approveAdjustment($adjustment, $approvedBy);
+
+                // Record final approval
+                $this->approvalService->recordApproval(
+                    $approvedAdjustment->id,
+                    $approvedBy,
+                    1,
+                    1,
+                    'leave_adjustment_settings',
+                    $companyId
+                );
+
+                // Send approval notification
+                $this->notificationService->sendApprovalNotification(
+                    'leave_adjustment_settings',
+                    (string)$approvedAdjustment->id,
+                    $companyId,
+                    StringStatusEnum::APPROVED->value,
+                    $approvedBy,
+                    null,
+                    $adjustment->employee_id
+                );
+
+                // Send email notification
+                $employeeEmail = $approvedAdjustment->employee->email ?? null;
+                $employeeName = $approvedAdjustment->employee->full_name ?? 'Employee';
+                $leaveTypeName = $approvedAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new LeaveAdjustmentApproved(
+                            employeeName: $employeeName,
+                            leaveType: $leaveTypeName,
+                            adjustHours: $approvedAdjustment->adjust_hours,
+                            reason: $approvedAdjustment->reason_adjustment,
+                            remarks: null
+                        ),
+                        $employeeEmail
+                    );
+                }
+
+                return $approvedAdjustment;
+            } else {
+                // Intermediate approval - just record it, don't change status
+                $this->approvalService->recordApproval(
+                    $adjustment->id,
+                    $approvedBy,
+                    1, // approved
+                    0, // intermediate level
+                    'leave_adjustment_settings',
+                    $companyId
+                );
+
+                // Send intermediate approval notification
+                $this->notificationService->sendApprovalNotification(
+                    'leave_adjustment_settings',
+                    (string)$adjustment->id,
+                    $companyId,
+                    StringStatusEnum::APPROVED->value,
+                    $approvedBy,
+                    1,
+                    $adjustment->employee_id
+                );
+
+                // Reload to get updated approvals
+                $adjustment->refresh();
+
+                return $adjustment;
+            }
         });
     }
 
@@ -394,11 +506,11 @@ class LeaveAdjustmentService
                 throw new \Exception('لا يمكن رفض هذا الطلب لأنه تم معالجته مسبقاً');
             }
 
-            // Check hierarchy permissions for staff users
+            // Check hierarchy permissions for staff users (strict: must be higher level)
             $rejectingUser = User::find($rejectedBy);
             if ($rejectingUser && $rejectingUser->user_type !== 'company') {
                 $employee = User::find($adjustment->employee_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($rejectingUser, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($rejectingUser, $employee)) {
                     Log::warning('LeaveAdjustmentService::rejectAdjustment - Hierarchy permission denied', [
                         'adjustment_id' => $id,
                         'rejector_id' => $rejectedBy,
@@ -409,7 +521,76 @@ class LeaveAdjustmentService
                 }
             }
 
+            $userType = strtolower(trim($rejectingUser->user_type ?? ''));
+
+            // Company user can reject directly
+            if ($userType === 'company') {
+                $rejectedAdjustment = $this->leaveAdjustmentRepository->rejectAdjustment($adjustment, $rejectedBy, $reason);
+
+                // Record rejection
+                $this->approvalService->recordApproval(
+                    $rejectedAdjustment->id,
+                    $rejectedBy,
+                    2, // rejected
+                    2, // rejection level
+                    'leave_adjustment_settings',
+                    $companyId
+                );
+
+                // Send rejection notification
+                $this->notificationService->sendApprovalNotification(
+                    'leave_adjustment_settings',
+                    (string)$rejectedAdjustment->id,
+                    $companyId,
+                    StringStatusEnum::REJECTED->value,
+                    $rejectedBy,
+                    null,
+                    $adjustment->employee_id
+                );
+
+                // Send email notification
+                $employeeEmail = $rejectedAdjustment->employee->email ?? null;
+                $employeeName = $rejectedAdjustment->employee->full_name ?? 'Employee';
+                $leaveTypeName = $rejectedAdjustment->leaveType->leave_type_name ?? 'Leave Adjustment';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new LeaveAdjustmentRejected(
+                            employeeName: $employeeName,
+                            leaveType: $leaveTypeName,
+                            adjustHours: $rejectedAdjustment->adjust_hours,
+                            reason: $rejectedAdjustment->reason_adjustment,
+                        ),
+                        $employeeEmail
+                    );
+                }
+
+                return $rejectedAdjustment;
+            }
+
+            // For staff users, verify approval levels
+            $canApprove = $this->approvalService->canUserApprove(
+                $rejectedBy,
+                $adjustment->id,
+                $adjustment->employee_id,
+                'leave_adjustment_settings'
+            );
+
+            if (!$canApprove) {
+                throw new \Exception('ليس لديك صلاحية لرفض هذا الطلب في المرحلة الحالية');
+            }
+
             $rejectedAdjustment = $this->leaveAdjustmentRepository->rejectAdjustment($adjustment, $rejectedBy, $reason);
+
+            // Record rejection
+            $this->approvalService->recordApproval(
+                $rejectedAdjustment->id,
+                $rejectedBy,
+                2, // rejected
+                2, // rejection level
+                'leave_adjustment_settings',
+                $companyId
+            );
 
             // Send rejection notification
             $this->notificationService->sendApprovalNotification(
@@ -417,7 +598,9 @@ class LeaveAdjustmentService
                 (string)$rejectedAdjustment->id,
                 $companyId,
                 StringStatusEnum::REJECTED->value,
-                $rejectedBy  // Rejector ID
+                $rejectedBy,
+                null,
+                $adjustment->employee_id
             );
 
             // Send email notification
@@ -480,7 +663,7 @@ class LeaveAdjustmentService
             if (!$isOwner && !$isCompany && !$isHigherLevel) {
                 // Additional explicit check using permission service for consistency
                 $targetEmployee = User::find($adjustment->employee_id);
-                if (!$targetEmployee || !$this->permissionService->canViewEmployeeRequests($user, $targetEmployee)) {
+                if (!$targetEmployee || !$this->permissionService->canApproveEmployeeRequests($user, $targetEmployee)) {
                     Log::info('LeaveAdjustmentService::updateAdjustment - Unauthorized update attempt', [
                         'user_id' => $user->user_id,
                         'adjustment_id' => $id,

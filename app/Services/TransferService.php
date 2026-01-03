@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Repository\Interface\TransferRepositoryInterface;
 use App\Services\SimplePermissionService;
 use App\Services\NotificationService;
+use App\Services\ApprovalService;
 use App\Enums\StringStatusEnum;
 use App\Enums\NumericalStatusEnum;
 use App\Enums\TransferTypeEnum;
@@ -35,6 +36,7 @@ class TransferService
         protected NotificationService $notificationService,
         protected CacheService $cacheService,
         protected UserRepositoryInterface $userRepository,
+        protected ApprovalService $approvalService,
     ) {}
 
     /**
@@ -344,15 +346,20 @@ class TransferService
                 throw new \Exception('لا يمكن تعديل طلب النقل بعد معالجته');
             }
 
-            // فقط مدير الشركة أو من أضاف الطلب يمكنه التعديل
-            $isAdder = $transfer->added_by === $user->user_id;
-            if (!$isAdder && $user->user_type !== 'company') {
-                Log::warning('TransferService::updateTransfer - Permission denied', [
-                    'transfer_id' => $id,
-                    'message' => 'ليس لديك صلاحية لتعديل هذا الطلب',
-                    'user_id' => $user->user_id,
-                ]);
-                throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+            // صلاحية التعديل: صاحب الطلب، مدير الشركة، أو من لديه صلاحية رؤية طلبات الموظف
+            $isOwner = $transfer->employee_id === $user->user_id;
+            $isCompany = $user->user_type === 'company';
+
+            if (!$isOwner && !$isCompany) {
+                $employee = User::find($transfer->employee_id);
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
+                    Log::warning('TransferService::updateTransfer - Permission denied', [
+                        'transfer_id' => $id,
+                        'message' => 'ليس لديك صلاحية لتعديل هذا الطلب',
+                        'user_id' => $user->user_id,
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+                }
             }
 
             return $this->transferRepository->updateTransfer($transfer, $dto);
@@ -447,10 +454,10 @@ class TransferService
                 throw new \Exception('تم معالجة طلب النقل مسبقاً');
             }
 
-            // التحقق من صلاحيات الموافقة
+            // التحقق من صلاحيات الموافقة (strict: must be higher level)
             if ($user->user_type !== 'company') {
                 $employee = User::find($transfer->employee_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::info('TransferService::approveOrRejectTransfer - Permission denied', [
                         'transfer_id' => $id,
                         'message' => 'ليس لديك صلاحية لمعالجة طلب نقل هذا الموظف',
@@ -460,44 +467,163 @@ class TransferService
                 }
             }
 
-            if ($dto->action === 'approve') {
-                $processedTransfer = $this->transferRepository->approveTransfer(
-                    $transfer,
-                    $dto->processedBy,
-                    $dto->remarks
-                );
+            $userType = strtolower(trim($user->user_type ?? ''));
 
-                $this->notificationService->sendApprovalNotification(
-                    'transfer_settings',
-                    (string)$processedTransfer->transfer_id,
-                    $effectiveCompanyId,
-                    StringStatusEnum::APPROVED->value,
-                    $dto->processedBy,
-                    null,
-                    $processedTransfer->employee_id
-                );
-
-                // Send approval email
-                $employee = User::find($processedTransfer->employee_id);
-                if ($employee && $employee->email) {
-                    SendEmailNotificationJob::dispatch(
-                        new TransferApproved(
-                            employeeName: $employee->full_name ?? $employee->first_name,
-                            transferType: $processedTransfer->transfer_type ?? 'نقل',
-                            fromDepartment: $processedTransfer->from_department_name ?? 'غير محدد',
-                            toDepartment: $processedTransfer->to_department_name ?? 'غير محدد',
-                            remarks: $dto->remarks
-                        ),
-                        $employee->email
+            // Company user can approve directly
+            if ($userType === 'company') {
+                if ($dto->action === 'approve') {
+                    $processedTransfer = $this->transferRepository->approveTransfer(
+                        $transfer,
+                        $dto->processedBy,
+                        $dto->remarks
                     );
-                }
 
-                return $processedTransfer;
+                    // Record final approval
+                    $this->approvalService->recordApproval(
+                        $processedTransfer->transfer_id,
+                        $dto->processedBy,
+                        1, // approved
+                        1, // final level
+                        'transfer_settings',
+                        $effectiveCompanyId
+                    );
+
+                    $this->notificationService->sendApprovalNotification(
+                        'transfer_settings',
+                        (string)$processedTransfer->transfer_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::APPROVED->value,
+                        $dto->processedBy,
+                        null,
+                        $processedTransfer->employee_id
+                    );
+
+                    // Send approval email
+                    $employee = User::find($processedTransfer->employee_id);
+                    if ($employee && $employee->email) {
+                        SendEmailNotificationJob::dispatch(
+                            new TransferApproved(
+                                employeeName: $employee->full_name ?? $employee->first_name,
+                                transferType: $processedTransfer->transfer_type ?? 'نقل',
+                                fromDepartment: $processedTransfer->from_department_name ?? 'غير محدد',
+                                toDepartment: $processedTransfer->to_department_name ?? 'غير محدد',
+                                remarks: $dto->remarks
+                            ),
+                            $employee->email
+                        );
+                    }
+
+                    return $processedTransfer;
+                }
+            }
+
+            // For staff users, verify approval levels
+            $canApprove = $this->approvalService->canUserApprove(
+                $user->user_id,
+                $transfer->transfer_id,
+                $transfer->employee_id,
+                'transfer_settings'
+            );
+
+            if (!$canApprove) {
+                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+            }
+
+            if ($dto->action === 'approve') {
+                // Check if this is the final approval
+                $isFinal = $this->approvalService->isFinalApproval(
+                    $transfer->transfer_id,
+                    $transfer->employee_id,
+                    'transfer_settings'
+                );
+
+                if ($isFinal) {
+                    // Final approval - update request status
+                    $processedTransfer = $this->transferRepository->approveTransfer(
+                        $transfer,
+                        $dto->processedBy,
+                        $dto->remarks
+                    );
+
+                    // Record final approval
+                    $this->approvalService->recordApproval(
+                        $processedTransfer->transfer_id,
+                        $dto->processedBy,
+                        1, // approved
+                        1, // final level
+                        'transfer_settings',
+                        $effectiveCompanyId
+                    );
+
+                    $this->notificationService->sendApprovalNotification(
+                        'transfer_settings',
+                        (string)$processedTransfer->transfer_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::APPROVED->value,
+                        $dto->processedBy,
+                        null,
+                        $processedTransfer->employee_id
+                    );
+
+                    // Send approval email
+                    $employee = User::find($processedTransfer->employee_id);
+                    if ($employee && $employee->email) {
+                        SendEmailNotificationJob::dispatch(
+                            new TransferApproved(
+                                employeeName: $employee->full_name ?? $employee->first_name,
+                                transferType: $processedTransfer->transfer_type ?? 'نقل',
+                                fromDepartment: $processedTransfer->from_department_name ?? 'غير محدد',
+                                toDepartment: $processedTransfer->to_department_name ?? 'غير محدد',
+                                remarks: $dto->remarks
+                            ),
+                            $employee->email
+                        );
+                    }
+
+                    return $processedTransfer;
+                } else {
+                    // Intermediate approval - just record it, don't change status
+                    $this->approvalService->recordApproval(
+                        $transfer->transfer_id,
+                        $dto->processedBy,
+                        1, // approved
+                        0, // intermediate level
+                        'transfer_settings',
+                        $effectiveCompanyId
+                    );
+
+                    // Send intermediate approval notification
+                    $this->notificationService->sendApprovalNotification(
+                        'transfer_settings',
+                        (string)$transfer->transfer_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::APPROVED->value,
+                        $dto->processedBy,
+                        1,
+                        $transfer->employee_id
+                    );
+
+                    // Reload to get updated approvals
+                    $transfer->refresh();
+                    $transfer->load(['employee', 'approvals.staff']);
+
+                    return $transfer;
+                }
             } else {
                 $processedTransfer = $this->transferRepository->rejectTransfer(
                     $transfer,
                     $dto->processedBy,
                     $dto->remarks
+                );
+
+                // Record rejection
+                $this->approvalService->recordApproval(
+                    $processedTransfer->transfer_id,
+                    $dto->processedBy,
+                    2, // rejected
+                    2, // rejection level
+                    'transfer_settings',
+                    $effectiveCompanyId
                 );
 
                 $this->notificationService->sendApprovalNotification(

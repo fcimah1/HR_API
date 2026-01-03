@@ -17,6 +17,7 @@ use App\Repository\Interface\LeaveRepositoryInterface;
 use App\Repository\Interface\LeaveTypeRepositoryInterface;
 use App\Repository\Interface\UserRepositoryInterface;
 use App\Services\SimplePermissionService;
+use App\Services\ApprovalService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -37,6 +38,7 @@ class LeaveService
         protected ApprovalWorkflowService $approvalWorkflow,
         protected UserRepositoryInterface $userRepository,
         protected CacheService $cacheService,
+        protected ApprovalService $approvalService,
     ) {}
 
     /**
@@ -448,21 +450,20 @@ class LeaveService
             // التحقق من صلاحية التعديل
             $isOwner = $application->employee_id === $user->user_id;
             $isCompany = $user->user_type === 'company';
-            $isHigherLevel = false;
 
-            // التحقق من المستوى الأعلى إذا كان المستخدم موظفاً
-            if (!$isCompany && $user->employee) {
-                $isHigherLevel = $user->employee->hierarchy_level < $application->employee->hierarchy_level;
-            }
-
-            if (!$isOwner && !$isCompany && !$isHigherLevel) {
-                Log::error('Unauthorized update attempt', [
-                    'isowner' => $isOwner,
-                    '$isHigh' => $isHigherLevel,
-                    'iscompany' => $isCompany,
-                    'message' => 'Unauthorized update attempt'
-                ]);
-                throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+            // صاحب الطلب يمكنه تعديله
+            if (!$isOwner && !$isCompany) {
+                // التحقق من صلاحية رؤية طلبات الموظف (تشمل قيود القسم/الفرع/الهرمية)
+                $employee = User::find($application->employee_id);
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
+                    Log::error('Unauthorized update attempt', [
+                        'user_id' => $user->user_id,
+                        'application_id' => $id,
+                        'employee_id' => $application->employee_id,
+                        'message' => 'ليس لديك صلاحية لتعديل هذا الطلب'
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+                }
             }
 
             // Check if application can be updated (only pending applications)
@@ -639,10 +640,6 @@ class LeaveService
     public function approveApplication(int $id, ApproveLeaveApplicationRequest $request): object
     {
         return DB::transaction(function () use ($id, $request) {
-            Log::info('LeaveService::approveApplication - Transaction started', [
-                'application_id' => $id,
-                'message' => 'Transaction started'
-            ]);
 
             // Get the authenticated user from the request
             $user = $request->user();
@@ -670,10 +667,10 @@ class LeaveService
                 throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
             }
 
-            // Check hierarchy permissions for staff users
+            // Check hierarchy permissions for staff users (strict: must be higher level)
             if ($user->user_type !== 'company') {
                 $employee = User::find($application->employee_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::warning('LeaveService::approveApplication - Hierarchy permission denied', [
                         'application_id' => $id,
                         'requester_id' => $user->user_id,
@@ -683,7 +680,7 @@ class LeaveService
                         'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'requester_department' => $this->permissionService->getUserDepartmentId($user),
                         'employee_department' => $this->permissionService->getUserDepartmentId($employee),
-                        'message' => 'Hierarchy permission denied'
+                        'message' => 'ليس لديك صلاحية للموافقة على طلب هذا الموظف'
                     ]);
                     throw new \Exception('ليس لديك صلاحية للموافقة على طلب هذا الموظف');
                 }
@@ -693,50 +690,164 @@ class LeaveService
             $validated = $request->validated();
             $remarks = $validated['remarks'] ?? null;
 
-            // Approve the application
-            $approvedApplication = $this->leaveRepository->approveApplication(
-                $application,
-                $user->user_id, // approvedBy
-                $remarks
-            );
-            if (!$approvedApplication) {
-                Log::info('LeaveService::approveApplication - Application not found', [
-                    'id' => $id,
-                    'message' => 'Application not found'
-                ]);
-                throw new \Exception('فشل في الموافقة على الطلب');
-            }
-            // Send approval notification
-            $this->notificationService->sendApprovalNotification(
-                'leave_settings',
-                (string)$approvedApplication->leave_id,
-                $companyId,
-                StringStatusEnum::APPROVED->value,
-                $user->user_id,  // Approver ID
-                null, // Approval Level (default)
-                $approvedApplication->employee_id // Submitter ID
-            );
+            $userType = strtolower(trim($user->user_type ?? ''));
 
-            // Send approval email
-            $employeeEmail = $approvedApplication->employee->email ?? null;
-            $employeeName = $approvedApplication->employee->full_name ?? 'Employee';
-            $leaveTypeName = $approvedApplication->leaveType->leave_type_name ?? 'Leave';
-
-            // Send approval email (dispatched as job)
-            if ($employeeEmail) {
-                SendEmailNotificationJob::dispatch(
-                    new LeaveApproved(
-                        employeeName: $employeeName,
-                        leaveType: $leaveTypeName,
-                        startDate: $approvedApplication->from_date,
-                        endDate: $approvedApplication->to_date,
-                        remarks: $remarks
-                    ),
-                    $employeeEmail
+            // Company user can approve directly
+            if ($userType === 'company') {
+                $approvedApplication = $this->leaveRepository->approveApplication(
+                    $application,
+                    $user->user_id,
+                    $remarks
                 );
+
+                if (!$approvedApplication) {
+                    throw new \Exception('فشل في الموافقة على الطلب');
+                }
+
+                // Send approval notification
+                $this->notificationService->sendApprovalNotification(
+                    'leave_settings',
+                    (string)$approvedApplication->leave_id,
+                    $companyId,
+                    StringStatusEnum::APPROVED->value,
+                    $user->user_id,
+                    1,
+                    $approvedApplication->employee_id
+                );
+
+
+                // Send approval email
+                $employeeEmail = $approvedApplication->employee->email ?? null;
+                $employeeName = $approvedApplication->employee->full_name ?? 'Employee';
+                $leaveTypeName = $approvedApplication->leaveType->leave_type_name ?? 'Leave';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new LeaveApproved(
+                            employeeName: $employeeName,
+                            leaveType: $leaveTypeName,
+                            startDate: $approvedApplication->from_date,
+                            endDate: $approvedApplication->to_date,
+                            remarks: $remarks
+                        ),
+                        $employeeEmail
+                    );
+                }
+                // Record final approval
+                $this->approvalService->recordApproval(
+                    $approvedApplication->leave_id,
+                    $user->user_id,
+                    1,
+                    1,
+                    'leave_settings',
+                    $companyId
+                );
+
+                return LeaveApplicationResponseDTO::fromModel($approvedApplication);
             }
 
-            return LeaveApplicationResponseDTO::fromModel($approvedApplication);
+            // For staff users, use multi-level approval
+            $canApprove = $this->approvalService->canUserApprove(
+                $user->user_id,
+                $application->leave_id,
+                $application->employee_id,
+                'leave_settings'
+            );
+
+            if (!$canApprove) {
+                Log::info('LeaveService::approveApplication - Multi-level approval denied', [
+                    'user_id' => $user->user_id,
+                    'leave_id' => $id,
+                    'message' => 'ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية'
+                ]);
+                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+            }
+
+            $isFinal = $this->approvalService->isFinalApproval(
+                $application->leave_id,
+                $application->employee_id,
+                'leave_settings'
+            );
+
+            if ($isFinal) {
+                // Final approval - update request status
+                $approvedApplication = $this->leaveRepository->approveApplication(
+                    $application,
+                    $user->user_id,
+                    $remarks
+                );
+
+                if (!$approvedApplication) {
+                    throw new \Exception('فشل في الموافقة على الطلب');
+                }
+
+                // Send approval notification
+                $this->notificationService->sendApprovalNotification(
+                    'leave_settings',
+                    (string)$approvedApplication->leave_id,
+                    $companyId,
+                    StringStatusEnum::APPROVED->value,
+                    $user->user_id,
+                    null,
+                    $approvedApplication->employee_id
+                );
+
+                // Record final approval
+                $this->approvalService->recordApproval(
+                    $approvedApplication->leave_id,
+                    $user->user_id,
+                    1,
+                    1,
+                    'leave_settings',
+                    $companyId
+                );
+
+                // Send approval email
+                $employeeEmail = $approvedApplication->employee->email ?? null;
+                $employeeName = $approvedApplication->employee->full_name ?? 'Employee';
+                $leaveTypeName = $approvedApplication->leaveType->leave_type_name ?? 'Leave';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new LeaveApproved(
+                            employeeName: $employeeName,
+                            leaveType: $leaveTypeName,
+                            startDate: $approvedApplication->from_date,
+                            endDate: $approvedApplication->to_date,
+                            remarks: $remarks
+                        ),
+                        $employeeEmail
+                    );
+                }
+
+                return LeaveApplicationResponseDTO::fromModel($approvedApplication);
+            } else {
+                // Intermediate approval - record and notify next level
+                $this->approvalService->recordApproval(
+                    $application->leave_id,
+                    $user->user_id,
+                    1,
+                    0,
+                    'leave_settings',
+                    $companyId
+                );
+
+                // Send approval notification
+                $this->notificationService->sendApprovalNotification(
+                    'leave_settings',
+                    (string)$application->leave_id,
+                    $companyId,
+                    StringStatusEnum::APPROVED->value,
+                    $user->user_id,
+                    1,
+                    $application->employee_id
+                );
+
+                $application->refresh();
+                $application->load(['employee', 'approvals.staff']);
+                // Return current application state
+                return LeaveApplicationResponseDTO::fromModel($application);
+            }
         });
     }
 
@@ -746,18 +857,12 @@ class LeaveService
     public function rejectApplication(int $id, int $companyId, int $rejectedBy, string $reason): ?array
     {
         return DB::transaction(function () use ($id, $companyId, $rejectedBy, $reason) {
-            Log::info('LeaveService::rejectApplication - Transaction started', [
-                'application_id' => $id,
-                'rejected_by' => $rejectedBy,
-                'message' => 'Transaction started'
-            ]);
-
             $application = $this->leaveRepository->findApplicationInCompany($id, $companyId);
 
             if (!$application) {
                 Log::info('LeaveService::rejectApplication - Application not found', [
                     'id' => $id,
-                    'message' => 'Application not found'
+                    'message' => 'الطلب غير موجود'
                 ]);
                 throw new \Exception('الطلب غير موجود');
             }
@@ -765,16 +870,16 @@ class LeaveService
             if ($application->status !== LeaveApplication::STATUS_PENDING) {
                 Log::info('LeaveService::rejectApplication - Application not pending', [
                     'id' => $id,
-                    'message' => 'Application not pending'
+                    'message' => 'لا يمكن رفض طلب تم الموافقة عليه مسبقاً'
                 ]);
                 throw new \Exception('لا يمكن رفض طلب تم الموافقة عليه مسبقاً');
             }
 
-            // Check hierarchy permissions for staff users
+            // Check hierarchy permissions for staff users (strict: must be higher level)
             $rejectingUser = User::find($rejectedBy);
             if ($rejectingUser && $rejectingUser->user_type !== 'company') {
                 $employee = User::find($application->employee_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($rejectingUser, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($rejectingUser, $employee)) {
                     Log::warning('LeaveService::rejectApplication - Hierarchy permission denied', [
                         'application_id' => $id,
                         'rejecting_user_id' => $rejectedBy,
@@ -784,10 +889,83 @@ class LeaveService
                         'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'rejecting_user_department' => $this->permissionService->getUserDepartmentId($rejectingUser),
                         'employee_department' => $this->permissionService->getUserDepartmentId($employee),
-                        'message' => 'Hierarchy permission denied'
+                        'message' => 'ليس لديك صلاحية لرفض طلب هذا الموظف'
                     ]);
                     throw new \Exception('ليس لديك صلاحية لرفض طلب هذا الموظف');
                 }
+            }
+
+            // For staff users, verify approval levels
+            $userType = strtolower(trim($rejectingUser->user_type ?? ''));
+
+            // Company user can reject directly
+            if ($userType === 'company') {
+                $rejectedApplication = $this->leaveRepository->rejectApplication($application, $rejectedBy, $reason);
+
+                if (!$rejectedApplication) {
+                    throw new \Exception('فشل في رفض الطلب');
+                }
+
+                // Record rejection
+                $this->approvalService->recordApproval(
+                    $rejectedApplication->leave_id,
+                    $rejectedBy,
+                    2, // rejected
+                    2, // rejection level
+                    'leave_settings',
+                    $companyId
+                );
+
+                // Send rejection notification
+                $this->notificationService->sendApprovalNotification(
+                    'leave_settings',
+                    (string)$rejectedApplication->leave_id,
+                    $companyId,
+                    StringStatusEnum::REJECTED->value,
+                    $rejectedBy,
+                    null,
+                    $rejectedApplication->employee_id
+                );
+
+                // Send rejection email
+                $employeeEmail = $rejectedApplication->employee->email ?? null;
+                $employeeName = $rejectedApplication->employee->full_name ?? 'Employee';
+                $leaveTypeName = $rejectedApplication->leaveType->leave_type_name ?? 'Leave';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new LeaveRejected(
+                            employeeName: $employeeName,
+                            leaveType: $leaveTypeName,
+                            startDate: $rejectedApplication->from_date,
+                            endDate: $rejectedApplication->to_date,
+                            reason: $reason
+                        ),
+                        $employeeEmail
+                    );
+                }
+
+                return LeaveApplicationResponseDTO::fromModel($rejectedApplication)->toArray();
+            }
+
+            // For staff users, verify approval levels
+            $canApprove = $this->approvalService->canUserApprove(
+                $rejectedBy,
+                $application->leave_id,
+                $application->employee_id,
+                'leave_settings'
+            );
+
+            if (!$canApprove) {
+                Log::warning('LeaveService::rejectApplication - Approval level denied', [
+                    'application_id' => $id,
+                    'requester_id' => $rejectedBy,
+                    'requester_type' => $rejectingUser->user_type,
+                    'employee_id' => $application->employee_id,
+                    'requester_level' => $this->permissionService->getUserHierarchyLevel($rejectingUser),
+                    'message' => 'ليس لديك صلاحية لرفض هذا الطلب في المرحلة الحالية',
+                ]);
+                throw new \Exception('ليس لديك صلاحية لرفض هذا الطلب في المرحلة الحالية');
             }
 
             $rejectedApplication = $this->leaveRepository->rejectApplication($application, $rejectedBy, $reason);
@@ -800,15 +978,25 @@ class LeaveService
                 throw new \Exception('فشل في رفض الطلب');
             }
 
+            // Record rejection
+            $this->approvalService->recordApproval(
+                $rejectedApplication->leave_id,
+                $rejectedBy,
+                2, // rejected
+                2, // rejection level
+                'leave_settings',
+                $companyId
+            );
+
             // Send rejection notification
             $this->notificationService->sendApprovalNotification(
                 'leave_settings',
                 (string)$rejectedApplication->leave_id,
                 $companyId,
                 StringStatusEnum::REJECTED->value,
-                $rejectedBy,  // Rejector ID (parameter from method)
-                null, // Approval Level (default)
-                $rejectedApplication->employee_id // Submitter ID
+                $rejectedBy,
+                null,
+                $rejectedApplication->employee_id
             );
 
             // Send rejection email
@@ -816,7 +1004,6 @@ class LeaveService
             $employeeName = $rejectedApplication->employee->full_name ?? 'Employee';
             $leaveTypeName = $rejectedApplication->leaveType->leave_type_name ?? 'Leave';
 
-            // Send rejection email (dispatched as job)
             if ($employeeEmail) {
                 SendEmailNotificationJob::dispatch(
                     new LeaveRejected(

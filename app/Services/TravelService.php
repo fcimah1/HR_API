@@ -15,6 +15,7 @@ use App\Repository\Interface\TravelRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\SimplePermissionService;
+use App\Services\ApprovalService;
 use App\Jobs\SendEmailNotificationJob;
 use App\Enums\StringStatusEnum;
 use App\Enums\TravelModeEnum;
@@ -31,6 +32,7 @@ class TravelService
         protected ApprovalWorkflowService $approvalWorkflow,
         protected Travel $travel,
         protected CacheService $cacheService,
+        protected ApprovalService $approvalService,
     ) {}
 
     public function getTravelEnums(): array
@@ -199,7 +201,7 @@ class TravelService
             // If not owner or company, check hierarchy permissions
             if (!$isOwner && !$isCompany) {
                 $employee = User::find($travel->employee_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::warning('TravelService::updateTravel - Hierarchy permission denied', [
                         'travel_id' => $id,
                         'requester_id' => $user->user_id,
@@ -407,9 +409,24 @@ class TravelService
 
             // Get the authenticated user from the request
             $user = $request->user();
-
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
             $travel = $this->travelRepository->findByIdAndCompany($id, $effectiveCompanyId);
+            $employee = User::find($travel->employee_id);
+            $employeeHierarchyLevel = $this->permissionService->getUserHierarchyLevel($employee);
+
+            // Get travel allowance from PolicyResult based on policy_id=1 (Travel) and hierarchy_level
+            $allowanceAmount = null;
+            $currency = null;
+            $policyResult = \App\Models\PolicyResult::where('policy_id', 1) // 1 = Travel
+                ->where('hierarchy_level', $employeeHierarchyLevel)
+                ->where('company_id', $effectiveCompanyId)
+                ->first();
+
+            if ($policyResult) {
+                $allowanceAmount = $policyResult->total_amount;
+                $currency = $policyResult->currency_local;
+            }
 
             if (!$travel) {
                 Log::warning('TravelService::approveTravel - Travel not found', [
@@ -429,10 +446,10 @@ class TravelService
                 throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
             }
 
-            // Check hierarchy permissions for staff users
+            // Check hierarchy permissions for staff users (strict: must be higher level)
             if ($user->user_type !== 'company') {
                 $employee = User::find($travel->employee_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::warning('TravelService::approveTravel - Hierarchy permission denied', [
                         'travel_id' => $id,
                         'requester_id' => $user->user_id,
@@ -448,55 +465,152 @@ class TravelService
                 }
             }
 
-            $travel = $this->travelRepository->approve($id, $user->user_id);
+            $userType = strtolower(trim($user->user_type ?? ''));
 
-            // Get employee's hierarchy level for policy lookup
-            $employee = User::find($travel->employee_id);
-            $employeeHierarchyLevel = $this->permissionService->getUserHierarchyLevel($employee);
+            // Company user can approve directly
+            if ($userType === 'company') {
+                $approveTravel = $this->travelRepository->approve($id, $user->user_id);
 
-            // Get travel allowance from PolicyResult based on policy_id=1 (Travel) and hierarchy_level
-            $allowanceAmount = null;
-            $currency = null;
-            $policyResult = \App\Models\PolicyResult::where('policy_id', 1) // 1 = Travel
-                ->where('hierarchy_level', $employeeHierarchyLevel)
-                ->where('company_id', $effectiveCompanyId)
-                ->first();
+                // Record final approval
+                $this->approvalService->recordApproval(
+                    $approveTravel->travel_id,
+                    $user->user_id,
+                    1, // approved
+                    1, // final level
+                    'travel_settings',
+                    $effectiveCompanyId
+                );
 
-            if ($policyResult) {
-                $allowanceAmount = $policyResult->total_amount;
-                $currency = $policyResult->currency_local;
+                //send notification
+                $this->notificationService->sendApprovalNotification(
+                    'travel_settings',
+                    (string)$approveTravel->travel_id,
+                    $effectiveCompanyId,
+                    StringStatusEnum::APPROVED->value,
+                    $user->user_id,
+                    null,
+                    $approveTravel->employee_id
+                );
+
+                // Send email notification
+                $employeeEmail = $approveTravel->employee->email ?? null;
+                $employeeName = $approveTravel->employee->full_name ?? 'Employee';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new TravelApproved(
+                            employeeName: $employeeName,
+                            destination: $approveTravel->visit_place,
+                            startDate: $approveTravel->start_date,
+                            endDate: $approveTravel->end_date,
+                            remarks: null,
+                            allowanceAmount: $allowanceAmount,
+                            currency: $currency
+                        ),
+                        $employeeEmail
+                    );
+                }
+
+                return $approveTravel;
             }
 
-
-            $this->notificationService->sendApprovalNotification(
-                'travel_settings',
-                (string)$travel->travel_id,
-                $effectiveCompanyId,
-                StringStatusEnum::APPROVED->value,
-                $user->user_id,  // Approver ID
-                $travel->employee_id // Submitter ID
+            // For staff users, verify approval levels
+            $canApprove = $this->approvalService->canUserApprove(
+                $user->user_id,
+                $travel->travel_id,
+                $travel->employee_id,
+                'travel_settings'
             );
 
-            // Send email notification
-            $employeeEmail = $travel->employee->email ?? null;
-            $employeeName = $travel->employee->full_name ?? 'Employee';
-
-            if ($employeeEmail) {
-                SendEmailNotificationJob::dispatch(
-                    new TravelApproved(
-                        employeeName: $employeeName,
-                        destination: $travel->visit_place,
-                        startDate: $travel->start_date,
-                        endDate: $travel->end_date,
-                        remarks: null,
-                        allowanceAmount: $allowanceAmount,
-                        currency: $currency
-                    ),
-                    $employeeEmail
-                );
+            if (!$canApprove) {
+                Log::info('TravelService::approveTravel - Multi-level approval denied', [
+                    'user_id' => $user->user_id,
+                    'travel_id' => $id,
+                    'message' => 'ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية'
+                ]);
+                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
             }
 
-            return $travel;
+            // Check if this is the final approval
+            $isFinal = $this->approvalService->isFinalApproval(
+                $travel->travel_id,
+                $travel->employee_id,
+                'travel_settings'
+            );
+
+            if ($isFinal) {
+                // Final approval
+                $travel = $this->travelRepository->approve($id, $user->user_id);
+
+                // Record final approval
+                $this->approvalService->recordApproval(
+                    $travel->travel_id,
+                    $user->user_id,
+                    1,
+                    1,
+                    'travel_settings',
+                    $effectiveCompanyId
+                );
+
+                //send notification
+                $this->notificationService->sendApprovalNotification(
+                    'travel_settings',
+                    (string)$travel->travel_id,
+                    $effectiveCompanyId,
+                    StringStatusEnum::APPROVED->value,
+                    $user->user_id,
+                    null,
+                    $travel->employee_id
+                );
+
+                // send approval email
+                $employeeEmail = $travel->employee->email ?? null;
+                $employeeName = $travel->employee->full_name ?? 'Employee';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new TravelApproved(
+                            employeeName: $employeeName,
+                            destination: $travel->visit_place,
+                            startDate: $travel->start_date,
+                            endDate: $travel->end_date,
+                            remarks: $travel->remarks,
+                            allowanceAmount: $allowanceAmount,
+                            currency: $currency,
+
+                        ),
+                        $employeeEmail
+                    );
+                }
+
+                return $travel;
+            } else {
+                // Intermediate approval - just record it, don't change status
+                $this->approvalService->recordApproval(
+                    $travel->travel_id,
+                    $user->user_id,
+                    1, // approved
+                    0, // intermediate level
+                    'travel_settings',
+                    $effectiveCompanyId
+                );
+
+                //send notification
+                $this->notificationService->sendApprovalNotification(
+                    'travel_settings',
+                    (string)$travel->travel_id,
+                    $effectiveCompanyId,
+                    StringStatusEnum::APPROVED->value,
+                    $user->user_id,
+                    1,
+                    $travel->employee_id
+                );
+
+                // Reload to get updated approvals
+                $travel->refresh();
+
+                return $travel;
+            }
         });
     }
 
@@ -511,7 +625,6 @@ class TravelService
                 Log::warning('TravelService::rejectTravel - Travel not found', [
                     'travel_id' => $id,
                     'message' => 'الطلب غير موجود',
-                    'user_id' => $user->user_id,
                 ]);
                 throw new \Exception('الطلب غير موجود');
             }
@@ -520,15 +633,14 @@ class TravelService
                 Log::warning('TravelService::rejectTravel - Travel not pending', [
                     'travel_id' => $id,
                     'message' => 'تم رفض هذا الطلب مسبقاً أو تم الموافقة عليه',
-                    'user_id' => $user->user_id,
                 ]);
                 throw new \Exception('تم رفض هذا الطلب مسبقاً أو تم الموافقة عليه');
             }
 
-            // Check hierarchy permissions for staff users
+            // Check hierarchy permissions for staff users (strict: must be higher level)
             if ($user->user_type !== 'company') {
                 $employee = User::find($travel->employee_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::warning('TravelService::rejectTravel - Hierarchy permission denied', [
                         'travel_id' => $id,
                         'requester_id' => $user->user_id,
@@ -544,7 +656,96 @@ class TravelService
                 }
             }
 
+            $userType = strtolower(trim($user->user_type ?? ''));
+
+            // Company user can reject directly
+            if ($userType === 'company') {
+                $travel = $this->travelRepository->reject($id, $user->user_id);
+
+                if (!$travel) {
+                    throw new \Exception('الطلب غير موجود');
+                }
+
+                // Record rejection
+                $this->approvalService->recordApproval(
+                    $travel->travel_id,
+                    $user->user_id,
+                    2, // rejected
+                    2, // rejection level
+                    'travel_settings',
+                    $effectiveCompanyId
+                );
+
+                // Send rejection notification
+                $this->notificationService->sendApprovalNotification(
+                    'travel_settings',
+                    (string)$travel->travel_id,
+                    $effectiveCompanyId,
+                    StringStatusEnum::REJECTED->value,
+                    $user->user_id,
+                    null,
+                    $travel->employee_id
+                );
+
+                // Send email notification
+                $employeeEmail = $travel->employee->email ?? null;
+                $employeeName = $travel->employee->full_name ?? 'Employee';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new TravelRejected(
+                            employeeName: $employeeName,
+                            destination: $travel->visit_place,
+                            startDate: $travel->start_date,
+                            endDate: $travel->end_date,
+                            purpose: 'تم رفض طلب السفر'
+                        ),
+                        $employeeEmail
+                    );
+                }
+
+                return $travel;
+            }
+
+            // For staff users, verify approval levels
+            $canApprove = $this->approvalService->canUserApprove(
+                $user->user_id,
+                $travel->travel_id,
+                $travel->employee_id,
+                'travel_settings'
+            );
+
+            if (!$canApprove) {
+                Log::warning('TravelService::rejectTravel - Approval level denied', [
+                    'travel_id' => $id,
+                    'requester_id' => $user->user_id,
+                    'requester_type' => $user->user_type,
+                    'employee_id' => $travel->employee_id,
+                    'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                    'message' => 'ليس لديك صلاحية لرفض هذا الطلب في المرحلة الحالية',
+                ]);
+                throw new \Exception('ليس لديك صلاحية لرفض هذا الطلب في المرحلة الحالية');
+            }
+
             $travel = $this->travelRepository->reject($id, $user->user_id);
+
+            if (!$travel) {
+                Log::warning('TravelService::rejectTravel - Travel not found', [
+                    'travel_id' => $id,
+                    'message' => 'الطلب غير موجود',
+                ]);
+                throw new \Exception('الطلب غير موجود');
+            }
+
+            // Record rejection
+            $this->approvalService->recordApproval(
+                $travel->travel_id,
+                $user->user_id,
+                2, // rejected
+                2, // rejection level
+                'travel_settings',
+                $effectiveCompanyId
+            );
 
             // Send rejection notification
             $this->notificationService->sendApprovalNotification(
@@ -552,9 +753,9 @@ class TravelService
                 (string)$travel->travel_id,
                 $effectiveCompanyId,
                 StringStatusEnum::REJECTED->value,
-                $user->user_id,  // Rejector ID
+                $user->user_id,
                 null,
-                $travel->employee_id // Submitter ID
+                $travel->employee_id
             );
 
             // Send email notification

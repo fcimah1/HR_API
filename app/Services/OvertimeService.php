@@ -339,7 +339,7 @@ class OvertimeService
 
             if (!$isOwner && !$isCompany) {
                 $employee = User::find($request->staff_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::info('OvertimeService::updateRequest - Permission denied', [
                         'user_id' => $user->user_id,
                         'request_id' => $id,
@@ -499,10 +499,10 @@ class OvertimeService
                 throw new \Exception('تمت مراجعة هذا الطلب مسبقاً');
             }
 
-            // Check hierarchy permissions for staff users
+            // Check hierarchy permissions for staff users (strict: must be higher level)
             if ($approver->user_type !== 'company') {
                 $employee = User::find($request->staff_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($approver, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($approver, $employee)) {
                     Log::warning('OvertimeService::approveRequest - Hierarchy permission denied', [
                         'request_id' => $id,
                         'requester_id' => $approver->user_id,
@@ -576,7 +576,7 @@ class OvertimeService
                 Log::info('OvertimeService::approveRequest - Permission denied', [
                     'user_id' => $approver->user_id,
                     'request_id' => $id,
-                    'message' => 'Permission denied'
+                    'message' => 'ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية'
                 ]);
                 throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
             }
@@ -612,6 +612,22 @@ class OvertimeService
                     $effectiveCompanyId
                 );
 
+                // Send approval email
+                $employeeEmail = $approvedRequest->employee->email ?? null;
+                $employeeName = $approvedRequest->employee->full_name ?? 'Employee';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new OvertimeApproved(
+                            employeeName: $employeeName,
+                            requestDate: $approvedRequest->request_date,
+                            totalHours: $approvedRequest->total_hours,
+                            remarks: $remarks
+                        ),
+                        $employeeEmail
+                    );
+                }
+
                 return OvertimeRequestResponseDTO::fromModel($approvedRequest);
             } else {
                 // Intermediate approval - just record it
@@ -624,6 +640,16 @@ class OvertimeService
                     $effectiveCompanyId
                 );
 
+                // Send approval notification
+                $this->notificationService->sendApprovalNotification(
+                    'overtime_request_settings',
+                    (string)$request->time_request_id,
+                    $effectiveCompanyId,
+                    StringStatusEnum::APPROVED->value,
+                    $approver->user_id,
+                    1,
+                    $request->staff_id
+                );
                 // Reload to get updated approvals
                 $request->refresh();
                 $request->load(['employee', 'approvals.staff']);
@@ -639,14 +665,14 @@ class OvertimeService
     public function rejectRequest(int $id, User $rejector, string $reason): OvertimeRequestResponseDTO
     {
         return DB::transaction(function () use ($id, $rejector, $reason) {
+            
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($rejector);
-
             $request = $this->overtimeRepository->findRequestInCompany($id, $effectiveCompanyId);
 
             if (!$request) {
                 Log::info('OvertimeService::rejectRequest - Request not found', [
                     'id' => $id,
-                    'message' => 'Request not found'
+                    'message' => 'الطلب غير موجود'
                 ]);
                 throw new \Exception('الطلب غير موجود');
             }
@@ -654,15 +680,15 @@ class OvertimeService
             if ($request->is_approved !== 0) {
                 Log::info('OvertimeService::rejectRequest - Request is not pending', [
                     'id' => $id,
-                    'message' => 'Request is not pending'
+                    'message' => 'تمت مراجعة هذا الطلب مسبقاً'
                 ]);
                 throw new \Exception('تمت مراجعة هذا الطلب مسبقاً');
             }
 
-            // Check hierarchy permissions for staff users
+            // Check hierarchy permissions for staff users (strict: must be higher level)
             if ($rejector->user_type !== 'company') {
                 $employee = User::find($request->staff_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($rejector, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($rejector, $employee)) {
                     Log::warning('OvertimeService::rejectRequest - Hierarchy permission denied', [
                         'request_id' => $id,
                         'requester_id' => $rejector->user_id,
@@ -672,14 +698,42 @@ class OvertimeService
                         'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'requester_department' => $this->permissionService->getUserDepartmentId($rejector),
                         'employee_department' => $this->permissionService->getUserDepartmentId($employee),
-                        'message' => 'Hierarchy permission denied'
+                        'message' => 'ليس لديك صلاحية لرفض طلب هذا الموظف'
                     ]);
                     throw new \Exception('ليس لديك صلاحية لرفض طلب هذا الموظف');
                 }
             }
 
+            $userType = strtolower(trim($rejector->user_type ?? ''));
+
+            if ($userType !== 'company') {
+                $canApprove = $this->approvalService->canUserApprove(
+                    $rejector->user_id,
+                    $request->time_request_id,
+                    $request->staff_id,
+                    'overtime_request_settings'
+                );
+                if (!$canApprove) {
+                    Log::warning('OvertimeService::rejectRequest - Company permission denied', [
+                        'request_id' => $id,
+                        'requester_id' => $rejector->user_id,
+                        'requester_type' => $rejector->user_type,
+                        'employee_id' => $request->staff_id,
+                        'message' => 'ليس لديك صلاحية لرفض طلب هذا الموظف'
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لرفض طلب هذا الموظف');
+                }
+            }
             // Reject the request
             $rejectedRequest = $this->overtimeRepository->rejectRequest($request, $rejector->user_id, $reason);
+
+            if (!$rejectedRequest) {
+                Log::info('OvertimeService::rejectRequest - Request not found', [
+                    'id' => $id,
+                    'message' => 'فشل في رفض الطلب'
+                ]);
+                throw new \Exception('فشل في رفض الطلب');
+            }
 
             // Send rejection notification
             $this->notificationService->sendApprovalNotification(

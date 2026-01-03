@@ -16,6 +16,7 @@ use App\Repository\Interface\HourlyLeaveRepositoryInterface;
 use App\Services\SimplePermissionService;
 use App\Services\NotificationService;
 use App\Services\ApprovalWorkflowService;
+use App\Services\ApprovalService;
 use App\Enums\StringStatusEnum;
 use App\Jobs\SendEmailNotificationJob;
 use App\Mail\Leave\HourSubmitted;
@@ -33,6 +34,7 @@ class HourlyLeaveService
         protected NotificationService $notificationService,
         protected ApprovalWorkflowService $approvalWorkflow,
         protected CacheService $cacheService,
+        protected ApprovalService $approvalService,
     ) {}
 
     /**
@@ -448,19 +450,27 @@ class HourlyLeaveService
             $application = $this->hourlyLeaveRepository->findHourlyLeaveById($id, $effectiveCompanyId);
 
             if (!$application) {
+                Log::warning('HourlyLeaveService::approveOrRejectHourlyLeave - Application not found', [
+                    'application_id' => $id,
+                    'message' => 'الطلب غير موجود'
+                ]);
                 throw new \Exception('الطلب غير موجود');
             }
 
             // التحقق من أن الطلب لم يتم معالجته مسبقًا
             if ($application->status !== LeaveApplication::STATUS_PENDING) {
+                Log::warning('HourlyLeaveService::approveOrRejectHourlyLeave - Application not found', [
+                    'application_id' => $id,
+                    'message' => 'تم الموافقة على هذا الطلب مسبقاً أو تم رفضه'
+                ]);
                 throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
             }
 
-            // Check hierarchy permissions for staff users
+            // Check hierarchy permissions for staff users (strict: must be higher level)
             $user = Auth::user();
             if ($user->user_type !== 'company') {
                 $employee = User::find($application->employee_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::warning('HourlyLeaveService::approveOrRejectHourlyLeave - Hierarchy permission denied', [
                         'application_id' => $id,
                         'requester_id' => $user->user_id,
@@ -469,56 +479,239 @@ class HourlyLeaveService
                         'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
                         'employee_level' => $this->permissionService->getUserHierarchyLevel($employee),
                         'requester_department' => $this->permissionService->getUserDepartmentId($user),
-                        'employee_department' => $this->permissionService->getUserDepartmentId($employee)
+                        'employee_department' => $this->permissionService->getUserDepartmentId($employee),
+                        'message' => 'ليس لديك صلاحية لمراجعة طلب هذا الموظف'
                     ]);
                     throw new \Exception('ليس لديك صلاحية لمراجعة طلب هذا الموظف');
                 }
             }
 
-            if ($dto->action === 'approve') {
-                // الموافقة على الطلب
-                $processedApplication = $this->hourlyLeaveRepository->approveHourlyLeave(
-                    $application,
-                    $dto->processedBy,
-                    $dto->remarks
-                );
+            $userType = strtolower(trim($user->user_type ?? ''));
 
-                if (!$processedApplication) {
-                    throw new \Exception('فشل في الموافقة على الطلب');
-                }
-
-                // إرسال إشعار الموافقة
-                $this->notificationService->sendApprovalNotification(
-                    'leave_settings',
-                    (string)$processedApplication->leave_id,
-                    $effectiveCompanyId,
-                    StringStatusEnum::APPROVED->value,
-                    $dto->processedBy,  // معرف الموافق
-                    null, // مستوى الموافقة (افتراضي)
-                    $processedApplication->employee_id // معرف المرسل
-                );
-
-                // إرسال بريد الموافقة
-                $employeeEmail = $processedApplication->employee->email ?? null;
-                $employeeName = $processedApplication->employee->full_name ?? 'Employee';
-                $leaveTypeName = $processedApplication->leaveType->leave_type_name ?? 'Hourly Leave';
-
-                // إرسال بريد الموافقة (يتم إرساله كـ job)
-                if ($employeeEmail) {
-                    SendEmailNotificationJob::dispatch(
-                        new LeaveApproved(
-                            employeeName: $employeeName,
-                            leaveType: $leaveTypeName,
-                            startDate: $processedApplication->from_date,
-                            endDate: $processedApplication->to_date,
-                            remarks: $dto->remarks
-                        ),
-                        $employeeEmail
+            // Company user can approve/reject directly
+            if ($userType === 'company') {
+                if ($dto->action === 'approve') {
+                    $approvedApplication = $this->hourlyLeaveRepository->approveHourlyLeave(
+                        $application,
+                        $dto->processedBy,
+                        $dto->remarks
                     );
-                }
 
-                return $processedApplication;
+                    if (!$approvedApplication) {
+                        throw new \Exception('فشل في الموافقة على الطلب');
+                    }
+
+                    // Record final approval
+                    $this->approvalService->recordApproval(
+                        $approvedApplication->leave_id,
+                        $dto->processedBy,
+                        1, // approved
+                        1, // final level
+                        'hourly_leave_settings',
+                        $effectiveCompanyId
+                    );
+
+                    $this->notificationService->sendApprovalNotification(
+                        'hourly_leave_settings',
+                        (string)$approvedApplication->leave_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::APPROVED->value,
+                        $dto->processedBy,
+                        null,
+                        $approvedApplication->employee_id
+                    );
+
+                    // Send approval email
+                    $employeeEmail = $approvedApplication->employee->email ?? null;
+                    $employeeName = $approvedApplication->employee->full_name ?? 'Employee';
+                    $leaveTypeName = $approvedApplication->leaveType->leave_type_name ?? 'Hourly Leave';
+
+                    if ($employeeEmail) {
+                        SendEmailNotificationJob::dispatch(
+                            new LeaveApproved(
+                                employeeName: $employeeName,
+                                leaveType: $leaveTypeName,
+                                startDate: $approvedApplication->from_date,
+                                endDate: $approvedApplication->to_date,
+                                remarks: $dto->remarks
+                            ),
+                            $employeeEmail
+                        );
+                    }
+
+                    return $approvedApplication;
+                } else {
+                    // Company rejection
+                    $reason = $dto->remarks ?? 'تم رفض الطلب';
+                    $processedApplication = $this->hourlyLeaveRepository->rejectHourlyLeave(
+                        $application,
+                        $dto->processedBy,
+                        $reason
+                    );
+
+                    if (!$processedApplication) {
+                        throw new \Exception('فشل في رفض الطلب');
+                    }
+
+                    // Record rejection
+                    $this->approvalService->recordApproval(
+                        $processedApplication->leave_id,
+                        $dto->processedBy,
+                        2, // rejected
+                        2, // rejection level
+                        'hourly_leave_settings',
+                        $effectiveCompanyId
+                    );
+
+                    $this->notificationService->sendApprovalNotification(
+                        'hourly_leave_settings',
+                        (string)$processedApplication->leave_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::REJECTED->value,
+                        $dto->processedBy,
+                        null,
+                        $processedApplication->employee_id
+                    );
+
+                    // Send rejection email
+                    $employeeEmail = $processedApplication->employee->email ?? null;
+                    $employeeName = $processedApplication->employee->full_name ?? 'Employee';
+                    $leaveTypeName = $processedApplication->leaveType->leave_type_name ?? 'Hourly Leave';
+
+                    if ($employeeEmail) {
+                        SendEmailNotificationJob::dispatch(
+                            new LeaveRejected(
+                                employeeName: $employeeName,
+                                leaveType: $leaveTypeName,
+                                startDate: $processedApplication->from_date,
+                                endDate: $processedApplication->to_date,
+                                reason: $reason
+                            ),
+                            $employeeEmail
+                        );
+                    }
+
+                    return $processedApplication;
+                }
+            }
+
+            // For staff users, verify approval levels
+            $canApprove = $this->approvalService->canUserApprove(
+                $user->user_id,
+                $application->leave_id,
+                $application->employee_id,
+                'hourly_leave_settings'
+            );
+
+            if (!$canApprove) {
+                Log::info('HourlyLeaveService::approveOrRejectHourlyLeave - Multi-level approval denied', [
+                    'user_id' => $user->user_id,
+                    'leave_id' => $id,
+                    'message' => 'ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية'
+                ]);
+                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+            }
+
+            if ($dto->action === 'approve') {
+                $isFinal = $this->approvalService->isFinalApproval(
+                    $application->leave_id,
+                    $application->employee_id,
+                    'hourly_leave_settings'
+                );
+
+                if ($isFinal) {
+                    // الموافقة على الطلب
+                    $approvedApplication = $this->hourlyLeaveRepository->approveHourlyLeave(
+                        $application,
+                        $dto->processedBy,
+                        $dto->remarks
+                    );
+
+                    if (!$approvedApplication) {
+                        throw new \Exception('فشل في الموافقة على الطلب');
+                    }
+
+                    $this->notificationService->sendApprovalNotification(
+                        'hourly_leave_settings',
+                        (string)$approvedApplication->leave_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::APPROVED->value,
+                        $dto->processedBy,
+                        null,
+                        $approvedApplication->employee_id
+                    );
+                    // Record final approval
+                    $this->approvalService->recordApproval(
+                        $approvedApplication->leave_id,
+                        $dto->processedBy,
+                        1,
+                        1,
+                        'hourly_leave_settings',
+                        $effectiveCompanyId
+                    );
+
+
+                    // Send approval email
+                    $employeeEmail = $approvedApplication->employee->email ?? null;
+                    $employeeName = $approvedApplication->employee->full_name ?? 'Employee';
+                    $leaveTypeName = $approvedApplication->leaveType->leave_type_name ?? 'Leave';
+
+                    if ($employeeEmail) {
+                        SendEmailNotificationJob::dispatch(
+                            new LeaveApproved(
+                                employeeName: $employeeName,
+                                leaveType: $leaveTypeName,
+                                startDate: $approvedApplication->from_date,
+                                endDate: $approvedApplication->to_date,
+                                remarks: $dto->remarks
+                            ),
+                            $employeeEmail
+                        );
+                    }
+                    return $approvedApplication;
+                } else {
+                    // Intermediate approval - record and notify next level
+                    $this->approvalService->recordApproval(
+                        $application->leave_id,
+                        $user->user_id,
+                        1,
+                        0,
+                        'leave_settings',
+                        $effectiveCompanyId
+                    );
+
+                    // Send approval notification
+                    $this->notificationService->sendApprovalNotification(
+                        'leave_settings',
+                        (string)$application->leave_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::APPROVED->value,
+                        $user->user_id,
+                        1,
+                        $application->employee_id
+                    );
+                    return $application;
+                }
             } else {
+
+                // For staff users, verify approval levels
+                if ($userType !== 'company') {
+                    $canApprove = $this->approvalService->canUserApprove(
+                        $dto->processedBy,
+                        $application->leave_id,
+                        $application->employee_id,
+                        'hourly_leave_settings'
+                    );
+
+                    if (!$canApprove) {
+                        Log::info('HourlyLeaveService::approveOrRejectHourlyLeave - Multi-level approval denied', [
+                            'user_id' => $dto->processedBy,
+                            'leave_id' => $application->leave_id,
+                            'message' => 'ليس لديك صلاحية لرفض هذا الطلب في المرحلة الحالية'
+                        ]);
+                        throw new \Exception('ليس لديك صلاحية لرفض هذا الطلب في المرحلة الحالية');
+                    }
+                }
                 // رفض الطلب
                 $reason = $dto->remarks ?? 'تم رفض الطلب';
                 $processedApplication = $this->hourlyLeaveRepository->rejectHourlyLeave(
@@ -528,8 +721,23 @@ class HourlyLeaveService
                 );
 
                 if (!$processedApplication) {
+                    Log::info('HourlyLeaveService::approveOrRejectHourlyLeave - Multi-level approval denied', [
+                        'user_id' => $dto->processedBy,
+                        'leave_id' => $application->leave_id,
+                        'message' => 'فشل في رفض الطلب'
+                    ]);
                     throw new \Exception('فشل في رفض الطلب');
                 }
+
+                // Record rejection
+                $this->approvalService->recordApproval(
+                    $processedApplication->leave_id,
+                    $dto->processedBy,
+                    2, // rejected
+                    2, // rejection level
+                    'hourly_leave_settings',
+                    $effectiveCompanyId
+                );
 
                 // إرسال إشعار الرفض
                 $this->notificationService->sendApprovalNotification(
@@ -537,9 +745,9 @@ class HourlyLeaveService
                     (string)$processedApplication->leave_id,
                     $effectiveCompanyId,
                     StringStatusEnum::REJECTED->value,
-                    $dto->processedBy,  // معرف الرافض
-                    null, // مستوى الموافقة (افتراضي)
-                    $processedApplication->employee_id // معرف المرسل
+                    $dto->processedBy,
+                    null,
+                    $processedApplication->employee_id
                 );
 
                 // إرسال بريد الرفض
@@ -547,7 +755,6 @@ class HourlyLeaveService
                 $employeeName = $processedApplication->employee->full_name ?? 'Employee';
                 $leaveTypeName = $processedApplication->leaveType->leave_type_name ?? 'Hourly Leave';
 
-                // إرسال بريد الرفض (يتم إرساله كـ job)
                 if ($employeeEmail) {
                     SendEmailNotificationJob::dispatch(
                         new LeaveRejected(
@@ -592,7 +799,7 @@ class HourlyLeaveService
             // Check hierarchy permissions for staff users (non-owners)
             if (!$isOwner && $user->user_type !== 'company') {
                 $employee = User::find($application->employee_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::warning('HourlyLeaveService::updateHourlyLeave - Hierarchy permission denied', [
                         'application_id' => $id,
                         'requester_id' => $user->user_id,
