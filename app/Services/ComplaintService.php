@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Repository\Interface\ComplaintRepositoryInterface;
 use App\Services\SimplePermissionService;
 use App\Services\NotificationService;
+use App\Services\ApprovalService;
 use App\Enums\StringStatusEnum;
 use App\Jobs\SendEmailNotificationJob;
 use App\Mail\Complaint\ComplaintSubmitted;
@@ -26,6 +27,7 @@ class ComplaintService
         protected ComplaintRepositoryInterface $complaintRepository,
         protected SimplePermissionService $permissionService,
         protected NotificationService $notificationService,
+        protected ApprovalService $approvalService,
     ) {}
 
     /**
@@ -220,16 +222,20 @@ class ComplaintService
                 throw new \Exception('لا يمكن تعديل الشكوى بعد معالجتها');
             }
 
-            // التحقق من صلاحية التعديل (المالك فقط)
+            // صلاحية التعديل: صاحب الشكوى، مدير الشركة، أو من لديه صلاحية رؤية طلبات الموظف
             $isOwner = $complaint->complaint_from === $user->user_id;
+            $isCompany = $user->user_type === 'company';
 
-            if (!$isOwner) {
-                Log::warning('ComplaintService::updateComplaint - User not owner', [
-                    'complaint_id' => $id,
-                    'requester_id' => $user->user_id,
-                    'message' => 'ليس لديك صلاحية لتعديل هذه الشكوى'
-                ]);
-                throw new \Exception('ليس لديك صلاحية لتعديل هذه الشكوى');
+            if (!$isOwner && !$isCompany) {
+                $employee = User::find($complaint->complaint_from);
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
+                    Log::warning('ComplaintService::updateComplaint - Permission denied', [
+                        'complaint_id' => $id,
+                        'requester_id' => $user->user_id,
+                        'message' => 'ليس لديك صلاحية لتعديل هذه الشكوى'
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لتعديل هذه الشكوى');
+                }
             }
 
             // تحديث الشكوى
@@ -338,10 +344,10 @@ class ComplaintService
                 throw new \Exception('تم معالجة هذه الشكوى مسبقاً');
             }
 
-            // Check hierarchy permissions for staff users
+            // Check hierarchy permissions for staff users (strict: must be higher level)
             if ($user->user_type !== 'company') {
                 $employee = User::find($complaint->complaint_from);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::warning('ComplaintService::resolveOrRejectComplaint - Hierarchy permission denied', [
                         'complaint_id' => $id,
                         'message' => 'ليس لديك صلاحية لمعالجة شكوى هذا الموظف',
@@ -351,53 +357,199 @@ class ComplaintService
                 }
             }
 
-            if ($dto->action === 'resolve') {
-                // حل الشكوى
-                $processedComplaint = $this->complaintRepository->resolveComplaint(
-                    $complaint,
-                    $dto->processedBy,
-                    $dto->description,
-                );
+            $userType = strtolower(trim($user->user_type ?? ''));
 
-                // إرسال إشعار للموظف
-                $this->notificationService->sendApprovalNotification(
-                    'complaint_settings',
-                    (string)$processedComplaint->complaint_id,
-                    $effectiveCompanyId,
-                    StringStatusEnum::APPROVED->value,
-                    $dto->processedBy,
-                    null,
-                    $processedComplaint->complaint_from
-                );
-
-                // Send resolution email
-                $employee = User::find($processedComplaint->complaint_from);
-                if ($employee && $employee->email) {
-                    SendEmailNotificationJob::dispatch(
-                        new ComplaintResolved(
-                            employeeName: $employee->full_name ?? $employee->first_name,
-                            complaintType: $processedComplaint->complaint_type ?? 'شكوى عامة',
-                            complaintSubject: $processedComplaint->title ?? 'غير محدد',
-                            resolution: $dto->description ?? 'تم الحل',
-                            remarks: null
-                        ),
-                        $employee->email
+            // Company user can resolve/reject directly
+            if ($userType === 'company') {
+                if ($dto->action === 'resolve') {
+                    $processedComplaint = $this->complaintRepository->resolveComplaint(
+                        $complaint,
+                        $dto->processedBy,
+                        $dto->description,
                     );
+
+                    // Record final approval
+                    $this->approvalService->recordApproval(
+                        $processedComplaint->complaint_id,
+                        $dto->processedBy,
+                        1, // approved
+                        1, // final level
+                        'complaint_settings',
+                        $effectiveCompanyId
+                    );
+
+                    $this->notificationService->sendApprovalNotification(
+                        'complaint_settings',
+                        (string)$processedComplaint->complaint_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::APPROVED->value,
+                        $dto->processedBy,
+                        null,
+                        $processedComplaint->complaint_from
+                    );
+
+                    // Send resolution email
+                    $employee = User::find($processedComplaint->complaint_from);
+                    if ($employee && $employee->email) {
+                        SendEmailNotificationJob::dispatch(
+                            new ComplaintResolved(
+                                employeeName: $employee->full_name ?? $employee->first_name,
+                                complaintType: $processedComplaint->complaint_type ?? 'شكوى عامة',
+                                complaintSubject: $processedComplaint->title ?? 'غير محدد',
+                                resolution: $dto->description ?? 'تم الحل',
+                                remarks: null
+                            ),
+                            $employee->email
+                        );
+                    }
+
+                    return $processedComplaint;
+                } else {
+                    // Company rejection
+                    $processedComplaint = $this->complaintRepository->rejectComplaint(
+                        $complaint,
+                        $dto->processedBy,
+                        $dto->description
+                    );
+
+                    // Record rejection
+                    $this->approvalService->recordApproval(
+                        $processedComplaint->complaint_id,
+                        $dto->processedBy,
+                        2, // rejected
+                        2, // rejection level
+                        'complaint_settings',
+                        $effectiveCompanyId
+                    );
+
+                    $this->notificationService->sendApprovalNotification(
+                        'complaint_settings',
+                        (string)$processedComplaint->complaint_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::REJECTED->value,
+                        $dto->processedBy,
+                        null,
+                        $processedComplaint->complaint_from
+                    );
+
+                    return $processedComplaint;
                 }
+            }
 
-                Log::warning('ComplaintService::resolveOrRejectComplaint - Complaint resolved', [
-                    'complaint_id' => $id,
-                    'message' => 'تم معالجة الشكوى بنجاح',
-                    'resolved_by' => $user->user_id,
-                ]);
+            // For staff users, verify approval levels
+            $canApprove = $this->approvalService->canUserApprove(
+                $user->user_id,
+                $complaint->complaint_id,
+                $complaint->complaint_from,
+                'complaint_settings'
+            );
 
-                return $processedComplaint;
+            if (!$canApprove) {
+                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+            }
+
+            if ($dto->action === 'resolve') {
+                // Check if this is the final approval
+                $isFinal = $this->approvalService->isFinalApproval(
+                    $complaint->complaint_id,
+                    $complaint->complaint_from,
+                    'complaint_settings'
+                );
+
+                if ($isFinal) {
+                    // Final approval
+                    $processedComplaint = $this->complaintRepository->resolveComplaint(
+                        $complaint,
+                        $dto->processedBy,
+                        $dto->description,
+                    );
+
+                    // Record final approval
+                    $this->approvalService->recordApproval(
+                        $processedComplaint->complaint_id,
+                        $dto->processedBy,
+                        1,
+                        1,
+                        'complaint_settings',
+                        $effectiveCompanyId
+                    );
+
+                    // إرسال إشعار للموظف
+                    $this->notificationService->sendApprovalNotification(
+                        'complaint_settings',
+                        (string)$processedComplaint->complaint_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::APPROVED->value,
+                        $dto->processedBy,
+                        null,
+                        $processedComplaint->complaint_from
+                    );
+
+                    // Send resolution email
+                    $employee = User::find($processedComplaint->complaint_from);
+                    if ($employee && $employee->email) {
+                        SendEmailNotificationJob::dispatch(
+                            new ComplaintResolved(
+                                employeeName: $employee->full_name ?? $employee->first_name,
+                                complaintType: $processedComplaint->complaint_type ?? 'شكوى عامة',
+                                complaintSubject: $processedComplaint->title ?? 'غير محدد',
+                                resolution: $dto->description ?? 'تم الحل',
+                                remarks: null
+                            ),
+                            $employee->email
+                        );
+                    }
+
+                    Log::warning('ComplaintService::resolveOrRejectComplaint - Complaint resolved', [
+                        'complaint_id' => $id,
+                        'message' => 'تم معالجة الشكوى بنجاح',
+                        'resolved_by' => $user->user_id,
+                    ]);
+
+                    return $processedComplaint;
+                } else {
+                    // Intermediate approval - just record it, don't change status
+                    $this->approvalService->recordApproval(
+                        $complaint->complaint_id,
+                        $dto->processedBy,
+                        1, // approved
+                        0, // intermediate level
+                        'complaint_settings',
+                        $effectiveCompanyId
+                    );
+
+                    // Send intermediate approval notification
+                    $this->notificationService->sendApprovalNotification(
+                        'complaint_settings',
+                        (string)$complaint->complaint_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::APPROVED->value,
+                        $dto->processedBy,
+                        1,
+                        $complaint->complaint_from
+                    );
+
+                    // Reload to get updated approvals
+                    $complaint->refresh();
+
+                    return $complaint;
+                }
             } else {
                 // رفض الشكوى
                 $processedComplaint = $this->complaintRepository->rejectComplaint(
                     $complaint,
                     $dto->processedBy,
                     $dto->description
+                );
+
+                // Record rejection
+                $this->approvalService->recordApproval(
+                    $processedComplaint->complaint_id,
+                    $dto->processedBy,
+                    2, // rejected
+                    2, // rejection level
+                    'complaint_settings',
+                    $effectiveCompanyId
                 );
 
                 // إرسال إشعار للموظف

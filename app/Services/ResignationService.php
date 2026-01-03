@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Repository\Interface\ResignationRepositoryInterface;
 use App\Services\SimplePermissionService;
 use App\Services\NotificationService;
+use App\Services\ApprovalService;
 use App\Enums\StringStatusEnum;
 use App\Jobs\SendEmailNotificationJob;
 use App\Mail\Resignation\ResignationSubmitted;
@@ -28,6 +29,7 @@ class ResignationService
         protected SimplePermissionService $permissionService,
         protected NotificationService $notificationService,
         protected CacheService $cacheService,
+        protected ApprovalService $approvalService,
     ) {}
 
     /**
@@ -212,14 +214,20 @@ class ResignationService
                 throw new \Exception('لا يمكن تعديل طلب الاستقالة بعد معالجته');
             }
 
+            // صلاحية التعديل: صاحب الطلب، مدير الشركة، أو من لديه صلاحية رؤية طلبات الموظف
             $isOwner = $resignation->employee_id === $user->user_id;
-            if (!$isOwner && $user->user_type !== 'company') {
+            $isCompany = $user->user_type === 'company';
 
-                Log::warning('ResignationService::updateResignation - User is not owner', [
-                    'id' => $id,
-                    'message' => 'User is not owner'
-                ]);
-                throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+            if (!$isOwner && !$isCompany) {
+                $employee = User::find($resignation->employee_id);
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
+                    Log::warning('ResignationService::updateResignation - Permission denied', [
+                        'resignation_id' => $id,
+                        'message' => 'ليس لديك صلاحية لتعديل هذا الطلب',
+                        'user_id' => $user->user_id
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
+                }
             }
 
             return $this->resignationRepository->updateResignation($resignation, $dto);
@@ -281,7 +289,8 @@ class ResignationService
                 ? 'تم إلغاء الطلب من قبل الموظف'
                 : 'تم إلغاء الطلب من قبل الإدارة';
 
-            return $this->resignationRepository->rejectResignation($resignation, $user->user_id, $cancelReason);
+            $this->resignationRepository->rejectResignation($resignation, $user->user_id, $cancelReason);
+            return true;
         });
     }
 
@@ -313,10 +322,10 @@ class ResignationService
                 throw new \Exception('تم معالجة طلب الاستقالة مسبقاً');
             }
 
-            // التحقق من صلاحيات الموافقة
+            // التحقق من صلاحيات الموافقة (strict: must be higher level)
             if ($user->user_type !== 'company') {
                 $employee = User::find($resignation->employee_id);
-                if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::info('ResignationService::approveOrRejectResignation - Permission denied', [
                         'resignation_id' => $id,
                         'message' => 'ليس لديك صلاحية لمعالجة طلب استقالة هذا الموظف',
@@ -326,43 +335,203 @@ class ResignationService
                 }
             }
 
-            if ($dto->action === 'approve') {
-                $processedResignation = $this->resignationRepository->approveResignation(
-                    $resignation,
-                    $dto->processedBy,
-                    $dto->remarks
-                );
+            $userType = strtolower(trim($user->user_type ?? ''));
 
-                $this->notificationService->sendApprovalNotification(
-                    'resignation_settings',
-                    (string)$processedResignation->resignation_id,
-                    $effectiveCompanyId,
-                    StringStatusEnum::APPROVED->value,
-                    $dto->processedBy,
-                    null,
-                    $processedResignation->employee_id
-                );
-
-                // Send approval email
-                $employee = User::find($processedResignation->employee_id);
-                if ($employee && $employee->email) {
-                    SendEmailNotificationJob::dispatch(
-                        new ResignationApproved(
-                            employeeName: $employee->full_name ?? $employee->first_name,
-                            resignationDate: $processedResignation->resignation_date ?? now()->format('Y-m-d'),
-                            lastWorkingDay: $processedResignation->last_working_day ?? 'غير محدد',
-                            remarks: $dto->remarks
-                        ),
-                        $employee->email
+            // Company user can approve/reject directly
+            if ($userType === 'company') {
+                if ($dto->action === 'approve') {
+                    $processedResignation = $this->resignationRepository->approveResignation(
+                        $resignation,
+                        $dto->processedBy,
+                        $dto->remarks
                     );
-                }
 
-                return $processedResignation;
+                    // Record final approval
+                    $this->approvalService->recordApproval(
+                        $processedResignation->resignation_id,
+                        $dto->processedBy,
+                        1, // approved
+                        1, // final level
+                        'resignation_settings',
+                        $effectiveCompanyId
+                    );
+
+                    $this->notificationService->sendApprovalNotification(
+                        'resignation_settings',
+                        (string)$processedResignation->resignation_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::APPROVED->value,
+                        $dto->processedBy,
+                        null,
+                        $processedResignation->employee_id
+                    );
+
+                    // Send approval email
+                    $employee = User::find($processedResignation->employee_id);
+                    if ($employee && $employee->email) {
+                        SendEmailNotificationJob::dispatch(
+                            new ResignationApproved(
+                                employeeName: $employee->full_name ?? $employee->first_name,
+                                resignationDate: $processedResignation->resignation_date ?? now()->format('Y-m-d'),
+                                lastWorkingDay: $processedResignation->last_working_day ?? 'غير محدد',
+                                remarks: $dto->remarks
+                            ),
+                            $employee->email
+                        );
+                    }
+
+                    return $processedResignation;
+                } else {
+                    // Company rejection
+                    $processedResignation = $this->resignationRepository->rejectResignation(
+                        $resignation,
+                        $dto->processedBy,
+                        $dto->remarks
+                    );
+
+                    // Record rejection
+                    $this->approvalService->recordApproval(
+                        $processedResignation->resignation_id,
+                        $dto->processedBy,
+                        2, // rejected
+                        2, // rejection level
+                        'resignation_settings',
+                        $effectiveCompanyId
+                    );
+
+                    $this->notificationService->sendApprovalNotification(
+                        'resignation_settings',
+                        (string)$processedResignation->resignation_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::REJECTED->value,
+                        $dto->processedBy,
+                        null,
+                        $processedResignation->employee_id
+                    );
+
+                    // Send rejection email
+                    $employee = User::find($processedResignation->employee_id);
+                    if ($employee && $employee->email) {
+                        SendEmailNotificationJob::dispatch(
+                            new ResignationRejected(
+                                employeeName: $employee->full_name ?? $employee->first_name,
+                                resignationDate: $processedResignation->resignation_date ?? now()->format('Y-m-d'),
+                                lastWorkingDay: $processedResignation->last_working_day ?? 'غير محدد',
+                                reason: $dto->remarks
+                            ),
+                            $employee->email
+                        );
+                    }
+
+                    return $processedResignation;
+                }
+            }
+
+            // For staff users, verify approval levels
+            $canApprove = $this->approvalService->canUserApprove(
+                $user->user_id,
+                $resignation->resignation_id,
+                $resignation->employee_id,
+                'resignation_settings'
+            );
+
+            if (!$canApprove) {
+                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+            }
+
+            if ($dto->action === 'approve') {
+                // Check if this is the final approval
+                $isFinal = $this->approvalService->isFinalApproval(
+                    $resignation->resignation_id,
+                    $resignation->employee_id,
+                    'resignation_settings'
+                );
+
+                if ($isFinal) {
+                    // Final approval
+                    $processedResignation = $this->resignationRepository->approveResignation(
+                        $resignation,
+                        $dto->processedBy,
+                        $dto->remarks
+                    );
+
+                    // Record final approval
+                    $this->approvalService->recordApproval(
+                        $processedResignation->resignation_id,
+                        $dto->processedBy,
+                        1,
+                        1,
+                        'resignation_settings',
+                        $effectiveCompanyId
+                    );
+
+                    $this->notificationService->sendApprovalNotification(
+                        'resignation_settings',
+                        (string)$processedResignation->resignation_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::APPROVED->value,
+                        $dto->processedBy,
+                        null,
+                        $processedResignation->employee_id
+                    );
+
+                    // Send approval email
+                    $employee = User::find($processedResignation->employee_id);
+                    if ($employee && $employee->email) {
+                        SendEmailNotificationJob::dispatch(
+                            new ResignationApproved(
+                                employeeName: $employee->full_name ?? $employee->first_name,
+                                resignationDate: $processedResignation->resignation_date ?? now()->format('Y-m-d'),
+                                lastWorkingDay: $processedResignation->last_working_day ?? 'غير محدد',
+                                remarks: $dto->remarks
+                            ),
+                            $employee->email
+                        );
+                    }
+
+                    return $processedResignation;
+                } else {
+                    // Intermediate approval - just record it, don't change status
+                    $this->approvalService->recordApproval(
+                        $resignation->resignation_id,
+                        $dto->processedBy,
+                        1, // approved
+                        0, // intermediate level
+                        'resignation_settings',
+                        $effectiveCompanyId
+                    );
+
+                    // Send intermediate approval notification
+                    $this->notificationService->sendApprovalNotification(
+                        'resignation_settings',
+                        (string)$resignation->resignation_id,
+                        $effectiveCompanyId,
+                        StringStatusEnum::APPROVED->value,
+                        $dto->processedBy,
+                        1,
+                        $resignation->employee_id
+                    );
+
+                    // Reload to get updated approvals
+                    $resignation->refresh();
+
+                    return $resignation;
+                }
             } else {
                 $processedResignation = $this->resignationRepository->rejectResignation(
                     $resignation,
                     $dto->processedBy,
                     $dto->remarks
+                );
+
+                // Record rejection
+                $this->approvalService->recordApproval(
+                    $processedResignation->resignation_id,
+                    $dto->processedBy,
+                    2, // rejected
+                    2, // rejection level
+                    'resignation_settings',
+                    $effectiveCompanyId
                 );
 
                 $this->notificationService->sendApprovalNotification(

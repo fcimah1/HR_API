@@ -235,10 +235,7 @@ class SimplePermissionService
      * التحقق إذا كان المستخدم يمكنه رؤية طلبات موظف آخر
      * بناءً على المستوى الهرمي والقسم
      */
-    /**
-     * التحقق إذا كان المستخدم يمكنه رؤية طلبات موظف آخر
-     * بناءً على المستوى الهرمي والقيود
-     */
+
     public function canViewEmployeeRequests(User $manager, User $employee): bool
     {
         // مدير الشركة يرى الجميع
@@ -275,6 +272,81 @@ class SimplePermissionService
         // بدلاً من فحص القسم الصارم، نفحص إذا كان قسم الموظف محظوراً على المدير
         $restriction = OperationRestriction::where('company_id', $manager->company_id)
             ->where('user_id', $manager->user_id)
+            ->first();
+
+        if ($restriction && !empty($restriction->restricted_operations)) {
+            $operations = $restriction->restricted_operations;
+            if (is_string($operations)) {
+                $operations = explode(',', $operations);
+            }
+
+            $employeeDepartmentId = $this->getUserDepartmentId($employee);
+            $employeeBranchId = $employee->user_details?->branch_id ?? 0;
+
+            foreach ($operations as $op) {
+                $op = trim($op);
+                if ($employeeDepartmentId && str_starts_with($op, 'dept_')) {
+                    $restrictedDeptId = (int)str_replace('dept_', '', $op);
+                    if ($employeeDepartmentId == $restrictedDeptId) {
+                        return false; // Restricted Department
+                    }
+                }
+                if ($employeeBranchId && str_starts_with($op, 'branch_')) {
+                    $restrictedBranchId = (int)str_replace('branch_', '', $op);
+                    if ($employeeBranchId == $restrictedBranchId) {
+                        return false; // Restricted Branch
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * التحقق إذا كان المستخدم يمكنه الموافقة/الرفض على طلبات موظف آخر
+     * يتطلب مستوى هرمي أعلى (أقل رقمياً) - لا يسمح بنفس المستوى أو النفس
+     * 
+     * @param User $approver الموظف الذي يقوم بالموافقة/الرفض
+     * @param User $employee الموظف صاحب الطلب
+     * @return bool
+     */
+    public function canApproveEmployeeRequests(User $approver, User $employee): bool
+    {
+        // لا يمكن للموظف الموافقة/الرفض على طلبه بنفسه
+        if ($approver->user_id === $employee->user_id) {
+            return false;
+        }
+
+        // مدير الشركة يمكنه الموافقة على الجميع
+        if ($this->isCompanyOwner($approver)) {
+            return $employee->company_id == $approver->user_id;
+        }
+
+        // يجب أن يكون من نفس الشركة
+        if ($approver->company_id !== $employee->company_id) {
+            return false;
+        }
+
+        // التحقق من المستوى الهرمي
+        $approverLevel = $this->getUserHierarchyLevel($approver);
+        $employeeLevel = $this->getUserHierarchyLevel($employee);
+
+        if ($approverLevel === null || $employeeLevel === null) {
+            return false;
+        }
+
+        // يجب أن يكون الموافق في مستوى أعلى صارم (رقم أقل) - لا يسمح بنفس المستوى
+        // Approver Level (1) < Employee Level (5) = Can Approve
+        // Approver Level (3) = Employee Level (3) = Cannot Approve (Same Level)
+        // Approver Level (5) > Employee Level (3) = Cannot Approve (Lower Level)
+        if ($approverLevel >= $employeeLevel) {
+            return false;
+        }
+
+        // التحقق من القيود (Restrictions) - Department/Branch
+        $restriction = OperationRestriction::where('company_id', $approver->company_id)
+            ->where('user_id', $approver->user_id)
             ->first();
 
         if ($restriction && !empty($restriction->restricted_operations)) {
