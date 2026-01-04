@@ -27,7 +27,13 @@ class AdvanceSalaryResponseDTO
         public readonly string $createdAt,
         public readonly ?array $employee = null,
         public readonly ?array $approvals = null,
-    ) {}
+        public readonly ?int $loanTierId = null,
+        public readonly ?string $tierLabel = null,
+        public readonly ?float $employeeSalary = null,
+        public readonly ?int $requestedMonths = null,
+        public readonly ?int $guarantorId = null,
+    ) {
+    }
 
     public static function fromModel(AdvanceSalary $advance): self
     {
@@ -58,12 +64,21 @@ class AdvanceSalaryResponseDTO
             ];
         })->toArray();
 
+        // Load tier if exists
+        $tierLabel = null;
+        if ($advance->loan_tier_id) {
+            if (!$advance->relationLoaded('tier')) {
+                $advance->load('tier');
+            }
+            $tierLabel = $advance->tier?->tier_label_ar;
+        }
+
         return new self(
             advanceSalaryId: $advance->advance_salary_id,
             companyId: $advance->company_id,
             employeeId: $advance->employee_id,
             employeeName: $advance->employee ?
-                ($advance->employee->first_name . ' ' . $advance->employee->last_name) : 'غير محدد',
+            ($advance->employee->first_name . ' ' . $advance->employee->last_name) : 'غير محدد',
             salaryType: $advance->salary_type,
             salaryTypeText: $advance->getTypeText(),
             monthYear: $advance->month_year,
@@ -80,6 +95,11 @@ class AdvanceSalaryResponseDTO
             createdAt: $advance->created_at,
             employee: $employee,
             approvals: $approvals,
+            loanTierId: $advance->loan_tier_id,
+            tierLabel: $tierLabel,
+            employeeSalary: $advance->employee_salary ? (float) $advance->employee_salary : null,
+            requestedMonths: $advance->requested_months,
+            guarantorId: $advance->guarantor_id,
         );
     }
 
@@ -106,6 +126,11 @@ class AdvanceSalaryResponseDTO
             'created_at' => $this->createdAt,
             'employee' => $this->employee,
             'approvals' => $this->approvals,
+            'loan_tier_id' => $this->loanTierId,
+            'tier_label' => $this->tierLabel,
+            'employee_salary' => $this->employeeSalary,
+            'requested_months' => $this->requestedMonths,
+            'guarantor_id' => $this->guarantorId,
         ];
     }
 }

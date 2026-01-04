@@ -404,6 +404,134 @@
                 ]
             }
         },
+        "/api/advances/tier-based": {
+            "post": {
+                "tags": [
+                    "Advance Salary & Loan Management"
+                ],
+                "summary": "Create a new loan/advance request using tier-based system",
+                "description": "Creates a request with auto-calculated amounts based on employee salary and selected tier. All employee info fields are for display/audit purposes.",
+                "operationId": "dc521f69509721365fc2507ade4b71f1",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "tier_id",
+                                    "requested_months",
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "description": "Employee ID (defaults to authenticated user)",
+                                        "type": "integer",
+                                        "example": 755
+                                    },
+                                    "employee_name": {
+                                        "description": "Employee full name (display)",
+                                        "type": "string",
+                                        "example": "أحمد محمد"
+                                    },
+                                    "position": {
+                                        "description": "Employee position (display)",
+                                        "type": "string",
+                                        "example": "مطور برمجيات"
+                                    },
+                                    "company": {
+                                        "description": "Company name (display)",
+                                        "type": "string",
+                                        "example": "شركة التقنية"
+                                    },
+                                    "department": {
+                                        "description": "Department name (display)",
+                                        "type": "string",
+                                        "example": "تقنية المعلومات"
+                                    },
+                                    "division": {
+                                        "description": "Division/Branch name (display)",
+                                        "type": "string",
+                                        "example": "التطوير"
+                                    },
+                                    "monthly_salary": {
+                                        "description": "Monthly salary (display)",
+                                        "type": "number",
+                                        "example": 10000
+                                    },
+                                    "tier_id": {
+                                        "description": "Tier ID from /loans/form-init",
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "loan_amount": {
+                                        "description": "Loan amount (display/audit)",
+                                        "type": "number",
+                                        "example": 10000
+                                    },
+                                    "requested_months": {
+                                        "description": "Number of installment months",
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "installment_amount": {
+                                        "description": "Monthly installment (display/audit)",
+                                        "type": "number",
+                                        "example": 3333.33
+                                    },
+                                    "reason": {
+                                        "description": "Reason for request",
+                                        "type": "string",
+                                        "example": "احتياج شخصي عاجل"
+                                    },
+                                    "guarantor_id": {
+                                        "description": "Guarantor employee ID (optional)",
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Request created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء الطلب بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/advances/{id}": {
             "get": {
                 "tags": [
@@ -9942,6 +10070,282 @@
                 ]
             }
         },
+        "/api/loans/form-init": {
+            "get": {
+                "tags": [
+                    "Loan Management"
+                ],
+                "summary": "Initialize loan request form",
+                "description": "Returns employee info auto-filled data + available tiers with pre-calculated amounts. Used when employee is selected from dropdown.",
+                "operationId": "21a6aa2663452f8c7d051ba24c40ebf3",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "Employee ID (defaults to authenticated user)",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Form data retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "eligible": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "employee": {
+                                                    "properties": {
+                                                        "employee_id": {
+                                                            "type": "integer",
+                                                            "example": 755
+                                                        },
+                                                        "full_name": {
+                                                            "type": "string",
+                                                            "example": "أحمد محمد"
+                                                        },
+                                                        "position": {
+                                                            "type": "string",
+                                                            "example": "مطور برمجيات"
+                                                        },
+                                                        "company": {
+                                                            "type": "string",
+                                                            "example": "شركة التقنية"
+                                                        },
+                                                        "department": {
+                                                            "type": "string",
+                                                            "example": "تقنية المعلومات"
+                                                        },
+                                                        "division": {
+                                                            "type": "string",
+                                                            "example": "التطوير"
+                                                        },
+                                                        "monthly_salary": {
+                                                            "type": "number",
+                                                            "example": 10000
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "available_tiers": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "tier_id": {
+                                                                "type": "integer",
+                                                                "example": 2
+                                                            },
+                                                            "label": {
+                                                                "type": "string",
+                                                                "example": "قرض راتب شهر / 4 شهور"
+                                                            },
+                                                            "loan_amount": {
+                                                                "type": "number",
+                                                                "example": 10000
+                                                            },
+                                                            "max_months": {
+                                                                "type": "integer",
+                                                                "example": 4
+                                                            },
+                                                            "min_months": {
+                                                                "type": "integer",
+                                                                "example": 2
+                                                            },
+                                                            "default_installment": {
+                                                                "type": "number",
+                                                                "example": 2500
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "blocked_tiers": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "tier_id": {
+                                                                "type": "integer"
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "reason": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "blocked_reasons": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "Employee not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/loans/preview": {
+            "post": {
+                "tags": [
+                    "Loan Management"
+                ],
+                "summary": "Preview/Calculate loan installment",
+                "description": "Recalculates loan when user changes installment months. Use for 'Calculate' button.",
+                "operationId": "e17567fc682c56adb387ecb2f3d1142e",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "employee_id",
+                                    "tier_id",
+                                    "requested_months"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "description": "Employee ID",
+                                        "type": "integer",
+                                        "example": 755
+                                    },
+                                    "tier_id": {
+                                        "description": "Selected tier ID",
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "requested_months": {
+                                        "description": "Number of installment months",
+                                        "type": "integer",
+                                        "example": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Calculation completed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "tier": {
+                                                    "properties": {
+                                                        "tier_id": {
+                                                            "type": "integer",
+                                                            "example": 2
+                                                        },
+                                                        "label": {
+                                                            "type": "string",
+                                                            "example": "قرض راتب شهر / 4 شهور"
+                                                        },
+                                                        "max_months": {
+                                                            "type": "integer",
+                                                            "example": 4
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "calculation": {
+                                                    "properties": {
+                                                        "employee_salary": {
+                                                            "type": "number",
+                                                            "example": 10000
+                                                        },
+                                                        "loan_amount": {
+                                                            "type": "number",
+                                                            "example": 10000
+                                                        },
+                                                        "requested_months": {
+                                                            "type": "integer",
+                                                            "example": 3
+                                                        },
+                                                        "monthly_installment": {
+                                                            "type": "number",
+                                                            "example": 3333.33
+                                                        },
+                                                        "max_allowed_deduction": {
+                                                            "type": "number",
+                                                            "example": 5000
+                                                        },
+                                                        "min_months": {
+                                                            "type": "integer",
+                                                            "example": 2
+                                                        },
+                                                        "is_valid": {
+                                                            "type": "boolean",
+                                                            "example": true
+                                                        },
+                                                        "validation_message": {
+                                                            "type": "string",
+                                                            "nullable": true
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/notifications": {
             "get": {
                 "tags": [
@@ -17649,6 +18053,10 @@
         {
             "name": "Leave Type Management",
             "description": "Leave types management"
+        },
+        {
+            "name": "Loan Management",
+            "description": "Loan form initialization, preview, and request management"
         },
         {
             "name": "Notifications",
