@@ -352,4 +352,128 @@ class EmployeeService
             excludeEmployeeId: $excludeEmployeeId
         );
     }
+
+    /**
+     * Get approval levels (approvers) for an employee.
+     * Returns the configured approval chain with user details.
+     *
+     * @param User $requester The user making the request
+     * @param int|null $targetEmployeeId Optional employee ID. If null, uses requester's ID.
+     * @return array
+     * @throws Exception
+     */
+    public function getApprovalLevels(User $requester, ?int $targetEmployeeId = null): array
+    {
+        // Default to requester if no target provided
+        if ($targetEmployeeId === null) {
+            $targetEmployeeId = $requester->user_id;
+        }
+
+        // Load target employee
+        $targetEmployee = User::with(['user_details.designation'])->find($targetEmployeeId);
+
+        if (!$targetEmployee) {
+            throw new Exception('الموظف غير موجود');
+        }
+
+        // Permission check: Can requester view target employee?
+        if (
+            $requester->user_id !== $targetEmployee->user_id &&
+            $requester->user_type !== 'company' &&
+            !$this->permissionService->canViewEmployeeRequests($requester, $targetEmployee)
+        ) {
+            throw new Exception('ليس لديك صلاحية لعرض بيانات هذا الموظف');
+        }
+
+        // Get UserDetails for approval levels
+        $userDetails = UserDetails::where('user_id', $targetEmployeeId)->first();
+
+        if (!$userDetails) {
+            return [
+                'employee' => [
+                    'user_id' => $targetEmployee->user_id,
+                    'full_name' => trim($targetEmployee->first_name . ' ' . $targetEmployee->last_name),
+                    'email' => $targetEmployee->email,
+                ],
+                'approval_levels' => [],
+                'reporting_manager' => null,
+            ];
+        }
+
+        // Build approval levels array
+        $approvalLevels = [];
+
+        // Level 1
+        if ($userDetails->approval_level01) {
+            $approver1 = User::with('user_details.designation')->find($userDetails->approval_level01);
+            if ($approver1) {
+                $approvalLevels[] = [
+                    'level' => 1,
+                    'user_id' => $approver1->user_id,
+                    'full_name' => trim($approver1->first_name . ' ' . $approver1->last_name),
+                    'email' => $approver1->email,
+                    'designation' => $approver1->user_details?->designation?->designation_name,
+                    'hierarchy_level' => $approver1->getHierarchyLevel(),
+                ];
+            }
+        }
+
+        // Level 2
+        if ($userDetails->approval_level02) {
+            $approver2 = User::with('user_details.designation')->find($userDetails->approval_level02);
+            if ($approver2) {
+                $approvalLevels[] = [
+                    'level' => 2,
+                    'user_id' => $approver2->user_id,
+                    'full_name' => trim($approver2->first_name . ' ' . $approver2->last_name),
+                    'email' => $approver2->email,
+                    'designation' => $approver2->user_details?->designation?->designation_name,
+                    'hierarchy_level' => $approver2->getHierarchyLevel(),
+                ];
+            }
+        }
+
+        // Level 3
+        if ($userDetails->approval_level03) {
+            $approver3 = User::with('user_details.designation')->find($userDetails->approval_level03);
+            if ($approver3) {
+                $approvalLevels[] = [
+                    'level' => 3,
+                    'user_id' => $approver3->user_id,
+                    'full_name' => trim($approver3->first_name . ' ' . $approver3->last_name),
+                    'email' => $approver3->email,
+                    'designation' => $approver3->user_details?->designation?->designation_name,
+                    'hierarchy_level' => $approver3->getHierarchyLevel(),
+                ];
+            }
+        }
+
+        // Reporting manager as fallback
+        $reportingManager = null;
+        if ($userDetails->reporting_manager) {
+            $manager = User::with('user_details.designation')->find($userDetails->reporting_manager);
+            if ($manager) {
+                $reportingManager = [
+                    'user_id' => $manager->user_id,
+                    'full_name' => trim($manager->first_name . ' ' . $manager->last_name),
+                    'email' => $manager->email,
+                    'designation' => $manager->user_details?->designation?->designation_name,
+                    'hierarchy_level' => $manager->getHierarchyLevel(),
+                ];
+            }
+        }
+
+        return [
+            'employee' => [
+                'user_id' => $targetEmployee->user_id,
+                'full_name' => trim($targetEmployee->first_name . ' ' . $targetEmployee->last_name),
+                'email' => $targetEmployee->email,
+                'designation' => $targetEmployee->user_details?->designation?->designation_name,
+                'hierarchy_level' => $targetEmployee->getHierarchyLevel(),
+            ],
+            'approval_levels' => $approvalLevels,
+            'reporting_manager' => $reportingManager,
+            'total_levels' => count($approvalLevels),
+        ];
+    }
 }

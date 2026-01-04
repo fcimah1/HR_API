@@ -64,6 +64,9 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     // Employees subordinates - returns employees based on hierarchy and restrictions
     Route::get('/employees/subordinates', [EmployeeController::class, 'getSubordinates']);
 
+    // Employee approval levels - returns approval chain for an employee
+    Route::get('/employees/approval-levels', [EmployeeController::class, 'getApprovalLevels']);
+
     Route::get('/employees/{id}', [EmployeeController::class, 'show']);
 
     // Employee filters and exports
@@ -291,6 +294,16 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/{id}/approve-or-reject', [TransferController::class, 'approveOrReject'])->middleware('simple.permission:transfers3');
         Route::post('/{id}/approve-current-company', [TransferController::class, 'approveByCurrentCompany'])->middleware('simple.permission:transfers3');
         Route::post('/{id}/approve-new-company', [TransferController::class, 'approveByNewCompany'])->middleware('simple.permission:transfers3');
+    });
+
+    // Custody Clearance Management - إخلاء طرف العهد
+    Route::get('/assets', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getAssets']);
+    Route::get('/custodies', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getCustodies']);
+    Route::prefix('custody-clearances')->group(function () {
+        Route::get('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'index']);
+        Route::post('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'store']);
+        Route::get('/{id}', [App\Http\Controllers\Api\CustodyClearanceController::class, 'show']);
+        Route::post('/{id}/approve-or-reject', [App\Http\Controllers\Api\CustodyClearanceController::class, 'approveOrReject']);
     });
 
     // Jobs Monitor (للشركات فقط)

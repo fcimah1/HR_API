@@ -67,7 +67,7 @@ class AdvanceSalary extends Model
     public function approvals()
     {
         return $this->hasMany(StaffApproval::class, 'module_key_id', 'advance_salary_id')
-            ->where('module_option', 'advance_salary_settings');
+            ->where('module_option', 'loan_request_settings');
     }
 
     /**

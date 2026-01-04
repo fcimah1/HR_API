@@ -395,7 +395,18 @@ class LeaveAdjustmentService
             );
 
             if (!$canApprove) {
-                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+                $denialInfo = $this->approvalService->getApprovalDenialReason(
+                    $approvedBy,
+                    $adjustment->id,
+                    $adjustment->employee_id,
+                    'leave_adjustment_settings'
+                );
+                Log::warning('LeaveAdjustmentService::approveOrRejectLeaveAdjustment - Approval denied', [
+                    'adjustment_id' => $adjustment->id,
+                    'message' => $denialInfo['message'],
+                    'approved_by' => $approvedBy,
+                ]);
+                throw new \Exception($denialInfo['message']);
             }
 
             // Check if this is the final approval

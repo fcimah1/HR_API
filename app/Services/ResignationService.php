@@ -436,7 +436,18 @@ class ResignationService
             );
 
             if (!$canApprove) {
-                throw new \Exception('ليس لديك صلاحية للموافقة على هذا الطلب في المرحلة الحالية');
+                $denialInfo = $this->approvalService->getApprovalDenialReason(
+                    $user->user_id,
+                    $resignation->resignation_id,
+                    $resignation->employee_id,
+                    'resignation_settings'
+                );
+                Log::warning('ResignationService::approveOrRejectResignation - Approval denied', [
+                    'resignation_id' => $resignation->resignation_id,
+                    'message' => $denialInfo['message'],
+                    'approved_by' => $user->user_id,
+                ]);
+                throw new \Exception($denialInfo['message']);
             }
 
             if ($dto->action === 'approve') {
