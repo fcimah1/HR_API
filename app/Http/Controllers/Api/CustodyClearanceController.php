@@ -28,6 +28,42 @@ class CustodyClearanceController extends Controller
         protected CustodyClearanceService $clearanceService,
     ) {}
 
+    /**
+     * @OA\Get(
+     *     path="/api/custody-clearances/types",
+     *     summary="عرض أنواع إخلاء الطرف",
+     *     tags={"Assets & Custody Clearance"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم جلب الأنواع بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب أنواع إخلاء الطرف بنجاح"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     @OA\Property(property="value", type="string", example="resignation"),
+     *                     @OA\Property(property="case_name", type="string", example="RESIGNATION"),
+     *                     @OA\Property(property="label_en", type="string", example="Resignation"),
+     *                     @OA\Property(property="label_ar", type="string", example="استقالة")
+     *                 )
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function getClearanceTypes(): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'تم جلب أنواع إخلاء الطرف بنجاح',
+            'data' => \App\Enums\CustodyClearanceTypeEnum::toArray(),
+        ]);
+    }
+
+
 
     /**
      * @OA\Get(
