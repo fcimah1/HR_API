@@ -131,11 +131,15 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::middleware('simple.permission:hradvance_salary')->group(function () {
         Route::get('/advances', [AdvanceSalaryController::class, 'index']);
         Route::post('/advances', [AdvanceSalaryController::class, 'store']);
+        Route::post('/advances/tier-based', [AdvanceSalaryController::class, 'storeTierBased']);
         Route::get('/advances/stats', [AdvanceSalaryController::class, 'stats']);
         Route::post('/advances/{id}/approve', [AdvanceSalaryController::class, 'approve']);
         Route::delete('/advances/{id}/cancel', [AdvanceSalaryController::class, 'cancel']);
         Route::get('/advances/{id}', [AdvanceSalaryController::class, 'show']);
         Route::put('/advances/{id}', [AdvanceSalaryController::class, 'update']);
+        // Loan Eligibility & Tiers (Simplified)
+        Route::get('/loans/form-init', [\App\Http\Controllers\Api\LoanController::class, 'formInit']);
+        Route::post('/loans/preview', [\App\Http\Controllers\Api\LoanController::class, 'preview']);
     });
 
 
@@ -296,6 +300,16 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/{id}/approve-or-reject', [TransferController::class, 'approveOrReject'])->middleware('simple.permission:transfers3');
         Route::post('/{id}/approve-current-company', [TransferController::class, 'approveByCurrentCompany'])->middleware('simple.permission:transfers3');
         Route::post('/{id}/approve-new-company', [TransferController::class, 'approveByNewCompany'])->middleware('simple.permission:transfers3');
+    });
+
+    // Custody Clearance Management - إخلاء طرف العهد
+    Route::get('/assets', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getAssets']);
+    Route::get('/custodies', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getCustodies']);
+    Route::prefix('custody-clearances')->group(function () {
+        Route::get('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'index']);
+        Route::post('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'store']);
+        Route::get('/{id}', [App\Http\Controllers\Api\CustodyClearanceController::class, 'show']);
+        Route::post('/{id}/approve-or-reject', [App\Http\Controllers\Api\CustodyClearanceController::class, 'approveOrReject']);
     });
 
     // Jobs Monitor (للشركات فقط)

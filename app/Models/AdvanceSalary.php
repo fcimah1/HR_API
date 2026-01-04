@@ -21,14 +21,18 @@ class AdvanceSalary extends Model
         'company_id',
         'employee_id',
         'salary_type',
+        'loan_tier_id',
         'month_year',
         'advance_amount',
+        'employee_salary',
         'one_time_deduct',
         'monthly_installment',
+        'requested_months',
         'total_paid',
         'reason',
         'status',
         'is_deducted_from_salary',
+        'guarantor_id',
         'created_at',
     ];
 
@@ -38,11 +42,15 @@ class AdvanceSalary extends Model
     protected $casts = [
         'company_id' => 'integer',
         'employee_id' => 'integer',
+        'loan_tier_id' => 'integer',
         'advance_amount' => 'decimal:2',
+        'employee_salary' => 'decimal:2',
         'monthly_installment' => 'decimal:2',
+        'requested_months' => 'integer',
         'total_paid' => 'decimal:2',
         'status' => 'integer',
         'is_deducted_from_salary' => 'integer',
+        'guarantor_id' => 'integer',
     ];
 
     /**
@@ -60,6 +68,30 @@ class AdvanceSalary extends Model
     {
         return $this->hasMany(StaffApproval::class, 'module_key_id', 'advance_salary_id')
             ->where('module_option', 'loan_request_settings');
+    }
+
+    /**
+     * Get the loan policy tier
+     */
+    public function tier(): BelongsTo
+    {
+        return $this->belongsTo(LoanPolicyTier::class, 'loan_tier_id', 'tier_id');
+    }
+
+    /**
+     * Get the guarantor employee
+     */
+    public function guarantor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'guarantor_id', 'user_id');
+    }
+
+    /**
+     * Check if the loan is fully paid
+     */
+    public function isFullyPaid(): bool
+    {
+        return $this->total_paid >= $this->advance_amount;
     }
 
     /**

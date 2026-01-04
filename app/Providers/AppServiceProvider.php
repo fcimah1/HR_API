@@ -38,12 +38,14 @@ use App\Repository\Interface\SuggestionRepositoryInterface;
 use App\Repository\SuggestionRepository;
 use App\Repository\Interface\ComplaintRepositoryInterface;
 use App\Repository\ComplaintRepository;
+use App\Repository\CustodyClearanceRepository;
+use App\Repository\Interface\CustodyClearanceRepositoryInterface;
 use App\Repository\Interface\ResignationRepositoryInterface;
 use App\Repository\ResignationRepository;
 use App\Repository\Interface\TransferRepositoryInterface;
 use App\Repository\TransferRepository;
+use App\Services\CacheService;
 use Laravel\Passport\Passport;
-use Laravel\Telescope\TelescopeServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -105,8 +107,11 @@ class AppServiceProvider extends ServiceProvider
         // Transfer repository
         $this->app->singleton(TransferRepositoryInterface::class, TransferRepository::class);
 
+        // Custody Clearance repository
+        $this->app->singleton(CustodyClearanceRepositoryInterface::class, CustodyClearanceRepository::class);
+
         // Cache Service (Singleton)
-        $this->app->singleton(\App\Services\CacheService::class, \App\Services\CacheService::class);
+        $this->app->singleton(CacheService::class, CacheService::class);
     }
 
     /**

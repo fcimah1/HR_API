@@ -40,6 +40,7 @@ class CustodyClearanceItem extends Model
         'asset_condition',
         'return_date',
         'notes',
+        'created_at',
     ];
 
     /**
@@ -58,6 +59,14 @@ class CustodyClearanceItem extends Model
     public function clearance(): BelongsTo
     {
         return $this->belongsTo(CustodyClearance::class, 'clearance_id', 'clearance_id');
+    }
+
+    /**
+     * Get the asset associated with this item.
+     */
+    public function asset(): BelongsTo
+    {
+        return $this->belongsTo(Asset::class, 'asset_id', 'assets_id');
     }
 
     /**
