@@ -3407,6 +3407,66 @@
                 ]
             }
         },
+        "/api/custody-clearances/types": {
+            "get": {
+                "tags": [
+                    "Assets & Custody Clearance"
+                ],
+                "summary": "عرض أنواع إخلاء الطرف",
+                "operationId": "4d0c4ad2ee9d5482f4c85ea2cfa9d48a",
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الأنواع بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب أنواع إخلاء الطرف بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "value": {
+                                                        "type": "string",
+                                                        "example": "resignation"
+                                                    },
+                                                    "case_name": {
+                                                        "type": "string",
+                                                        "example": "RESIGNATION"
+                                                    },
+                                                    "label_en": {
+                                                        "type": "string",
+                                                        "example": "Resignation"
+                                                    },
+                                                    "label_ar": {
+                                                        "type": "string",
+                                                        "example": "استقالة"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/assets": {
             "get": {
                 "tags": [

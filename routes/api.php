@@ -306,6 +306,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::get('/assets', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getAssets']);
     Route::get('/custodies', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getCustodies']);
     Route::prefix('custody-clearances')->group(function () {
+        Route::get('/types', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getClearanceTypes']);
         Route::get('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'index']);
         Route::post('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'store']);
         Route::get('/{id}', [App\Http\Controllers\Api\CustodyClearanceController::class, 'show']);

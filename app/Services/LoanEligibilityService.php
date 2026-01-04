@@ -257,11 +257,21 @@ class LoanEligibilityService
             $branch = $details->branch?->branch_name;
         }
 
+        // Get company name: For staff users, look up their parent company
+        $companyName = $employee->company_name;
+        if (empty($companyName) && $employee->company_id) {
+            $companyRecord = User::where('user_id', $employee->company_id)
+                ->where('user_type', 'company')
+                ->first();
+            $companyName = $companyRecord?->company_name;
+        }
+
         return [
             'employee_id' => $employee->user_id,
             'full_name' => $employee->full_name ?? ($employee->first_name . ' ' . $employee->last_name),
             'position' => $designation ?? 'غير محدد',
-            'company' => $employee->company?->company_name ?? 'غير محدد',
+            'company_id' => $employee->company_id,
+            'company_name' => $companyName ?: 'غير محدد',
             'department' => $department ?? 'غير محدد',
             'division' => $branch ?? 'غير محدد',
             'monthly_salary' => $details ? (float) $details->basic_salary : 0.0,
