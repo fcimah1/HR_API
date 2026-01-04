@@ -46,6 +46,12 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/user/permissions', [AuthController::class, 'permissions']);
 
+    // Dashboard
+    Route::prefix('dashboard')->group(function () {
+        Route::get('/stats', [App\Http\Controllers\Api\DashboardController::class, 'getStats']);
+        Route::get('/activity', [App\Http\Controllers\Api\DashboardController::class, 'getActivity']);
+    });
+
     // Employee management
     Route::get('/employees', [EmployeeController::class, 'index']);
     Route::get('/employees/stats', [EmployeeController::class, 'stats']);
