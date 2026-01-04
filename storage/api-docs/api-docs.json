@@ -4006,6 +4006,176 @@
                 ]
             }
         },
+        "/api/dashboard/stats": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get service consumption statistics",
+                "description": "Retrieve summary of leaves, overtime, travel, and loans for the authenticated user",
+                "operationId": "97f93f93be9753e12dfa48ed63db092c",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Dashboard stats retrieved successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "leaves": {
+                                                    "properties": {
+                                                        "granted": {
+                                                            "type": "number",
+                                                            "example": 30
+                                                        },
+                                                        "used": {
+                                                            "type": "number",
+                                                            "example": 5
+                                                        },
+                                                        "balance": {
+                                                            "type": "number",
+                                                            "example": 25
+                                                        },
+                                                        "pending": {
+                                                            "type": "number",
+                                                            "example": 0
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "overtime": {
+                                                    "properties": {
+                                                        "approved_requests": {
+                                                            "type": "integer",
+                                                            "example": 3
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "travel": {
+                                                    "properties": {
+                                                        "total_trips": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "loans": {
+                                                    "properties": {
+                                                        "total_requests": {
+                                                            "type": "integer",
+                                                            "example": 0
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/dashboard/activity": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get recent activity",
+                "description": "Retrieve recent activity (leaves, overtime, travel, loans) for the authenticated user",
+                "operationId": "ebdf24e05b06a0482648cabb896218d4",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Recent activity retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string",
+                                                        "example": "leave"
+                                                    },
+                                                    "title": {
+                                                        "type": "string",
+                                                        "example": "Leave Request"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "pending"
+                                                    },
+                                                    "date": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-05-20T10:00:00.000000Z"
+                                                    },
+                                                    "formatted_date": {
+                                                        "type": "string",
+                                                        "example": "2 hours ago"
+                                                    },
+                                                    "details": {
+                                                        "type": "string",
+                                                        "example": "Annual Leave"
+                                                    },
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 15
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/employees/employees-for-duty-employee": {
             "get": {
                 "tags": [
@@ -18077,6 +18247,10 @@
         {
             "name": "Transfer Management",
             "description": "إدارة النقل والتحويلات - Transfer management endpoints"
+        },
+        {
+            "name": "Dashboard",
+            "description": "Dashboard"
         },
         {
             "name": "Employee Management",
