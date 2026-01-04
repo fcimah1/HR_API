@@ -4,23 +4,61 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
 use App\Models\User;
+use Google\Auth\Credentials\ServiceAccountCredentials;
+use Illuminate\Support\Facades\Http;
 
 /**
- * Push Notification Service using Firebase Cloud Messaging (FCM)
- * 
+ * Push Notification Service using Firebase Cloud Messaging (FCM V1 API)
+ *
  * To use this service:
- * 1. Add FCM server key to .env: FCM_SERVER_KEY=your-key
- * 2. Store device tokens in users table or separate table
- * 3. Uncomment the actual HTTP request code
+ * 1. Place firebase_credentials.json in storage/app/
+ * 2. Ensure google/auth is installed via composer
  */
 class PushNotificationService
 {
-    protected string $fcmUrl = 'https://fcm.googleapis.com/fcm/send';
-    protected ?string $serverKey;
+    // V1 Endpoint: https://fcm.googleapis.com/v1/projects/{projectId}/messages:send
+    protected string $fcmUrlPattern = 'https://fcm.googleapis.com/v1/projects/%s/messages:send';
+    protected ?string $projectId = null;
+    protected ?string $credentialsPath;
 
     public function __construct()
     {
-        $this->serverKey = env('FCM_SERVER_KEY');
+        $this->credentialsPath = storage_path('app/firebase_credentials.json');
+        $this->initializeProjectId();
+    }
+
+    /**
+     * Parse project ID from credentials file locally
+     */
+    protected function initializeProjectId(): void
+    {
+        if (file_exists($this->credentialsPath)) {
+            $data = json_decode(file_get_contents($this->credentialsPath), true);
+            $this->projectId = $data['project_id'] ?? null;
+        }
+    }
+
+    /**
+     * Get OAuth2 Access Token from Google
+     */
+    protected function getAccessToken(): ?string
+    {
+        if (!file_exists($this->credentialsPath)) {
+            Log::error('Firebase credentials file not found at: ' . $this->credentialsPath);
+            return null;
+        }
+
+        try {
+            $credentials = new ServiceAccountCredentials(
+                ['https://www.googleapis.com/auth/firebase.messaging'],
+                $this->credentialsPath
+            );
+            $token = $credentials->fetchAuthToken();
+            return $token['access_token'] ?? null;
+        } catch (\Exception $e) {
+            Log::error('Failed to generate FCM access token', ['error' => $e->getMessage()]);
+            return null;
+        }
     }
 
     /**
@@ -71,7 +109,7 @@ class PushNotificationService
     }
 
     /**
-     * Send push notification to specific device token
+     * Send push notification to specific device token using V1 API
      */
     protected function send(
         string $deviceToken,
@@ -79,49 +117,77 @@ class PushNotificationService
         string $body,
         array $data = []
     ): bool {
-        if (!$this->serverKey) {
-            Log::warning('FCM server key not configured');
+        if (!$this->projectId) {
+            Log::error('FCM Project ID not configured or credentials file missing');
             return false;
         }
 
+        $accessToken = $this->getAccessToken();
+        if (!$accessToken) {
+            return false;
+        }
+
+        // Construct V1 Payload
         $payload = [
-            'to' => $deviceToken,
-            'notification' => [
-                'title' => $title,
-                'body' => $body,
-                'sound' => 'default',
-            ],
-            'data' => $data,
-            'priority' => 'high',
+            'message' => [
+                'token' => $deviceToken,
+                'notification' => [
+                    'title' => $title,
+                    'body' => $body,
+                ],
+                'data' => $data, // V1 data values must be strings
+                // 'android' => [ // Optional: Android specific config
+                //     'priority' => 'HIGH',
+                //     'notification' => [
+                //         'sound' => 'default'
+                //     ]
+                // ],
+                // 'apns' => [ // Optional: iOS specific config
+                //     'payload' => [
+                //         'aps' => [
+                //             'sound' => 'default'
+                //         ]
+                //     ]
+                // ]
+            ]
         ];
 
-        // TODO: Uncomment when FCM is configured
-        /*
-        $headers = [
-            'Authorization: key=' . $this->serverKey,
-            'Content-Type: application/json',
-        ];
+        // Ensure all data values are strings (Requirement for FCM V1)
+        array_walk($payload['message']['data'], function (&$value) {
+            if (!is_string($value)) {
+                $value = (string) $value;
+            }
+        });
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $this->fcmUrl);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        $url = sprintf($this->fcmUrlPattern, $this->projectId);
 
-        return $httpCode === 200;
-        */
+        try {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $accessToken,
+                'Content-Type: application/json'
+            ]);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
 
-        Log::info('Push notification would be sent (FCM not configured)', [
-            'title' => $title,
-            'body' => $body,
-        ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
 
-        return true; // Simulated success
+            if ($httpCode === 200) {
+                Log::info('Push notification sent successfully (V1)', ['user_token' => substr($deviceToken, 0, 10) . '...']);
+                return true;
+            } else {
+                Log::error('FCM V1 Send Error', ['http_code' => $httpCode, 'response' => $response, 'curl_error' => $error]);
+                return false;
+            }
+        } catch (\Exception $e) {
+            Log::error('Curl exception in FCM send', ['error' => $e->getMessage()]);
+            return false;
+        }
     }
 
     /**

@@ -97,6 +97,7 @@ class User extends Authenticatable
         'kiosk_code',
         'created_at',
         'fiscal_date',
+        'device_token',
     ];
     /**
      * The attributes that should be hidden for serialization.
