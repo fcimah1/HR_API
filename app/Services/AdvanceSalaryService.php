@@ -26,7 +26,8 @@ class AdvanceSalaryService
         private readonly NotificationService $notificationService,
         private readonly \App\Repository\Interface\UserRepositoryInterface $userRepository,
         private readonly ApprovalService $approvalService
-    ) {}
+    ) {
+    }
 
     /**
      * Get paginated advance salary/loan requests with filters and permission check
@@ -51,7 +52,8 @@ class AdvanceSalaryService
                 // Filter subordinates based on restrictions (Department/Branch restrictions)
                 $subordinateIds = array_filter($subordinateIds, function ($empId) use ($user) {
                     $emp = User::find($empId);
-                    if (!$emp) return false;
+                    if (!$emp)
+                        return false;
                     return $this->permissionService->canViewEmployeeRequests($user, $emp);
                 });
 
@@ -115,7 +117,7 @@ class AdvanceSalaryService
                 // Send submission notification
                 $this->notificationService->sendSubmissionNotification(
                     'advance_salary_settings',
-                    (string)$advance->advance_salary_id,
+                    (string) $advance->advance_salary_id,
                     $dto->companyId,
                     StringStatusEnum::SUBMITTED->value,
                     $dto->employeeId
@@ -129,7 +131,7 @@ class AdvanceSalaryService
                     SendEmailNotificationJob::dispatch(
                         new AdvanceSalarySubmitted(
                             employeeName: $employeeName,
-                            amount: (float)$advance->advance_amount,
+                            amount: (float) $advance->advance_amount,
                             salaryType: $advance->salary_type
                         ),
                         $employeeEmail
@@ -148,6 +150,122 @@ class AdvanceSalaryService
                     'error' => $e->getMessage(),
                     'company_id' => $dto->companyId,
                     'employee_id' => $dto->employeeId,
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+        });
+    }
+
+    /**
+     * Create a new advance salary/loan request using tier-based system
+     */
+    public function createTierBasedAdvance(
+        int $companyId,
+        int $employeeId,
+        int $tierId,
+        int $requestedMonths,
+        string $reason,
+        ?int $guarantorId = null
+    ): AdvanceSalaryResponseDTO {
+        return DB::transaction(function () use ($companyId, $employeeId, $tierId, $requestedMonths, $reason, $guarantorId) {
+            try {
+                // Get tier
+                $tier = \App\Models\LoanPolicyTier::findOrFail($tierId);
+
+                // Get employee salary
+                $employee = User::with('details')->findOrFail($employeeId);
+                $details = $employee->details ?? \App\Models\UserDetails::where('user_id', $employeeId)->first();
+                $salary = $details ? (float) $details->basic_salary : 0;
+
+                if ($salary <= 0) {
+                    throw new \Exception('لم يتم تحديد راتب الموظف في النظام');
+                }
+
+                // Calculate amounts
+                $loanAmount = $tier->calculateLoanAmount($salary);
+                $monthlyInstallment = round($loanAmount / $requestedMonths, 2);
+
+                Log::info('AdvanceSalaryService::createTierBasedAdvance started', [
+                    'company_id' => $companyId,
+                    'employee_id' => $employeeId,
+                    'tier_id' => $tierId,
+                    'tier_name' => $tier->tier_label_ar,
+                    'salary' => $salary,
+                    'loan_amount' => $loanAmount,
+                    'requested_months' => $requestedMonths,
+                    'monthly_installment' => $monthlyInstallment
+                ]);
+
+                // Check if the employee has active loan
+                if ($this->advanceSalaryRepository->findApprovedAdvanceInCompany($employeeId, $companyId)) {
+                    throw new \Exception('الموظف لديه طلب قرض/سلفة مسبق تم الموافقة عليه ولم يتم الانتهاء من دفعه');
+                }
+
+                if ($this->advanceSalaryRepository->findPendingAdvanceInCompany($employeeId, $companyId)) {
+                    throw new \Exception('الموظف لديه طلب قرض/سلفة مسبق في انتظار الموافقة');
+                }
+
+                // Create the advance salary record
+                $advance = \App\Models\AdvanceSalary::create([
+                    'company_id' => $companyId,
+                    'employee_id' => $employeeId,
+                    'salary_type' => $tier->getSalaryType(),
+                    'loan_tier_id' => $tierId,
+                    'month_year' => now()->format('Y-m'),
+                    'advance_amount' => $loanAmount,
+                    'employee_salary' => $salary,
+                    'one_time_deduct' => $tier->getOneTimeDeductValue(),
+                    'monthly_installment' => $monthlyInstallment,
+                    'requested_months' => $requestedMonths,
+                    'total_paid' => 0,
+                    'reason' => $reason,
+                    'status' => 0, // Pending
+                    'is_deducted_from_salary' => 0,
+                    'guarantor_id' => $guarantorId,
+                    'created_at' => now()->format('d-m-Y h:i:s'),
+                ]);
+
+                $advance->load(['employee', 'tier']);
+
+                // Send submission notification
+                $this->notificationService->sendSubmissionNotification(
+                    'advance_salary_settings',
+                    (string) $advance->advance_salary_id,
+                    $companyId,
+                    StringStatusEnum::SUBMITTED->value,
+                    $employeeId
+                );
+
+                // Send email notification
+                $employeeEmail = $advance->employee->email ?? null;
+                $employeeName = $advance->employee->full_name ?? 'Employee';
+
+                if ($employeeEmail) {
+                    SendEmailNotificationJob::dispatch(
+                        new AdvanceSalarySubmitted(
+                            employeeName: $employeeName,
+                            amount: (float) $advance->advance_amount,
+                            salaryType: $advance->salary_type
+                        ),
+                        $employeeEmail
+                    );
+                }
+
+                Log::info('AdvanceSalaryService::createTierBasedAdvance completed successfully', [
+                    'advance_id' => $advance->advance_salary_id,
+                    'tier_label' => $tier->tier_label_ar,
+                    'salary_type' => $advance->salary_type,
+                    'amount' => $advance->advance_amount
+                ]);
+
+                return AdvanceSalaryResponseDTO::fromModel($advance);
+            } catch (\Exception $e) {
+                Log::error('AdvanceSalaryService::createTierBasedAdvance failed', [
+                    'error' => $e->getMessage(),
+                    'company_id' => $companyId,
+                    'employee_id' => $employeeId,
+                    'tier_id' => $tierId,
                     'trace' => $e->getTraceAsString()
                 ]);
                 throw $e;
@@ -531,7 +649,7 @@ class AdvanceSalaryService
                     // Send approval notification
                     $this->notificationService->sendApprovalNotification(
                         'advance_salary_settings',
-                        (string)$approvedAdvance->advance_salary_id,
+                        (string) $approvedAdvance->advance_salary_id,
                         $companyId,
                         StringStatusEnum::APPROVED->value,
                         $approvedBy,
@@ -547,7 +665,7 @@ class AdvanceSalaryService
                         SendEmailNotificationJob::dispatch(
                             new AdvanceSalaryApproved(
                                 employeeName: $employeeName,
-                                amount: (float)$advance->advance_amount,
+                                amount: (float) $advance->advance_amount,
                                 salaryType: $advance->salary_type,
                                 remarks: $remarks
                             ),
@@ -603,7 +721,7 @@ class AdvanceSalaryService
                     // Send approval notification
                     $this->notificationService->sendApprovalNotification(
                         'advance_salary_settings',
-                        (string)$approvedAdvance->advance_salary_id,
+                        (string) $approvedAdvance->advance_salary_id,
                         $companyId,
                         StringStatusEnum::APPROVED->value,
                         $approvedBy,
@@ -619,7 +737,7 @@ class AdvanceSalaryService
                         SendEmailNotificationJob::dispatch(
                             new AdvanceSalaryApproved(
                                 employeeName: $employeeName,
-                                amount: (float)$advance->advance_amount,
+                                amount: (float) $advance->advance_amount,
                                 salaryType: $advance->salary_type,
                                 remarks: $remarks
                             ),
@@ -651,7 +769,7 @@ class AdvanceSalaryService
                     // Send intermediate approval notification
                     $this->notificationService->sendApprovalNotification(
                         'advance_salary_settings',
-                        (string)$advance->advance_salary_id,
+                        (string) $advance->advance_salary_id,
                         $companyId,
                         StringStatusEnum::APPROVED->value,
                         $approvedBy,
@@ -748,7 +866,7 @@ class AdvanceSalaryService
                     // Send rejection notification
                     $this->notificationService->sendApprovalNotification(
                         'advance_salary_settings',
-                        (string)$rejectedAdvance->advance_salary_id,
+                        (string) $rejectedAdvance->advance_salary_id,
                         $companyId,
                         StringStatusEnum::REJECTED->value,
                         $rejectedBy,
@@ -764,7 +882,7 @@ class AdvanceSalaryService
                         SendEmailNotificationJob::dispatch(
                             new AdvanceSalaryRejected(
                                 employeeName: $employeeName,
-                                amount: (float)$advance->advance_amount,
+                                amount: (float) $advance->advance_amount,
                                 salaryType: $advance->salary_type,
                                 reason: $reason
                             ),
@@ -812,7 +930,7 @@ class AdvanceSalaryService
                 // Send rejection notification
                 $this->notificationService->sendApprovalNotification(
                     'advance_salary_settings',
-                    (string)$rejectedAdvance->advance_salary_id,
+                    (string) $rejectedAdvance->advance_salary_id,
                     $companyId,
                     StringStatusEnum::REJECTED->value,
                     $rejectedBy,
@@ -828,7 +946,7 @@ class AdvanceSalaryService
                     SendEmailNotificationJob::dispatch(
                         new AdvanceSalaryRejected(
                             employeeName: $employeeName,
-                            amount: (float)$advance->advance_amount,
+                            amount: (float) $advance->advance_amount,
                             salaryType: $advance->salary_type,
                             reason: $reason
                         ),

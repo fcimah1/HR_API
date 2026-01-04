@@ -122,11 +122,15 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::middleware('simple.permission:hradvance_salary')->group(function () {
         Route::get('/advances', [AdvanceSalaryController::class, 'index']);
         Route::post('/advances', [AdvanceSalaryController::class, 'store']);
+        Route::post('/advances/tier-based', [AdvanceSalaryController::class, 'storeTierBased']);
         Route::get('/advances/stats', [AdvanceSalaryController::class, 'stats']);
         Route::post('/advances/{id}/approve', [AdvanceSalaryController::class, 'approve']);
         Route::delete('/advances/{id}/cancel', [AdvanceSalaryController::class, 'cancel']);
         Route::get('/advances/{id}', [AdvanceSalaryController::class, 'show']);
         Route::put('/advances/{id}', [AdvanceSalaryController::class, 'update']);
+        // Loan Eligibility & Tiers (Simplified)
+        Route::get('/loans/form-init', [\App\Http\Controllers\Api\LoanController::class, 'formInit']);
+        Route::post('/loans/preview', [\App\Http\Controllers\Api\LoanController::class, 'preview']);
     });
 
 
