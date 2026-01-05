@@ -1,69 +1,157 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# HR Management API System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## 📋 Overview
+An enterprise-grade Human Resources Management API built with **Laravel**. This system provides a robust backend for managing the complete employee lifecycle, from recruitment to resignation/retirement. It features a sophisticated **hierarchical permission system**, multi-level approval workflows, and extensive module logical isolation (Departments/Branches).
 
-## About Laravel
+## 🚀 Key Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### 👤 Employee Management
+- **Complete Profile Management:** Personal, official, and document details.
+- **Hierarchical Visibility:** Access to employee data is strictly governed by `hierarchy_level` (Levels 1-5).
+- **Subordinates Management:** Automatic subordinate detection based on hierarchy.
+- **Duty/Backup Employees:** Logic for handling temporary assignments.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 🕒 Attendance & Time Tracking
+- **Biometric Integration:** Endpoints for syncing logs from biometric devices.
+- **Manual Adjustments:** Support for manual clock-in/out with approval.
+- **Reports:** Daily status and monthly detailed reports.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 🏝️ Leave Management
+- **Types:** Annual, Sick, Unpaid, etc.
+- **Hourly Leaves:** Short duration leave request tracking.
+- **Adjustments:** Automatic calculation adjustments and balance checks.
+- **Leave Balance:** Real-time checking endpoint.
 
-## Learning Laravel
+### 💸 Payroll & Financials
+- **Advance Salary/Loans:** Request and approval cycle.
+- **Overtime:** Request management with rate calculations.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### 🔄 Request Modules
+- **Custody Clearance (إخلاء طرف):** Asset tracking and return validation strictly tied to employee assignments.
+- **Transfers:** Internal (Dept to Dept), Branch, and Inter-company transfers with multi-step approvals.
+- **Resignations:** Formal resignation process with approval workflow.
+- **Travels:** Business travel requests handling.
+- **Complaints & Suggestions:** Feedback channels with privacy controls.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 🔐 Security & Access Control
+- **OAuth2 Authentication:** Secure API access using Bearer tokens.
+- **Simple Permission Service:** Custom service layer enforcing:
+  - **Hierarchy Check:** Users can only view/act on subordinates.
+  - **Operation Restrictions:** Department and Branch level isolation.
+  - **Leaves Types Restrictions:** Leaves types restrictions.
+  tr
+- **Company Isolation:** Multi-tenant architecture support (Company vs. Staff users).
 
-## Laravel Sponsors
+### ✅ Approval Workflow
+- **Multi-Level Approvals:** Configurable approval chains (Level 1, 2, 3).
+- **Fallback Logic:** Automatic fallback to direct manager if no approval chain is defined.
+- **Notifications:** Integrated notification system for pending approvals.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## 🛠️ Technology Stack
+- **Framework:** Laravel 11/12 (PHP > 8.2)
+- **Database:** MySQL
+- **Documentation:** Swagger/OpenAPI (`l5-swagger`)
+- **PDF Generation:** mPDF / TCPDF
+- **Validation:** Laravel Form Requests with custom rules
+- **Push Notifications:** Laravel Notifications with firebase fcm
+- **DTO:** Data Transfer Objects
+- **SOLID Principles:** SOLID principles followed
+- **Dependency Injection:** Dependency injection used
+- **Design Patterns:** Design patterns used
+- **Version Control:** Git
+- **Repository pattern:** Repository pattern used
 
-### Premium Partners
+## ⚙️ Installation
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd HR_API
+   ```
 
-## Contributing
+2. **Install Dependencies:**
+   ```bash
+   composer install
+   npm install
+   ```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+3. **Environment Setup:**
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+   *Configure your database credentials in `.env`*
 
-## Code of Conduct
+4. **Database Migration:**
+   ```bash
+   php artisan migrate
+   ```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+5. **API Documentation:**
+   Generate Swagger documentation:
+   ```bash
+   php artisan l5-swagger:generate
+   ```
 
-## Security Vulnerabilities
+6. **Serve:**
+   ```bash
+   php artisan serve
+   ```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## 📚 API Structure
 
-## License
+| Module | Base Path | Key Operations |
+|--------|-----------|----------------|
+| **Employees** | `/api/employees` | List, View, Create, Update, Export (PDF) |
+| **Leaves** | `/api/leaves` | Apply, Approve/Reject, Balance Check |
+| **Hourly Leaves** | `/api/hourly-leaves` | Apply, Approve/Reject, Balance Check |
+| **Leave Adjustments** | `/api/leave-adjustments` | Apply, Approve/Reject |
+| **Leave Balance** | `/api/leave-balance` | Check Balance |
+| **Overtime** | `/api/overtimes` | Apply, Approve/Reject |
+| **Advance Salary/Loans** | `/api/advances` | Apply, Approve/Reject |
+| **Attendance** | `/api/attendances` | Clock In/Out, Monthly Report |
+| **Custody** | `/api/custody-clearances` | Create Clearance, List Assets |
+| **Transfers** | `/api/transfers` | Internal/Branch Transfer Requests |
+| **Resignations** | `/api/resignations` | Apply, Approve/Reject |
+| **Travels** | `/api/travels` | Apply, Approve/Reject |
+| **Complaints & Suggestions** | `/api/complaints` | Apply, Approve/Reject |
+| **Biometric Attendance** | `/api/biometric-logs` | Sync Logs |
+| **Manual Attendance** | `/api/attendances` | Clock In/Out, Monthly Report |
+| **Notifications** | `/api/notifications` | List, Mark as Read |
+| **Approval** | `/api/approvals` | Pending List, History, Process |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+*For full endpoint details, please refer to the Swagger UI at `/api/documentation`*
+
+## 🛡️ Architecture Highlights
+
+### The `SimplePermissionService`
+The core of our access control. Unlike standard RBAC, this service evaluates **dynamic relationships**:
+- Is User A numerically superior to User B? (`hierarchy_level`)
+- Is User A restricted from User B's department? (`OperationRestriction`)
+
+### The `ApprovalService`
+A unified service for all approval-based modules.
+- **Checks:** `canUserApprove($userId, $requestId)`
+- **Logic:**
+  1. Checks defined approval chain in `ci_erp_users_details`.
+  2. If empty, falls back to `SimplePermissionService` hierarchy check.
+  3. Records approval steps in `ci_erp_notifications_approval`.
+
+### Validation
+Strict validation rules prevent logical errors, such as:
+- Preventing creating requests for non-subordinates (403 Forbidden).
+- Ensuring assets in Custody Clearance actually belong to the employee.
+
+---
+**Developed by:** FirstSoft Development Team
 
 
+https://api.firstsoft.io
 
 Rules for Uploading to GitHub:
 1- git add .   
 2- git commit -m "Your commit message"
-3-  git checkout -b <branch_name>
+3- git checkout -b <branch_name>
 4- git push -u origin <branch_name>
 5- git fetch origin     
 6- git merge origin/main
@@ -72,12 +160,7 @@ Rules for Uploading to GitHub:
 9- git commit -m "Your commit message"
 10- git push
 11- in github create pull request
-12- wait for approval
-13- after approval git checkout main
-14- git pull origin main
-15- git checkout <branch_name>
-16- git merge main
-17- git push
+12- git pull origin main
 
 
 
