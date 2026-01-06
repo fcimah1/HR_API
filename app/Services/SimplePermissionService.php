@@ -19,8 +19,8 @@ class SimplePermissionService
     public function checkPermission(User $user, string $permission): bool
     {
         $userType = strtolower(trim($user->user_type ?? ''));
-        // مستخدم الشركة له صلاحيات كاملة ولا يعتمد على جدول الأدوار
-        if ($userType === 'company') {
+        // super_user ومستخدم الشركة لهم صلاحيات كاملة ولا يعتمدون على جدول الأدوار
+        if ($userType === 'super_user' || $userType === 'company') {
             return true;
         }
 
@@ -143,6 +143,14 @@ class SimplePermissionService
     public function isEmployee(User $user): bool
     {
         return $user->company_id > 0 && $user->user_role_id > 0;
+    }
+
+    /**
+     * التحقق إذا كان المستخدم Super User (الدعم الفني)
+     */
+    public function isSuperUser(User $user): bool
+    {
+        return strtolower(trim($user->user_type ?? '')) === 'super_user';
     }
 
     /**

@@ -44,6 +44,8 @@ use App\Repository\Interface\ResignationRepositoryInterface;
 use App\Repository\ResignationRepository;
 use App\Repository\Interface\TransferRepositoryInterface;
 use App\Repository\TransferRepository;
+use App\Repository\Interface\SupportTicketRepositoryInterface;
+use App\Repository\SupportTicketRepository;
 use App\Services\CacheService;
 use Laravel\Passport\Passport;
 
@@ -109,6 +111,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Custody Clearance repository
         $this->app->singleton(CustodyClearanceRepositoryInterface::class, CustodyClearanceRepository::class);
+
+        // Support Ticket repository
+        $this->app->singleton(SupportTicketRepositoryInterface::class, SupportTicketRepository::class);
 
         // Cache Service (Singleton)
         $this->app->singleton(CacheService::class, CacheService::class);
