@@ -13817,6 +13817,515 @@
                 ]
             }
         },
+        "/api/support-tickets": {
+            "get": {
+                "tags": [
+                    "Support Tickets"
+                ],
+                "summary": "عرض قائمة التذاكر",
+                "description": "Super User يرى كل التذاكر - المستخدم العادي يرى تذاكره فقط",
+                "operationId": "getTickets",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "الحالة: open, closed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "category",
+                        "in": "query",
+                        "description": "النوع: general, technical, billing, subscription, other",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "priority",
+                        "in": "query",
+                        "description": "الأولوية: urgent, high, medium, low",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "نص البحث",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التذاكر بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/SupportTicketResource"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Support Tickets"
+                ],
+                "summary": "إنشاء تذكرة جديدة",
+                "operationId": "createTicket",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "subject",
+                                    "category",
+                                    "priority",
+                                    "description"
+                                ],
+                                "properties": {
+                                    "subject": {
+                                        "type": "string",
+                                        "example": "مشكلة في تسجيل الدخول"
+                                    },
+                                    "category": {
+                                        "description": "يقبل: general, technical, billing, subscription, other",
+                                        "type": "string",
+                                        "example": "technical"
+                                    },
+                                    "priority": {
+                                        "description": "يقبل: urgent, high, medium, low",
+                                        "type": "string",
+                                        "example": "high"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "لا أستطيع تسجيل الدخول"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء التذكرة بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء التذكرة بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/SupportTicketResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/support-tickets/{id}": {
+            "get": {
+                "tags": [
+                    "Support Tickets"
+                ],
+                "summary": "عرض تفاصيل تذكرة",
+                "operationId": "getTicket",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التذكرة بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/SupportTicketResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "التذكرة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Support Tickets"
+                ],
+                "summary": "تحديث تذكرة",
+                "operationId": "updateTicket",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTicketRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث التذكرة بنجاح"
+                    },
+                    "403": {
+                        "description": "لا تملك صلاحية تعديل هذه التذكرة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/support-tickets/{id}/close": {
+            "post": {
+                "tags": [
+                    "Support Tickets"
+                ],
+                "summary": "إغلاق تذكرة",
+                "operationId": "closeTicket",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "ticket_remarks": {
+                                        "type": "string",
+                                        "example": "تم حل المشكلة"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم إغلاق التذكرة بنجاح"
+                    },
+                    "403": {
+                        "description": "لا تملك صلاحية إغلاق هذه التذكرة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/support-tickets/{id}/reopen": {
+            "post": {
+                "tags": [
+                    "Support Tickets"
+                ],
+                "summary": "إعادة فتح تذكرة",
+                "operationId": "reopenTicket",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم إعادة فتح التذكرة بنجاح"
+                    },
+                    "403": {
+                        "description": "لا تملك صلاحية إعادة فتح هذه التذكرة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/support-tickets/{id}/replies": {
+            "get": {
+                "tags": [
+                    "Support Tickets"
+                ],
+                "summary": "عرض ردود تذكرة",
+                "operationId": "getTicketReplies",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الردود بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TicketReplyResource"
+                                            }
+                                        },
+                                        "can_reply": {
+                                            "type": "boolean",
+                                            "example": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Support Tickets"
+                ],
+                "summary": "إضافة رد على تذكرة",
+                "operationId": "addReply",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reply_text"
+                                ],
+                                "properties": {
+                                    "reply_text": {
+                                        "type": "string",
+                                        "example": "شكراً لتواصلكم، سنقوم بمراجعة المشكلة"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة الرد بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/TicketReplyResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "التذكرة مغلقة أو لا تملك صلاحية الرد"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/support-tickets/enums": {
+            "get": {
+                "tags": [
+                    "Support Tickets"
+                ],
+                "summary": "الحصول على الأنواع والحالات والأولويات",
+                "operationId": "getTicketEnums",
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "categories": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "statuses": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "priorities": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/system-logs": {
             "get": {
                 "tags": [
@@ -18022,6 +18531,112 @@
                 },
                 "type": "object"
             },
+            "CreateTicketRequest": {
+                "required": [
+                    "subject",
+                    "category"
+                ],
+                "properties": {
+                    "subject": {
+                        "description": "عنوان التذكرة",
+                        "type": "string",
+                        "maxLength": 255,
+                        "example": "مشكلة في تسجيل الدخول"
+                    },
+                    "category": {
+                        "description": "نوع التذكرة - يقبل: general, technical, billing, subscription, other أو عام, تقني, فواتير, اشتراك, أخرى أو 0-4",
+                        "type": "string",
+                        "example": "technical"
+                    },
+                    "priority": {
+                        "description": "أولوية التذكرة - يقبل: urgent, high, medium, low أو عاجل, مرتفع, متوسط, منخفض أو 1-4",
+                        "type": "string",
+                        "example": "high"
+                    },
+                    "description": {
+                        "description": "وصف المشكلة",
+                        "type": "string",
+                        "maxLength": 5000,
+                        "example": "لا أستطيع تسجيل الدخول للنظام"
+                    },
+                    "ticket_remarks": {
+                        "description": "ملاحظات إضافية",
+                        "type": "string",
+                        "maxLength": 1000,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "GetTicketsRequest": {
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "example": 15
+                    },
+                    "status": {
+                        "description": "open, closed",
+                        "type": "string",
+                        "example": "open"
+                    },
+                    "category": {
+                        "type": "string",
+                        "example": "technical"
+                    },
+                    "priority": {
+                        "type": "string",
+                        "example": "high"
+                    },
+                    "search": {
+                        "type": "string"
+                    },
+                    "from_date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "to_date": {
+                        "type": "string",
+                        "format": "date"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateTicketRequest": {
+                "properties": {
+                    "subject": {
+                        "description": "عنوان التذكرة",
+                        "type": "string",
+                        "maxLength": 255,
+                        "example": "تحديث العنوان"
+                    },
+                    "category": {
+                        "description": "نوع التذكرة",
+                        "type": "string",
+                        "example": "billing"
+                    },
+                    "priority": {
+                        "description": "أولوية التذكرة",
+                        "type": "string",
+                        "example": "urgent"
+                    },
+                    "description": {
+                        "description": "وصف المشكلة",
+                        "type": "string",
+                        "maxLength": 5000
+                    },
+                    "ticket_remarks": {
+                        "description": "ملاحظات إضافية",
+                        "type": "string",
+                        "maxLength": 1000,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "CreateTravelTypeRequest": {
                 "required": [
                     "travel_name"
@@ -18152,6 +18767,168 @@
                             "approve",
                             "reject"
                         ]
+                    }
+                },
+                "type": "object"
+            },
+            "SupportTicketResource": {
+                "title": "Support Ticket Resource",
+                "description": "تذكرة دعم فني",
+                "properties": {
+                    "ticket_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "ticket_code": {
+                        "type": "string",
+                        "example": "ABC123"
+                    },
+                    "company_id": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "subject": {
+                        "type": "string",
+                        "example": "مشكلة في تسجيل الدخول"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "لا أستطيع تسجيل الدخول"
+                    },
+                    "category_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "category": {
+                        "type": "string",
+                        "example": "technical"
+                    },
+                    "category_text": {
+                        "type": "string",
+                        "example": "تقني"
+                    },
+                    "category_text_en": {
+                        "type": "string",
+                        "example": "Technical"
+                    },
+                    "ticket_priority": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "priority": {
+                        "type": "string",
+                        "example": "high"
+                    },
+                    "priority_text": {
+                        "type": "string",
+                        "example": "مرتفع"
+                    },
+                    "priority_text_en": {
+                        "type": "string",
+                        "example": "High"
+                    },
+                    "priority_color": {
+                        "type": "string",
+                        "example": "orange"
+                    },
+                    "ticket_status": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "open"
+                    },
+                    "status_text": {
+                        "type": "string",
+                        "example": "مفتوحة"
+                    },
+                    "status_text_en": {
+                        "type": "string",
+                        "example": "Open"
+                    },
+                    "is_open": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "ticket_remarks": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "example": 24
+                    },
+                    "created_by_name": {
+                        "type": "string",
+                        "example": "أحمد محمد"
+                    },
+                    "created_by_type": {
+                        "type": "string",
+                        "example": "employee"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "datetime"
+                    },
+                    "replies_count": {
+                        "type": "integer",
+                        "example": 5
+                    }
+                },
+                "type": "object"
+            },
+            "TicketReplyResource": {
+                "title": "Ticket Reply Resource",
+                "description": "رد على تذكرة دعم فني",
+                "properties": {
+                    "ticket_reply_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "ticket_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "sent_by": {
+                        "type": "integer",
+                        "example": 24
+                    },
+                    "sender_name": {
+                        "type": "string",
+                        "example": "أحمد محمد"
+                    },
+                    "sender_type": {
+                        "type": "string",
+                        "example": "employee"
+                    },
+                    "is_super_user": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "assign_to": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "assignee_name": {
+                        "type": "string",
+                        "example": "الدعم الفني"
+                    },
+                    "reply_text": {
+                        "type": "string",
+                        "example": "شكراً لتواصلكم"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "datetime"
+                    },
+                    "formatted_created_at": {
+                        "type": "string",
+                        "example": "2026-01-06 10:30:00"
+                    },
+                    "time_ago": {
+                        "type": "string",
+                        "example": "منذ 5 دقائق"
                     }
                 },
                 "type": "object"
@@ -18303,6 +19080,10 @@
         {
             "name": "Suggestion Management",
             "description": "إدارة الاقتراحات - Suggestions management endpoints"
+        },
+        {
+            "name": "Support Tickets",
+            "description": "تذاكر الدعم الفني - Support Tickets management endpoints"
         },
         {
             "name": "Transfer Management",

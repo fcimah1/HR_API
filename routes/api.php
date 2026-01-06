@@ -303,14 +303,14 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Custody Clearance Management - إخلاء طرف العهد
-    Route::get('/assets', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getAssets']);
-    Route::get('/custodies', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getCustodies']);
-    Route::prefix('custody-clearances')->group(function () {
-        Route::get('/types', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getClearanceTypes']);
-        Route::get('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'index']);
-        Route::post('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'store']);
-        Route::get('/{id}', [App\Http\Controllers\Api\CustodyClearanceController::class, 'show']);
-        Route::post('/{id}/approve-or-reject', [App\Http\Controllers\Api\CustodyClearanceController::class, 'approveOrReject']);
+    Route::get('/assets', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getAssets'])->middleware('simple.permission:hr_assets');
+    Route::get('/custodies', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getCustodies'])->middleware('simple.permission:hr_custody_clearance1');
+    Route::prefix('custody-clearances')->middleware('simple.permission:hr_custody_clearance')->group(function () {
+        Route::get('/types', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getClearanceTypes'])->middleware('simple.permission:hr_custody_clearance1');
+        Route::get('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'index'])->middleware('simple.permission:hr_custody_clearance1');
+        Route::post('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'store'])->middleware('simple.permission:hr_custody_clearance2');
+        Route::get('/{id}', [App\Http\Controllers\Api\CustodyClearanceController::class, 'show'])->middleware('simple.permission:hr_custody_clearance1');
+        Route::post('/{id}/approve-or-reject', [App\Http\Controllers\Api\CustodyClearanceController::class, 'approveOrReject'])->middleware('simple.permission:hr_custody_clearance5');
     });
 
     // Jobs Monitor (للشركات فقط)
@@ -320,5 +320,19 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/retry/{uuid}', [\App\Http\Controllers\Api\JobsMonitorController::class, 'retryJob']);
         Route::post('/retry-all', [\App\Http\Controllers\Api\JobsMonitorController::class, 'retryAll']);
         Route::delete('/failed', [\App\Http\Controllers\Api\JobsMonitorController::class, 'clearFailed']);
+    });
+
+    // Support Tickets Management - تذاكر الدعم الفني
+    Route::prefix('support-tickets')->middleware('simple.permission:hr_helpdesk')->group(function () {
+        Route::get('/enums', [\App\Http\Controllers\Api\SupportTicketController::class, 'getEnums'])->middleware('simple.permission:helpdesk1');
+        Route::get('/', [\App\Http\Controllers\Api\SupportTicketController::class, 'index'])->middleware('simple.permission:helpdesk1');
+        Route::post('/', [\App\Http\Controllers\Api\SupportTicketController::class, 'store'])->middleware('simple.permission:helpdesk2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\SupportTicketController::class, 'show'])->middleware('simple.permission:helpdesk1');
+        Route::put('/{id}', [\App\Http\Controllers\Api\SupportTicketController::class, 'update'])->middleware('simple.permission:helpdesk3');
+        // Route::delete('/{id}', [\App\Http\Controllers\Api\SupportTicketController::class, 'destroy'])->middleware('simple.permission:helpdesk5');
+        Route::post('/{id}/close', [\App\Http\Controllers\Api\SupportTicketController::class, 'close'])->middleware('simple.permission:helpdesk6');
+        Route::post('/{id}/reopen', [\App\Http\Controllers\Api\SupportTicketController::class, 'reopen'])->middleware('simple.permission:helpdesk6');
+        Route::get('/{id}/replies', [\App\Http\Controllers\Api\SupportTicketController::class, 'getReplies'])->middleware('simple.permission:helpdesk1');
+        Route::post('/{id}/replies', [\App\Http\Controllers\Api\SupportTicketController::class, 'addReply'])->middleware('simple.permission:helpdesk2');
     });
 });
