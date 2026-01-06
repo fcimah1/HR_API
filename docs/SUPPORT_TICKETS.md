@@ -18,10 +18,10 @@ A support ticket management system that allows users to create tickets and commu
 ## Enums
 
 ### Ticket Status (TicketStatusEnum)
-| Value | Name  | Arabic |
-|-------|-------|--------|
-| 0     | closed| مغلقة |
-| 1     | open  | مفتوحة |
+| Value | Name  | Arabic   |
+|-------|-------|----------|
+| 1     | open  | مفتوحة  |
+| 2     | closed| مغلقة   |
 
 ### Ticket Category (TicketCategoryEnum)
 | Value | Name        | Arabic    |
@@ -53,15 +53,15 @@ A support ticket management system that allows users to create tickets and commu
 
 ### Permission Matrix
 
-| Operation     | super_user | company/staff                |
-|---------------|------------|------------------------------|
-| Create ticket | ✅         | ✅                          |
-| View tickets  | ✅         | ✅                          |
-| Update ticket | ✅         | ✅ Own open tickets         |
-| Delete ticket | ✅         | ✅ Own tickets only         |
-| Add reply     | ✅         | ✅ Own open tickets         |
-| Close ticket  | ✅         | ❌                          |
-| Reopen ticket | ✅         | ❌                          |
+| Operation     | super_user                   | company/staff                |
+|---------------|------------------------------|------------------------------|
+| Create ticket | ✅                          | ✅                          |
+| View tickets  | ✅ All tickets              | ✅ Own tickets only         |
+| Update ticket | ✅ Open tickets only        | ✅ Own open tickets only    |
+| Delete ticket | ✅ Any ticket               | ✅ Own tickets only         | <!-- ✅ disabled until choosing logic -->
+| Add reply     | ✅ Open tickets only        | ✅ Own open tickets only    |
+| Close ticket  | ✅                          | ❌                          |
+| Reopen ticket | ✅                          | ❌                          |
 
 ---
 
@@ -75,7 +75,7 @@ GET    /api/support-tickets              # List tickets
 POST   /api/support-tickets              # Create ticket
 GET    /api/support-tickets/{id}         # Get ticket details
 PUT    /api/support-tickets/{id}         # Update ticket
-DELETE /api/support-tickets/{id}         # Delete ticket
+DELETE /api/support-tickets/{id}         # Delete ticket                            # ✅ disabled until choosing logic
 POST   /api/support-tickets/{id}/close   # Close ticket (super_user only)
 POST   /api/support-tickets/{id}/reopen  # Reopen ticket (super_user only)
 GET    /api/support-tickets/{id}/replies # Get ticket replies
@@ -87,7 +87,7 @@ POST   /api/support-tickets/{id}/replies # Add reply
 ```
 ?page=1
 ?per_page=15
-?status=open          # or closed, 0, 1
+?status=open          # or closed, 1, 2
 ?category=technical   # or general, billing, subscription, other
 ?priority=high        # or urgent, medium, low
 ?search=search text
@@ -179,10 +179,16 @@ routes/
    - If user `user_type = 'company'` → saves `company_id = user_id`
    - If user is `staff` → saves `company_id` from user table
 
-2. **Non-open Tickets:**
-   - Cannot be updated or replied to (except by super_user)
-   - Only super_user can close/reopen tickets
+2. **Closed Tickets (status = 2):**
+   - ❌ **No one** can update a closed ticket (including super_user)
+   - ❌ **No one** can add replies to a closed ticket (including super_user)
+   - ✅ Ticket must be **reopened first** via `/api/support-tickets/{id}/reopen`
+   - ✅ Only super_user can close/reopen tickets
 
 3. **Swagger Documentation:**
    - All endpoints are documented with OpenAPI/Swagger
    - Requests accept names (technical, high) and convert them to numbers automatically
+
+4. **Enum Methods:**
+   - `fromName()`: Accepts English/Arabic names or numeric values
+   - `getAcceptedNames()`: Returns all accepted input values
