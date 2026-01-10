@@ -9,7 +9,7 @@ namespace App\Enums;
  */
 enum TicketPriorityEnum: int
 {
-    case URGENT = 4;  // عاجل
+    case CRITICAL = 4;  // عاجل
     case HIGH = 3;    // مرتفع
     case MEDIUM = 2;  // متوسط
     case LOW = 1;     // منخفض
@@ -20,7 +20,7 @@ enum TicketPriorityEnum: int
     public function labelAr(): string
     {
         return match ($this) {
-            self::URGENT => 'عاجل',
+            self::CRITICAL => 'عاجل',
             self::HIGH => 'عالي',
             self::MEDIUM => 'متوسط',
             self::LOW => 'قليل',
@@ -33,7 +33,7 @@ enum TicketPriorityEnum: int
     public function labelEn(): string
     {
         return match ($this) {
-            self::URGENT => 'Critical',
+            self::CRITICAL => 'Critical',
             self::HIGH => 'High',
             self::MEDIUM => 'Medium',
             self::LOW => 'Low',
@@ -46,7 +46,7 @@ enum TicketPriorityEnum: int
     public function color(): string
     {
         return match ($this) {
-            self::URGENT => 'red',
+            self::CRITICAL => 'red',
             self::HIGH => 'orange',
             self::MEDIUM => 'yellow',
             self::LOW => 'green',
@@ -90,10 +90,10 @@ enum TicketPriorityEnum: int
         $name = strtolower(trim($name));
 
         return match ($name) {
-            'urgent', 'critical', 'عاجل' => self::URGENT,
-            'high', 'مرتفع', 'عالي' => self::HIGH,
+            'critical', 'عاجل' => self::CRITICAL,
+            'high', 'مرتفع' => self::HIGH,
             'medium', 'متوسط' => self::MEDIUM,
-            'low', 'منخفض', 'قليل' => self::LOW,
+            'low', 'منخفض' => self::LOW,
             default => null,
         };
     }
@@ -104,17 +104,14 @@ enum TicketPriorityEnum: int
     public static function getAcceptedNames(): array
     {
         return [
-            'urgent',
             'critical',
             'high',
             'medium',
             'low',
             'عاجل',
-            'عالي',
             'مرتفع',
             'متوسط',
             'منخفض',
-            'قليل',
         ];
     }
 }

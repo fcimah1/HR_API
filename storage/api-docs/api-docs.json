@@ -6512,7 +6512,7 @@
                     {
                         "name": "status",
                         "in": "query",
-                        "description": "تصفية بالحالة",
+                        "description": "الحالة",
                         "schema": {
                             "type": "string",
                             "enum": [
@@ -6524,15 +6524,14 @@
                     {
                         "name": "priority",
                         "in": "query",
-                        "description": "تصفية بالأولوية",
+                        "description": "الأولوية",
                         "schema": {
                             "type": "string",
                             "enum": [
-                                "low",
-                                "medium",
+                                "critical",
                                 "high",
-                                "urgent",
-                                "critical"
+                                "medium",
+                                "low"
                             ]
                         }
                     },
@@ -13761,25 +13760,42 @@
                     {
                         "name": "status",
                         "in": "query",
-                        "description": "الحالة: open, closed",
+                        "description": "الحالة",
                         "schema": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": [
+                                "open",
+                                "closed"
+                            ]
                         }
                     },
                     {
                         "name": "category",
                         "in": "query",
-                        "description": "النوع: general, technical, billing, subscription, other",
+                        "description": "النوع",
                         "schema": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": [
+                                "general",
+                                "technical",
+                                "billing",
+                                "subscription",
+                                "other"
+                            ]
                         }
                     },
                     {
                         "name": "priority",
                         "in": "query",
-                        "description": "الأولوية: urgent, high, medium, low",
+                        "description": "الأولوية",
                         "schema": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": [
+                                "critical",
+                                "high",
+                                "medium",
+                                "low"
+                            ]
                         }
                     },
                     {
