@@ -9,10 +9,10 @@ namespace App\Enums;
  */
 enum TicketPriorityEnum: int
 {
-    case URGENT = 1;  // عاجل
-    case HIGH = 2;    // مرتفع
-    case MEDIUM = 3;  // متوسط
-    case LOW = 4;     // منخفض
+    case URGENT = 4;  // عاجل
+    case HIGH = 3;    // مرتفع
+    case MEDIUM = 2;  // متوسط
+    case LOW = 1;     // منخفض
 
     /**
      * الحصول على النص العربي للأولوية
@@ -90,10 +90,10 @@ enum TicketPriorityEnum: int
         $name = strtolower(trim($name));
 
         return match ($name) {
-            'urgent', 'عاجل' => self::URGENT,
-            'high', 'مرتفع' => self::HIGH,
+            'urgent', 'critical', 'عاجل' => self::URGENT,
+            'high', 'مرتفع', 'عالي' => self::HIGH,
             'medium', 'متوسط' => self::MEDIUM,
-            'low', 'منخفض' => self::LOW,
+            'low', 'منخفض', 'قليل' => self::LOW,
             default => null,
         };
     }
@@ -105,13 +105,16 @@ enum TicketPriorityEnum: int
     {
         return [
             'urgent',
+            'critical',
             'high',
             'medium',
             'low',
             'عاجل',
+            'عالي',
             'مرتفع',
             'متوسط',
             'منخفض',
+            'قليل',
         ];
     }
 }

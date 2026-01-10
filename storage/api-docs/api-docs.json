@@ -4575,955 +4575,6 @@
                 ]
             }
         },
-        "/api/employees": {
-            "get": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Get all employees in user's company",
-                "operationId": "b9b73e1873c5fe36b951f014f711e4fa",
-                "parameters": [
-                    {
-                        "name": "page",
-                        "in": "query",
-                        "description": "Page number",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "example": 1
-                        }
-                    },
-                    {
-                        "name": "per_page",
-                        "in": "query",
-                        "description": "Items per page",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "example": 10
-                        }
-                    },
-                    {
-                        "name": "search",
-                        "in": "query",
-                        "description": "Search by name or email",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "john"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Employees retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "properties": {
-                                                    "user_id": {
-                                                        "type": "integer",
-                                                        "example": 37
-                                                    },
-                                                    "first_name": {
-                                                        "type": "string",
-                                                        "example": "محمد"
-                                                    },
-                                                    "last_name": {
-                                                        "type": "string",
-                                                        "example": "أحمد"
-                                                    },
-                                                    "full_name": {
-                                                        "type": "string",
-                                                        "example": "محمد أحمد"
-                                                    },
-                                                    "email": {
-                                                        "type": "string",
-                                                        "example": "m.ahmed@example.com"
-                                                    },
-                                                    "username": {
-                                                        "type": "string",
-                                                        "example": "m.ahmed"
-                                                    },
-                                                    "user_type": {
-                                                        "type": "string",
-                                                        "example": "employee"
-                                                    },
-                                                    "user_role_id": {
-                                                        "type": "integer",
-                                                        "example": 4,
-                                                        "nullable": true
-                                                    },
-                                                    "contact_number": {
-                                                        "type": "string",
-                                                        "example": "0555555555",
-                                                        "nullable": true
-                                                    },
-                                                    "gender": {
-                                                        "type": "string",
-                                                        "example": "male",
-                                                        "nullable": true
-                                                    },
-                                                    "profile_photo": {
-                                                        "type": "string",
-                                                        "example": "/uploads/profile.jpg",
-                                                        "nullable": true
-                                                    },
-                                                    "is_active": {
-                                                        "type": "boolean",
-                                                        "example": true
-                                                    },
-                                                    "is_logged_in": {
-                                                        "type": "boolean",
-                                                        "example": false
-                                                    },
-                                                    "last_login_date": {
-                                                        "type": "string",
-                                                        "example": "2025-11-30 10:22:00",
-                                                        "nullable": true
-                                                    },
-                                                    "created_at": {
-                                                        "type": "string",
-                                                        "example": "2025-05-01 08:00:00"
-                                                    },
-                                                    "address": {
-                                                        "properties": {
-                                                            "address_1": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "address_2": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "city": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "state": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "zipcode": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "country": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            }
-                                                        },
-                                                        "type": "object"
-                                                    },
-                                                    "details": {
-                                                        "properties": {
-                                                            "employee_id": {
-                                                                "type": "string",
-                                                                "example": "EMP-1001",
-                                                                "nullable": true
-                                                            },
-                                                            "department_id": {
-                                                                "type": "integer",
-                                                                "example": 12,
-                                                                "nullable": true
-                                                            },
-                                                            "designation_id": {
-                                                                "type": "integer",
-                                                                "example": 5,
-                                                                "nullable": true
-                                                            },
-                                                            "basic_salary": {
-                                                                "type": "number",
-                                                                "example": 5000,
-                                                                "nullable": true
-                                                            },
-                                                            "date_of_joining": {
-                                                                "type": "string",
-                                                                "example": "2023-01-15",
-                                                                "nullable": true
-                                                            }
-                                                        },
-                                                        "type": "object",
-                                                        "nullable": true
-                                                    }
-                                                },
-                                                "type": "object"
-                                            }
-                                        },
-                                        "pagination": {
-                                            "properties": {
-                                                "current_page": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "last_page": {
-                                                    "type": "integer",
-                                                    "example": 10
-                                                },
-                                                "per_page": {
-                                                    "type": "integer",
-                                                    "example": 15
-                                                },
-                                                "total": {
-                                                    "type": "integer",
-                                                    "example": 150
-                                                },
-                                                "from": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "to": {
-                                                    "type": "integer",
-                                                    "example": 15
-                                                },
-                                                "has_more_pages": {
-                                                    "type": "boolean",
-                                                    "example": true
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthenticated"
-                    },
-                    "403": {
-                        "description": "Forbidden - Insufficient permissions"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            },
-            "post": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Create new employee",
-                "operationId": "781d9d682a574c5e2c1dab17f782b5cd",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "first_name",
-                                    "last_name",
-                                    "email",
-                                    "username",
-                                    "password"
-                                ],
-                                "properties": {
-                                    "first_name": {
-                                        "type": "string",
-                                        "example": "John"
-                                    },
-                                    "last_name": {
-                                        "type": "string",
-                                        "example": "Doe"
-                                    },
-                                    "email": {
-                                        "type": "string",
-                                        "example": "john.doe@company.com"
-                                    },
-                                    "username": {
-                                        "type": "string",
-                                        "example": "john.doe"
-                                    },
-                                    "password": {
-                                        "type": "string",
-                                        "example": "password123"
-                                    },
-                                    "user_type": {
-                                        "type": "string",
-                                        "example": "company"
-                                    },
-                                    "contact_number": {
-                                        "type": "string",
-                                        "example": "1234567890"
-                                    },
-                                    "gender": {
-                                        "type": "string",
-                                        "example": "male"
-                                    },
-                                    "employee_id": {
-                                        "type": "string",
-                                        "example": "EMP001"
-                                    },
-                                    "department_id": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "designation_id": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "basic_salary": {
-                                        "type": "number",
-                                        "example": 50000
-                                    },
-                                    "date_of_joining": {
-                                        "type": "string",
-                                        "example": "2024-01-01"
-                                    },
-                                    "date_of_birth": {
-                                        "type": "string",
-                                        "example": "1990-01-01"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Employee created successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Employee created successfully"
-                                        },
-                                        "data": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation error"
-                    },
-                    "403": {
-                        "description": "Forbidden - Insufficient permissions"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/employees/{id}": {
-            "get": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Get specific employee details",
-                "operationId": "de09c8d9afb3f7114d227ad0645940ac",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Employee ID",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 1
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Employee retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Employee not found"
-                    },
-                    "403": {
-                        "description": "Forbidden - Insufficient permissions"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            },
-            "put": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Update employee",
-                "operationId": "55e1ceec679a0d1436c869735e984a83",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Employee ID",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 1
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": false,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "first_name": {
-                                        "type": "string",
-                                        "example": "John"
-                                    },
-                                    "last_name": {
-                                        "type": "string",
-                                        "example": "Doe"
-                                    },
-                                    "email": {
-                                        "type": "string",
-                                        "example": "john.doe@company.com"
-                                    },
-                                    "contact_number": {
-                                        "type": "string",
-                                        "example": "1234567890"
-                                    },
-                                    "basic_salary": {
-                                        "type": "number",
-                                        "example": 55000
-                                    },
-                                    "is_active": {
-                                        "type": "boolean",
-                                        "example": true
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Employee updated successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Employee updated successfully"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Employee not found"
-                    },
-                    "403": {
-                        "description": "Forbidden - Insufficient permissions"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            },
-            "delete": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Delete employee",
-                "operationId": "dc1326c2f6b4bed0201d62396ddfd970",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Employee ID",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 1
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Employee deleted successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Employee deleted successfully"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Employee not found"
-                    },
-                    "403": {
-                        "description": "Forbidden - Insufficient permissions"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/employees/stats": {
-            "get": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Get employee statistics for the company",
-                "operationId": "f365577f76a317d723e5397431bcb7bb",
-                "responses": {
-                    "200": {
-                        "description": "Statistics retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "total_employees": {
-                                                    "type": "integer",
-                                                    "example": 50
-                                                },
-                                                "active_employees": {
-                                                    "type": "integer",
-                                                    "example": 45
-                                                },
-                                                "inactive_employees": {
-                                                    "type": "integer",
-                                                    "example": 5
-                                                },
-                                                "by_user_type": {
-                                                    "type": "object"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/employees/search": {
-            "get": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Search employees",
-                "operationId": "db1c96380066d4929196688963410fec",
-                "parameters": [
-                    {
-                        "name": "q",
-                        "in": "query",
-                        "description": "Search term",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "john"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Search results",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/employees/by-type/{type}": {
-            "get": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Get employees by type",
-                "operationId": "42573513053655bd4bc93e5f0c4f8fa6",
-                "parameters": [
-                    {
-                        "name": "type",
-                        "in": "path",
-                        "description": "User type",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "employee"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Employees by type",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/employees/active": {
-            "get": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Get active employees",
-                "operationId": "4c6480e8c2eed89673171a65b06a2f87",
-                "responses": {
-                    "200": {
-                        "description": "Active employees",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object"
-                                            }
-                                        },
-                                        "pagination": {
-                                            "properties": {
-                                                "current_page": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "last_page": {
-                                                    "type": "integer",
-                                                    "example": 5
-                                                },
-                                                "per_page": {
-                                                    "type": "integer",
-                                                    "example": 50
-                                                },
-                                                "total": {
-                                                    "type": "integer",
-                                                    "example": 230
-                                                },
-                                                "from": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "to": {
-                                                    "type": "integer",
-                                                    "example": 50
-                                                },
-                                                "has_more_pages": {
-                                                    "type": "boolean",
-                                                    "example": true
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/employees/inactive": {
-            "get": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Get inactive employees",
-                "operationId": "baf87e572704c221e35dd542fea72668",
-                "responses": {
-                    "200": {
-                        "description": "Inactive employees",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object"
-                                            }
-                                        },
-                                        "pagination": {
-                                            "properties": {
-                                                "current_page": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "last_page": {
-                                                    "type": "integer",
-                                                    "example": 5
-                                                },
-                                                "per_page": {
-                                                    "type": "integer",
-                                                    "example": 50
-                                                },
-                                                "total": {
-                                                    "type": "integer",
-                                                    "example": 40
-                                                },
-                                                "from": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "to": {
-                                                    "type": "integer",
-                                                    "example": 40
-                                                },
-                                                "has_more_pages": {
-                                                    "type": "boolean",
-                                                    "example": false
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/employees/export/pdf": {
-            "get": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Export employees to PDF",
-                "operationId": "1740a03a16e20920d24870ac51cce4ee",
-                "responses": {
-                    "200": {
-                        "description": "PDF file download",
-                        "content": {
-                            "application/pdf": {
-                                "schema": {
-                                    "type": "string",
-                                    "format": "binary"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/employees/export/pdf/detailed": {
-            "get": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Export employees to detailed PDF",
-                "operationId": "1ded9dc7d83ce1e1930607916927a41a",
-                "responses": {
-                    "200": {
-                        "description": "Detailed PDF file download",
-                        "content": {
-                            "application/pdf": {
-                                "schema": {
-                                    "type": "string",
-                                    "format": "binary"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/employees/export/pdf/arabic": {
-            "get": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Export employees to Arabic PDF (RTL)",
-                "operationId": "f135ca125119451a744cf4539f300b5f",
-                "responses": {
-                    "200": {
-                        "description": "Arabic PDF file download",
-                        "content": {
-                            "application/pdf": {
-                                "schema": {
-                                    "type": "string",
-                                    "format": "binary"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/employees/export/pdf/arabic-full": {
-            "get": {
-                "tags": [
-                    "Employees"
-                ],
-                "summary": "Export employees to full Arabic PDF using mPDF",
-                "operationId": "8f267ce85abd94eab8c40aab9845b6cc",
-                "responses": {
-                    "200": {
-                        "description": "Full Arabic PDF file download",
-                        "content": {
-                            "application/pdf": {
-                                "schema": {
-                                    "type": "string",
-                                    "format": "binary"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
         "/api/employees/approval-levels": {
             "get": {
                 "tags": [
@@ -7199,6 +6250,868 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/internal-helpdesk/enums": {
+            "get": {
+                "tags": [
+                    "Internal Helpdesk"
+                ],
+                "summary": "الحصول على الحالات والأولويات المتاحة",
+                "description": "يُرجع قوائم الحالات (statuses) والأولويات (priorities) المتاحة للتذاكر",
+                "operationId": "getInternalHelpdeskEnums",
+                "responses": {
+                    "200": {
+                        "description": "نجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "statuses": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "integer"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "label_en": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "priorities": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "integer"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "label_en": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/internal-helpdesk/departments": {
+            "get": {
+                "tags": [
+                    "Internal Helpdesk"
+                ],
+                "summary": "الحصول على الأقسام المتاحة",
+                "description": "Company: كل الأقسام | Staff: الأقسام التي بها subordinates + قسمه الشخصي",
+                "operationId": "getInternalHelpdeskDepartments",
+                "responses": {
+                    "200": {
+                        "description": "نجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "department_id": {
+                                                        "type": "integer",
+                                                        "example": 165
+                                                    },
+                                                    "department_name": {
+                                                        "type": "string",
+                                                        "example": "التطوير والبرمجة"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/internal-helpdesk/employees/{departmentId}": {
+            "get": {
+                "tags": [
+                    "Internal Helpdesk"
+                ],
+                "summary": "الحصول على موظفي قسم",
+                "description": "Company: كل موظفي القسم | Staff: subordinates فقط + نفسه داخل القسم",
+                "operationId": "getInternalHelpdeskEmployees",
+                "parameters": [
+                    {
+                        "name": "departmentId",
+                        "in": "path",
+                        "description": "معرف القسم",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "نجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "user_id": {
+                                                        "type": "integer",
+                                                        "example": 768
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "محمد أحمد"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/internal-helpdesk": {
+            "get": {
+                "tags": [
+                    "Internal Helpdesk"
+                ],
+                "summary": "قائمة التذاكر الداخلية",
+                "description": "Company: كل التذاكر | Staff: التذاكر الشخصية + تذاكر subordinates. مع دعم الترقيم والتصفية",
+                "operationId": "listInternalTickets",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "تصفية بالحالة",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "open",
+                                "closed"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "priority",
+                        "in": "query",
+                        "description": "تصفية بالأولوية",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "low",
+                                "medium",
+                                "high",
+                                "urgent",
+                                "critical"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "department",
+                        "in": "query",
+                        "description": "معرف القسم",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث في العنوان والوصف",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التذاكر بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/InternalTicketResource"
+                                            }
+                                        },
+                                        "meta": {
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer"
+                                                },
+                                                "last_page": {
+                                                    "type": "integer"
+                                                },
+                                                "per_page": {
+                                                    "type": "integer"
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Internal Helpdesk"
+                ],
+                "summary": "إنشاء تذكرة داخلية",
+                "description": "Company: ينشئ لأي موظف | Staff: ينشئ لنفسه أو لـ subordinates",
+                "operationId": "createInternalTicket",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateInternalTicketRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم الإنشاء بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message_ar": {
+                                            "type": "string"
+                                        },
+                                        "message_en": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/InternalTicketResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "لا يمكنك إنشاء تذكرة لهذا الموظف"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/internal-helpdesk/{id}": {
+            "get": {
+                "tags": [
+                    "Internal Helpdesk"
+                ],
+                "summary": "تفاصيل تذكرة",
+                "description": "عرض تفاصيل تذكرة معينة. يجب أن يكون لديك صلاحية الوصول للتذكرة",
+                "operationId": "showInternalTicket",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "معرف التذكرة",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "نجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/InternalTicketResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "لا تملك صلاحية عرض هذه التذكرة"
+                    },
+                    "404": {
+                        "description": "التذكرة غير موجودة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Internal Helpdesk"
+                ],
+                "summary": "تحديث تذكرة (العنوان والأولوية فقط)",
+                "description": "يمكن تحديث العنوان والأولوية فقط للتذاكر المفتوحة التي لديك صلاحية الوصول إليها",
+                "operationId": "updateInternalTicket",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "معرف التذكرة",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "subject": {
+                                        "description": "عنوان التذكرة",
+                                        "type": "string",
+                                        "maxLength": 255,
+                                        "example": "مشكلة في النظام"
+                                    },
+                                    "priority": {
+                                        "description": "أولوية التذكرة (اسم الأولوية)",
+                                        "type": "string",
+                                        "enum": [
+                                            "low",
+                                            "medium",
+                                            "high",
+                                            "urgent",
+                                            "critical"
+                                        ],
+                                        "example": "high"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التحديث بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "لا تملك صلاحية الوصول للتذكرة"
+                    },
+                    "404": {
+                        "description": "التذكرة غير موجودة"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/internal-helpdesk/{id}/close": {
+            "post": {
+                "tags": [
+                    "Internal Helpdesk"
+                ],
+                "summary": "إغلاق تذكرة",
+                "description": "Company: يغلق أي تذكرة | Staff: يغلق تذاكر subordinates فقط (ليس تذكرته الشخصية)",
+                "operationId": "closeInternalTicket",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "معرف التذكرة",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "ticket_remarks": {
+                                        "description": "ملاحظات الإغلاق",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم الإغلاق بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message_ar": {
+                                            "type": "string"
+                                        },
+                                        "message_en": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/InternalTicketResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "لا تملك صلاحية إغلاق هذه التذكرة"
+                    },
+                    "404": {
+                        "description": "التذكرة غير موجودة"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/internal-helpdesk/{id}/reopen": {
+            "post": {
+                "tags": [
+                    "Internal Helpdesk"
+                ],
+                "summary": "إعادة فتح تذكرة",
+                "description": "Company: يفتح أي تذكرة | Staff: يفتح تذاكر subordinates فقط (ليس تذكرته الشخصية)",
+                "operationId": "reopenInternalTicket",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "معرف التذكرة",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم إعادة الفتح بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message_ar": {
+                                            "type": "string"
+                                        },
+                                        "message_en": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/InternalTicketResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "لا تملك صلاحية إعادة فتح هذه التذكرة"
+                    },
+                    "404": {
+                        "description": "التذكرة غير موجودة"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/internal-helpdesk/{id}/replies": {
+            "get": {
+                "tags": [
+                    "Internal Helpdesk"
+                ],
+                "summary": "ردود التذكرة",
+                "description": "عرض جميع الردود على تذكرة معينة",
+                "operationId": "getInternalTicketReplies",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "معرف التذكرة",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "نجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "reply_id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "reply_text": {
+                                                        "type": "string"
+                                                    },
+                                                    "sent_by": {
+                                                        "type": "integer"
+                                                    },
+                                                    "sent_by_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "لا تملك صلاحية عرض هذه التذكرة"
+                    },
+                    "404": {
+                        "description": "التذكرة غير موجودة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Internal Helpdesk"
+                ],
+                "summary": "إضافة رد على تذكرة",
+                "description": "إضافة رد جديد على تذكرة مفتوحة. لا يمكن الرد على التذاكر المغلقة",
+                "operationId": "addInternalTicketReply",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "معرف التذكرة",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reply_text"
+                                ],
+                                "properties": {
+                                    "reply_text": {
+                                        "description": "نص الرد",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة الرد بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message_ar": {
+                                            "type": "string"
+                                        },
+                                        "message_en": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "لا تملك صلاحية الوصول للتذكرة"
+                    },
+                    "404": {
+                        "description": "التذكرة غير موجودة"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -18130,6 +18043,34 @@
                 "title": "Update Employee Request",
                 "description": "Update Employee Request"
             },
+            "CreateInternalTicketRequest": {
+                "required": [
+                    "subject",
+                    "description"
+                ],
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "example": "مشكلة في النظام"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "priority": {
+                        "type": "string",
+                        "example": "high"
+                    },
+                    "department_id": {
+                        "description": "مطلوب لصاحب الشركة",
+                        "type": "integer"
+                    },
+                    "employee_id": {
+                        "description": "مطلوب لصاحب الشركة",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
             "CreateLeaveAdjustmentRequest": {
                 "title": "Create Leave Adjustment Request",
                 "required": [
@@ -18771,6 +18712,91 @@
                 },
                 "type": "object"
             },
+            "InternalTicketReplyResource": {
+                "properties": {
+                    "ticket_reply_id": {
+                        "type": "integer"
+                    },
+                    "ticket_id": {
+                        "type": "integer"
+                    },
+                    "sent_by": {
+                        "type": "integer"
+                    },
+                    "sender_name": {
+                        "type": "string"
+                    },
+                    "assign_to": {
+                        "type": "integer"
+                    },
+                    "assignee_name": {
+                        "type": "string"
+                    },
+                    "reply_text": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "InternalTicketResource": {
+                "properties": {
+                    "ticket_id": {
+                        "type": "integer"
+                    },
+                    "ticket_code": {
+                        "type": "string"
+                    },
+                    "company_id": {
+                        "type": "integer"
+                    },
+                    "subject": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "department_id": {
+                        "type": "integer"
+                    },
+                    "department_name": {
+                        "type": "string"
+                    },
+                    "employee_id": {
+                        "type": "integer"
+                    },
+                    "employee_name": {
+                        "type": "string"
+                    },
+                    "ticket_priority": {
+                        "type": "integer"
+                    },
+                    "priority_text": {
+                        "type": "string"
+                    },
+                    "ticket_status": {
+                        "type": "integer"
+                    },
+                    "status_text": {
+                        "type": "string"
+                    },
+                    "is_open": {
+                        "type": "boolean"
+                    },
+                    "created_by": {
+                        "type": "integer"
+                    },
+                    "created_by_name": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "SupportTicketResource": {
                 "title": "Support Ticket Resource",
                 "description": "تذكرة دعم فني",
@@ -18991,6 +19017,61 @@
                     }
                 },
                 "type": "object"
+            },
+            "InternalSupportTicket": {
+                "properties": {
+                    "ticket_id": {
+                        "type": "integer"
+                    },
+                    "company_id": {
+                        "type": "integer"
+                    },
+                    "ticket_code": {
+                        "type": "string"
+                    },
+                    "subject": {
+                        "type": "string"
+                    },
+                    "employee_id": {
+                        "type": "integer"
+                    },
+                    "department_id": {
+                        "type": "integer"
+                    },
+                    "ticket_priority": {
+                        "type": "integer"
+                    },
+                    "ticket_status": {
+                        "type": "integer"
+                    },
+                    "created_by": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "InternalTicketReply": {
+                "properties": {
+                    "ticket_reply_id": {
+                        "type": "integer"
+                    },
+                    "company_id": {
+                        "type": "integer"
+                    },
+                    "ticket_id": {
+                        "type": "integer"
+                    },
+                    "sent_by": {
+                        "type": "integer"
+                    },
+                    "assign_to": {
+                        "type": "integer"
+                    },
+                    "reply_text": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -19050,6 +19131,10 @@
             "description": "إدارة طلبات الإستئذان بالساعات"
         },
         {
+            "name": "Internal Helpdesk",
+            "description": "التذاكر الداخلية للدعم الفني"
+        },
+        {
             "name": "Leave Adjustments",
             "description": "Leave Adjustments management"
         },
@@ -19096,10 +19181,6 @@
         {
             "name": "Employee Management",
             "description": "Employee Management"
-        },
-        {
-            "name": "Employees",
-            "description": "Employees"
         },
         {
             "name": "Jobs Monitor",

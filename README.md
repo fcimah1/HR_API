@@ -115,6 +115,7 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 | **Resignations** | `/api/resignations` | Apply, Approve/Reject |
 | **Travels** | `/api/travels` | Apply, Approve/Reject |
 | **Complaints & Suggestions** | `/api/complaints` | Apply, Approve/Reject |
+| **Support Tickets** | `/api/support-tickets` | Create, Reply, Close, Reopen (See [docs/SUPPORT_TICKETS.md](docs/SUPPORT_TICKETS.md)) |
 | **Biometric Attendance** | `/api/biometric-logs` | Sync Logs |
 | **Manual Attendance** | `/api/attendances` | Clock In/Out, Monthly Report |
 | **Notifications** | `/api/notifications` | List, Mark as Read |
