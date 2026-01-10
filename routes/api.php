@@ -42,6 +42,9 @@ Route::get('/biometric/companies', [BiometricAttendanceController::class, 'getCo
 
 // Protected routes with simple company isolation
 Route::middleware(['auth:api', 'simple.company'])->group(function () {
+    // FCM Device Token - تسجيل توكن الجهاز للإشعارات
+    Route::post('/user/device-token', [AuthController::class, 'updateDeviceToken']);
+
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/user/permissions', [AuthController::class, 'permissions']);
@@ -72,6 +75,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
 
     // Employee approval levels - returns approval chain for an employee
     Route::get('/employees/approval-levels', [EmployeeController::class, 'getApprovalLevels']);
+
 
     // Route::get('/employees/{id}', [EmployeeController::class, 'show']);
 
