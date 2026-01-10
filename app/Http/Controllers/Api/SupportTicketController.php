@@ -45,9 +45,9 @@ class SupportTicketController extends Controller
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="page", in="query", description="رقم الصفحة", @OA\Schema(type="integer", default=1)),
      *     @OA\Parameter(name="per_page", in="query", description="عدد العناصر في الصفحة", @OA\Schema(type="integer", default=15, maximum=100)),
-     *     @OA\Parameter(name="status", in="query", description="الحالة: open, closed", @OA\Schema(type="string")),
-     *     @OA\Parameter(name="category", in="query", description="النوع: general, technical, billing, subscription, other", @OA\Schema(type="string")),
-     *     @OA\Parameter(name="priority", in="query", description="الأولوية: urgent, high, medium, low", @OA\Schema(type="string")),
+     *     @OA\Parameter(name="status", in="query", description="الحالة", @OA\Schema(type="string", enum={"open", "closed"})),
+     *     @OA\Parameter(name="category", in="query", description="النوع", @OA\Schema(type="string", enum={"general", "technical", "billing", "subscription", "other"})),
+     *     @OA\Parameter(name="priority", in="query", description="الأولوية", @OA\Schema(type="string", enum={"critical", "high", "medium", "low"})),
      *     @OA\Parameter(name="search", in="query", description="نص البحث", @OA\Schema(type="string")),
      *     @OA\Response(
      *         response=200,
