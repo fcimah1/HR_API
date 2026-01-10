@@ -6512,7 +6512,7 @@
                     {
                         "name": "status",
                         "in": "query",
-                        "description": "تصفية بالحالة",
+                        "description": "الحالة",
                         "schema": {
                             "type": "string",
                             "enum": [
@@ -6524,14 +6524,14 @@
                     {
                         "name": "priority",
                         "in": "query",
-                        "description": "تصفية بالأولوية",
+                        "description": "الأولوية",
                         "schema": {
                             "type": "string",
                             "enum": [
-                                "low",
-                                "medium",
+                                "critical",
                                 "high",
-                                "critical"
+                                "medium",
+                                "low"
                             ]
                         }
                     },
