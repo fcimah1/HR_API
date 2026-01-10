@@ -57,7 +57,11 @@ class SupportTicketController extends Controller
      *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/SupportTicketResource")),
      *             @OA\Property(property="pagination", type="object")
      *         )
-     *     )
+     *     ),
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات")
      * )
      */
     public function index(GetTicketsRequest $request): JsonResponse
@@ -106,7 +110,11 @@ class SupportTicketController extends Controller
      *             @OA\Property(property="data", ref="#/components/schemas/SupportTicketResource")
      *         )
      *     ),
-     *     @OA\Response(response=404, description="التذكرة غير موجودة")
+     *     @OA\Response(response=404, description="التذكرة غير موجودة"),
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات")
      * )
      */
     public function show(int $id): JsonResponse
@@ -160,7 +168,10 @@ class SupportTicketController extends Controller
      *             @OA\Property(property="data", ref="#/components/schemas/SupportTicketResource")
      *         )
      *     ),
-     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة")
+     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة"),
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات")
      * )
      */
     public function store(CreateTicketRequest $request): JsonResponse
@@ -208,7 +219,10 @@ class SupportTicketController extends Controller
      *         @OA\JsonContent(ref="#/components/schemas/UpdateTicketRequest")
      *     ),
      *     @OA\Response(response=200, description="تم تحديث التذكرة بنجاح"),
-     *     @OA\Response(response=403, description="لا تملك صلاحية تعديل هذه التذكرة")
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات")
      * )
      */
     public function update(int $id, UpdateTicketRequest $request): JsonResponse
@@ -252,7 +266,10 @@ class SupportTicketController extends Controller
      *         )
      *     ),
      *     @OA\Response(response=200, description="تم إغلاق التذكرة بنجاح"),
-     *     @OA\Response(response=403, description="لا تملك صلاحية إغلاق هذه التذكرة")
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات")
      * )
      */
     public function close(int $id, CloseTicketRequest $request): JsonResponse
@@ -295,7 +312,10 @@ class SupportTicketController extends Controller
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(response=200, description="تم إعادة فتح التذكرة بنجاح"),
-     *     @OA\Response(response=403, description="لا تملك صلاحية إعادة فتح هذه التذكرة")
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات")
      * )
      */
     public function reopen(int $id): JsonResponse
@@ -346,7 +366,10 @@ class SupportTicketController extends Controller
      *             @OA\Property(property="data", ref="#/components/schemas/TicketReplyResource")
      *         )
      *     ),
-     *     @OA\Response(response=403, description="التذكرة مغلقة أو لا تملك صلاحية الرد")
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات")
      * )
      */
     public function addReply(int $id, CreateReplyRequest $request): JsonResponse
@@ -417,7 +440,11 @@ class SupportTicketController extends Controller
      *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/TicketReplyResource")),
      *             @OA\Property(property="can_reply", type="boolean", example=true)
      *         )
-     *     )
+     *     ),
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات")
      * )
      */
     public function getReplies(int $id): JsonResponse
@@ -463,7 +490,11 @@ class SupportTicketController extends Controller
      *                 @OA\Property(property="priorities", type="array", @OA\Items(type="object"))
      *             )
      *         )
-     *     )
+     *     ),
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات")
      * )
      */
     public function getEnums(): JsonResponse
@@ -509,8 +540,11 @@ class SupportTicketController extends Controller
     //  *             )
     //  *         )
     //  *     ),
-    //  *     @OA\Response(response=403, description="لا تملك صلاحية حذف هذه التذكرة"),
-    //  *     @OA\Response(response=404, description="التذكرة غير موجودة")
+    //  *     @OA\Response(response=404, description="التذكرة غير موجودة"),
+    //  *     @OA\Response(response=500, description="خطأ في الخادم"),
+    //  *     @OA\Response(response=422, description="خطأ في البيانات المدخلة"),
+    //  *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+    //  *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات")
     //  * )
     //  */
     // public function destroy(int $id): JsonResponse
