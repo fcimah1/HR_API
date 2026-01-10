@@ -45,7 +45,8 @@ class SendApprovalNotificationJob implements ShouldQueue
      */
     public function handle(
         NotificationApprovalRepositoryInterface $approvalRepository,
-        NotificationStatusRepositoryInterface $statusRepository
+        NotificationStatusRepositoryInterface $statusRepository,
+        \App\Services\PushNotificationService $pushService
     ): void {
         try {
             Log::info('SendApprovalNotificationJob started', [
@@ -79,6 +80,15 @@ class SendApprovalNotificationJob implements ShouldQueue
                 );
 
                 $count = $statusRepository->createNotifications($dto);
+
+                // Send Push Notification
+                try {
+                    $statusStr = is_string($this->status) ? $this->status : ($this->status == NumericalStatusEnum::APPROVED->value ? 'approved' : 'rejected');
+
+                    $pushService->sendApprovalPush($this->resolvedNotifiers, $this->moduleOption, $statusStr);
+                } catch (\Exception $e) {
+                    Log::error('Push Notification Failed', ['error' => $e->getMessage()]);
+                }
 
                 Log::info('SendApprovalNotificationJob completed', [
                     'module' => $this->moduleOption,

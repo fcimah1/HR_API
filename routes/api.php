@@ -39,6 +39,29 @@ Route::post('/biometric/punch', [BiometricAttendanceController::class, 'punch'])
 Route::post('/biometric/logs', [BiometricAttendanceController::class, 'storeBulkLogs'])->middleware('fix.biometric.json');
 Route::get('/biometric/companies', [BiometricAttendanceController::class, 'getCompaniesWithBranches']);
 
+// Test Route for FCM
+Route::post('/test-fcm', function (\Illuminate\Http\Request $request, \App\Services\PushNotificationService $pushService) {
+    $token = $request->input('token');
+    if (!$token) {
+        return response()->json(['error' => 'Token is required'], 400);
+    }
+
+    $success = $pushService->sendToUsers(
+        ['test-user'], // Dummy ID, won't be used because we use specific token below logic
+        'تجربة إشعار',
+        'هذا إشعار تجريبي للتأكد من عمل النظام الجديد',
+    );
+
+    // Direct send to verify token specifically
+    // Accessing protected method via reflection or just usage of public sendToUser if user existed.
+    // Since we want to test a raw token without a user in DB necessarily:
+    $method = new \ReflectionMethod(\App\Services\PushNotificationService::class, 'send');
+    $method->setAccessible(true);
+    $result = $method->invoke($pushService, $token, 'تجربة V1', 'هذا إشعار تجريبي عبر FCM V1 API', ['type' => 'test']);
+
+    return response()->json(['success' => $result]);
+});
+
 
 // Protected routes with simple company isolation
 Route::middleware(['auth:api', 'simple.company'])->group(function () {

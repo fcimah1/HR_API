@@ -35,8 +35,10 @@ class SendNotificationJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(NotificationStatusRepositoryInterface $statusRepository): void
-    {
+    public function handle(
+        NotificationStatusRepositoryInterface $statusRepository,
+        \App\Services\PushNotificationService $pushService
+    ): void {
         try {
             Log::info('SendNotificationJob started', [
                 'module' => $this->moduleOption,
@@ -52,6 +54,15 @@ class SendNotificationJob implements ShouldQueue
             );
 
             $count = $statusRepository->createNotifications($dto);
+
+            // Send Push Notification
+            try {
+                // Determine submitter name (optional - can be enhanced)
+                $submitterName = 'النظام';
+                $pushService->sendSubmissionPush($this->staffIds, $this->moduleOption, $submitterName);
+            } catch (\Exception $e) {
+                Log::error('Push Notification Failed', ['error' => $e->getMessage()]);
+            }
 
             Log::info('SendNotificationJob completed', [
                 'module' => $this->moduleOption,

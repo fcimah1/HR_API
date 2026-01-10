@@ -39,7 +39,7 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
   - **Hierarchy Check:** Users can only view/act on subordinates.
   - **Operation Restrictions:** Department and Branch level isolation.
   - **Leaves Types Restrictions:** Leaves types restrictions.
-  tr
+
 - **Company Isolation:** Multi-tenant architecture support (Company vs. Staff users).
 
 ### ✅ Approval Workflow
