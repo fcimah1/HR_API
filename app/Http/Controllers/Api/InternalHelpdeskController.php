@@ -208,7 +208,7 @@ class InternalHelpdeskController extends Controller
      *     @OA\Parameter(name="page", in="query", description="رقم الصفحة", @OA\Schema(type="integer", default=1)),
      *     @OA\Parameter(name="per_page", in="query", description="عدد العناصر في الصفحة", @OA\Schema(type="integer", default=15)),
      *     @OA\Parameter(name="status", in="query", description="تصفية بالحالة", @OA\Schema(type="string", enum={"open", "closed"})),
-     *     @OA\Parameter(name="priority", in="query", description="تصفية بالأولوية", @OA\Schema(type="string", enum={"low", "medium", "high", "urgent", "critical"})),
+     *     @OA\Parameter(name="priority", in="query", description="تصفية بالأولوية", @OA\Schema(type="string", enum={"low", "medium", "high", "critical"})),
      *     @OA\Parameter(name="department", in="query", description="معرف القسم", @OA\Schema(type="integer")),
      *     @OA\Parameter(name="search", in="query", description="بحث في العنوان والوصف", @OA\Schema(type="string")),
      *     @OA\Response(
