@@ -65,15 +65,24 @@ Route::post('/test-fcm', function (\Illuminate\Http\Request $request, \App\Servi
 
 // Protected routes with simple company isolation
 Route::middleware(['auth:api', 'simple.company'])->group(function () {
+    // FCM Device Token - تسجيل توكن الجهاز للإشعارات
+    Route::post('/user/device-token', [AuthController::class, 'updateDeviceToken']);
+
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/user/permissions', [AuthController::class, 'permissions']);
 
-    // Employee management
-    Route::get('/employees', [EmployeeController::class, 'index']);
-    Route::get('/employees/stats', [EmployeeController::class, 'stats']);
-    Route::get('/employees/search', [EmployeeController::class, 'search']);
-    Route::get('/employees/by-type/{type}', [EmployeeController::class, 'getByType']);
+    // Dashboard
+    Route::prefix('dashboard')->group(function () {
+        Route::get('/stats', [App\Http\Controllers\Api\DashboardController::class, 'getStats']);
+        Route::get('/activity', [App\Http\Controllers\Api\DashboardController::class, 'getActivity']);
+    });
+
+    // // Employee management
+    // Route::get('/employees', [EmployeeController::class, 'index']);
+    // Route::get('/employees/stats', [EmployeeController::class, 'stats']);
+    // Route::get('/employees/search', [EmployeeController::class, 'search']);
+    // Route::get('/employees/by-type/{type}', [EmployeeController::class, 'getByType']);
 
     // Employees for duty employee - no permissions required (must come before /employees/{id})
     Route::get('/employees/employees-for-duty-employee', [EmployeeController::class, 'getEmployeesForDutyEmployee']);
@@ -90,21 +99,22 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     // Employee approval levels - returns approval chain for an employee
     Route::get('/employees/approval-levels', [EmployeeController::class, 'getApprovalLevels']);
 
-    Route::get('/employees/{id}', [EmployeeController::class, 'show']);
 
-    // Employee filters and exports
-    Route::get('/employees/export/pdf', [EmployeeController::class, 'exportPdf']);
-    Route::get('/employees/export/pdf/detailed', [EmployeeController::class, 'exportDetailedPdf']);
-    Route::get('/employees/export/pdf/arabic', [EmployeeController::class, 'exportArabicPdf']);
-    Route::get('/employees/export/pdf/arabic-full', [EmployeeController::class, 'exportFullArabicPdf']);
-    Route::get('/employees/active', [EmployeeController::class, 'getActiveEmployees']);
-    Route::get('/employees/inactive', [EmployeeController::class, 'getInactiveEmployees']);
+    // Route::get('/employees/{id}', [EmployeeController::class, 'show']);
+
+    // // Employee filters and exports
+    // Route::get('/employees/export/pdf', [EmployeeController::class, 'exportPdf']);
+    // Route::get('/employees/export/pdf/detailed', [EmployeeController::class, 'exportDetailedPdf']);
+    // Route::get('/employees/export/pdf/arabic', [EmployeeController::class, 'exportArabicPdf']);
+    // Route::get('/employees/export/pdf/arabic-full', [EmployeeController::class, 'exportFullArabicPdf']);
+    // Route::get('/employees/active', [EmployeeController::class, 'getActiveEmployees']);
+    // Route::get('/employees/inactive', [EmployeeController::class, 'getInactiveEmployees']);
 
 
-    // Employee CRUD - require admin/hr roles only
-    Route::post('/employees', [EmployeeController::class, 'store']);
-    Route::put('/employees/{id}', [EmployeeController::class, 'update']);
-    Route::delete('/employees/{id}', [EmployeeController::class, 'destroy']);
+    // // Employee CRUD - require admin/hr roles only
+    // Route::post('/employees', [EmployeeController::class, 'store']);
+    // Route::put('/employees/{id}', [EmployeeController::class, 'update']);
+    // Route::delete('/employees/{id}', [EmployeeController::class, 'destroy']);
 
 
 
@@ -148,11 +158,15 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::middleware('simple.permission:hradvance_salary')->group(function () {
         Route::get('/advances', [AdvanceSalaryController::class, 'index']);
         Route::post('/advances', [AdvanceSalaryController::class, 'store']);
+        Route::post('/advances/tier-based', [AdvanceSalaryController::class, 'storeTierBased']);
         Route::get('/advances/stats', [AdvanceSalaryController::class, 'stats']);
         Route::post('/advances/{id}/approve', [AdvanceSalaryController::class, 'approve']);
         Route::delete('/advances/{id}/cancel', [AdvanceSalaryController::class, 'cancel']);
         Route::get('/advances/{id}', [AdvanceSalaryController::class, 'show']);
         Route::put('/advances/{id}', [AdvanceSalaryController::class, 'update']);
+        // Loan Eligibility & Tiers (Simplified)
+        Route::get('/loans/form-init', [\App\Http\Controllers\Api\LoanController::class, 'formInit']);
+        Route::post('/loans/preview', [\App\Http\Controllers\Api\LoanController::class, 'preview']);
     });
 
 
@@ -316,13 +330,14 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Custody Clearance Management - إخلاء طرف العهد
-    Route::get('/assets', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getAssets']);
-    Route::get('/custodies', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getCustodies']);
-    Route::prefix('custody-clearances')->group(function () {
-        Route::get('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'index']);
-        Route::post('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'store']);
-        Route::get('/{id}', [App\Http\Controllers\Api\CustodyClearanceController::class, 'show']);
-        Route::post('/{id}/approve-or-reject', [App\Http\Controllers\Api\CustodyClearanceController::class, 'approveOrReject']);
+    Route::get('/assets', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getAssets'])->middleware('simple.permission:hr_assets');
+    Route::get('/custodies', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getCustodies'])->middleware('simple.permission:hr_custody_clearance1');
+    Route::prefix('custody-clearances')->middleware('simple.permission:hr_custody_clearance')->group(function () {
+        Route::get('/types', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getClearanceTypes'])->middleware('simple.permission:hr_custody_clearance1');
+        Route::get('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'index'])->middleware('simple.permission:hr_custody_clearance1');
+        Route::post('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'store'])->middleware('simple.permission:hr_custody_clearance2');
+        Route::get('/{id}', [App\Http\Controllers\Api\CustodyClearanceController::class, 'show'])->middleware('simple.permission:hr_custody_clearance1');
+        Route::post('/{id}/approve-or-reject', [App\Http\Controllers\Api\CustodyClearanceController::class, 'approveOrReject'])->middleware('simple.permission:hr_custody_clearance5');
     });
 
     // Jobs Monitor (للشركات فقط)
@@ -332,5 +347,35 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/retry/{uuid}', [\App\Http\Controllers\Api\JobsMonitorController::class, 'retryJob']);
         Route::post('/retry-all', [\App\Http\Controllers\Api\JobsMonitorController::class, 'retryAll']);
         Route::delete('/failed', [\App\Http\Controllers\Api\JobsMonitorController::class, 'clearFailed']);
+    });
+
+    // Support Tickets Management - تذاكر الدعم الفني
+    Route::prefix('support-tickets')->middleware('simple.permission:hr_helpdesk')->group(function () {
+        Route::get('/enums', [\App\Http\Controllers\Api\SupportTicketController::class, 'getEnums'])->middleware('simple.permission:helpdesk1');
+        Route::get('/', [\App\Http\Controllers\Api\SupportTicketController::class, 'index'])->middleware('simple.permission:helpdesk1');
+        Route::post('/', [\App\Http\Controllers\Api\SupportTicketController::class, 'store'])->middleware('simple.permission:helpdesk2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\SupportTicketController::class, 'show'])->middleware('simple.permission:helpdesk1');
+        Route::put('/{id}', [\App\Http\Controllers\Api\SupportTicketController::class, 'update'])->middleware('simple.permission:helpdesk3');
+        // Route::delete('/{id}', [\App\Http\Controllers\Api\SupportTicketController::class, 'destroy'])->middleware('simple.permission:helpdesk5');
+        Route::post('/{id}/close', [\App\Http\Controllers\Api\SupportTicketController::class, 'close'])->middleware('simple.permission:helpdesk6');
+        Route::post('/{id}/reopen', [\App\Http\Controllers\Api\SupportTicketController::class, 'reopen'])->middleware('simple.permission:helpdesk6');
+        Route::get('/{id}/replies', [\App\Http\Controllers\Api\SupportTicketController::class, 'getReplies'])->middleware('simple.permission:helpdesk1');
+        Route::post('/{id}/replies', [\App\Http\Controllers\Api\SupportTicketController::class, 'addReply'])->middleware('simple.permission:helpdesk2');
+    });
+
+    // Internal Helpdesk - التذاكر الداخلية للدعم الفني
+    Route::prefix('internal-helpdesk')->middleware('simple.permission:hr_helpdesk')->group(function () {
+        Route::get('/enums', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'getEnums'])->middleware('simple.permission:helpdesk1');
+        Route::get('/departments', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'getDepartments'])->middleware('simple.permission:helpdesk1');
+        Route::get('/employees/{departmentId}', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'getEmployees'])->middleware('simple.permission:helpdesk1');
+        Route::get('/', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'index'])->middleware('simple.permission:helpdesk1');
+        Route::post('/', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'store'])->middleware('simple.permission:helpdesk2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'show'])->middleware('simple.permission:helpdesk1');
+        Route::put('/{id}', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'update'])->middleware('simple.permission:helpdesk3');
+        // Route::delete('/{id}', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'destroy'])->middleware('simple.permission:helpdesk5');
+        Route::post('/{id}/close', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'close'])->middleware('simple.permission:helpdesk6');
+        Route::post('/{id}/reopen', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'reopen'])->middleware('simple.permission:helpdesk6');
+        Route::get('/{id}/replies', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'getReplies'])->middleware('simple.permission:helpdesk1');
+        Route::post('/{id}/replies', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'addReply'])->middleware('simple.permission:helpdesk2');
     });
 });

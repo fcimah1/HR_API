@@ -38,6 +38,8 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 - **Simple Permission Service:** Custom service layer enforcing:
   - **Hierarchy Check:** Users can only view/act on subordinates.
   - **Operation Restrictions:** Department and Branch level isolation.
+  - **Leaves Types Restrictions:** Leaves types restrictions.
+
 - **Company Isolation:** Multi-tenant architecture support (Company vs. Staff users).
 
 ### ✅ Approval Workflow
@@ -51,6 +53,13 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 - **Documentation:** Swagger/OpenAPI (`l5-swagger`)
 - **PDF Generation:** mPDF / TCPDF
 - **Validation:** Laravel Form Requests with custom rules
+- **Push Notifications:** Laravel Notifications with firebase fcm
+- **DTO:** Data Transfer Objects
+- **SOLID Principles:** SOLID principles followed
+- **Dependency Injection:** Dependency injection used
+- **Design Patterns:** Design patterns used
+- **Version Control:** Git
+- **Repository pattern:** Repository pattern used
 
 ## ⚙️ Installation
 
@@ -95,10 +104,22 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 |--------|-----------|----------------|
 | **Employees** | `/api/employees` | List, View, Create, Update, Export (PDF) |
 | **Leaves** | `/api/leaves` | Apply, Approve/Reject, Balance Check |
+| **Hourly Leaves** | `/api/hourly-leaves` | Apply, Approve/Reject, Balance Check |
+| **Leave Adjustments** | `/api/leave-adjustments` | Apply, Approve/Reject |
+| **Leave Balance** | `/api/leave-balance` | Check Balance |
+| **Overtime** | `/api/overtimes` | Apply, Approve/Reject |
+| **Advance Salary/Loans** | `/api/advances` | Apply, Approve/Reject |
 | **Attendance** | `/api/attendances` | Clock In/Out, Monthly Report |
 | **Custody** | `/api/custody-clearances` | Create Clearance, List Assets |
 | **Transfers** | `/api/transfers` | Internal/Branch Transfer Requests |
-| **Approvals** | `/api/approvals` | Pending List, History, Process |
+| **Resignations** | `/api/resignations` | Apply, Approve/Reject |
+| **Travels** | `/api/travels` | Apply, Approve/Reject |
+| **Complaints & Suggestions** | `/api/complaints` | Apply, Approve/Reject |
+| **Support Tickets** | `/api/support-tickets` | Create, Reply, Close, Reopen (See [docs/SUPPORT_TICKETS.md](docs/SUPPORT_TICKETS.md)) |
+| **Biometric Attendance** | `/api/biometric-logs` | Sync Logs |
+| **Manual Attendance** | `/api/attendances` | Clock In/Out, Monthly Report |
+| **Notifications** | `/api/notifications` | List, Mark as Read |
+| **Approval** | `/api/approvals` | Pending List, History, Process |
 
 *For full endpoint details, please refer to the Swagger UI at `/api/documentation`*
 
@@ -124,6 +145,24 @@ Strict validation rules prevent logical errors, such as:
 
 ---
 **Developed by:** FirstSoft Development Team
+
+
+https://api.firstsoft.io
+
+Rules for Uploading to GitHub:
+1- git add .   
+2- git commit -m "Your commit message"
+3- git checkout -b <branch_name>
+4- git push -u origin <branch_name>
+5- git fetch origin     
+6- git merge origin/main
+7- solve conflicts if any
+8- git add .
+9- git commit -m "Your commit message"
+10- git push
+11- in github create pull request
+12- git pull origin main
+
 
 
 https://api.firstsoft.io
