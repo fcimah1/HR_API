@@ -29,7 +29,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
  *     @OA\Property(
  *         property="priority",
  *         type="string",
- *         example="urgent",
+ *         example="critical",
  *         description="أولوية التذكرة"
  *     ),
  *     @OA\Property(

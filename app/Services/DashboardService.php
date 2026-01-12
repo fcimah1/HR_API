@@ -209,7 +209,7 @@ class DashboardService
                 'type' => 'leave',
                 'title' => 'Leave Request',
                 'status' => $item['status'] ?? 'unknown',
-                'status_name' => NumericalStatusEnum::from($item['status'])->name, //use enum NumericalStatusEnum casess
+                'status_name' => NumericalStatusEnum::tryFrom($item['status'])?->name ?? 'UNKNOWN',
                 'date' => Carbon::parse($item['created_at'] ?? now()), // Ensure Carbon object
                 'formatted_date' => Carbon::parse($item['created_at'] ?? now())->diffForHumans(),
                 'details' => $item['leave_type_name'] ?? 'Leave',
@@ -226,11 +226,13 @@ class DashboardService
         );
         $overtimes = $this->overtimeRepository->getPaginatedRequests($overtimeFilter, $user);
         foreach (($overtimes['data'] ?? []) as $item) {
+            // Overtime uses is_approved (0=pending, 1=approved, 2=rejected)
+            $overtimeStatus = $item['is_approved'] ?? $item['status'] ?? 0;
             $activities->push([
                 'type' => 'overtime',
                 'title' => 'Overtime Request',
-                'status' => $item['status'] ?? 'unknown',
-                'status_name' => NumericalStatusEnum::from($item['status'])->name, //use enum NumericalStatusEnum casess
+                'status' => $overtimeStatus,
+                'status_name' => NumericalStatusEnum::tryFrom((int)$overtimeStatus)?->name ?? 'UNKNOWN',
                 'date' => Carbon::parse($item['created_at'] ?? now()),
                 'formatted_date' => Carbon::parse($item['created_at'] ?? now())->diffForHumans(),
                 'details' => $item['overtime_reason'] ?? 'Overtime',
@@ -247,7 +249,7 @@ class DashboardService
                 'type' => 'travel',
                 'title' => 'Trip Request',
                 'status' => $item['status'] ?? 'unknown',
-                'status_name' => NumericalStatusEnum::from($item['status'])->name, //use enum NumericalStatusEnum casess
+                'status_name' => NumericalStatusEnum::tryFrom($item['status'])?->name ?? 'UNKNOWN',
                 'date' => Carbon::parse($item['created_at'] ?? now()),
                 'formatted_date' => Carbon::parse($item['created_at'] ?? now())->diffForHumans(),
                 'details' => $item['destination'] ?? 'Travel',
@@ -269,7 +271,7 @@ class DashboardService
                 'type' => 'loan',
                 'title' => 'Loan Request',
                 'status' => $itemObj->status ?? 'unknown',
-                'status_name' => NumericalStatusEnum::from($itemObj->status)->name, //use enum NumericalStatusEnum casess
+                'status_name' => NumericalStatusEnum::tryFrom($itemObj->status)?->name ?? 'UNKNOWN',
                 'date' => Carbon::parse($itemObj->created_at ?? now()),
                 'formatted_date' => Carbon::parse($itemObj->created_at ?? now())->diffForHumans(),
                 'details' => number_format((float)($itemObj->amount ?? 0), 2),
@@ -285,7 +287,7 @@ class DashboardService
                 'type' => 'resignation',
                 'title' => 'Resignation Request',
                 'status' => $item['status'] ?? 'unknown',
-                'status_name' => NumericalStatusEnum::from($item['status'])->name, //use enum NumericalStatusEnum casess
+                'status_name' => NumericalStatusEnum::tryFrom($item['status'])?->name ?? 'UNKNOWN',
                 'date' => Carbon::parse($item['created_at'] ?? now()),
                 'formatted_date' => Carbon::parse($item['created_at'] ?? now())->diffForHumans(),
                 'details' => 'Resignation',
@@ -301,7 +303,7 @@ class DashboardService
                 'type' => 'hourly_leave',
                 'title' => 'Hourly Leave Request',
                 'status' => $item['status'] ?? 'unknown',
-                'status_name' => NumericalStatusEnum::from($item['status'])->name, //use enum NumericalStatusEnum casess
+                'status_name' => NumericalStatusEnum::tryFrom($item['status'])?->name ?? 'UNKNOWN',
                 'date' => Carbon::parse($item['created_at'] ?? now()),
                 'formatted_date' => Carbon::parse($item['created_at'] ?? now())->diffForHumans(),
                 'details' => ($item['leave_type_name'] ?? 'Hourly Leave') . ' (' . ($item['hourly_leave_period'] ?? '') . ')',
@@ -317,7 +319,7 @@ class DashboardService
                 'type' => 'adjustment',
                 'title' => 'Leave Adjustment',
                 'status' => $item['status'] ?? 'unknown',
-                'status_name' => NumericalStatusEnum::from($item['status'])->name, //use enum NumericalStatusEnum casess
+                'status_name' => NumericalStatusEnum::tryFrom($item['status'])?->name ?? 'UNKNOWN',
                 'date' => Carbon::parse($item['created_at'] ?? now()), // Usually created_at
                 'formatted_date' => Carbon::parse($item['created_at'] ?? now())->diffForHumans(),
                 'details' => ($item['adjust_hours'] ?? 0) . ' Hours',
@@ -333,7 +335,7 @@ class DashboardService
                 'type' => 'complaint',
                 'title' => 'Complaint',
                 'status' => $item['status'] ?? 'unknown',
-                'status_name' => NumericalStatusEnum::from($item['status'])->name, //use enum NumericalStatusEnum casess
+                'status_name' => NumericalStatusEnum::tryFrom($item['status'])?->name ?? 'UNKNOWN',
                 'date' => Carbon::parse($item['created_at'] ?? now()),
                 'formatted_date' => Carbon::parse($item['created_at'] ?? now())->diffForHumans(),
                 'details' => 'Complaint',
@@ -349,7 +351,7 @@ class DashboardService
                 'type' => 'transfer',
                 'title' => 'Transfer Request',
                 'status' => $item['status'] ?? 'unknown',
-                'status_name' => NumericalStatusEnum::from($item['status'])->name, //use enum NumericalStatusEnum casess
+                'status_name' => NumericalStatusEnum::tryFrom($item['status'])?->name ?? 'UNKNOWN',
                 'date' => Carbon::parse($item['created_at'] ?? now()),
                 'formatted_date' => Carbon::parse($item['created_at'] ?? now())->diffForHumans(),
                 'details' => 'Transfer',

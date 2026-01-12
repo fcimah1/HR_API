@@ -93,7 +93,7 @@ enum TicketPriorityEnum: int
             'critical', 'عاجل' => self::CRITICAL,
             'high', 'مرتفع' => self::HIGH,
             'medium', 'متوسط' => self::MEDIUM,
-            'low', 'منخفض' => self::LOW,
+            'low', 'قليل' => self::LOW,
             default => null,
         };
     }
@@ -111,7 +111,7 @@ enum TicketPriorityEnum: int
             'عاجل',
             'مرتفع',
             'متوسط',
-            'منخفض',
+            'قليل',
         ];
     }
 }

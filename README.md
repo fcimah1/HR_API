@@ -116,6 +116,10 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 | **Travels** | `/api/travels` | Apply, Approve/Reject |
 | **Complaints & Suggestions** | `/api/complaints` | Apply, Approve/Reject |
 | **Support Tickets** | `/api/support-tickets` | Create, Reply, Close, Reopen (See [docs/SUPPORT_TICKETS.md](docs/SUPPORT_TICKETS.md)) |
+| **Internal Helpdesk** | `/api/internal-helpdesk` | Internal IT/HR Support Tickets (See [docs/INTERNAL_HELPDESK_PLAN.md](docs/INTERNAL_HELPDESK_PLAN.md)) |
+| **Training** | `/api/trainings` | Manage Training Sessions (See [docs/TRAINING.md](docs/TRAINING.md)) |
+| **Trainers** | `/api/trainers` | Manage Trainers (See [docs/TRAINING.md](docs/TRAINING.md)) |
+| **Training Skills** | `/api/training-skills` | Manage Training Types/Skills (See [docs/TRAINING.md](docs/TRAINING.md)) |
 | **Biometric Attendance** | `/api/biometric-logs` | Sync Logs |
 | **Manual Attendance** | `/api/attendances` | Clock In/Out, Monthly Report |
 | **Notifications** | `/api/notifications` | List, Mark as Read |

@@ -643,7 +643,8 @@ class AdvanceSalaryService
                         1, // approved
                         1, // final level
                         'loan_request_settings',
-                        $companyId
+                        $companyId,
+                        $advance->employee_id
                     );
 
                     // Send approval notification
@@ -721,7 +722,8 @@ class AdvanceSalaryService
                         1,
                         1,
                         'loan_request_settings',
-                        $companyId
+                        $companyId,
+                        $advance->employee_id
                     );
 
                     // Send approval notification
@@ -769,7 +771,8 @@ class AdvanceSalaryService
                         1, // approved
                         0, // intermediate level
                         'loan_request_settings',
-                        $companyId
+                        $companyId,
+                        $advance->employee_id
                     );
 
                     // Send intermediate approval notification
@@ -866,7 +869,8 @@ class AdvanceSalaryService
                         2, // rejected
                         2, // rejection level
                         'loan_request_settings',
-                        $companyId
+                        $companyId,
+                        $advance->employee_id
                     );
 
                     // Send rejection notification
@@ -930,7 +934,8 @@ class AdvanceSalaryService
                     2, // rejected
                     2, // rejection level
                     'loan_request_settings',
-                    $companyId
+                    $companyId,
+                    $advance->employee_id
                 );
 
                 // Send rejection notification

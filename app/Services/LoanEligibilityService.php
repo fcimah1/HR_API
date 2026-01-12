@@ -11,7 +11,6 @@ use App\Models\LoanPolicyTier;
 use App\Models\User;
 use App\Models\UserDetails;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 
 class LoanEligibilityService
 {

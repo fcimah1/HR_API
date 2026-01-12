@@ -320,7 +320,8 @@ class CustodyClearanceService
                         1,
                         1,
                         'custody_clearance_settings',
-                        $companyId
+                        $companyId,
+                        $clearance->employee_id
                     );
 
                     // Send approval notification
@@ -351,7 +352,8 @@ class CustodyClearanceService
                         2,
                         2,
                         'custody_clearance_settings',
-                        $companyId
+                        $companyId,
+                        $clearance->employee_id
                     );
 
                     // Send rejection notification
@@ -416,7 +418,8 @@ class CustodyClearanceService
                         1,
                         1,
                         'custody_clearance_settings',
-                        $companyId
+                        $companyId,
+                        $clearance->employee_id
                     );
 
                     // Send approval notification
@@ -447,7 +450,8 @@ class CustodyClearanceService
                         1,
                         0,
                         'custody_clearance_settings',
-                        $companyId
+                        $companyId,
+                        $clearance->employee_id
                     );
 
                     // Send intermediate notification
@@ -485,7 +489,8 @@ class CustodyClearanceService
                     2,
                     2,
                     'custody_clearance_settings',
-                    $companyId
+                    $companyId,
+                    $clearance->employee_id
                 );
 
                 // Send rejection notification

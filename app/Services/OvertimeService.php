@@ -558,7 +558,8 @@ class OvertimeService
                     1, // approved
                     1, // final level
                     'overtime_request_settings',
-                    $effectiveCompanyId
+                    $effectiveCompanyId,
+                    $request->staff_id
                 );
 
                 return OvertimeRequestResponseDTO::fromModel($approvedRequest);
@@ -615,7 +616,8 @@ class OvertimeService
                     1, // approved
                     1, // final level
                     'overtime_request_settings',
-                    $effectiveCompanyId
+                    $effectiveCompanyId,
+                    $request->staff_id
                 );
 
                 // Send approval email
@@ -643,7 +645,8 @@ class OvertimeService
                     1, // approved
                     0, // intermediate level
                     'overtime_request_settings',
-                    $effectiveCompanyId
+                    $effectiveCompanyId,
+                    $request->staff_id
                 );
 
                 // Send approval notification
@@ -775,7 +778,8 @@ class OvertimeService
                 2, // rejected
                 2, // rejection level
                 'overtime_request_settings',
-                $effectiveCompanyId
+                $effectiveCompanyId,
+                $request->staff_id
             );
 
             return OvertimeRequestResponseDTO::fromModel($rejectedRequest);

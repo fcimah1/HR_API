@@ -485,7 +485,8 @@ class TransferService
                         1, // approved
                         1, // final level
                         'transfer_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $processedTransfer->employee_id
                     );
 
                     $this->notificationService->sendApprovalNotification(
@@ -563,7 +564,8 @@ class TransferService
                         1, // approved
                         1, // final level
                         'transfer_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $processedTransfer->employee_id
                     );
 
                     $this->notificationService->sendApprovalNotification(
@@ -600,7 +602,8 @@ class TransferService
                         1, // approved
                         0, // intermediate level
                         'transfer_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $transfer->employee_id
                     );
 
                     // Send intermediate approval notification
@@ -634,7 +637,8 @@ class TransferService
                     2, // rejected
                     2, // rejection level
                     'transfer_settings',
-                    $effectiveCompanyId
+                    $effectiveCompanyId,
+                    $processedTransfer->employee_id
                 );
 
                 $this->notificationService->sendApprovalNotification(

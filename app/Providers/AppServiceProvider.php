@@ -48,6 +48,12 @@ use App\Repository\Interface\SupportTicketRepositoryInterface;
 use App\Repository\SupportTicketRepository;
 use App\Repository\Interface\InternalHelpdeskRepositoryInterface;
 use App\Repository\InternalHelpdeskRepository;
+use App\Repository\Interface\TrainingRepositoryInterface;
+use App\Repository\TrainingRepository;
+use App\Repository\Interface\TrainerRepositoryInterface;
+use App\Repository\TrainerRepository;
+use App\Repository\Interface\TrainingSkillRepositoryInterface;
+use App\Repository\TrainingSkillRepository;
 use App\Services\CacheService;
 use Laravel\Passport\Passport;
 
@@ -119,6 +125,15 @@ class AppServiceProvider extends ServiceProvider
 
         // Internal Helpdesk repository
         $this->app->singleton(InternalHelpdeskRepositoryInterface::class, InternalHelpdeskRepository::class);
+
+        // Training repository
+        $this->app->singleton(TrainingRepositoryInterface::class, TrainingRepository::class);
+
+        // Trainer repository
+        $this->app->singleton(TrainerRepositoryInterface::class, TrainerRepository::class);
+
+        // Training Skill repository
+        $this->app->singleton(TrainingSkillRepositoryInterface::class, TrainingSkillRepository::class);
 
         // Cache Service (Singleton)
         $this->app->singleton(CacheService::class, CacheService::class);

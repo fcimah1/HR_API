@@ -473,7 +473,7 @@ class InternalHelpdeskController extends Controller
      *             @OA\Property(
      *                 property="priority",
      *                 type="string",
-     *                 enum={"low", "medium", "high", "urgent", "critical"},
+     *                 enum={"low", "medium", "high", "critical"},
      *                 example="high",
      *                 description="أولوية التذكرة (اسم الأولوية)"
      *             )
@@ -525,54 +525,57 @@ class InternalHelpdeskController extends Controller
         }
     }
 
-    // /**
-    //  * @OA\Delete(
-    //  *     path="/api/internal-helpdesk/{id}",
-    //  *     summary="حذف تذكرة",
-    //  *     operationId="deleteInternalTicket",
-    //  *     tags={"Internal Helpdesk"},
-    //  *     security={{"bearerAuth":{}}},
-    //  *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
-    //  *     @OA\Response(response=200, description="نجاح"),
-    //  *     @OA\Response(response=403, description="لا يملك صلاحية")
-    //  * )
-    //  */
-    // public function destroy(int $id): JsonResponse
-    // {
-    //     try {
-    //         $user = Auth::user();
-    //         $result = $this->ticketService->deleteTicket($id, $user);
+    /**
+     * @OA\Delete(
+     *     path="/api/internal-helpdesk/{id}",
+     *     summary="غلق تذكرة",
+     *     operationId="destroyInternalTicket",
+     *     tags={"Internal Helpdesk"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="تم الغلق بنجاح"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="لا تملك صلاحية غلق هذه التذكرة"),
+     *     @OA\Response(response=404, description="التذكرة غير موجودة"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $result = $this->ticketService->deleteTicket($id, $user);
 
-    //         if (!$result['success']) {
-    //             Log::error('Error in InternalHelpdeskController@destroy', [
-    //                 'error' => $result['message'],
-    //                 'ticket_id' => $id,
-    //                 'message_ar' => 'لا تملك صلاحية حذف هذه التذكرة',
-    //                 'message_en' => 'You do not have permission to delete this ticket',
-    //             ]);
-    //             return response()->json([
-    //                 'success' => false,
-    //                 'message_ar' => 'لا تملك صلاحية حذف هذه التذكرة',
-    //                 'message_en' => 'You do not have permission to delete this ticket',
-    //             ], 403);
-    //         }
+            if (!$result['success']) {
+                Log::error('Error in InternalHelpdeskController@destroy', [
+                    'error' => $result['message'],
+                    'ticket_id' => $id,
+                    'message_ar' => 'لا تملك صلاحية غلق هذه التذكرة',
+                    'message_en' => 'You do not have permission to close this ticket',
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message_ar' => 'لا تملك صلاحية غلق هذه التذكرة',
+                    'message_en' => 'You do not have permission to delete this ticket',
+                ], 403);
+            }
 
-    //         return response()->json($result);
-    //     } catch (\Exception $e) {
-    //         Log::error('Error in InternalHelpdeskController@destroy', [
-    //             'error' => $e->getMessage(),
-    //             'ticket_id' => $id,
-    //             'message_ar' => 'حدث خطأ',
-    //             'message_en' => 'Error occurred',
-    //         ]);
+            return response()->json($result);
+        } catch (\Exception $e) {
+            Log::error('Error in InternalHelpdeskController@destroy', [
+                'error' => $e->getMessage(),
+                'ticket_id' => $id,
+                'message_ar' => 'حدث خطأ',
+                'message_en' => 'Error occurred',
+            ]);
 
-    //         return response()->json([
-    //             'success' => false,
-    //             'message_ar' => 'حدث خطأ',
-    //             'message_en' => 'Error occurred',
-    //         ], 500);
-    //     }
-    // }
+            return response()->json([
+                'success' => false,
+                'message_ar' => 'حدث خطأ',
+                'message_en' => 'Error occurred',
+            ], 500);
+        }
+    }
 
 
 

@@ -44,6 +44,7 @@ class NotificationResponseDTO
             'module_option' => $this->moduleOption,
             'module_status' => $this->moduleStatus,
             'module_key_id' => $this->moduleKeyId,
+            'request_id' => $this->moduleKeyId, // alias لتوحيد التسمية مع Push Notification
             'staff_id' => $this->staffId,
             'is_read' => $this->isRead,
         ];

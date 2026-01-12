@@ -59,7 +59,7 @@ class SendNotificationJob implements ShouldQueue
             try {
                 // Determine submitter name (optional - can be enhanced)
                 $submitterName = 'النظام';
-                $pushService->sendSubmissionPush($this->staffIds, $this->moduleOption, $submitterName);
+                $pushService->sendSubmissionPush($this->staffIds, $this->moduleOption, $submitterName, $this->moduleKeyId);
             } catch (\Exception $e) {
                 Log::error('Push Notification Failed', ['error' => $e->getMessage()]);
             }

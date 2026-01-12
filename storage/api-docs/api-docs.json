@@ -2250,6 +2250,64 @@
                 ]
             }
         },
+        "/api/user/device-token": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Update FCM device token",
+                "operationId": "704878bfede8b56455d8715dce627421",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "token"
+                                ],
+                                "properties": {
+                                    "token": {
+                                        "description": "FCM device token from mobile app",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Device token updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Device token updated"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/biometric/punch": {
             "post": {
                 "tags": [
@@ -4148,8 +4206,17 @@
                             }
                         }
                     },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
                     "401": {
-                        "description": "Unauthorized"
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
                     }
                 },
                 "security": [
@@ -4225,8 +4292,17 @@
                             }
                         }
                     },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
                     "401": {
-                        "description": "Unauthorized"
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
                     }
                 },
                 "security": [
@@ -6769,7 +6845,6 @@
                                             "low",
                                             "medium",
                                             "high",
-                                            "urgent",
                                             "critical"
                                         ],
                                         "example": "high"
@@ -6795,6 +6870,45 @@
                     },
                     "422": {
                         "description": "خطأ في البيانات المدخلة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Internal Helpdesk"
+                ],
+                "summary": "غلق تذكرة",
+                "operationId": "destroyInternalTicket",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الغلق بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "لا تملك صلاحية غلق هذه التذكرة"
+                    },
+                    "404": {
+                        "description": "التذكرة غير موجودة"
                     },
                     "500": {
                         "description": "خطأ في الخادم"
@@ -13880,7 +13994,7 @@
                                         "example": "technical"
                                     },
                                     "priority": {
-                                        "description": "يقبل: urgent, high, medium, low",
+                                        "description": "يقبل: critical, high, medium, low",
                                         "type": "string",
                                         "example": "high"
                                     },
@@ -14025,6 +14139,77 @@
                 "responses": {
                     "200": {
                         "description": "تم تحديث التذكرة بنجاح"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Support Tickets"
+                ],
+                "summary": "حذف تذكرة",
+                "description": "super_user يمكنه حذف أي تذكرة - المستخدم العادي يحذف تذاكره فقط",
+                "operationId": "deleteTicket",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم غلق التذكرة بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم غلق التذكرة بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "ticket_id": {
+                                                    "type": "integer"
+                                                },
+                                                "ticket_code": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "التذكرة غير موجودة"
                     },
                     "500": {
                         "description": "خطأ في الخادم"
@@ -18599,7 +18784,7 @@
                         "example": "technical"
                     },
                     "priority": {
-                        "description": "أولوية التذكرة - يقبل: urgent, high, medium, low أو عاجل, مرتفع, متوسط, منخفض أو 1-4",
+                        "description": "أولوية التذكرة - يقبل: critical, high, medium, low أو عاجل, مرتفع, متوسط, قليل أو 1-4",
                         "type": "string",
                         "example": "high"
                     },
@@ -18671,7 +18856,7 @@
                     "priority": {
                         "description": "أولوية التذكرة",
                         "type": "string",
-                        "example": "urgent"
+                        "example": "critical"
                     },
                     "description": {
                         "description": "وصف المشكلة",
@@ -18683,6 +18868,358 @@
                         "type": "string",
                         "maxLength": 1000,
                         "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "CreateTrainerRequest": {
+                "title": "Create Trainer Request",
+                "description": "طلب إنشاء مدرب جديد",
+                "required": [
+                    "first_name",
+                    "last_name",
+                    "contact_number",
+                    "email"
+                ],
+                "properties": {
+                    "first_name": {
+                        "description": "الاسم الأول",
+                        "type": "string",
+                        "example": "محمد"
+                    },
+                    "last_name": {
+                        "description": "اسم العائلة",
+                        "type": "string",
+                        "example": "أحمد"
+                    },
+                    "contact_number": {
+                        "description": "رقم الهاتف",
+                        "type": "string",
+                        "example": "01234567890"
+                    },
+                    "email": {
+                        "description": "البريد الإلكتروني",
+                        "type": "string",
+                        "format": "email",
+                        "example": "trainer@example.com"
+                    },
+                    "expertise": {
+                        "description": "مجالات الخبرة",
+                        "type": "string",
+                        "example": "PHP, Laravel, JavaScript"
+                    },
+                    "address": {
+                        "description": "العنوان",
+                        "type": "string",
+                        "example": "القاهرة، مصر"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateTrainerRequest": {
+                "title": "Update Trainer Request",
+                "description": "طلب تحديث مدرب",
+                "properties": {
+                    "first_name": {
+                        "description": "الاسم الأول",
+                        "type": "string",
+                        "example": "محمد"
+                    },
+                    "last_name": {
+                        "description": "اسم العائلة",
+                        "type": "string",
+                        "example": "أحمد"
+                    },
+                    "contact_number": {
+                        "description": "رقم الهاتف",
+                        "type": "string",
+                        "example": "01234567890"
+                    },
+                    "email": {
+                        "description": "البريد الإلكتروني",
+                        "type": "string",
+                        "format": "email",
+                        "example": "trainer@example.com"
+                    },
+                    "expertise": {
+                        "description": "مجالات الخبرة",
+                        "type": "string",
+                        "example": "PHP, Laravel"
+                    },
+                    "address": {
+                        "description": "العنوان",
+                        "type": "string",
+                        "example": "القاهرة"
+                    }
+                },
+                "type": "object"
+            },
+            "CreateTrainingSkillRequest": {
+                "title": "Create Training Skill Request",
+                "description": "طلب إنشاء نوع/مهارة تدريب جديدة",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "description": "اسم نوع/مهارة التدريب",
+                        "type": "string",
+                        "example": "تطوير البرمجيات"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateTrainingSkillRequest": {
+                "title": "Update Training Skill Request",
+                "description": "طلب تحديث نوع/مهارة تدريب",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "description": "اسم نوع/مهارة التدريب",
+                        "type": "string",
+                        "example": "تطوير البرمجيات المتقدم"
+                    }
+                },
+                "type": "object"
+            },
+            "AddTrainingNoteRequest": {
+                "title": "Add Training Note Request",
+                "description": "طلب إضافة ملاحظة للتدريب",
+                "required": [
+                    "note"
+                ],
+                "properties": {
+                    "note": {
+                        "description": "نص الملاحظة",
+                        "type": "string",
+                        "example": "ملاحظة حول أداء المتدربين"
+                    }
+                },
+                "type": "object"
+            },
+            "CreateTrainingRequest": {
+                "title": "Create Training Request",
+                "description": "طلب إنشاء تدريب جديد",
+                "required": [
+                    "training_type_id",
+                    "trainer_id",
+                    "employee_ids",
+                    "start_date",
+                    "finish_date"
+                ],
+                "properties": {
+                    "training_type_id": {
+                        "description": "معرف نوع التدريب",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "trainer_id": {
+                        "description": "معرف المدرب",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "employee_ids": {
+                        "description": "معرفات الموظفين المشاركين",
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            1,
+                            2,
+                            3
+                        ]
+                    },
+                    "department_id": {
+                        "description": "معرف القسم (اختياري)",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "start_date": {
+                        "description": "تاريخ بداية التدريب",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-01-15"
+                    },
+                    "finish_date": {
+                        "description": "تاريخ نهاية التدريب",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-01-20"
+                    },
+                    "training_cost": {
+                        "description": "تكلفة التدريب",
+                        "type": "number",
+                        "format": "float",
+                        "example": 1500
+                    },
+                    "training_status": {
+                        "description": "حالة التدريب: 0=قيد الانتظار, 1=بدأ, 2=مكتمل, 3=مرفوض",
+                        "type": "integer",
+                        "enum": [
+                            0,
+                            1,
+                            2,
+                            3
+                        ],
+                        "example": 0
+                    },
+                    "description": {
+                        "description": "وصف التدريب",
+                        "type": "string",
+                        "example": "دورة تدريبية في تطوير PHP"
+                    },
+                    "associated_goals": {
+                        "description": "الأهداف المرتبطة",
+                        "type": "string",
+                        "example": "تطوير مهارات البرمجة"
+                    },
+                    "performance": {
+                        "description": "مستوى الأداء: 0=غير منتهى, 1=مرضٍ, 2=متوسط, 3=ضعيف, 4=ممتاز",
+                        "type": "integer",
+                        "enum": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            4
+                        ],
+                        "example": 0
+                    },
+                    "remarks": {
+                        "description": "ملاحظات",
+                        "type": "string",
+                        "example": "ملاحظات إضافية"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateTrainingRequest": {
+                "title": "Update Training Request",
+                "description": "طلب تحديث تدريب",
+                "properties": {
+                    "training_type_id": {
+                        "description": "معرف نوع التدريب",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "trainer_id": {
+                        "description": "معرف المدرب",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "employee_ids": {
+                        "description": "معرفات الموظفين",
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            1,
+                            2,
+                            3
+                        ]
+                    },
+                    "department_id": {
+                        "description": "معرف القسم",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "start_date": {
+                        "description": "تاريخ البداية",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-01-15"
+                    },
+                    "finish_date": {
+                        "description": "تاريخ النهاية",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-01-20"
+                    },
+                    "training_cost": {
+                        "description": "تكلفة التدريب",
+                        "type": "number",
+                        "format": "float",
+                        "example": 1500
+                    },
+                    "training_status": {
+                        "description": "حالة التدريب",
+                        "type": "integer",
+                        "enum": [
+                            0,
+                            1,
+                            2,
+                            3
+                        ],
+                        "example": 1
+                    },
+                    "description": {
+                        "description": "الوصف",
+                        "type": "string",
+                        "example": "وصف محدث"
+                    },
+                    "associated_goals": {
+                        "description": "الأهداف",
+                        "type": "string",
+                        "example": "أهداف محدثة"
+                    },
+                    "performance": {
+                        "description": "مستوى الأداء",
+                        "type": "integer",
+                        "enum": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            4
+                        ],
+                        "example": 4
+                    },
+                    "remarks": {
+                        "description": "الملاحظات",
+                        "type": "string",
+                        "example": "ملاحظات محدثة"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateTrainingStatusRequest": {
+                "title": "Update Training Status Request",
+                "description": "طلب تحديث حالة وأداء التدريب",
+                "required": [
+                    "status"
+                ],
+                "properties": {
+                    "status": {
+                        "description": "حالة التدريب: 0=قيد الانتظار, 1=بدأ, 2=مكتمل, 3=مرفوض",
+                        "type": "integer",
+                        "enum": [
+                            0,
+                            1,
+                            2,
+                            3
+                        ],
+                        "example": 2
+                    },
+                    "performance": {
+                        "description": "مستوى الأداء: 0=غير منتهى, 1=مرضٍ, 2=متوسط, 3=ضعيف, 4=ممتاز",
+                        "type": "integer",
+                        "enum": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            4
+                        ],
+                        "example": 4
+                    },
+                    "remarks": {
+                        "description": "ملاحظات",
+                        "type": "string",
+                        "example": "تم الانتهاء من التدريب بنجاح"
                     }
                 },
                 "type": "object"

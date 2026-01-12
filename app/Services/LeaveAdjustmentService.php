@@ -346,12 +346,13 @@ class LeaveAdjustmentService
 
                 // Record final approval
                 $this->approvalService->recordApproval(
-                    $approvedAdjustment->id,
+                    $approvedAdjustment->adjustment_id,
                     $approvedBy,
                     1, // approved
                     1, // final level
                     'leave_adjustment_settings',
-                    $companyId
+                    $companyId,
+                    $approvedAdjustment->employee_id
                 );
 
                 // Send approval notification
@@ -389,7 +390,7 @@ class LeaveAdjustmentService
             // For staff users, verify approval levels
             $canApprove = $this->approvalService->canUserApprove(
                 $approvedBy,
-                $adjustment->id,
+                $adjustment->adjustment_id,
                 $adjustment->employee_id,
                 'leave_adjustment_settings'
             );
@@ -397,12 +398,12 @@ class LeaveAdjustmentService
             if (!$canApprove) {
                 $denialInfo = $this->approvalService->getApprovalDenialReason(
                     $approvedBy,
-                    $adjustment->id,
+                    $adjustment->adjustment_id,
                     $adjustment->employee_id,
                     'leave_adjustment_settings'
                 );
                 Log::warning('LeaveAdjustmentService::approveOrRejectLeaveAdjustment - Approval denied', [
-                    'adjustment_id' => $adjustment->id,
+                    'adjustment_id' => $adjustment->adjustment_id,
                     'message' => $denialInfo['message'],
                     'approved_by' => $approvedBy,
                 ]);
@@ -411,7 +412,7 @@ class LeaveAdjustmentService
 
             // Check if this is the final approval
             $isFinal = $this->approvalService->isFinalApproval(
-                $adjustment->id,
+                $adjustment->adjustment_id,
                 $adjustment->employee_id,
                 'leave_adjustment_settings'
             );
@@ -422,12 +423,13 @@ class LeaveAdjustmentService
 
                 // Record final approval
                 $this->approvalService->recordApproval(
-                    $approvedAdjustment->id,
+                    $approvedAdjustment->adjustment_id,
                     $approvedBy,
                     1,
                     1,
                     'leave_adjustment_settings',
-                    $companyId
+                    $companyId,
+                    $approvedAdjustment->employee_id
                 );
 
                 // Send approval notification
@@ -463,18 +465,19 @@ class LeaveAdjustmentService
             } else {
                 // Intermediate approval - just record it, don't change status
                 $this->approvalService->recordApproval(
-                    $adjustment->id,
+                    $adjustment->adjustment_id,
                     $approvedBy,
                     1, // approved
                     0, // intermediate level
                     'leave_adjustment_settings',
-                    $companyId
+                    $companyId,
+                    $adjustment->employee_id
                 );
 
                 // Send intermediate approval notification
                 $this->notificationService->sendApprovalNotification(
                     'leave_adjustment_settings',
-                    (string)$adjustment->id,
+                    (string)$adjustment->adjustment_id,
                     $companyId,
                     StringStatusEnum::APPROVED->value,
                     $approvedBy,
@@ -540,12 +543,13 @@ class LeaveAdjustmentService
 
                 // Record rejection
                 $this->approvalService->recordApproval(
-                    $rejectedAdjustment->id,
+                    $rejectedAdjustment->adjustment_id,
                     $rejectedBy,
                     2, // rejected
                     2, // rejection level
                     'leave_adjustment_settings',
-                    $companyId
+                    $companyId,
+                    $rejectedAdjustment->employee_id
                 );
 
                 // Send rejection notification
@@ -582,7 +586,7 @@ class LeaveAdjustmentService
             // For staff users, verify approval levels
             $canApprove = $this->approvalService->canUserApprove(
                 $rejectedBy,
-                $adjustment->id,
+                $adjustment->adjustment_id,
                 $adjustment->employee_id,
                 'leave_adjustment_settings'
             );
@@ -595,12 +599,13 @@ class LeaveAdjustmentService
 
             // Record rejection
             $this->approvalService->recordApproval(
-                $rejectedAdjustment->id,
+                $rejectedAdjustment->adjustment_id,
                 $rejectedBy,
                 2, // rejected
                 2, // rejection level
                 'leave_adjustment_settings',
-                $companyId
+                $companyId,
+                $rejectedAdjustment->employee_id
             );
 
             // Send rejection notification

@@ -155,7 +155,7 @@ class SupportTicketController extends Controller
      *             required={"subject", "category", "priority", "description"},
      *             @OA\Property(property="subject", type="string", example="مشكلة في تسجيل الدخول"),
      *             @OA\Property(property="category", type="string", example="technical", description="يقبل: general, technical, billing, subscription, other"),
-     *             @OA\Property(property="priority", type="string", example="high", description="يقبل: urgent, high, medium, low"),
+     *             @OA\Property(property="priority", type="string", example="high", description="يقبل: critical, high, medium, low"),
      *             @OA\Property(property="description", type="string", example="لا أستطيع تسجيل الدخول")
      *         )
      *     ),
@@ -519,56 +519,56 @@ class SupportTicketController extends Controller
         }
     }
 
-    // /**
-    //  * @OA\Delete(
-    //  *     path="/api/support-tickets/{id}",
-    //  *     summary="حذف تذكرة",
-    //  *     description="super_user يمكنه حذف أي تذكرة - المستخدم العادي يحذف تذاكره فقط",
-    //  *     operationId="deleteTicket",
-    //  *     tags={"Support Tickets"},
-    //  *     security={{"bearerAuth":{}}},
-    //  *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
-    //  *     @OA\Response(
-    //  *         response=200,
-    //  *         description="تم حذف التذكرة بنجاح",
-    //  *         @OA\JsonContent(
-    //  *             @OA\Property(property="success", type="boolean", example=true),
-    //  *             @OA\Property(property="message", type="string", example="تم حذف التذكرة بنجاح"),
-    //  *             @OA\Property(property="data", type="object",
-    //  *                 @OA\Property(property="ticket_id", type="integer"),
-    //  *                 @OA\Property(property="ticket_code", type="string")
-    //  *             )
-    //  *         )
-    //  *     ),
-    //  *     @OA\Response(response=404, description="التذكرة غير موجودة"),
-    //  *     @OA\Response(response=500, description="خطأ في الخادم"),
-    //  *     @OA\Response(response=422, description="خطأ في البيانات المدخلة"),
-    //  *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
-    //  *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات")
-    //  * )
-    //  */
-    // public function destroy(int $id): JsonResponse
-    // {
-    //     try {
-    //         $user = Auth::user();
-    //         $result = $this->ticketService->deleteTicket($id, $user);
+    /**
+     * @OA\Delete(
+     *     path="/api/support-tickets/{id}",
+     *     summary="حذف تذكرة",
+     *     description="super_user يمكنه حذف أي تذكرة - المستخدم العادي يحذف تذاكره فقط",
+     *     operationId="deleteTicket",
+     *     tags={"Support Tickets"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم غلق التذكرة بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم غلق التذكرة بنجاح"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="ticket_id", type="integer"),
+     *                 @OA\Property(property="ticket_code", type="string")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=404, description="التذكرة غير موجودة"),
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات")
+     * )
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $result = $this->ticketService->deleteTicket($id, $user);
 
-    //         if (!$result['success']) {
-    //             return response()->json($result, 403);
-    //         }
+            if (!$result['success']) {
+                return response()->json($result, 403);
+            }
 
-    //         return response()->json($result);
-    //     } catch (\Exception $e) {
-    //         Log::error('Error in SupportTicketController@destroy', [
-    //             'error' => $e->getMessage(),
-    //             'ticket_id' => $id,
-    //         ]);
+            return response()->json($result);
+        } catch (\Exception $e) {
+            Log::error('Error in SupportTicketController@destroy', [
+                'error' => $e->getMessage(),
+                'ticket_id' => $id,
+            ]);
 
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'حدث خطأ أثناء حذف التذكرة',
-    //             'message_en' => 'Error deleting ticket',
-    //         ], 500);
-    //     }
-    // }
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء حذف التذكرة',
+                'message_en' => 'Error deleting ticket',
+            ], 500);
+        }
+    }
 }

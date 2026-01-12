@@ -8,60 +8,64 @@ A support ticket management system that allows users to create tickets and commu
 
 ## Database Tables
 
-| Table                     | Description |
-|---------------------------|-------------|
-| `ci_company_tickets`      | Tickets     |
-| `ci_company_tickets_reply`| Replies     |
+| Table                      | Description |
+| -------------------------- | ----------- |
+| `ci_company_tickets`       | Tickets     |
+| `ci_company_tickets_reply` | Replies     |
 
 ---
 
 ## Enums
 
 ### Ticket Status (TicketStatusEnum)
-| Value | Name  | Arabic   |
-|-------|-------|----------|
-| 1     | open  | مفتوحة  |
-| 2     | closed| مغلقة   |
+
+| Value | Name   | Arabic |
+| ----- | ------ | ------ |
+| 1     | open   | مفتوحة |
+| 2     | closed | مغلقة  |
 
 ### Ticket Category (TicketCategoryEnum)
-| Value | Name        | Arabic    |
-|-------|-------------|-----------|
-| 0     | general     | عام       |
-| 1     | technical   | تقني      |
-| 2     | billing     | فواتير    |
-| 3     | subscription| اشتراك    |
-| 4     | other       | أخرى      |
+
+| Value | Name         | Arabic |
+| ----- | ------------ | ------ |
+| 0     | general      | عام    |
+| 1     | technical    | تقني   |
+| 2     | billing      | فواتير |
+| 3     | subscription | اشتراك |
+| 4     | other        | أخرى   |
 
 ### Ticket Priority (TicketPriorityEnum)
-| Value | Name    | Arabic | Color |
-|-------|---------|--------|-------|
-| 1     | urgent  | عاجل   | red   |
-| 2     | high    | عالي   | orange|
-| 3     | medium  | متوسط  | yellow|
-| 4     | low     | قليل   | green |
+
+| Value | Name     | Arabic | Color  |
+| ----- | -------- | ------ | ------ |
+| 1     | critical | عاجل   | red    |
+| 2     | high     | عالي   | orange |
+| 3     | medium   | متوسط  | yellow |
+| 4     | low      | قليل   | green  |
 
 ---
 
 ## Permission System
 
 ### User Types
-| Type          | company_id | Description                         |
-|---------------|------------|-------------------------------------|
-| `super_user`  | -          | Support staff (full access)         |
-| `company`     | 0          | Company owner (company_id = user_id)|
-| `staff`       | > 0        | Employee belonging to a company     |
+
+| Type         | company_id | Description                          |
+| ------------ | ---------- | ------------------------------------ |
+| `super_user` | -          | Support staff (full access)          |
+| `company`    | 0          | Company owner (company_id = user_id) |
+| `staff`      | > 0        | Employee belonging to a company      |
 
 ### Permission Matrix
 
-| Operation     | super_user                   | company/staff                |
-|---------------|------------------------------|------------------------------|
-| Create ticket | ✅                          | ✅                          |
-| View tickets  | ✅ All tickets              | ✅ Own tickets only         |
-| Update ticket | ✅ Open tickets only        | ✅ Own open tickets only    |
-| Delete ticket | ✅ Any ticket               | ✅ Own tickets only         | <!-- ✅ disabled until choosing logic -->
-| Add reply     | ✅ Open tickets only        | ✅ Own open tickets only    |
-| Close ticket  | ✅                          | ❌                          |
-| Reopen ticket | ✅                          | ❌                          |
+| Operation     | super_user           | company/staff            |
+| ------------- | -------------------- | ------------------------ | ----------------------------------------- |
+| Create ticket | ✅                   | ✅                       |
+| View tickets  | ✅ All tickets       | ✅ Own tickets only      |
+| Update ticket | ✅ Open tickets only | ✅ Own open tickets only |
+| Delete ticket | ✅ Any ticket        | ✅ Own tickets only      | <!-- ✅ disabled until choosing logic --> |
+| Add reply     | ✅ Open tickets only | ✅ Own open tickets only |
+| Close ticket  | ✅                   | ❌                       |
+| Reopen ticket | ✅                   | ❌                       |
 
 ---
 
@@ -89,7 +93,7 @@ POST   /api/support-tickets/{id}/replies # Add reply
 ?per_page=15
 ?status=open          # or closed, 1, 2
 ?category=technical   # or general, billing, subscription, other
-?priority=high        # or urgent, medium, low
+?priority=high        # or critical, medium, low
 ?search=search text
 ?from_date=2026-01-01
 ?to_date=2026-01-31
@@ -176,19 +180,22 @@ routes/
 ## Important Notes
 
 1. **company_id on Creation:**
-   - If user `user_type = 'company'` → saves `company_id = user_id`
-   - If user is `staff` → saves `company_id` from user table
+
+    - If user `user_type = 'company'` → saves `company_id = user_id`
+    - If user is `staff` → saves `company_id` from user table
 
 2. **Closed Tickets (status = 2):**
-   - ❌ **No one** can update a closed ticket (including super_user)
-   - ❌ **No one** can add replies to a closed ticket (including super_user)
-   - ✅ Ticket must be **reopened first** via `/api/support-tickets/{id}/reopen`
-   - ✅ Only super_user can close/reopen tickets
+
+    - ❌ **No one** can update a closed ticket (including super_user)
+    - ❌ **No one** can add replies to a closed ticket (including super_user)
+    - ✅ Ticket must be **reopened first** via `/api/support-tickets/{id}/reopen`
+    - ✅ Only super_user can close/reopen tickets
 
 3. **Swagger Documentation:**
-   - All endpoints are documented with OpenAPI/Swagger
-   - Requests accept names (technical, high) and convert them to numbers automatically
+
+    - All endpoints are documented with OpenAPI/Swagger
+    - Requests accept names (technical, high) and convert them to numbers automatically
 
 4. **Enum Methods:**
-   - `fromName()`: Accepts English/Arabic names or numeric values
-   - `getAcceptedNames()`: Returns all accepted input values
+    - `fromName()`: Accepts English/Arabic names or numeric values
+    - `getAcceptedNames()`: Returns all accepted input values
