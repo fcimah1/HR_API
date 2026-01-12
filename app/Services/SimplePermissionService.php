@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\DB;
 
 class SimplePermissionService
 {
-    // Cache TTL for permissions (1 hour)
-    private const PERMISSION_CACHE_TTL = 3600;
+    // Cache TTL for permissions (5 minutes)
+    private const PERMISSION_CACHE_TTL = 300;
 
     /**
      * التحقق من صلاحية المستخدم
@@ -101,18 +101,9 @@ class SimplePermissionService
             return $cachedData['permissions'] ?? [];
         }
 
-        // Cache miss or stale (role mismatch) -> Fetch from DB
-        // Note: We use first() directly. If stricter company check is needed, consider it.
-        // User::getUserPermissions uses strict !== check on company_id.
-        // Here we rely on query where('company_id', $user->company_id).
-        $role = StaffRole::where('role_id', $user->user_role_id)
-            ->where('company_id', $user->company_id)
-            ->first();
-
-        $permissions = [];
-        if ($role) {
-            $permissions = array_filter(explode(',', $role->role_resources ?? ''));
-        }
+        // Cache miss or stale (role mismatch) -> Fetch using User model's method for consistency
+        // This ensures we use the same logic as login response
+        $permissions = $user->getUserPermissions();
 
         // Store result in cache with role_id for future validation
         Cache::put($cacheKey, [

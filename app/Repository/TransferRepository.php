@@ -6,11 +6,9 @@ use App\DTOs\Transfer\CreateTransferDTO;
 use App\DTOs\Transfer\TransferFilterDTO;
 use App\DTOs\Transfer\UpdateTransferDTO;
 use App\Enums\NumericalStatusEnum;
-use App\Enums\StringStatusEnum;
 use App\Models\AdvanceSalary;
 use App\Models\Asset;
 use App\Models\LeaveApplication;
-use App\Models\StaffApproval;
 use App\Models\Transfer;
 use App\Models\User;
 use App\Repository\Interface\TransferRepositoryInterface;
@@ -194,16 +192,7 @@ class TransferRepository implements TransferRepositoryInterface
             'status' => NumericalStatusEnum::APPROVED->value,
         ]);
 
-        // إنشاء سجل الموافقة في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $transfer->company_id,
-            'staff_id' => $approvedBy,
-            'module_option' => 'transfer_settings',
-            'module_key_id' => $transfer->transfer_id,
-            'status' => NumericalStatusEnum::APPROVED->value,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Approval recording is handled by ApprovalService to avoid duplicates
 
         $transfer->refresh();
         $transfer->load(['employee', 'addedBy', 'oldDepartment', 'newDepartment', 'oldDesignation', 'newDesignation', 'approvals.staff']);
@@ -226,16 +215,7 @@ class TransferRepository implements TransferRepositoryInterface
             'status' => NumericalStatusEnum::REJECTED->value,
         ]);
 
-        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $transfer->company_id,
-            'staff_id' => $rejectedBy,
-            'module_option' => 'transfer_settings',
-            'module_key_id' => $transfer->transfer_id,
-            'status' => NumericalStatusEnum::REJECTED->value,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Rejection recording is handled by ApprovalService to avoid duplicates
 
         $transfer->refresh();
         $transfer->load(['employee', 'addedBy', 'oldDepartment', 'newDepartment', 'oldDesignation', 'newDesignation', 'approvals.staff']);

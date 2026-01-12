@@ -31,7 +31,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
  *         property="priority",
  *         type="string",
  *         example="high",
- *         description="أولوية التذكرة - يقبل: urgent, high, medium, low أو عاجل, مرتفع, متوسط, منخفض أو 1-4"
+ *         description="أولوية التذكرة - يقبل: critical, high, medium, low أو عاجل, مرتفع, متوسط, قليل أو 1-4"
  *     ),
  *     @OA\Property(
  *         property="description",

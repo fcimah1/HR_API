@@ -5,11 +5,9 @@ namespace App\Repository;
 use App\DTOs\CustodyClearance\CustodyFilterDTO;
 use App\DTOs\CustodyClearance\CustodyClearanceFilterDTO;
 use App\DTOs\CustodyClearance\CreateCustodyClearanceDTO;
-use App\Enums\NumericalStatusEnum;
 use App\Models\Asset;
 use App\Models\CustodyClearance;
 use App\Models\CustodyClearanceItem;
-use App\Models\StaffApproval;
 use App\Models\User;
 use App\Repository\Interface\CustodyClearanceRepositoryInterface;
 use Illuminate\Support\Facades\Log;
@@ -206,16 +204,7 @@ class CustodyClearanceRepository implements CustodyClearanceRepositoryInterface
             'approved_date' => now(),
         ]);
 
-        // Create approval record
-        StaffApproval::create([
-            'company_id' => $clearance->company_id,
-            'staff_id' => $approvedBy,
-            'module_option' => 'custody_clearance_settings',
-            'module_key_id' => $clearance->clearance_id,
-            'status' => NumericalStatusEnum::APPROVED->value,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Approval recording is handled by ApprovalService to avoid duplicates
 
         $clearance->refresh();
         $clearance->load(['employee', 'approver', 'creator', 'items.asset', 'approvals.staff']);
@@ -237,16 +226,7 @@ class CustodyClearanceRepository implements CustodyClearanceRepositoryInterface
             'status' => 'rejected',
         ]);
 
-        // Create rejection record
-        StaffApproval::create([
-            'company_id' => $clearance->company_id,
-            'staff_id' => $rejectedBy,
-            'module_option' => 'custody_clearance_settings',
-            'module_key_id' => $clearance->clearance_id,
-            'status' => NumericalStatusEnum::REJECTED->value,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Rejection recording is handled by ApprovalService to avoid duplicates
 
         $clearance->refresh();
         $clearance->load(['employee', 'approver', 'creator', 'items.asset', 'approvals.staff']);

@@ -353,7 +353,8 @@ class ResignationService
                         1, // approved
                         1, // final level
                         'resignation_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $processedResignation->employee_id
                     );
 
                     $this->notificationService->sendApprovalNotification(
@@ -396,7 +397,8 @@ class ResignationService
                         2, // rejected
                         2, // rejection level
                         'resignation_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $processedResignation->employee_id
                     );
 
                     $this->notificationService->sendApprovalNotification(
@@ -473,7 +475,8 @@ class ResignationService
                         1,
                         1,
                         'resignation_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $processedResignation->employee_id
                     );
 
                     $this->notificationService->sendApprovalNotification(
@@ -509,7 +512,8 @@ class ResignationService
                         1, // approved
                         0, // intermediate level
                         'resignation_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $resignation->employee_id
                     );
 
                     // Send intermediate approval notification
@@ -542,7 +546,8 @@ class ResignationService
                     2, // rejected
                     2, // rejection level
                     'resignation_settings',
-                    $effectiveCompanyId
+                    $effectiveCompanyId,
+                    $processedResignation->employee_id
                 );
 
                 $this->notificationService->sendApprovalNotification(

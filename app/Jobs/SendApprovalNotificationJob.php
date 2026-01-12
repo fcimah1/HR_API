@@ -55,19 +55,8 @@ class SendApprovalNotificationJob implements ShouldQueue
                 'status' => $this->status,
             ]);
 
-            // Record approval action if approver is provided
-            if ($this->approverId !== null) {
-                $approvalDto = new ApprovalActionDTO(
-                    companyId: $this->companyId,
-                    staffId: $this->approverId,
-                    moduleOption: $this->moduleOption,
-                    moduleKeyId: $this->moduleKeyId,
-                    status: is_string($this->status) ? $this->convertStatusToInt($this->status) : $this->status,
-                    approvalLevel: $this->approvalLevel ?? 1
-                );
-
-                $approvalRepository->createApproval($approvalDto);
-            }
+            // Note: Approval recording is now done in the Service layer (e.g., LeaveAdjustmentService)
+            // This job only handles notifications to avoid duplicate approval records
 
             // Send notifications if there are recipients
             if (!empty($this->resolvedNotifiers)) {
@@ -85,7 +74,7 @@ class SendApprovalNotificationJob implements ShouldQueue
                 try {
                     $statusStr = is_string($this->status) ? $this->status : ($this->status == NumericalStatusEnum::APPROVED->value ? 'approved' : 'rejected');
 
-                    $pushService->sendApprovalPush($this->resolvedNotifiers, $this->moduleOption, $statusStr);
+                    $pushService->sendApprovalPush($this->resolvedNotifiers, $this->moduleOption, $statusStr, $this->moduleKeyId);
                 } catch (\Exception $e) {
                     Log::error('Push Notification Failed', ['error' => $e->getMessage()]);
                 }

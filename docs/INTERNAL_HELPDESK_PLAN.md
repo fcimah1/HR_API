@@ -93,7 +93,7 @@ Employee can access ticket if:
 ## Update Ticket
 
 - **Allowed fields:** `subject`, `priority` only
-- **Priority:** Accepts name (`low`, `medium`, `high`, `urgent`, `critical`)
+- **Priority:** Accepts name (`low`, `medium`, `high`, `critical`)
 - **Converts:** Name to value in database
 
 ---

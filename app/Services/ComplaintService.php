@@ -375,7 +375,8 @@ class ComplaintService
                         1, // approved
                         1, // final level
                         'complaint_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $complaint->complaint_from
                     );
 
                     $this->notificationService->sendApprovalNotification(
@@ -419,7 +420,8 @@ class ComplaintService
                         2, // rejected
                         2, // rejection level
                         'complaint_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $complaint->complaint_from
                     );
 
                     $this->notificationService->sendApprovalNotification(
@@ -482,7 +484,8 @@ class ComplaintService
                         1,
                         1,
                         'complaint_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $complaint->complaint_from
                     );
 
                     // إرسال إشعار للموظف
@@ -526,7 +529,8 @@ class ComplaintService
                         1, // approved
                         0, // intermediate level
                         'complaint_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $complaint->complaint_from
                     );
 
                     // Send intermediate approval notification
@@ -560,7 +564,8 @@ class ComplaintService
                     2, // rejected
                     2, // rejection level
                     'complaint_settings',
-                    $effectiveCompanyId
+                    $effectiveCompanyId,
+                    $complaint->complaint_from
                 );
 
                 // إرسال إشعار للموظف

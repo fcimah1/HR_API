@@ -455,8 +455,8 @@ class SupportTicketService
 
                 return [
                     'success' => true,
-                    'message' => 'تم حذف التذكرة بنجاح',
-                    'message_en' => 'Ticket deleted successfully',
+                    'message' => 'تم غلق التذكرة بنجاح',
+                    'message_en' => 'Ticket closed successfully',
                     'data' => [
                         'ticket_id' => $ticketId,
                         'ticket_code' => $ticketCode,

@@ -59,7 +59,10 @@ class DashboardController extends Controller
      *             )
      *         )
      *     ),
-     *     @OA\Response(response=401, description="Unauthorized")
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات"),
+     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة")
      * )
      */
     public function getStats(Request $request): JsonResponse
@@ -106,7 +109,10 @@ class DashboardController extends Controller
      *             )
      *         )
      *     ),
-     *     @OA\Response(response=401, description="Unauthorized")
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=401, description="غير مصرح يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك الصلاحية للوصول إلى هذه البيانات"),
+     *     @OA\Response(response=422, description="خطأ في البيانات المدخلة")
      * )
      */
     public function getActivity(Request $request): JsonResponse

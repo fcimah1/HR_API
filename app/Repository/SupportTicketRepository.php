@@ -243,12 +243,14 @@ class SupportTicketRepository implements SupportTicketRepositoryInterface
     public function deleteTicket(SupportTicket $ticket): bool
     {
         // حذف الردود أولاً
-        TicketReply::where('ticket_id', $ticket->ticket_id)->delete();
+        // TicketReply::where('ticket_id', $ticket->ticket_id)->delete();
 
-        // حذف التذكرة
-        $deleted = $ticket->delete();
+        // غلق التذكرة
+        $deleted = $ticket->update([
+            'ticket_status' => SupportTicket::STATUS_CLOSED,
+        ]);
 
-        Log::info('Ticket deleted', [
+        Log::info('Ticket closed', [
             'ticket_id' => $ticket->ticket_id,
             'ticket_code' => $ticket->ticket_code,
         ]);

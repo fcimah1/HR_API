@@ -740,7 +740,8 @@ class LeaveService
                     1,
                     1,
                     'leave_settings',
-                    $companyId
+                    $companyId,
+                    $approvedApplication->employee_id
                 );
 
                 return LeaveApplicationResponseDTO::fromModel($approvedApplication);
@@ -805,7 +806,8 @@ class LeaveService
                     1,
                     1,
                     'leave_settings',
-                    $companyId
+                    $companyId,
+                    $approvedApplication->employee_id
                 );
 
                 // Send approval email
@@ -835,7 +837,8 @@ class LeaveService
                     1,
                     0,
                     'leave_settings',
-                    $companyId
+                    $companyId,
+                    $application->employee_id
                 );
 
                 // Send approval notification
@@ -919,7 +922,8 @@ class LeaveService
                     2, // rejected
                     2, // rejection level
                     'leave_settings',
-                    $companyId
+                    $companyId,
+                    $rejectedApplication->employee_id
                 );
 
                 // Send rejection notification
@@ -991,7 +995,8 @@ class LeaveService
                 2, // rejected
                 2, // rejection level
                 'leave_settings',
-                $companyId
+                $companyId,
+                $rejectedApplication->employee_id
             );
 
             // Send rejection notification

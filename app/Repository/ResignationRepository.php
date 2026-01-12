@@ -6,7 +6,6 @@ use App\DTOs\Resignation\CreateResignationDTO;
 use App\DTOs\Resignation\ResignationFilterDTO;
 use App\DTOs\Resignation\UpdateResignationDTO;
 use App\Models\Resignation;
-use App\Models\StaffApproval;
 use App\Models\User;
 use App\Repository\Interface\ResignationRepositoryInterface;
 use Illuminate\Support\Facades\Log;
@@ -159,16 +158,7 @@ class ResignationRepository implements ResignationRepositoryInterface
             'is_signed' => 1,
         ]);
 
-        // إنشاء سجل الموافقة في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $resignation->company_id,
-            'staff_id' => $approvedBy,
-            'module_option' => 'resignation_settings',
-            'module_key_id' => $resignation->resignation_id,
-            'status' => Resignation::STATUS_APPROVED,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Approval recording is handled by ApprovalService to avoid duplicates
 
         // تعطيل حساب الموظف عند الموافقة على الاستقالة
         $employee = User::find($resignation->employee_id);
@@ -201,16 +191,7 @@ class ResignationRepository implements ResignationRepositoryInterface
             'status' => Resignation::STATUS_REJECTED,
         ]);
 
-        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $resignation->company_id,
-            'staff_id' => $rejectedBy,
-            'module_option' => 'resignation_settings',
-            'module_key_id' => $resignation->resignation_id,
-            'status' => Resignation::STATUS_REJECTED,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Rejection recording is handled by ApprovalService to avoid duplicates
 
         $resignation->refresh();
         $resignation->load(['employee', 'addedBy', 'approvals.staff']);

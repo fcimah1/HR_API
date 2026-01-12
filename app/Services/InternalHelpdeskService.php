@@ -203,16 +203,56 @@ class InternalHelpdeskService
     }
 
     /**
-     * حذف تذكرة - معطل حالياً
+     * الغلق - معطل حالياً
      */
     public function deleteTicket(int $id, User $user): array
     {
-        // الحذف معطل حالياً
-        return [
-            'success' => false,
-            'message' => 'حذف التذاكر غير مفعل حالياً',
-            'message_en' => 'Ticket deletion is currently disabled',
-        ];
+        $companyId = $this->permissionService->getEffectiveCompanyId($user);
+        $ticket = $this->ticketRepository->findTicketById($id, $companyId);
+
+        if (!$ticket) {
+            return [
+                'success' => false,
+                'message' => 'التذكرة غير موجودة',
+                'message_en' => 'Ticket not found',
+            ];
+        }
+
+        if (!$this->canAccessTicket($ticket, $user)) {
+            return [
+                'success' => false,
+                'message' => 'لا تملك صلاحية غلق هذه التذكرة',
+                'message_en' => 'You do not have permission to close this ticket',
+            ];
+        }
+
+        if (!$ticket->isOpen()) {
+            return [
+                'success' => false,
+                'message' => 'لا يمكن غلق تذكرة مغلقة',
+                'message_en' => 'Cannot close a closed ticket',
+            ];
+        }
+
+        try {
+            return DB::transaction(function () use ($ticket, $id) {
+                $updatedTicket = $this->ticketRepository->closeTicket($ticket);
+
+                return [
+                    'success' => true,
+                    'message' => 'تم غلق التذكرة بنجاح',
+                    'message_en' => 'Ticket closed successfully',
+                    'data' => new InternalTicketResource($updatedTicket),
+                ];
+            });
+        } catch (\Exception $e) {
+            Log::error('Error closing internal ticket', [
+                'error' => $e->getMessage(),
+                'ticket_id' => $id,
+            ]);
+
+            throw $e;
+        }
     }
 
     /**

@@ -508,7 +508,8 @@ class HourlyLeaveService
                         1, // approved
                         1, // final level
                         'hourly_leave_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $approvedApplication->employee_id
                     );
 
                     $this->notificationService->sendApprovalNotification(
@@ -560,7 +561,8 @@ class HourlyLeaveService
                         2, // rejected
                         2, // rejection level
                         'hourly_leave_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $processedApplication->employee_id
                     );
 
                     $this->notificationService->sendApprovalNotification(
@@ -653,7 +655,8 @@ class HourlyLeaveService
                         1,
                         1,
                         'hourly_leave_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $approvedApplication->employee_id
                     );
 
 
@@ -683,7 +686,8 @@ class HourlyLeaveService
                         1,
                         0,
                         'leave_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $application->employee_id
                     );
 
                     // Send approval notification
@@ -742,7 +746,8 @@ class HourlyLeaveService
                     2, // rejected
                     2, // rejection level
                     'hourly_leave_settings',
-                    $effectiveCompanyId
+                    $effectiveCompanyId,
+                    $processedApplication->employee_id
                 );
 
                 // إرسال إشعار الرفض

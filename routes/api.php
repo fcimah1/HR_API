@@ -39,30 +39,6 @@ Route::post('/biometric/punch', [BiometricAttendanceController::class, 'punch'])
 Route::post('/biometric/logs', [BiometricAttendanceController::class, 'storeBulkLogs'])->middleware('fix.biometric.json');
 Route::get('/biometric/companies', [BiometricAttendanceController::class, 'getCompaniesWithBranches']);
 
-// Test Route for FCM
-Route::post('/test-fcm', function (\Illuminate\Http\Request $request, \App\Services\PushNotificationService $pushService) {
-    $token = $request->input('token');
-    if (!$token) {
-        return response()->json(['error' => 'Token is required'], 400);
-    }
-
-    $success = $pushService->sendToUsers(
-        ['test-user'], // Dummy ID, won't be used because we use specific token below logic
-        'تجربة إشعار',
-        'هذا إشعار تجريبي للتأكد من عمل النظام الجديد',
-    );
-
-    // Direct send to verify token specifically
-    // Accessing protected method via reflection or just usage of public sendToUser if user existed.
-    // Since we want to test a raw token without a user in DB necessarily:
-    $method = new \ReflectionMethod(\App\Services\PushNotificationService::class, 'send');
-    $method->setAccessible(true);
-    $result = $method->invoke($pushService, $token, 'تجربة V1', 'هذا إشعار تجريبي عبر FCM V1 API', ['type' => 'test']);
-
-    return response()->json(['success' => $result]);
-});
-
-
 // Protected routes with simple company isolation
 Route::middleware(['auth:api', 'simple.company'])->group(function () {
     // FCM Device Token - تسجيل توكن الجهاز للإشعارات
@@ -356,7 +332,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/', [\App\Http\Controllers\Api\SupportTicketController::class, 'store'])->middleware('simple.permission:helpdesk2');
         Route::get('/{id}', [\App\Http\Controllers\Api\SupportTicketController::class, 'show'])->middleware('simple.permission:helpdesk1');
         Route::put('/{id}', [\App\Http\Controllers\Api\SupportTicketController::class, 'update'])->middleware('simple.permission:helpdesk3');
-        // Route::delete('/{id}', [\App\Http\Controllers\Api\SupportTicketController::class, 'destroy'])->middleware('simple.permission:helpdesk5');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\SupportTicketController::class, 'destroy'])->middleware('simple.permission:helpdesk5');
         Route::post('/{id}/close', [\App\Http\Controllers\Api\SupportTicketController::class, 'close'])->middleware('simple.permission:helpdesk6');
         Route::post('/{id}/reopen', [\App\Http\Controllers\Api\SupportTicketController::class, 'reopen'])->middleware('simple.permission:helpdesk6');
         Route::get('/{id}/replies', [\App\Http\Controllers\Api\SupportTicketController::class, 'getReplies'])->middleware('simple.permission:helpdesk1');
@@ -372,10 +348,42 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'store'])->middleware('simple.permission:helpdesk2');
         Route::get('/{id}', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'show'])->middleware('simple.permission:helpdesk1');
         Route::put('/{id}', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'update'])->middleware('simple.permission:helpdesk3');
-        // Route::delete('/{id}', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'destroy'])->middleware('simple.permission:helpdesk5');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'destroy'])->middleware('simple.permission:helpdesk5');
         Route::post('/{id}/close', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'close'])->middleware('simple.permission:helpdesk6');
         Route::post('/{id}/reopen', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'reopen'])->middleware('simple.permission:helpdesk6');
         Route::get('/{id}/replies', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'getReplies'])->middleware('simple.permission:helpdesk1');
         Route::post('/{id}/replies', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'addReply'])->middleware('simple.permission:helpdesk2');
     });
+
+    // // Training Management - إدارة التدريب
+    // Route::prefix('trainings')->middleware('simple.permission:hr_training')->group(function () {
+    //     Route::get('/enums', [\App\Http\Controllers\Api\TrainingController::class, 'enums'])->middleware('simple.permission:training1');
+    //     Route::get('/statistics', [\App\Http\Controllers\Api\TrainingController::class, 'statistics'])->middleware('simple.permission:training1');
+    //     Route::get('/', [\App\Http\Controllers\Api\TrainingController::class, 'index'])->middleware('simple.permission:training1');
+    //     Route::post('/', [\App\Http\Controllers\Api\TrainingController::class, 'store'])->middleware('simple.permission:training2');
+    //     Route::get('/{id}', [\App\Http\Controllers\Api\TrainingController::class, 'show'])->middleware('simple.permission:training1');
+    //     Route::put('/{id}', [\App\Http\Controllers\Api\TrainingController::class, 'update'])->middleware('simple.permission:training3');
+    //     Route::delete('/{id}', [\App\Http\Controllers\Api\TrainingController::class, 'destroy'])->middleware('simple.permission:training4');
+    //     Route::patch('/{id}/status', [\App\Http\Controllers\Api\TrainingController::class, 'updateStatus'])->middleware('simple.permission:training3');
+    //     Route::get('/{id}/notes', [\App\Http\Controllers\Api\TrainingController::class, 'getNotes'])->middleware('simple.permission:training1');
+    //     Route::post('/{id}/notes', [\App\Http\Controllers\Api\TrainingController::class, 'addNote'])->middleware('simple.permission:training2');
+    // });
+
+    // // Trainer Management - إدارة المدربين
+    // Route::prefix('trainers')->middleware('simple.permission:hr_training')->group(function () {
+    //     Route::get('/dropdown', [\App\Http\Controllers\Api\TrainerController::class, 'dropdown'])->middleware('simple.permission:training1');
+    //     Route::get('/', [\App\Http\Controllers\Api\TrainerController::class, 'index'])->middleware('simple.permission:trainer1');
+    //     Route::post('/', [\App\Http\Controllers\Api\TrainerController::class, 'store'])->middleware('simple.permission:trainer2');
+    //     Route::get('/{id}', [\App\Http\Controllers\Api\TrainerController::class, 'show'])->middleware('simple.permission:trainer1');
+    //     Route::put('/{id}', [\App\Http\Controllers\Api\TrainerController::class, 'update'])->middleware('simple.permission:trainer3');
+    //     Route::delete('/{id}', [\App\Http\Controllers\Api\TrainerController::class, 'destroy'])->middleware('simple.permission:trainer4');
+    // });
+
+    // // Training Skills (Training Types) - أنواع التدريب (من ci_erp_constants)
+    // Route::prefix('training-skills')->middleware('simple.permission:hr_training')->group(function () {
+    //     Route::get('/', [\App\Http\Controllers\Api\TrainingSkillController::class, 'index'])->middleware('simple.permission:training_skill1');
+    //     Route::post('/', [\App\Http\Controllers\Api\TrainingSkillController::class, 'store'])->middleware('simple.permission:training_skill2');
+    //     Route::put('/{id}', [\App\Http\Controllers\Api\TrainingSkillController::class, 'update'])->middleware('simple.permission:training_skill3');
+    //     Route::delete('/{id}', [\App\Http\Controllers\Api\TrainingSkillController::class, 'destroy'])->middleware('simple.permission:training_skill4');
+    // });
 });

@@ -478,7 +478,8 @@ class TravelService
                     1, // approved
                     1, // final level
                     'travel_settings',
-                    $effectiveCompanyId
+                    $effectiveCompanyId,
+                    $approveTravel->employee_id
                 );
 
                 //send notification
@@ -555,7 +556,8 @@ class TravelService
                     1,
                     1,
                     'travel_settings',
-                    $effectiveCompanyId
+                    $effectiveCompanyId,
+                    $travel->employee_id
                 );
 
                 //send notification
@@ -598,7 +600,8 @@ class TravelService
                     1, // approved
                     0, // intermediate level
                     'travel_settings',
-                    $effectiveCompanyId
+                    $effectiveCompanyId,
+                    $travel->employee_id
                 );
 
                 //send notification
@@ -679,7 +682,8 @@ class TravelService
                     2, // rejected
                     2, // rejection level
                     'travel_settings',
-                    $effectiveCompanyId
+                    $effectiveCompanyId,
+                    $travel->employee_id
                 );
 
                 // Send rejection notification
@@ -750,7 +754,8 @@ class TravelService
                 2, // rejected
                 2, // rejection level
                 'travel_settings',
-                $effectiveCompanyId
+                $effectiveCompanyId,
+                $travel->employee_id
             );
 
             // Send rejection notification

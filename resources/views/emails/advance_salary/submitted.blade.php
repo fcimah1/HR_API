@@ -42,7 +42,6 @@
             <p><strong>الموظف:</strong> {{ $employeeName }}</p>
             <p><strong>نوع الطلب:</strong> {{ $salaryType === 'advance' ? 'سلفة' : 'قرض' }}</p>
             <p><strong>المبلغ:</strong> {{ $amount }}</p>
-            <p><strong>السبب:</strong> {{ $reason }}</p>
             <p>يرجى مراجعة الطلب واتخاذ الإجراء المناسب.</p>
         </div>
     </div>

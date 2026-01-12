@@ -124,10 +124,10 @@ class SupportTicketResource extends JsonResource
     private function getPriorityName(): string
     {
         return match ($this->ticket_priority) {
-            1 => 'urgent',
-            2 => 'high',
-            3 => 'medium',
-            4 => 'low',
+            4 => 'critical',
+            3 => 'high',
+            2 => 'medium',
+            1 => 'low',
             default => 'unknown',
         };
     }
@@ -138,7 +138,7 @@ class SupportTicketResource extends JsonResource
     private function getStatusName(): string
     {
         return match ($this->ticket_status) {
-            0 => 'closed',
+            2 => 'closed',
             1 => 'open',
             default => 'unknown',
         };
