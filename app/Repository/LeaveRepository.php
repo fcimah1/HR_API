@@ -281,6 +281,7 @@ class LeaveRepository implements LeaveRepositoryInterface
         // محاولة قراءة إعدادات الإجازة من field_one (مخزن كـ serialize)
         $options = $leaveType->field_one ? @unserialize($leaveType->field_one) : null;
 
+
         // إذا لم تكن البيانات مُسلسَلة بشكل صحيح أو لا تحتوي على quota_assign، نرجع للمنطق البسيط (أيام ثابتة)
         if (!is_array($options) || !isset($options['quota_assign']) || ($options['is_quota'] ?? '0') != '1') {
             $days = (float) $leaveType->leave_days;
@@ -303,6 +304,21 @@ class LeaveRepository implements LeaveRepositoryInterface
         }
 
         $details = $employee->user_details()->first();
+
+        // ========================================
+        // STEP 1: Check employee's assigned_hours first (legacy priority)
+        // ========================================
+        if ($details && !empty($details->assigned_hours)) {
+            $assignedHours = @unserialize($details->assigned_hours);
+            if (is_array($assignedHours) && isset($assignedHours[$leaveTypeId]) && $assignedHours[$leaveTypeId] > 0) {
+                // Employee has a specific quota assigned for this leave type
+                return (float) $assignedHours[$leaveTypeId];
+            }
+        }
+
+        // ========================================
+        // STEP 2: Fall back to leave type quota_assign based on years of service
+        // ========================================
 
         // إذا لم يوجد تاريخ تعيين واضح نستخدم أول شريحة كافتراضي
         if (!$details || empty($details->date_of_joining)) {
@@ -349,8 +365,9 @@ class LeaveRepository implements LeaveRepositoryInterface
 
         $quotaAssign = $options['quota_assign'] ?? [];
 
+
         if (is_array($quotaAssign) && isset($quotaAssign[$fyearQuota])) {
-            // quota_assign مخزنة بالساعات مباشرة
+            // Return the quota value for this year of service (may be 0)
             return (float) $quotaAssign[$fyearQuota];
         }
 
@@ -533,5 +550,106 @@ class LeaveRepository implements LeaveRepositoryInterface
         }
 
         return $monthlyHours;
+    }
+
+    // ==========================================
+    // Fiscal Year Aware Methods for Leave Report
+    // ==========================================
+
+    /**
+     * Get total used leave for an employee in a specific fiscal period (in hours)
+     */
+    public function getUsedLeaveInPeriod(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): float
+    {
+        $applications = LeaveApplication::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('status', LeaveApplication::STATUS_APPROVED)
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('from_date', [$startDate, $endDate])
+                    ->orWhere(function ($q) use ($startDate) {
+                        $q->where('from_date', '<=', $startDate)
+                            ->where('to_date', '>=', $startDate);
+                    });
+            })
+            ->get();
+
+        $totalHours = 0.0;
+        foreach ($applications as $application) {
+            $totalHours += (float) ($application->leave_hours ?? 0);
+        }
+
+        return $totalHours;
+    }
+
+    /**
+     * Get total pending leave for an employee in a specific fiscal period (in hours)
+     */
+    public function getPendingLeaveInPeriod(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): float
+    {
+        return (float) LeaveApplication::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('status', LeaveApplication::STATUS_PENDING)
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('from_date', [$startDate, $endDate])
+                    ->orWhere(function ($q) use ($startDate) {
+                        $q->where('from_date', '<=', $startDate)
+                            ->where('to_date', '>=', $startDate);
+                    });
+            })
+            ->sum('leave_hours');
+    }
+
+    /**
+     * Get total adjustments for an employee in a specific fiscal period (in hours)
+     */
+    public function getAdjustmentsInPeriod(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): float
+    {
+        return (float) LeaveAdjustment::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('status', LeaveAdjustment::STATUS_APPROVED)
+            ->whereBetween('adjustment_date', [$startDate, $endDate])
+            ->sum('adjust_hours');
+    }
+
+    /**
+     * Get list of approved leave dates for an employee in a specific period
+     * Returns comma-separated string of dates
+     */
+    public function getApprovedLeaveDates(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): string
+    {
+        $applications = LeaveApplication::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('status', LeaveApplication::STATUS_APPROVED)
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('from_date', [$startDate, $endDate])
+                    ->orWhere(function ($q) use ($startDate) {
+                        $q->where('from_date', '<=', $startDate)
+                            ->where('to_date', '>=', $startDate);
+                    });
+            })
+            ->get(['from_date', 'to_date']);
+
+        $datesList = [];
+        foreach ($applications as $leave) {
+            try {
+                $period = new \DatePeriod(
+                    new \DateTime($leave->from_date),
+                    new \DateInterval('P1D'),
+                    (new \DateTime($leave->to_date))->modify('+1 day')
+                );
+                foreach ($period as $date) {
+                    $datesList[] = $date->format('Y-m-d');
+                }
+            } catch (\Exception $e) {
+                continue;
+            }
+        }
+
+        sort($datesList);
+        return implode(', ', array_unique($datesList));
     }
 }

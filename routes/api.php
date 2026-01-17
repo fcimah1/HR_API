@@ -386,4 +386,40 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     //     Route::put('/{id}', [\App\Http\Controllers\Api\TrainingSkillController::class, 'update'])->middleware('simple.permission:training_skill3');
     //     Route::delete('/{id}', [\App\Http\Controllers\Api\TrainingSkillController::class, 'destroy'])->middleware('simple.permission:training_skill4');
     // });
+
+    // Reports Management - صلاحية موحدة: system_reports
+    Route::prefix('reports')->middleware('simple.permission:system_reports')->group(function () {
+        // Attendance Reports
+        Route::get('/attendance/monthly', [\App\Http\Controllers\Api\ReportController::class, 'attendanceMonthly']);
+        Route::get('/attendance/first-last', [\App\Http\Controllers\Api\ReportController::class, 'attendanceFirstLast']);
+        Route::get('/attendance/time-records', [\App\Http\Controllers\Api\ReportController::class, 'attendanceTimeRecords']);
+        Route::get('/attendance/date-range', [\App\Http\Controllers\Api\ReportController::class, 'attendanceDateRange']);
+
+        // Timesheet Report
+        Route::get('/timesheet', [\App\Http\Controllers\Api\ReportController::class, 'timesheet']);
+
+        // Financial Reports
+        Route::get('/payroll', [\App\Http\Controllers\Api\ReportController::class, 'payroll']);
+        Route::get('/loans', [\App\Http\Controllers\Api\ReportController::class, 'loans']);
+
+        // HR Reports
+        Route::get('/leaves', [\App\Http\Controllers\Api\ReportController::class, 'leaves']);
+        Route::get('/awards', [\App\Http\Controllers\Api\ReportController::class, 'awards']);
+        Route::get('/promotions', [\App\Http\Controllers\Api\ReportController::class, 'promotions']);
+        Route::get('/resignations', [\App\Http\Controllers\Api\ReportController::class, 'resignations']);
+        Route::get('/terminations', [\App\Http\Controllers\Api\ReportController::class, 'terminations']);
+        Route::get('/transfers', [\App\Http\Controllers\Api\ReportController::class, 'transfers']);
+
+        // Document Expiry Reports
+        Route::get('/residence-renewals', [\App\Http\Controllers\Api\ReportController::class, 'residenceRenewals']);
+        Route::get('/expiring-contracts', [\App\Http\Controllers\Api\ReportController::class, 'expiringContracts']);
+        Route::get('/expiring-documents', [\App\Http\Controllers\Api\ReportController::class, 'expiringDocuments']);
+
+        // Employee Reports
+        Route::get('/employees-by-branch', [\App\Http\Controllers\Api\ReportController::class, 'employeesByBranch']);
+        Route::get('/employees-by-country', [\App\Http\Controllers\Api\ReportController::class, 'employeesByCountry']);
+
+        // End of Service
+        Route::get('/end-of-service', [\App\Http\Controllers\Api\ReportController::class, 'endOfService']);
+    });
 });

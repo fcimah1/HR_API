@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\BiometricPunchRequest;
 use App\Http\Requests\Attendance\BiometricBulkLogsRequest;
 use App\Models\BiometricLog;
+use App\Models\User;
 use App\Models\UserDetails;
+use App\Repository\Interface\UserRepositoryInterface;
 use App\Services\AttendanceService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -20,7 +22,8 @@ use Illuminate\Support\Facades\Log;
 class BiometricAttendanceController extends Controller
 {
     public function __construct(
-        private AttendanceService $attendanceService
+        private AttendanceService $attendanceService,
+        private UserRepositoryInterface $userRepository
     ) {}
 
     /**
@@ -140,7 +143,7 @@ class BiometricAttendanceController extends Controller
 
             Log::info('Biometric punch processed', [
                 'company_id' => $request->company_id,
-                'employee_id    ' => $request->employee_id,
+                'kiosk_code' => $request->employee_id,
                 'type' => $result['type'] ?? 'unknown',
                 'verify_mode' => $request->verify_mode,
                 'punch_type' => $request->punch_type,
@@ -157,7 +160,7 @@ class BiometricAttendanceController extends Controller
 
             // تحديد رسالة الخطأ بناءً على نوع الخطأ
             $errorMessage = $e->getMessage();
-            
+
             if (str_contains($errorMessage, 'Column not found')) {
                 $userMessage = 'حدث خطأ في قاعدة البيانات. يرجى التواصل مع الدعم الفني.';
             } elseif (str_contains($errorMessage, 'Duplicate entry')) {
@@ -263,61 +266,17 @@ class BiometricAttendanceController extends Controller
                 $companyId = (int) $companyId;
                 $branchId = (int) $branchId;
 
-                $employeeIds = $logsGroup->pluck('employee_id')->unique()->toArray();
+                $kioskCodes = $logsGroup->pluck('employee_id')->unique()->toArray();
 
                 // DEBUG: عرض الموظفين المطلوب البحث عنهم
                 Log::info('Biometric bulk logs - Searching employees', [
                     'company_id' => $companyId,
                     'branch_id' => $branchId,
-                    'employee_ids_from_device' => $employeeIds,
+                    'kiosk_codes_from_device' => $kioskCodes,
                 ]);
 
-                // البحث عن الموظفين باستخدام المفتاح المركب (company + branch + employee)
-                $matchedRecords = UserDetails::where('company_id', $companyId)
-                    ->where('branch_id', $branchId)
-                    ->whereIn('employee_id', $employeeIds)
-                    ->select('employee_id', 'user_id')
-                    ->get();
-
-                // بناء الـ mapping يدوياً للحفاظ على الـ keys
-                $matchedEmployees = [];
-                foreach ($matchedRecords as $record) {
-                    $matchedEmployees[$record->employee_id] = $record->user_id;
-                }
-
-                // إذا لم نجد جميع الموظفين، ابحث عن الموظفين بـ branch_id = NULL أو 0 (fallback)
-                if (count($matchedEmployees) < count($employeeIds)) {
-                    $foundIds = array_keys($matchedEmployees);
-                    $notFoundIds = array_diff($employeeIds, $foundIds);
-
-                    if (!empty($notFoundIds)) {
-                        // البحث عن الموظفين بدون فرع (branch_id = null أو 0)
-                        $fallbackRecords = UserDetails::where('company_id', $companyId)
-                            ->where(function ($query) {
-                                $query->whereNull('branch_id')
-                                    ->orWhere('branch_id', 0);
-                            })
-                            ->whereIn('employee_id', $notFoundIds)
-                            ->select('employee_id', 'user_id')
-                            ->get();
-
-                        // بناء الـ mapping يدوياً
-                        $fallbackMatches = [];
-                        foreach ($fallbackRecords as $record) {
-                            $fallbackMatches[$record->employee_id] = $record->user_id;
-                        }
-
-                        $matchedEmployees = $matchedEmployees + $fallbackMatches;
-
-                        Log::info('Biometric - Fallback search for NULL/0 branch_id', [
-                            'not_found_ids' => $notFoundIds,
-                            'fallback_matches' => count($fallbackMatches),
-                            'fallback_mapping' => array_map(function ($empId, $userId) {
-                                return "emp_id:{$empId} => user_id:{$userId}";
-                            }, array_keys($fallbackMatches), $fallbackMatches),
-                        ]);
-                    }
-                }
+                // البحث عن الموظفين باستخدام Repository
+                $matchedEmployees = $this->userRepository->getUsersByKioskCodes($companyId, $branchId, $kioskCodes);
 
                 // DEBUG: عرض نتائج البحث
                 Log::info('Biometric bulk logs - Database match results', [
@@ -327,8 +286,8 @@ class BiometricAttendanceController extends Controller
                 ]);
 
                 // تخزين في الـ cache
-                foreach ($matchedEmployees as $empId => $userId) {
-                    $cacheKey = "{$companyId}_{$branchId}_{$empId}";
+                foreach ($matchedEmployees as $kioskCode => $userId) {
+                    $cacheKey = "{$companyId}_{$branchId}_{$kioskCode}";
                     $employeeCache[$cacheKey] = $userId;
                 }
 
@@ -348,13 +307,13 @@ class BiometricAttendanceController extends Controller
             foreach ($logs as $log) {
                 $companyId = $log['company_id'];
                 $branchId = $log['branch_id'];
-                $employeeId = $log['employee_id'];
+                $kioskCode = $log['employee_id']; // kiosk_code من جهاز البصمة
                 $punchTime = $log['punch_time'];
 
                 // التحقق من وجود سجل مكرر
                 $existingLog = BiometricLog::where('company_id', $companyId)
                     ->where('branch_id', $branchId)
-                    ->where('employee_id', $employeeId)
+                    ->where('kiosk_code', $kioskCode)
                     ->where('punch_time', $punchTime)
                     ->first();
 
@@ -364,9 +323,9 @@ class BiometricAttendanceController extends Controller
                 }
 
                 // البحث في الـ cache
-                // تحويل employee_id إلى integer للتطابق مع الـ cache keys
-                $employeeIdInt = is_numeric($employeeId) ? (int)$employeeId : $employeeId;
-                $cacheKey = "{$companyId}_{$branchId}_{$employeeIdInt}";
+                // تحويل kiosk_code للتطابق مع الـ cache keys
+                $kioskCodeNormalized = is_numeric($kioskCode) ? (int)$kioskCode : $kioskCode;
+                $cacheKey = "{$companyId}_{$branchId}_{$kioskCodeNormalized}";
                 $userId = $employeeCache[$cacheKey] ?? null;
 
                 if ($userId) {
@@ -374,12 +333,12 @@ class BiometricAttendanceController extends Controller
                 } else {
                     $totalUnmatched++;
                     // إضافة الموظف غير الموجود للقائمة (بدون تكرار)
-                    $unmatchedKey = "{$companyId}_{$branchId}_{$employeeId}";
+                    $unmatchedKey = "{$companyId}_{$branchId}_{$kioskCode}";
                     if (!isset($unmatchedEmployees[$unmatchedKey])) {
                         $unmatchedEmployees[$unmatchedKey] = [
                             'company_id' => $companyId,
                             'branch_id' => $branchId,
-                            'employee_id' => $employeeId,
+                            'kiosk_code' => $kioskCode,
                         ];
                     }
                     continue; // تخطي السجل إذا لم يتم العثور على الموظف
@@ -389,7 +348,7 @@ class BiometricAttendanceController extends Controller
                 $biometricLog = BiometricLog::create([
                     'company_id' => $companyId,
                     'branch_id' => $branchId,
-                    'employee_id' => $employeeId,
+                    'kiosk_code' => $kioskCode,
                     'user_id' => $userId,
                     'punch_time' => $punchTime,
                     'punch_type' => $log['punch_type'],
@@ -406,7 +365,7 @@ class BiometricAttendanceController extends Controller
                         $result = $this->attendanceService->biometricPunch(
                             companyId: $companyId,
                             branchId: $branchId,
-                            employeeId: $employeeId,
+                            employeeId: $kioskCode, // kiosk_code يُمرر كـ employeeId للـ service
                             punchTime: $log['punch_time'],
                             verifyMode: $log['verify_mode'],
                             punchType: $log['punch_type'],
@@ -427,12 +386,12 @@ class BiometricAttendanceController extends Controller
                         ]);
 
                         $processingErrors[] = [
-                            'employee_id' => $employeeId,
+                            'kiosk_code' => $kioskCode,
                             'error' => $e->getMessage(),
                         ];
 
                         Log::warning('Direct biometric processing failed', [
-                            'employee_id' => $employeeId,
+                            'kiosk_code' => $kioskCode,
                             'error' => $e->getMessage(),
                         ]);
                     }
@@ -488,8 +447,8 @@ class BiometricAttendanceController extends Controller
                 $unmatchedDetails[] = [
                     'company_id' => $emp['company_id'],
                     'branch_id' => $emp['branch_id'],
-                    'employee_id' => $emp['employee_id'],
-                    'error' => "الموظف رقم {$emp['employee_id']} غير موجود في الشركة {$emp['company_id']} - الفرع {$emp['branch_id']}",
+                    'kiosk_code' => $emp['kiosk_code'],
+                    'error' => "الموظف بكود الكشك {$emp['kiosk_code']} غير موجود في الشركة {$emp['company_id']} - الفرع {$emp['branch_id']}",
                 ];
             }
 
@@ -497,7 +456,7 @@ class BiometricAttendanceController extends Controller
             $processingErrorsDetails = [];
             foreach ($processingErrors as $error) {
                 $processingErrorsDetails[] = [
-                    'employee_id' => $error['employee_id'],
+                    'kiosk_code' => $error['kiosk_code'],
                     'error' => $error['error'],
                     'error_type' => 'processing_failed',
                 ];
@@ -531,7 +490,7 @@ class BiometricAttendanceController extends Controller
                     'unmatched_employees' => count($unmatchedEmployees) > 0 ? [
                         'count' => count($unmatchedEmployees),
                         'message' => 'تحذير: الموظفين التاليين غير موجودين في النظام ولم يتم تسجيل حضورهم',
-                        'action_required' => 'يرجى التأكد من إضافة هؤلاء الموظفين في النظام أو تصحيح أرقامهم في جهاز البصمة',
+                        'action_required' => 'يرجى التأكد من إضافة هؤلاء الموظفين في النظام أو تصحيح kiosk_code الخاص بهم',
                         'details' => $unmatchedDetails,
                     ] : null,
                     'processing_errors' => count($processingErrors) > 0 ? [
@@ -569,7 +528,7 @@ class BiometricAttendanceController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * الحصول على الشركات مع الفروع
      * Get all companies with their branches

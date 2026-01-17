@@ -135,6 +135,9 @@ class AppServiceProvider extends ServiceProvider
         // Training Skill repository
         $this->app->singleton(TrainingSkillRepositoryInterface::class, TrainingSkillRepository::class);
 
+        // Report repository
+        $this->app->singleton(\App\Repository\Interface\ReportRepositoryInterface::class, \App\Repository\ReportRepository::class);
+
         // Cache Service (Singleton)
         $this->app->singleton(CacheService::class, CacheService::class);
     }
