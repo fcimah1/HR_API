@@ -12,6 +12,10 @@
         {
             "url": "http://127.0.0.1:8000",
             "description": "Local Development Server"
+        },
+        {
+            "url": "https://api.firstsoft.io",
+            "description": "Production Server"
         }
     ],
     "paths": {
@@ -12077,6 +12081,1346 @@
                 ]
             }
         },
+        "/api/reports/attendance/monthly": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير الحضور الشهري",
+                "operationId": "11854840fa21406a970fcf250ee51442",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/attendance/first-last": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير أول وآخر حضور/انصراف",
+                "operationId": "49fe8052920fdf534aa5e415e0b90d90",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/attendance/time-records": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير سجلات الوقت",
+                "operationId": "6ac87e4364269195c0f9ddbb7ec63c4c",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/attendance/date-range": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير الحضور بنطاق زمني",
+                "operationId": "f7f707974569bf0e1ea21059918a0469",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "تاريخ البداية",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "تاريخ النهاية",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "الموظف",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/timesheet": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير سجل الدوام (Timesheet)",
+                "operationId": "5208f00c62d743648689c03ba5fe0b18",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/payroll": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير الرواتب الشهري",
+                "operationId": "157d922c0cf253a9a01fd2ddea1a7bba",
+                "parameters": [
+                    {
+                        "name": "payment_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "description": "YYYY-MM",
+                            "type": "string",
+                            "example": "2026-01"
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "payment_method",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "cash",
+                                "bank",
+                                "all"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "job_type",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "part_time",
+                                "permanent",
+                                "contract",
+                                "probation",
+                                "all"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/loans": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير السلف والقروض",
+                "operationId": "6e08b00b1ea783b356335050d30da1e8",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/leaves": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير الإجازات",
+                "operationId": "65762ef489a6441112cb1662b5fada7b",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "year",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "example": 2026
+                        }
+                    },
+                    {
+                        "name": "leave_type",
+                        "in": "query",
+                        "schema": {
+                            "description": "Leave Type Constants ID",
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "duration_type",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "default": "hourly",
+                            "enum": [
+                                "daily",
+                                "hourly"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/awards": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير المكافآت",
+                "operationId": "7fab7d83408ab284df3b5b6b94e9ecce",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/promotions": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير الترقيات",
+                "operationId": "b97e944a5324b172c08943a9385638ce",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "description": "0: Pending, 1: Accepted, 2: Rejected",
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1,
+                                2
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/resignations": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير الاستقالات",
+                "operationId": "9fbfa0fd8238993461e56b1e44c56383",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/terminations": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير إنهاء الخدمة - قيد التطوير",
+                "operationId": "4aa4105b433fa68e783a4777c4451362",
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/transfers": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير التحويلات",
+                "operationId": "95d60e41d602338d11572005ce993089",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/residence-renewals": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير تجديد الإقامة - قيد التطوير",
+                "operationId": "52278c216e3400eb978680b996e5288a",
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/expiring-contracts": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير العقود قريبة الانتهاء - قيد التطوير",
+                "operationId": "aadfb0c85f067906edeb342343028758",
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/expiring-documents": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير الوثائق قريبة الانتهاء - قيد التطوير",
+                "operationId": "44e54a82d7fa68724ff3a815773e06cc",
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/employees-by-branch": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير الموظفين حسب الفرع",
+                "operationId": "d5ec4acb648ebf583d9997f558e27e3c",
+                "parameters": [
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "inactive"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/employees-by-country": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير الموظفين حسب الدولة",
+                "operationId": "19088bd96a74be88f8132f2098163023",
+                "parameters": [
+                    {
+                        "name": "country_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "inactive"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/end-of-service": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "تقرير حسابات نهاية الخدمة - قيد التطوير",
+                "operationId": "c713f80a1e5f58c743382ef5a2eca210",
+                "responses": {
+                    "200": {
+                        "description": "PDF file"
+                    },
+                    "401": {
+                        "description": "يجب تسجيل الدخول - غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/resignations": {
             "get": {
                 "tags": [
@@ -19803,6 +21147,10 @@
         {
             "name": "Overtime Management",
             "description": "Overtime requests management"
+        },
+        {
+            "name": "Reports",
+            "description": "التقارير - Reports Management"
         },
         {
             "name": "Resignation Management",

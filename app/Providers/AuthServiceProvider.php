@@ -13,14 +13,10 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        // لو أردت تحريك أو تحديد مسار المفاتيح
+        // تحديد مسار مفاتيح OAuth
         Passport::loadKeysFrom(storage_path('oauth'));
 
-
-        // مدة صلاحية Access Token (15 دقيقة)
-        Passport::tokensExpireIn(now()->addMinutes(15));
-        
-        // مدة صلاحية Refresh Token (7 أيام)
-        Passport::refreshTokensExpireIn(now()->addDays(7));
+        // ملاحظة: إعدادات صلاحية الـ Tokens موجودة في AppServiceProvider
+        // وتستخدم القيم من config/passport.php
     }
 }

@@ -98,6 +98,7 @@ class User extends Authenticatable
         'created_at',
         'fiscal_date',
         'device_token',
+        'kiosk_code',
     ];
     /**
      * The attributes that should be hidden for serialization.
@@ -152,6 +153,23 @@ class User extends Authenticatable
     public function user_details(): HasOne
     {
         return $this->hasOne(UserDetails::class, 'user_id', 'user_id');
+    }
+
+    public function getShiftNameAttribute(): ?string
+    {
+        // Check if eager loaded through user_details.officeShift
+        // Need to ensure officeShift relation exists in UserDetails
+        if ($this->relationLoaded('user_details')) {
+            if ($this->user_details->relationLoaded('officeShift')) {
+                return $this->user_details->officeShift->shift_name ?? null;
+            }
+            // Fallback: fetch if ID exists
+            if ($this->user_details && $this->user_details->office_shift_id) {
+                $shift = OfficeShift::find($this->user_details->office_shift_id);
+                return $shift?->shift_name;
+            }
+        }
+        return null; // Or 'وردية العمل الإداري' as default if preferred, but handled in ReportService
     }
 
     /**
@@ -221,6 +239,14 @@ class User extends Authenticatable
     public function staffRole(): BelongsTo
     {
         return $this->belongsTo(StaffRole::class, 'user_role_id', 'role_id');
+    }
+
+    /**
+     * Get the attendance records for the user.
+     */
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class, 'employee_id', 'user_id');
     }
 
     /**

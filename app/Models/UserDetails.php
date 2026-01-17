@@ -131,6 +131,11 @@ class UserDetails extends Model
         return $this->belongsTo(Branch::class, 'branch_id', 'branch_id');
     }
 
+    public function currency(): BelongsTo
+    {
+        return $this->belongsTo(Currency::class, 'currency_id', 'currency_id');
+    }
+
     /**
      * البحث عن الموظف باستخدام المفتاح المركب من جهاز البصمة
      * Find user by biometric composite key

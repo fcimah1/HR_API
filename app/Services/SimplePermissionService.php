@@ -479,11 +479,16 @@ class SimplePermissionService
                     'ci_designations.hierarchy_level as hierarchy_level',
                     'ci_erp_users_details.department_id',
                     'ci_departments.department_name as department_name',
+                    'ci_erp_users_details.branch_id',
+                    'ci_branchs.branch_name as branch_name',
+                    'ci_office_shifts.shift_name as shift_name',
 
                 )
                 ->leftJoin('ci_erp_users_details', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
                 ->leftJoin('ci_designations', 'ci_designations.designation_id', '=', 'ci_erp_users_details.designation_id')
                 ->leftJoin('ci_departments', 'ci_departments.department_id', '=', 'ci_erp_users_details.department_id')
+                ->leftJoin('ci_branchs', 'ci_branchs.branch_id', '=', 'ci_erp_users_details.branch_id')
+                ->leftJoin('ci_office_shifts', 'ci_office_shifts.office_shift_id', '=', 'ci_erp_users_details.office_shift_id')
                 ->where('ci_erp_users.company_id', $user->user_id)
                 ->where('ci_erp_users.user_type', 'staff')
                 ->where('ci_erp_users.is_active', 1)
@@ -530,11 +535,16 @@ class SimplePermissionService
                     'ci_designations.designation_name as designation_name',
                     'ci_designations.hierarchy_level as hierarchy_level',
                     'ci_erp_users_details.department_id',
-                    'ci_departments.department_name as department_name'
+                    'ci_departments.department_name as department_name',
+                    'ci_erp_users_details.branch_id',
+                    'ci_branchs.branch_name as branch_name',
+                    'ci_office_shifts.shift_name as shift_name'
                 )
                 ->leftJoin('ci_erp_users_details', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
                 ->leftJoin('ci_designations', 'ci_designations.designation_id', '=', 'ci_erp_users_details.designation_id')
                 ->leftJoin('ci_departments', 'ci_departments.department_id', '=', 'ci_erp_users_details.department_id')
+                ->leftJoin('ci_branchs', 'ci_branchs.branch_id', '=', 'ci_erp_users_details.branch_id')
+                ->leftJoin('ci_office_shifts', 'ci_office_shifts.office_shift_id', '=', 'ci_erp_users_details.office_shift_id')
                 ->where('ci_erp_users.company_id', $companyId)
                 ->where('ci_erp_users.user_type', 'staff')
                 ->where('ci_erp_users.is_active', 1)
@@ -552,11 +562,15 @@ class SimplePermissionService
                 'ci_designations.designation_name as designation_name',
                 'ci_designations.hierarchy_level as hierarchy_level',
                 'ci_erp_users_details.department_id',
-                'ci_departments.department_name as department_name'
+                'ci_departments.department_name as department_name',
+                'ci_branchs.branch_name as branch_name',
+                'ci_office_shifts.shift_name as shift_name'
             )
             ->leftJoin('ci_erp_users_details', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
             ->leftJoin('ci_designations', 'ci_designations.designation_id', '=', 'ci_erp_users_details.designation_id')
             ->leftJoin('ci_departments', 'ci_departments.department_id', '=', 'ci_erp_users_details.department_id')
+            ->leftJoin('ci_branchs', 'ci_branchs.branch_id', '=', 'ci_erp_users_details.branch_id')
+            ->leftJoin('ci_office_shifts', 'ci_office_shifts.office_shift_id', '=', 'ci_erp_users_details.office_shift_id')
             ->where('ci_erp_users.company_id', $companyId)
             ->where('ci_erp_users.user_type', 'staff')
             ->where('ci_erp_users.is_active', 1);

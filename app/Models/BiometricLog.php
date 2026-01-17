@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $company_id
  * @property int|null $branch_id
- * @property string $employee_id
+ * @property string $kiosk_code
  * @property int|null $user_id
  * @property \Carbon\Carbon $punch_time
  * @property int|null $punch_type
@@ -43,7 +43,7 @@ class BiometricLog extends Model
     protected $fillable = [
         'company_id',
         'branch_id',
-        'employee_id',
+        'kiosk_code',
         'user_id',
         'punch_time',
         'punch_type',
@@ -144,11 +144,11 @@ class BiometricLog extends Model
     }
 
     /**
-     * نطاق حسب رقم الموظف في الجهاز
+     * نطاق حسب كود الكشك في الجهاز
      */
-    public function scopeForEmployeeId($query, string $employeeId)
+    public function scopeForKioskCode($query, string $kioskCode)
     {
-        return $query->where('employee_id', $employeeId);
+        return $query->where('kiosk_code', $kioskCode);
     }
 
     /**

@@ -83,7 +83,7 @@ return [
     |
     */
 
-    'token_expiration' => env('PASSPORT_TOKEN_EXPIRATION', 1440), // 24 hours in minutes
-    'refresh_token_expiration' => env('PASSPORT_REFRESH_TOKEN_EXPIRATION', 20160), // 14 days in minutes
+    'token_expiration' => env('PASSPORT_TOKEN_EXPIRATION', 15), // 15 minutes
+    'refresh_token_expiration' => env('PASSPORT_REFRESH_TOKEN_EXPIRATION', 60), // 60 minutes (1 hour)
 
 ];
