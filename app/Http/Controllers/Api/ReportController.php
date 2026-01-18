@@ -1024,7 +1024,19 @@ class ReportController extends Controller
      *             )
      *         )
      *     ),
-     *     @OA\Response(response=401, description="غير مصرح")
+     *     @OA\Response(response=401, description="غير مصرح"),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error - خطأ في التحقق",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=500, description="Server error - خطأ في الخادم"),
+     *     @OA\Response(response=404, description="Not found - غير موجود")
+     * )
      * )
      */
     public function options(): \Illuminate\Http\JsonResponse
@@ -1062,7 +1074,19 @@ class ReportController extends Controller
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="data", type="array", @OA\Items())
      *         )
-     *     )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error - خطأ في التحقق",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=500, description="Server error - خطأ في الخادم"),
+     *     @OA\Response(response=404, description="Not found - غير موجود")
+     * )
      * )
      */
     public function endOfService(EndOfServiceRequest $request)

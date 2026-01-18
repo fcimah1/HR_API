@@ -10,10 +10,6 @@
     },
     "servers": [
         {
-            "url": "https://api.firstsoft.io",
-            "description": "Production Server"
-        },
-        {
             "url": "http://127.0.0.1:8000",
             "description": "Local Development Server"
         }
@@ -13959,6 +13955,35 @@
                     },
                     "401": {
                         "description": "غير مصرح"
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -14007,6 +14032,35 @@
                                 }
                             }
                         }
+                    },
+                    "422": {
+                        "description": "Validation error - خطأ في التحقق",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
