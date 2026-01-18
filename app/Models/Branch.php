@@ -57,6 +57,14 @@ class Branch extends Model
     }
 
     /**
+     * Get the company that owns the branch.
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'company_id', 'user_id');
+    }
+
+    /**
      * Scope to filter by company.
      */
     public function scopeForCompany($query, $companyId)

@@ -10,6 +10,7 @@ use App\Models\Attendance;
 use App\Models\User;
 use App\Models\LeaveApplication;
 use App\Models\Resignation;
+use App\Models\Termination;
 use App\Models\Transfer;
 use App\Models\AdvanceSalary;
 use App\Models\ErpConstant;
@@ -583,13 +584,33 @@ class ReportRepository implements ReportRepositoryInterface
      */
     public function getTerminationsReport(int $companyId, array $filters = []): Collection
     {
-        // Placeholder - سيتم تنفيذه لاحقاً
-        Log::info('Terminations report requested but not yet implemented', [
-            'company_id' => $companyId,
-            'filters' => $filters
-        ]);
+        $query = Termination::query()
+            ->with(['employee:user_id,first_name,last_name,email'])
+            ->where('company_id', $companyId);
 
-        return collect([]);
+        // فلتر الموظفين (حسب الصلاحية)
+        if (!empty($filters['employee_ids'])) {
+            $query->whereIn('employee_id', $filters['employee_ids']);
+        }
+
+        // فلتر الحالة
+        if (isset($filters['status']) && $filters['status'] !== 'all') {
+            $query->where('status', (int)$filters['status']);
+        }
+
+        // فلتر التاريخ
+        if (!empty($filters['start_date']) && !empty($filters['end_date'])) {
+            $query->whereBetween('termination_date', [$filters['start_date'], $filters['end_date']]);
+        } elseif (!empty($filters['year'])) {
+            $query->whereYear('termination_date', $filters['year']);
+        } else {
+            // Fallback default: current year
+            $query->whereYear('termination_date', date('Y'));
+        }
+
+        Log::info('Termination Report Query', ['sql' => $query->toSql(), 'bindings' => $query->getBindings()]);
+
+        return $query->orderBy('termination_date', 'desc')->get();
     }
 
     /**
@@ -598,17 +619,30 @@ class ReportRepository implements ReportRepositoryInterface
     public function getTransfersReport(int $companyId, array $filters = []): Collection
     {
         $query = Transfer::query()
-            ->with(['employee:user_id,first_name,last_name,email'])
+            ->with([
+                'employee:user_id,first_name,last_name,email',
+                'oldDepartment:department_id,department_name',
+                'newDepartment:department_id,department_name',
+                'oldDesignation:designation_id,designation_name',
+                'newDesignation:designation_id,designation_name',
+                'oldBranch:branch_id,branch_name',
+                'newBranch:branch_id,branch_name',
+            ])
             ->where('company_id', $companyId);
 
-        // فلتر الموظف
-        if (!empty($filters['employee_id'])) {
-            $query->where('employee_id', $filters['employee_id']);
+        // فلتر الموظفين (حسب الصلاحية)
+        if (!empty($filters['employee_ids'])) {
+            $query->whereIn('employee_id', $filters['employee_ids']);
         }
 
         // فلتر الحالة
-        if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
+        if (array_key_exists('status', $filters) && $filters['status'] !== null && $filters['status'] !== '') {
+            $query->where('status', (int)$filters['status']);
+        }
+
+        // فلتر نوع التحويل
+        if (!empty($filters['transfer_type']) && $filters['transfer_type'] !== 'all') {
+            $query->where('transfer_type', $filters['transfer_type']);
         }
 
         // فلتر التاريخ
@@ -616,12 +650,12 @@ class ReportRepository implements ReportRepositoryInterface
             $query->whereBetween('transfer_date', [$filters['start_date'], $filters['end_date']]);
         } elseif (!empty($filters['year'])) {
             $query->whereYear('transfer_date', $filters['year']);
-        } elseif (empty($filters['start_date']) && empty($filters['end_date'])) {
+        } else {
             // Fallback to current year if no date filter is provided
             $query->whereYear('transfer_date', date('Y'));
         }
 
-        Log::info('Transfer Report Query', ['sql' => $query->toSql(), 'bindings' => $query->getBindings(), 'count' => $query->count()]);
+        Log::info('Transfer Report Query', ['sql' => $query->toSql(), 'bindings' => $query->getBindings()]);
 
         return $query->orderBy('transfer_date', 'desc')->get();
     }
@@ -631,45 +665,85 @@ class ReportRepository implements ReportRepositoryInterface
     // ==========================================
 
     /**
-     * تقرير تجديد الإقامة - Placeholder
+     * تقرير تجديد الإقامة
      */
     public function getResidenceRenewalReport(int $companyId, array $filters = []): Collection
     {
-        // Placeholder - سيتم تنفيذه لاحقاً
-        Log::info('Residence renewal report requested but not yet implemented', [
-            'company_id' => $companyId,
-            'filters' => $filters
+        $query = \App\Models\ResidenceRenewalCost::query()
+            ->with(['employee:user_id,first_name,last_name,email'])
+            ->where('company_id', $companyId);
+
+        // فلتر الموظفين (حسب الصلاحية)
+        if (!empty($filters['employee_ids'])) {
+            $query->whereIn('employee_id', $filters['employee_ids']);
+        }
+
+        // فلتر موظف محدد
+        if (!empty($filters['employee_id'])) {
+            $query->where('employee_id', $filters['employee_id']);
+        }
+
+        Log::info('Residence Renewal Report Query', [
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings()
         ]);
 
-        return collect([]);
+        return $query->orderBy('created_at', 'desc')->get();
     }
 
     /**
-     * تقرير العقود قريبة الانتهاء - Placeholder
+     * تقرير العقود قريبة الانتهاء
      */
     public function getExpiringContractsReport(int $companyId, array $filters = []): Collection
     {
-        // Placeholder - سيتم تنفيذه لاحقاً
-        Log::info('Expiring contracts report requested but not yet implemented', [
-            'company_id' => $companyId,
-            'filters' => $filters
-        ]);
+        $query = \App\Models\User::query()
+            ->select('ci_erp_users.user_id', 'ci_erp_users.first_name', 'ci_erp_users.last_name', 'ci_erp_users.company_id')
+            ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
+            ->where('ci_erp_users.company_id', $companyId)
+            ->where('ci_erp_users.is_active', 1)
+            ->with(['user_details:user_id,employee_id,date_of_leaving']);
 
-        return collect([]);
+        // فلتر التاريخ (ينتهي قبل)
+        if (!empty($filters['end_date'])) {
+            $query->where('ci_erp_users_details.date_of_leaving', '<=', $filters['end_date']);
+        }
+
+        // فلتر الموظفين (للتسلسل الهرمي)
+        if (!empty($filters['employee_ids'])) {
+            $query->whereIn('ci_erp_users.user_id', $filters['employee_ids']);
+        }
+
+        // ترتيب حسب تاريخ الانتهاء تصاعدي (الأقرب للانتهاء أولاً)
+        return $query->orderBy('ci_erp_users_details.date_of_leaving', 'asc')->get();
     }
 
     /**
-     * تقرير الهويات/الإقامات قريبة الانتهاء - Placeholder
+     * تقرير الهويات/الإقامات قريبة الانتهاء
      */
     public function getExpiringDocumentsReport(int $companyId, array $filters = []): Collection
     {
-        // Placeholder - سيتم تنفيذه لاحقاً
-        Log::info('Expiring documents report requested but not yet implemented', [
-            'company_id' => $companyId,
-            'filters' => $filters
-        ]);
+        $query = \App\Models\User::query()
+            ->select('ci_erp_users.user_id', 'ci_erp_users.first_name', 'ci_erp_users.last_name', 'ci_erp_users.company_id')
+            ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
+            ->where('ci_erp_users.company_id', $companyId)
+            ->where('ci_erp_users.is_active', 1)
+            ->with(['user_details:user_id,employee_id,contract_date_eqama']);
 
-        return collect([]);
+        // فلتر التاريخ (ينتهي قبل)
+        // بناءً على الدليل: contract_date_eqama <= end_date OR IS NULL
+        if (!empty($filters['end_date'])) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('ci_erp_users_details.contract_date_eqama', '<=', $filters['end_date'])
+                    ->orWhereNull('ci_erp_users_details.contract_date_eqama');
+            });
+        }
+
+        // فلتر الموظفين
+        if (!empty($filters['employee_ids'])) {
+            $query->whereIn('ci_erp_users.user_id', $filters['employee_ids']);
+        }
+
+        return $query->orderBy('ci_erp_users_details.contract_date_eqama', 'asc')->get();
     }
 
     // ==========================================
@@ -679,25 +753,59 @@ class ReportRepository implements ReportRepositoryInterface
     /**
      * تقرير الموظفين حسب الفرع
      */
+
     public function getEmployeesByBranchReport(int $companyId, array $filters = []): Collection
     {
-        $query = User::query()
-            ->with(['branch:office_branch_id,office_name', 'department:department_id,department_name', 'designation:designation_id,designation_name', 'user_details'])
-            ->where('company_id', $companyId)
-            ->where('user_type', 'employee');
+        $query = DB::table('ci_erp_users as u')
+            ->select([
+                'u.user_id',
+                'u.first_name',
+                'u.last_name',
+                'u.email',
+                'u.profile_photo',
+                'u.is_active',
+                'b.branch_name',
+                'd.department_name',
+                'des.designation_name',
+                'u.contact_number', // Primary contact number from users table
+                'ud.date_of_joining',
+                'ud.date_of_leaving',
+                'ud.employee_id',
+                'ud.employee_idnum',
+                'ud.job_type',
+                'c.country_name'
+            ])
+            ->leftJoin('ci_erp_users_details as ud', 'ud.user_id', '=', 'u.user_id')
+            ->leftJoin('ci_branchs as b', 'b.branch_id', '=', 'ud.branch_id')
+            ->leftJoin('ci_departments as d', 'd.department_id', '=', 'ud.department_id')
+            ->leftJoin('ci_designations as des', 'des.designation_id', '=', 'ud.designation_id')
+            ->leftJoin('ci_countries as c', 'c.country_id', '=', 'u.country')
+            ->where('u.user_type', 'staff')
+            ->where('u.company_id', $companyId);
 
-        // فلتر الفرع
-        if (!empty($filters['branch_id'])) {
-            $query->where('office_branch_id', $filters['branch_id']);
+        // Filter by Branch
+        if (!empty($filters['branch_id']) && $filters['branch_id'] !== 'all') {
+            $query->where('ud.branch_id', $filters['branch_id']);
         }
 
-        // فلتر الحالة
-        if (!empty($filters['status'])) {
-            $query->where('is_active', $filters['status'] === 'active' ? 1 : 0);
+        // Filter by Status
+        $status = $filters['status'] ?? 'all';
+        if ($status === 'active') {
+            $query->where('u.is_active', 1);
+        } elseif ($status === 'inactive') {
+            $query->where('u.is_active', 0);
+        } elseif ($status === 'left') {
+            $query->where('u.is_active', 0)
+                ->whereNotNull('ud.date_of_leaving');
         }
 
-        return $query->orderBy('office_branch_id', 'asc')
-            ->orderBy('first_name', 'asc')
+        // Filter by Employee IDs (Hierarchy)
+        if (!empty($filters['employee_ids'])) {
+            $query->whereIn('u.user_id', $filters['employee_ids']);
+        }
+
+        return $query->orderBy('b.branch_name', 'ASC')
+            ->orderBy('u.first_name', 'ASC')
             ->get();
     }
 
@@ -706,38 +814,90 @@ class ReportRepository implements ReportRepositoryInterface
      */
     public function getEmployeesByCountryReport(int $companyId, array $filters = []): Collection
     {
-        $query = User::query()
-            ->with(['branch:office_branch_id,office_name', 'department:department_id,department_name', 'user_details'])
-            ->where('company_id', $companyId)
-            ->where('user_type', 'employee');
+        $query = DB::table('ci_erp_users as u')
+            ->select([
+                'u.user_id',
+                'u.first_name',
+                'u.last_name',
+                'u.email',
+                'u.is_active',
+                'b.branch_name',
+                'd.department_name',
+                'des.designation_name',
+                'u.contact_number',
+                'ud.date_of_joining',
+                'ud.date_of_leaving',
+                'ud.employee_id',
+                'ud.employee_idnum',
+                'ud.job_type',
+                'c.country_name',
+                'u.country' // Fallback for country name if table join fails
+            ])
+            ->leftJoin('ci_erp_users_details as ud', 'ud.user_id', '=', 'u.user_id')
+            ->leftJoin('ci_branchs as b', 'b.branch_id', '=', 'ud.branch_id')
+            ->leftJoin('ci_departments as d', 'd.department_id', '=', 'ud.department_id')
+            ->leftJoin('ci_designations as des', 'des.designation_id', '=', 'ud.designation_id')
+            ->leftJoin('ci_countries as c', 'c.country_id', '=', 'u.country')
+            ->where('u.user_type', 'staff')
+            ->where('u.company_id', $companyId);
 
-        // فلتر الدولة (nationality)
-        if (!empty($filters['country_id'])) {
-            $query->where('nationality', $filters['country_id']);
+        // Filter by Country (accepts ID, Code, Name)
+        if (!empty($filters['country_id']) && $filters['country_id'] !== 'all') {
+            $val = $filters['country_id'];
+            $query->where(function ($q) use ($val) {
+                $q->where('c.country_id', $val)
+                    ->orWhere('c.country_code', $val)
+                    ->orWhere('c.country_name', $val);
+            });
         }
 
-        // فلتر الحالة
-        if (!empty($filters['status'])) {
-            $query->where('is_active', $filters['status'] === 'active' ? 1 : 0);
+        // Filter by Status
+        $status = $filters['status'] ?? 'all';
+        if ($status === 'active') {
+            $query->where('u.is_active', 1);
+        } elseif ($status === 'inactive') {
+            $query->where('u.is_active', 0);
+        } elseif ($status === 'left') {
+            $query->where('u.is_active', 0)
+                ->whereNotNull('ud.date_of_leaving');
         }
 
-        return $query->orderBy('nationality', 'asc')
-            ->orderBy('first_name', 'asc')
+        // Filter by Employee IDs (Hierarchy)
+        if (!empty($filters['employee_ids'])) {
+            $query->whereIn('u.user_id', $filters['employee_ids']);
+        }
+
+        return $query->orderBy('c.country_name', 'ASC')
+            ->orderBy('u.first_name', 'ASC')
             ->get();
     }
 
     /**
      * تقرير حسابات نهاية الخدمة - Placeholder
      */
-    public function getEndOfServiceReport(int $companyId, array $filters = []): Collection
+    public function getEndOfServiceReport(array $filters = []): Collection
     {
-        // Placeholder - سيتم تنفيذه لاحقاً
-        Log::info('End of service report requested but not yet implemented', [
-            'company_id' => $companyId,
-            'filters' => $filters
-        ]);
+        $query = \App\Models\EndOfService::query()
+            ->with(['employee' => function ($q) {
+                $q->select('user_id', 'first_name', 'last_name', 'company_id');
+            }, 'employee.user_details:user_id,employee_id']);
 
-        return collect([]);
+        if (!empty($filters['employee_id'])) {
+            $query->where('employee_id', $filters['employee_id']);
+        }
+
+        if (!empty($filters['employee_ids'])) {
+            $query->whereIn('employee_id', $filters['employee_ids']);
+        }
+
+        // Ensure company isolation if passed
+        if (!empty($filters['company_id'])) {
+            $query->whereHas('employee', function ($q) use ($filters) {
+                $q->where('company_id', $filters['company_id']);
+            });
+        }
+
+        return $query->get();
     }
 
     // ==========================================

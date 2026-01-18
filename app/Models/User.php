@@ -181,6 +181,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the company that this user belongs to.
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'company_id', 'user_id');
+    }
+
+    /**
      * Get user department
      */
 

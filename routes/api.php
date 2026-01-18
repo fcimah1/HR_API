@@ -47,6 +47,10 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/user/permissions', [AuthController::class, 'permissions']);
+    Route::get('/countries', [\App\Http\Controllers\Api\CountryController::class, 'index']);
+    Route::get('/countries/{id}', [\App\Http\Controllers\Api\CountryController::class, 'show']);
+    Route::get('/branches', [\App\Http\Controllers\Api\BranchController::class, 'index']);
+    Route::get('/branches/{id}', [\App\Http\Controllers\Api\BranchController::class, 'show']);
 
     // Dashboard
     Route::prefix('dashboard')->group(function () {
@@ -389,6 +393,9 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
 
     // Reports Management - صلاحية موحدة: system_reports
     Route::prefix('reports')->middleware('simple.permission:system_reports')->group(function () {
+        // Options
+        Route::get('/options', [\App\Http\Controllers\Api\ReportController::class, 'options']);
+
         // Attendance Reports
         Route::get('/attendance/monthly', [\App\Http\Controllers\Api\ReportController::class, 'attendanceMonthly']);
         Route::get('/attendance/first-last', [\App\Http\Controllers\Api\ReportController::class, 'attendanceFirstLast']);

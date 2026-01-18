@@ -7,17 +7,17 @@ enum NumericalStatusEnum: int
     case PENDING = 0;
     case APPROVED = 1;
     case REJECTED = 2;
-    
 
-    
+
+
     /**
      * Get human-readable label for API responses (Arabic)
      */
     public function labelAr(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PENDING => 'قيد الانتظار',
-            self::APPROVED => 'مقبول',
+            self::APPROVED => 'تم الموافقة عليه',
             self::REJECTED => 'مرفوض',
         };
     }
@@ -35,5 +35,13 @@ enum NumericalStatusEnum: int
             ],
             self::cases()
         );
+    }
+
+    /**
+     * Get all values as a simple comma-separated string for validation rules
+     */
+    public static function valuesString(): string
+    {
+        return implode(',', array_column(self::cases(), 'value'));
     }
 }

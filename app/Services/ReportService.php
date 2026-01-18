@@ -15,6 +15,11 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Enums\NumericalStatusEnum;
+use App\Enums\AttendanceStatusEnum;
+use App\Enums\JobTypeEnum;
+use App\Enums\PaymentMethodEnum;
+use App\Enums\WagesTypeEnum;
 
 /**
  * خدمة التقارير الرئيسية
@@ -287,7 +292,7 @@ class ReportService
             throw new \InvalidArgumentException('يجب تحديد موظف واحد لهذا التقرير');
         }
 
-        // Hierarchy permission check
+        // Hierarchy permission
         $rawEmployees = $this->permissionService->getEmployeesByHierarchy($user->user_id, $filters->companyId);
         $allowedIds = collect($rawEmployees)->pluck('user_id')->toArray();
         if (!in_array($filters->employeeId, $allowedIds)) {
@@ -365,10 +370,6 @@ class ReportService
     // Completed
     public function generateTimesheetReport(User $user, AttendanceReportFilterDTO $filters): void
     {
-        // Require single employee check removed? No, user wants ALL employees support.
-        // If employeeId is filtered, existing check logic is fine.
-        // If not filtered (All), we need hierarchy.
-
         $rawEmployees = $this->permissionService->getEmployeesByHierarchy($user->user_id, $filters->companyId);
         $allowedIds = collect($rawEmployees)->pluck('user_id')->toArray();
 
@@ -502,14 +503,10 @@ class ReportService
             throw new \InvalidArgumentException('لا توجد بيانات رواتب ');
         }
 
-        // جلب أنواع البدلات والخصومات للشركة
-        $allowanceTypes = $this->reportRepository->getAllowanceTypes($companyId);
-        $statutoryTypes = $this->reportRepository->getStatutoryTypes($companyId);
-
         $paymentDate = $filters['payment_date'] ?? date('Y-m');
         $title = 'كشف المرتبات الشهرية ' . $paymentDate;
 
-        $this->generatePayrollPdf($payslips, $title, $companyId, $allowanceTypes, $statutoryTypes, $filters, $user);
+        $this->generatePayrollPdf($payslips, $title, $companyId, $filters);
     }
 
     /**
@@ -592,9 +589,11 @@ class ReportService
         // Apply allowed IDs to filter
         $filters['employee_ids'] = $allowedIds; // Repository likely uses 'employee_ids' or 'employeeIds'?? Check Repo.
 
-        $title = 'تقرير الإجازات';
         $data = $this->reportRepository->getLeaveReport($companyId, $filters);
 
+        if ($data->isEmpty()) {
+            throw new \InvalidArgumentException('لا توجد إجازات');
+        }
         $this->generateLeavePdf($data, $companyId, $filters);
     }
 
@@ -662,6 +661,7 @@ class ReportService
     /**
      * تقرير الاستقالات
      */
+    // Completed
     public function generateResignationsReport(User $user, int $companyId, array $filters = []): void
     {
         // Hierarchy Check
@@ -711,32 +711,124 @@ class ReportService
             $dateRange = 'من: ' . $filters['start_date'] . ' إلى: ' . $filters['end_date'];
         }
 
-        $this->generateResignationsPdf($data, $title, $companyId, $dateRange);
+        // Show "الكل" if no status filter, otherwise use enum label
+        if (array_key_exists('status', $filters) && $filters['status'] !== null && $filters['status'] !== '') {
+            $statusEnum = NumericalStatusEnum::tryFrom((int)$filters['status']);
+            $statusText = 'الحالة: ' . ($statusEnum?->labelAr() ?? 'الكل');
+        } else {
+            $statusText = 'الحالة: الكل';
+        }
+
+        $this->generateResignationsPdf($data, $title, $companyId, $dateRange, $statusText);
     }
 
 
     /**
-     * تقرير إنهاء الخدمة - Placeholder
+     * تقرير إنهاء الخدمة
      */
-    public function generateTerminationsReport(User $user, int $companyId, array $filters = []): array
+    // Completed
+    public function generateTerminationsReport(User $user, int $companyId, array $filters = []): void
     {
-        return [
-            'success' => false,
-            'message' => 'هذا التقرير قيد التطوير',
-            'report_name' => 'تقرير إنهاء الخدمة',
-        ];
+        // Hierarchy Check
+        $rawEmployees = $this->permissionService->getEmployeesByHierarchy($user->user_id, $companyId);
+        $allowedIds = collect($rawEmployees)->pluck('user_id')->toArray();
+
+        // Ensure user can only see allowed employees (Hierarchy enforcement)
+        if (empty($allowedIds)) {
+            // Fallback if no subordinates found (should usually contain at least self if applicable, or empty for high level)
+            // Logic: if allowedIds is empty, user sees nothing or error?
+            // Assuming strict hierarchy: if empty, error.
+            Log::error([
+                'user_id' => $user->user_id,
+                'company_id' => $companyId,
+                'message' => 'ليس لديك صلاحية لعرض بيانات أي موظف',
+            ]);
+            throw new \InvalidArgumentException('ليس لديك صلاحية لعرض بيانات أي موظف');
+        }
+        $filters['employee_ids'] = $allowedIds;
+
+        // Manual existence check for employee_id skipped as filter is removed from usage/UI.
+        // But if someone manually passes it via API, repository logic will check if it's in employee_ids via separate filter?
+        // Current repo implementation:
+        // if (!empty($filters['employee_ids'])) { $query->whereIn('employee_id', $filters['employee_ids']); }
+        // So even if we don't pass 'employee_id' explicitly, 'employee_ids' enforces security.
+
+        $data = $this->reportRepository->getTerminationsReport($companyId, $filters);
+
+        if ($data->isEmpty()) {
+            throw new \InvalidArgumentException('لا توجد بيانات إنهاء خدمة للفترة المحددة');
+        }
+
+        $title = 'تقرير إنهاء الخدمة';
+        $dateRange = '';
+        $statusText = '';
+        if (!empty($filters['start_date']) && !empty($filters['end_date'])) {
+            $dateRange = 'من: ' . $filters['start_date'] . ' إلى: ' . $filters['end_date'];
+        }
+
+        // Show "الكل" if no status filter, otherwise use enum label
+        if (array_key_exists('status', $filters) && $filters['status'] !== null && $filters['status'] !== '') {
+            $statusEnum = NumericalStatusEnum::tryFrom((int)$filters['status']);
+            $statusText = 'الحالة: ' . ($statusEnum?->labelAr() ?? 'الكل');
+        } else {
+            $statusText = 'الحالة: الكل';
+        }
+
+        $this->generateTerminationsPdf($data, $title, $companyId, $dateRange, $statusText);
     }
+
 
     /**
      * تقرير التحويلات
      */
+    // Completed
     public function generateTransfersReport(User $user, int $companyId, array $filters = []): void
     {
+        // Hierarchy Check - Only for staff users, company users see all transfers
+        if ($user->user_type === 'staff') {
+            $rawEmployees = $this->permissionService->getEmployeesByHierarchy($user->user_id, $companyId);
+            $allowedIds = collect($rawEmployees)->pluck('user_id')->toArray();
+
+            if (empty($allowedIds)) {
+                throw new \InvalidArgumentException('ليس لديك صلاحية لعرض بيانات أي موظف');
+            }
+            $filters['employee_ids'] = $allowedIds;
+        }
+        // Company users see all transfers - no employee_ids filter
+
         $data = $this->reportRepository->getTransfersReport($companyId, $filters);
 
-        $title = 'تقرير التحويلات';
+        if ($data->isEmpty()) {
+            throw new \InvalidArgumentException('لا توجد تحويلات للفترة المحددة');
+        }
 
-        $this->generateTransfersPdf($data, $title, $companyId);
+        $title = 'تقرير التحويلات';
+        $dateRange = '';
+        $statusText = '';
+        $transferTypeText = '';
+
+        if (!empty($filters['start_date']) && !empty($filters['end_date'])) {
+            $dateRange = 'من: ' . $filters['start_date'] . ' إلى: ' . $filters['end_date'];
+        }
+
+        // Status filter text
+        if (array_key_exists('status', $filters) && $filters['status'] !== null && $filters['status'] !== '') {
+            $statusEnum = NumericalStatusEnum::tryFrom((int)$filters['status']);
+            $statusText = 'الحالة: ' . ($statusEnum?->labelAr() ?? 'الكل');
+        } else {
+            $statusText = 'الحالة: الكل';
+        }
+
+        // Transfer type filter text
+        $transferType = $filters['transfer_type'] ?? 'all';
+        $transferTypeText = match ($transferType) {
+            'internal' => 'نوع التحويل: نقل داخلي',
+            'branch' => 'نوع التحويل: نقل بين الفروع',
+            'intercompany' => 'نوع التحويل: نقل بين الشركات',
+            default => 'نوع التحويل: الكل',
+        };
+
+        $this->generateTransfersPdf($data, $title, $companyId, $dateRange, $statusText, $transferTypeText, $transferType);
     }
 
     // ==========================================
@@ -746,38 +838,82 @@ class ReportService
     /**
      * تقرير تجديد الإقامة - Placeholder
      */
-    public function generateResidenceRenewalReport(User $user, int $companyId, array $filters = []): array
+    // Completed
+    public function generateResidenceRenewalReport(User $user, int $companyId, array $filters = []): void
     {
-        return [
-            'success' => false,
-            'message' => 'هذا التقرير قيد التطوير',
-            'report_name' => 'تقرير تجديد الإقامة',
-        ];
+        // Hierarchy Check - Only for staff users
+        if ($user->user_type === 'staff') {
+            $rawEmployees = $this->permissionService->getEmployeesByHierarchy($user->user_id, $companyId);
+            $allowedIds = collect($rawEmployees)->pluck('user_id')->toArray();
+
+            if (empty($allowedIds)) {
+                throw new \InvalidArgumentException('ليس لديك صلاحية لعرض بيانات أي موظف');
+            }
+            $filters['employee_ids'] = $allowedIds;
+        }
+
+        $data = $this->reportRepository->getResidenceRenewalReport($companyId, $filters);
+
+        if ($data->isEmpty()) {
+            throw new \InvalidArgumentException('لا توجد بيانات تجديد إقامة');
+        }
+
+        $this->generateResidenceRenewalPdf($data, 'تقرير تجديد الإقامة', $companyId, $filters);
     }
 
     /**
-     * تقرير العقود قريبة الانتهاء - Placeholder
+     * تقرير العقود قريبة الانتهاء
      */
-    public function generateExpiringContractsReport(User $user, int $companyId, array $filters = []): array
+    public function generateExpiringContractsReport(User $user, int $companyId, array $filters = []): void
     {
-        return [
-            'success' => false,
-            'message' => 'هذا التقرير قيد التطوير',
-            'report_name' => 'تقرير العقود قريبة الانتهاء',
-        ];
+        // Hierarchy Check
+        if ($user->user_type === 'staff') {
+            $rawEmployees = $this->permissionService->getEmployeesByHierarchy($user->user_id, $companyId);
+            $allowedIds = collect($rawEmployees)->pluck('user_id')->toArray();
+
+            if (empty($allowedIds)) {
+                throw new \InvalidArgumentException('ليس لديك صلاحية لعرض بيانات أي موظف');
+            }
+            $filters['employee_ids'] = $allowedIds;
+        }
+
+        $data = $this->reportRepository->getExpiringContractsReport($companyId, $filters);
+
+        if ($data->isEmpty()) {
+            throw new \InvalidArgumentException('لا توجد عقود منتهية أو قريبة الانتهاء في الفترة المحددة');
+        }
+
+        $this->generateExpiringContractsPdf($data, 'تقرير انتهاء العقود', $companyId, $filters);
     }
+
 
     /**
      * تقرير الهويات/الإقامات قريبة الانتهاء - Placeholder
      */
-    public function generateExpiringDocumentsReport(User $user, int $companyId, array $filters = []): array
+    public function generateExpiringDocumentsReport(User $user, int $companyId, array $filters = []): void
     {
-        return [
-            'success' => false,
-            'message' => 'هذا التقرير قيد التطوير',
-            'report_name' => 'تقرير الوثائق قريبة الانتهاء',
-        ];
+        // Hierarchy Check
+        if ($user->user_type === 'staff') {
+            $rawEmployees = $this->permissionService->getEmployeesByHierarchy($user->user_id, $companyId);
+            $allowedIds = collect($rawEmployees)->pluck('user_id')->toArray();
+
+            if (empty($allowedIds)) {
+                throw new \InvalidArgumentException('ليس لديك صلاحية لعرض بيانات أي موظف');
+            }
+            $filters['employee_ids'] = $allowedIds;
+        }
+
+        $data = $this->reportRepository->getExpiringDocumentsReport($companyId, $filters);
+
+        if ($data->isEmpty()) {
+            throw new \InvalidArgumentException('لا توجد وثائق منتهية أو قريبة الانتهاء في الفترة المحددة');
+        }
+
+        $this->generateExpiringDocumentsPdf($data, 'الهويات / الاقامات قريبة الانتهاء', $companyId, $filters);
     }
+
+
+
 
     // ==========================================
     // تقارير الموظفين (Employee Reports)
@@ -788,11 +924,26 @@ class ReportService
      */
     public function generateEmployeesByBranchReport(User $user, int $companyId, array $filters = []): void
     {
+        // Hierarchy Check
+        if ($user->user_type === 'staff') {
+            $rawEmployees = $this->permissionService->getEmployeesByHierarchy($user->user_id, $companyId);
+            $allowedIds = collect($rawEmployees)->pluck('user_id')->toArray();
+
+            if (empty($allowedIds)) {
+                throw new \InvalidArgumentException('ليس لديك صلاحية لعرض بيانات أي موظف');
+            }
+            $filters['employee_ids'] = $allowedIds;
+        }
+
         $data = $this->reportRepository->getEmployeesByBranchReport($companyId, $filters);
+
+        if ($data->isEmpty()) {
+            throw new \InvalidArgumentException('لا توجد بيانات لهذا التقرير');
+        }
 
         $title = 'تقرير الموظفين حسب الفرع';
 
-        $this->generateEmployeesByBranchPdf($data, $title, $companyId);
+        $this->generateEmployeesByBranchPdf($data, $title, $companyId, $filters);
     }
 
     /**
@@ -800,24 +951,77 @@ class ReportService
      */
     public function generateEmployeesByCountryReport(User $user, int $companyId, array $filters = []): void
     {
+        // Hierarchy Check
+        if ($user->user_type === 'staff') {
+            $rawEmployees = $this->permissionService->getEmployeesByHierarchy($user->user_id, $companyId);
+            $allowedIds = collect($rawEmployees)->pluck('user_id')->toArray();
+
+            if (empty($allowedIds)) {
+                throw new \InvalidArgumentException('ليس لديك صلاحية لعرض بيانات أي موظف');
+            }
+            $filters['employee_ids'] = $allowedIds;
+        }
+
         $data = $this->reportRepository->getEmployeesByCountryReport($companyId, $filters);
 
-        $title = 'تقرير الموظفين حسب الدولة';
+        if ($data->isEmpty()) {
+            throw new \InvalidArgumentException('لا توجد بيانات لهذا التقرير');
+        }
 
-        $this->generateEmployeesByCountryPdf($data, $title, $companyId);
+        $title = 'تقرير الموظفين حسب الدولة';
+        $this->generateEmployeesByCountryPdf($data, $title, $companyId, $filters);
     }
+
 
     /**
-     * تقرير حسابات نهاية الخدمة - Placeholder
+     * تقرير نهاية الخدمة (End of Service Report)
      */
-    public function generateEndOfServiceReport(User $user, int $companyId, array $filters = []): array
+    public function endOfService(User $user, int $companyId, array $filters): void
     {
-        return [
-            'success' => false,
-            'message' => 'هذا التقرير قيد التطوير',
-            'report_name' => 'تقرير حسابات نهاية الخدمة',
-        ];
+        // Hierarchy Check
+        $rawEmployees = $this->permissionService->getEmployeesByHierarchy($user->user_id, $companyId);
+        $allowedIds = collect($rawEmployees)->pluck('user_id')->toArray();
+
+        // 1. One Employee Selected
+        if (!empty($filters['employee_id'])) {
+            // Manual Existence Check
+            $employeeExists = \App\Models\User::where('user_id', $filters['employee_id'])->exists();
+            if (!$employeeExists) {
+                throw new \InvalidArgumentException('الموظف غير موجود');
+            }
+
+            if (!in_array($filters['employee_id'], $allowedIds)) {
+                throw new \InvalidArgumentException('ليس لديك صلاحية لعرض بيانات هذا الموظف');
+            }
+        }
+        // 2. "All" Selected - use employee_ids from request or allowedIds
+        else {
+            if (empty($allowedIds)) {
+                throw new \InvalidArgumentException('ليس لديك صلاحية لعرض بيانات أي موظف');
+            }
+            // If employee_ids provided, intersect with allowed
+            if (!empty($filters['employee_ids'])) {
+                $filters['employee_ids'] = array_intersect($filters['employee_ids'], $allowedIds);
+            } else {
+                $filters['employee_ids'] = $allowedIds;
+            }
+        }
+
+        // Ensure company isolation
+        $filters['company_id'] = $companyId;
+
+        $data = $this->reportRepository->getEndOfServiceReport($filters);
+
+        if ($data->isEmpty()) {
+            throw new \InvalidArgumentException('لا توجد بيانات نهاية خدمة');
+        }
+
+        $title = 'تقرير مكافآت نهاية الخدمة';
+
+        $this->generateEndOfServicePdf($data, $title, $companyId, $filters);
     }
+
+
 
     // ==========================================
     // PDF Generation Methods
@@ -1359,6 +1563,81 @@ class ReportService
             ->download('attendance_range_' . date('Y-m-d') . '.pdf');
     }
 
+
+    /**
+     * توليد PDF لإنهاء الخدمة
+     */
+    // Completed
+    private function generateTerminationsPdf(Collection $data, string $title, int $companyId, string $dateRange = '', string $statusText = ''): void
+    {
+        $headers = [
+            'الموظف',
+            'السبب',
+            'تاريخ الإشعار',
+            'تاريخ إنهاء الخدمة',
+            'الحالة',
+        ];
+
+        $rows = [];
+
+        foreach ($data as $record) {
+            $statusEnum = NumericalStatusEnum::tryFrom((int)$record->status);
+            $recordStatusText = $statusEnum?->labelAr() ?? '-';
+
+            $rows[] = [
+                $record->employee?->full_name ?? '-',
+                mb_substr($record->reason ?? '-', 0, 50),
+                $record->notice_date ?? '-',
+                $record->termination_date ?? '-',
+                $recordStatusText,
+            ];
+        }
+
+        // Initialize PDF
+        $this->pdfGenerator->initialize($companyId, $title, 'L');
+
+        $infoHtml = '<div style="text-align: right; font-weight: semi-bold; font-family: dejavusans; font-size: 10px; margin-bottom: 5px;">';
+        if ($dateRange) {
+            $infoHtml .= '<span>' . $dateRange . '</span>';
+            if ($statusText) {
+                $infoHtml .= ' | ';
+            }
+        }
+        if ($statusText) {
+            $infoHtml .= '<span>' . $statusText . '</span>';
+        }
+        $infoHtml .= '</div>';
+
+        // Custom Table Construction to match styling
+        $tableHtml = '<table border="1" cellpadding="3" cellspacing="0" style="width: 100%; font-size: 8px; font-family: dejavusans; direction: rtl; border-collapse: collapse; text-align: center;">';
+
+        // Headers
+        $tableHtml .= '<thead><tr style="background-color: #f0f0f0;">';
+        foreach ($headers as $header) {
+            $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $header . '</td>';
+        }
+        $tableHtml .= '</tr></thead><tbody>';
+
+        // Data
+        foreach ($rows as $row) {
+            $tableHtml .= '<tr>';
+            foreach ($row as $cell) {
+                $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $cell . '</td>';
+            }
+            $tableHtml .= '</tr>';
+        }
+
+        $tableHtml .= '</tbody></table>';
+
+        $this->pdfGenerator
+            ->addPage($title)
+            ->writeHtml($infoHtml)
+            ->writeHtml($tableHtml)
+            ->download('termination_report_' . date('Y-m-d') . '.pdf');
+    }
+
+
+
     /**
      * توليد PDF لسجل الدوام
      */
@@ -1663,7 +1942,8 @@ class ReportService
     /**
      * توليد PDF للاستقالات
      */
-    private function generateResignationsPdf(Collection $data, string $title, int $companyId, string $dateRange = ''): void
+    // Completed
+    private function generateResignationsPdf(Collection $data, string $title, int $companyId, string $dateRange = '', string $statusText = ''): void
     {
         $headers = [
             'الموظف',
@@ -1674,42 +1954,34 @@ class ReportService
         ];
 
         $rows = [];
-        $pendingCount = 0;
-        $approvedCount = 0;
-        $rejectedCount = 0;
 
         foreach ($data as $record) {
-            $statusText = '';
-            // 0: Pending, 1: Accepted, 2: Rejected
-            if ($record->status == 0) {
-                $statusText = 'قيد الانتظار';
-                $pendingCount++;
-            } elseif ($record->status == 1) {
-                $statusText = 'تم الموافقة';
-                $approvedCount++;
-            } else {
-                $statusText = 'مرفوض';
-                $rejectedCount++;
-            }
+            $statusEnum = NumericalStatusEnum::tryFrom((int)$record->status);
+            $recordStatusText = $statusEnum?->labelAr() ?? '-';
 
             $rows[] = [
                 $record->employee?->full_name ?? '-',
                 mb_substr($record->reason ?? '-', 0, 50),
                 $record->notice_date ?? '-',
                 $record->resignation_date ?? '-',
-                $statusText,
+                $recordStatusText,
             ];
         }
 
         // Initialize PDF
         $this->pdfGenerator->initialize($companyId, $title, 'L');
 
-        $infoHtml = '';
+        $infoHtml = '<div style="text-align: right; font-weight: semi-bold; font-family: dejavusans; font-size: 10px; margin-bottom: 5px;">';
         if ($dateRange) {
-            $infoHtml = '<div style="text-align: right; font-weight: small; font-family: dejavusans; font-size: 10px; margin-bottom: 5px;">';
-            $infoHtml .= '<strong>' . $dateRange . '</strong><br/>';
-            $infoHtml .= '</div>';
+            $infoHtml .= '<span>' . $dateRange . '</span>';
+            if ($statusText) {
+                $infoHtml .= ' | ';
+            }
         }
+        if ($statusText) {
+            $infoHtml .= '<span>' . $statusText . '</span>';
+        }
+        $infoHtml .= '</div>';
 
         // Custom Table Construction to match styling
         $tableHtml = '<table border="1" cellpadding="3" cellspacing="0" style="width: 100%; font-size: 8px; font-family: dejavusans; direction: rtl; border-collapse: collapse; text-align: center;">';
@@ -1725,7 +1997,7 @@ class ReportService
         foreach ($rows as $row) {
             $tableHtml .= '<tr>';
             foreach ($row as $cell) {
-                $tableHtml .= '<td style="border: 1px solid #dee2e6; padding: 5px;">' . $cell . '</td>';
+                $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $cell . '</td>';
             }
             $tableHtml .= '</tr>';
         }
@@ -1742,90 +2014,433 @@ class ReportService
     /**
      * توليد PDF للتحويلات
      */
-    private function generateTransfersPdf(Collection $data, string $title, int $companyId): void
+    // Completed
+    private function generateTransfersPdf(Collection $data, string $title, int $companyId, string $dateRange = '', string $statusText = '', string $transferTypeText = '', string $transferType = 'all'): void
     {
-        $headers = ['#', 'الموظف', 'تاريخ التحويل', 'نوع التحويل', 'الحالة'];
-
-        $rows = [];
-        $index = 1;
-        foreach ($data as $record) {
-            $rows[] = [
-                $index++,
-                $record->employee?->full_name ?? '-',
-                $record->transfer_date ?? '-',
-                $record->transfer_type ?? '-',
-                $this->translateStatus($record->status),
+        // Dynamic headers based on transfer type
+        if ($transferType === 'branch') {
+            $headers = [
+                'الموظف',
+                'نوع التحويل',
+                'تاريخ التحويل',
+                'الفرع القديم',
+                'الفرع الجديد',
+                'الحالة',
+            ];
+        } elseif ($transferType === 'intercompany') {
+            $headers = [
+                'الموظف',
+                'الشركة القديمة',
+                'الشركة الجديدة',
+                'تاريخ التحويل',
+                'نوع التحويل',
+                'الحالة',
+            ];
+        } else {
+            // Internal or All - show departments and designations
+            $headers = [
+                'الموظف',
+                'القسم الجديد',
+                'القسم القديم',
+                'المسمى الوظيفي القديم',
+                'المسمى الوظيفي الجديد',
+                'تاريخ التحويل',
+                'نوع التحويل',
+                'الحالة',
             ];
         }
 
-        $tableHtml = $this->pdfGenerator->createTable($headers, $rows);
+        $rows = [];
+        foreach ($data as $record) {
+            $statusEnum = NumericalStatusEnum::tryFrom((int)$record->status);
+            $recordStatusText = $statusEnum?->labelAr() ?? '-';
+
+            $transferTypeLabel = match ($record->transfer_type) {
+                'internal' => 'داخلي',
+                'branch' => 'بين الفروع',
+                'intercompany' => 'بين الشركات',
+                default => '-',
+            };
+
+            if ($transferType === 'branch') {
+                $rows[] = [
+                    $record->employee?->full_name ?? '-',
+                    $record->oldBranch?->branch_name ?? '-',
+                    $record->newBranch?->branch_name ?? '-',
+                    $record->transfer_date ?? '-',
+                    $transferTypeLabel,
+                    $recordStatusText,
+                ];
+            } elseif ($transferType === 'intercompany') {
+                $rows[] = [
+                    $record->employee?->full_name ?? '-',
+                    $record->oldCompany?->company_name ?? '-',
+                    $record->newCompany?->company_name ?? '-',
+                    $record->transfer_date ?? '-',
+                    $transferTypeLabel,
+                    $recordStatusText,
+                ];
+            } else {
+                // Internal or All
+                $rows[] = [
+                    $record->employee?->full_name ?? '-',
+                    $record->oldDepartment?->department_name ?? '-',
+                    $record->newDepartment?->department_name ?? '-',
+                    $record->oldDesignation?->designation_name ?? '-',
+                    $record->newDesignation?->designation_name ?? '-',
+                    $record->transfer_date ?? '-',
+                    $transferTypeLabel,
+                    $recordStatusText,
+                ];
+            }
+        }
+
+        // Initialize PDF
+        $this->pdfGenerator->initialize($companyId, $title, 'L');
+
+        // Build info HTML
+        $infoHtml = '<div style="text-align: right; font-family: dejavusans; font-size: 10px; margin-bottom: 5px;">';
+        $infoParts = [];
+        if ($dateRange) $infoParts[] = $dateRange;
+        if ($statusText) $infoParts[] = $statusText;
+        $infoHtml .= '<span>' . implode(' | ', $infoParts) . '</span>';
+        $infoHtml .= '</div>';
+
+        // Build table HTML
+        $tableHtml = '<table border="1" cellpadding="3" cellspacing="0" style="width: 100%; font-size: 8px; font-family: dejavusans; direction: rtl; border-collapse: collapse; text-align: center;">';
+        $tableHtml .= '<thead><tr style="background-color: #f0f0f0;">';
+        foreach ($headers as $header) {
+            $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $header . '</td>';
+        }
+        $tableHtml .= '</tr></thead><tbody>';
+
+        foreach ($rows as $row) {
+            $tableHtml .= '<tr>';
+            foreach ($row as $cell) {
+                $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $cell . '</td>';
+            }
+            $tableHtml .= '</tr>';
+        }
+        $tableHtml .= '</tbody></table>';
 
         $this->pdfGenerator
-            ->initialize($companyId, $title, 'L')
             ->addPage($title)
+            ->writeHtml($infoHtml)
             ->writeHtml($tableHtml)
             ->download('transfers_report_' . date('Y-m-d') . '.pdf');
     }
 
     /**
-     * توليد PDF للموظفين حسب الفرع
+     * Generate Residence Renewal PDF
      */
-    private function generateEmployeesByBranchPdf(Collection $data, string $title, int $companyId): void
+    // Completed
+    private function generateResidenceRenewalPdf(Collection $data, string $title, int $companyId, array $filters = []): void
     {
-        $headers = ['#', 'الموظف', 'الرقم الوظيفي', 'الفرع', 'القسم', 'المسمى الوظيفي', 'الحالة'];
+        $headers = [
+            'الموظف',
+            'المهنة',
+            'تاريخ مباشرة العمل',
+            'تاريخ انتهاء الإقامة الحالى',
+            'قيمة رخصة العمل',
+            'رسوم تجديد جوازات الإقامة',
+            'قيمة المخالفه',
+            'اجمالى المبلغ',
+            'حصة الموظف',
+            'حصة الشركة',
+            'الإجمالي العام',
+            'وقت انشاء الطلب',
+        ];
+
+        // Calculate totals
+        $totalWorkPermitFee = 0;
+        $totalResidenceRenewalFees = 0;
+        $totalPenaltyAmount = 0;
+        $totalAmount = 0;
+        $totalEmployeeShare = 0;
+        $totalCompanyShare = 0;
+        $totalGrandTotal = 0;
 
         $rows = [];
-        $index = 1;
         foreach ($data as $record) {
+            $totalWorkPermitFee += (float)$record->work_permit_fee;
+            $totalResidenceRenewalFees += (float)$record->residence_renewal_fees;
+            $totalPenaltyAmount += (float)$record->penalty_amount;
+            $totalAmount += (float)$record->total_amount;
+            $totalEmployeeShare += (float)$record->employee_share;
+            $totalCompanyShare += (float)$record->company_share;
+            $totalGrandTotal += (float)$record->grand_total;
+
             $rows[] = [
-                $index++,
-                $record->full_name ?? '-',
-                $record->user_details?->employee_id ?? '-',
-                $record->branch?->office_name ?? '-',
-                $record->department?->department_name ?? '-',
-                $record->designation?->designation_name ?? '-',
-                $record->is_active ? 'نشط' : 'غير نشط',
+                $record->employee?->full_name ?? '-',
+                $record->profession ?? '-',
+                $record->work_start_date?->format('Y-m-d') ?? '-',
+                $record->current_residence_expiry_date?->format('Y-m-d') ?? '-',
+                number_format((float)$record->work_permit_fee, 2),
+                number_format((float)$record->residence_renewal_fees, 2),
+                number_format((float)$record->penalty_amount, 2),
+                number_format((float)$record->total_amount, 2),
+                number_format((float)$record->employee_share, 2),
+                number_format((float)$record->company_share, 2),
+                number_format((float)$record->grand_total, 2),
+                $record->created_at?->format('Y-m-d') ?? '-',
             ];
         }
 
-        $tableHtml = $this->pdfGenerator->createTable($headers, $rows);
+        // Initialize PDF
+        $this->pdfGenerator->initialize($companyId, $title, 'L');
+
+        // Build info HTML
+        $infoHtml = '<div style="text-align: right; font-family: dejavusans; font-size: 10px; margin-bottom: 5px;">';
+        $infoHtml .= '<span>تاريخ التقرير: ' . date('Y-m-d H:i:s') . '</span>';
+        if (!empty($filters['employee_id'])) {
+            $employeeName = $data->first()?->employee?->full_name ?? '-';
+            $infoHtml .= ' | <span>الموظف: ' . $employeeName . '</span>';
+        } else {
+            $infoHtml .= ' | <span>الموظف: جميع الموظفين</span>';
+        }
+        $infoHtml .= '</div>';
+
+        // Build table HTML
+        $tableHtml = '<table border="1" cellpadding="3" cellspacing="0" style="width: 100%; font-size: 7px; font-family: dejavusans; direction: rtl; border-collapse: collapse; text-align: center;">';
+        $tableHtml .= '<thead><tr style="background-color: #f0f0f0;">';
+        foreach ($headers as $header) {
+            $tableHtml .= '<th style="border: 1px solid #000; padding: 5px;">' . $header . '</th>';
+        }
+        $tableHtml .= '</tr></thead><tbody>';
+
+        foreach ($rows as $row) {
+            $tableHtml .= '<tr>';
+            foreach ($row as $cell) {
+                $tableHtml .= '<td style="border: 1px solid #000; padding: 4px;">' . $cell . '</td>';
+            }
+            $tableHtml .= '</tr>';
+        }
+
+        // Add totals row
+        $recordCount = count($data);
+        $tableHtml .= '<tr style="background-color: #e3f2fd; font-weight: bold;">';
+        $tableHtml .= '<td colspan="4" style="border: 1px solid #000; padding: 5px; text-align: right;">الإجمالي : ' . $recordCount . ' سجلات</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . number_format($totalWorkPermitFee, 2) . '</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . number_format($totalResidenceRenewalFees, 2) . '</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . number_format($totalPenaltyAmount, 2) . '</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . number_format($totalAmount, 2) . '</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . number_format($totalEmployeeShare, 2) . '</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . number_format($totalCompanyShare, 2) . '</td>';
+        $tableHtml .= '<td  style="border: 1px solid #000; padding: 5px;">' . number_format($totalGrandTotal, 2) . '</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;"></td>';
+        $tableHtml .= '</tr>';
+
+        $tableHtml .= '</tbody></table>';
 
         $this->pdfGenerator
-            ->initialize($companyId, $title, 'L')
             ->addPage($title)
+            ->writeHtml($infoHtml)
             ->writeHtml($tableHtml)
-            ->download('employees_by_branch_' . date('Y-m-d') . '.pdf');
+            ->download('residence_renewal_report_' . date('Y-m-d') . '.pdf');
+    }
+
+
+
+    /**
+     * توليد PDF للموظفين حسب الفرع
+     */
+    private function generateEmployeesByBranchPdf(Collection $data, string $title, int $companyId, array $filters = []): void
+    {
+        // 1. Initialize PDF
+        $this->pdfGenerator->initialize($companyId, $title, 'L');
+
+        // 2. Info Header
+        // Display Filters: Branch, Status, Total Count
+        $branchId = $filters['branch_id'] ?? 'all';
+        $status = $filters['status'] ?? 'all';
+
+        $branchName = 'كل الفروع';
+        if ($branchId !== 'all' && $data->isNotEmpty()) {
+            $branchName = $data->first()->branch_name ?? 'غير محدد';
+        }
+
+        $this->pdfGenerator->addPage($title);
+
+        $statusTextMap = [
+            'active' => 'نشط',
+            'inactive' => 'غير نشط',
+            'left' => 'متوقف / مغادر',
+            'all' => 'الكل'
+        ];
+        $statusText = $statusTextMap[$status] ?? $status;
+
+        $infoHtml = '
+        <table border="0" cellpadding="4" cellspacing="0" style="width: 100%; margin-bottom: 10px; font-family: dejavusans; font-size: 10px; direction: rtl;">
+            <tr>
+                <td style="width: 15%;"><strong>الفرع:</strong></td>
+                <td style="width: 35%;">' . $branchName . '</td>
+                <td style="width: 15%;"><strong>الحالة:</strong></td>
+                <td style="width: 35%;">' . $statusText . '</td>
+            </tr>
+            <tr>
+                <td><strong>تاريخ التقرير:</strong></td>
+                <td>' . date('Y-m-d') . '</td>
+                <td><strong>إجمالي الموظفين:</strong></td>
+                <td>' . $data->count() . '</td>
+            </tr>
+        </table>';
+
+        $this->pdfGenerator->writeHtml($infoHtml);
+
+        // 3. Group by Branch
+        $grouped = $data->groupBy('branch_name');
+
+        // 4. Generate Tables per Branch
+        foreach ($grouped as $branchName => $employees) {
+            $groupTitle = ($branchName ?: 'غير محدد') . ' (' . $employees->count() . ' موظف)';
+
+            $sectionHeader = '<h3 style="font-family: dejavusans; margin-top: 10px;">' . $groupTitle . '</h3>';
+            $this->pdfGenerator->writeHtml($sectionHeader);
+
+            $headers = [
+                'الرقم الوظيفي',
+                'الرقم الهوية',
+                'الموظف',
+                'البريد الإلكتروني',
+                'نوع الوظيفه',
+                'رقم الاتصال',
+                'اسم الفرع',
+                'الدوله',
+            ];
+
+            $tableHtml = '<table border="1" cellpadding="3" cellspacing="0" style="width: 100%; font-size: 8px; font-family: dejavusans; direction: rtl; border-collapse: collapse; text-align: center;">';
+
+            // Header
+            $tableHtml .= '<thead><tr style="background-color: #f0f0f0;">';
+            foreach ($headers as $header) {
+                $tableHtml .= '<th style="border: 1px solid #000; padding: 5px;">' . $header . '</th>';
+            }
+            $tableHtml .= '</tr></thead><tbody>';
+
+            $i = 1;
+            foreach ($employees as $emp) {
+                // Status Logic
+                $empStatus = ($emp->is_active == 1) ? 'نشط' : 'غير نشط';
+                if (!empty($emp->date_of_leaving)) {
+                    $empStatus = 'مغادر في ' . $emp->date_of_leaving;
+                }
+
+                $row = [
+                    $emp->employee_id,
+                    $emp->employee_idnum,
+                    ($emp->first_name ?? '') . ' ' . ($emp->last_name ?? ''),
+                    $emp->email,
+                    $this->translateJobType($emp->job_type ?? ''),
+                    $emp->contact_number ?? '--', // Changed from contact_phone_no to contact_number (User table)
+                    $emp->branch_name,
+                    $emp->country_name,
+                ];
+
+                $tableHtml .= '<tr>';
+                foreach ($row as $cell) {
+                    $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $cell . '</td>';
+                }
+                $tableHtml .= '</tr>';
+            }
+            $tableHtml .= '</tbody></table>';
+
+            $this->pdfGenerator->writeHtml($tableHtml);
+        }
+
+        // 5. Download
+        $this->pdfGenerator->download('employees_by_branch_' . date('Y-m-d') . '.pdf');
     }
 
     /**
      * توليد PDF للموظفين حسب الدولة
      */
-    private function generateEmployeesByCountryPdf(Collection $data, string $title, int $companyId): void
+    private function generateEmployeesByCountryPdf(Collection $data, string $title, int $companyId, array $filters = []): void
     {
-        $headers = ['#', 'الموظف', 'الرقم الوظيفي', 'الجنسية', 'الفرع', 'القسم', 'الحالة'];
+        // 1. Initialize PDF
+        $this->pdfGenerator->initialize($companyId, $title, 'L');
 
-        $rows = [];
-        $index = 1;
-        foreach ($data as $record) {
-            $rows[] = [
-                $index++,
-                $record->full_name ?? '-',
-                $record->user_details?->employee_id ?? '-',
-                $record->nationality ?? '-',
-                $record->branch?->office_name ?? '-',
-                $record->department?->department_name ?? '-',
-                $record->is_active ? 'نشط' : 'غير نشط',
-            ];
+        // Add Page explicitly to match fix in branch report
+        $this->pdfGenerator->addPage($title);
+
+        // 2. Info Header
+        $countryId = $filters['country_id'] ?? 'all';
+        $status = $filters['status'] ?? 'all';
+
+        $countryName = 'كل الدول';
+        if ($countryId !== 'all' && $data->isNotEmpty()) {
+            // Try to get country name from first record, fallback to raw country column if name is null
+            $record = $data->first();
+            $countryName = $record->country_name ?? $record->country ?? 'غير محدد';
         }
 
-        $tableHtml = $this->pdfGenerator->createTable($headers, $rows);
+        $statusTextMap = [
+            'active' => 'نشط',
+            'inactive' => 'غير نشط',
+            'left' => 'متوقف / مغادر',
+            'all' => 'الكل'
+        ];
+        $statusText = $statusTextMap[$status] ?? $status;
 
-        $this->pdfGenerator
-            ->initialize($companyId, $title, 'L')
-            ->addPage($title)
-            ->writeHtml($tableHtml)
-            ->download('employees_by_country_' . date('Y-m-d') . '.pdf');
+        $infoHtml = '
+        <table border="0" cellpadding="4" cellspacing="0" style="width: 100%; margin-bottom: 10px; font-family: dejavusans; font-size: 10px; direction: rtl;">
+            <tr>
+                <td style="width: 15%;"><strong>الدولة:</strong></td>
+                <td style="width: 35%;">' . $countryName . '</td>
+                <td style="width: 15%;"><strong>الحالة:</strong></td>
+                <td style="width: 35%;">' . $statusText . '</td>
+            </tr>
+            <tr>
+                <td><strong>تاريخ التقرير:</strong></td>
+                <td>' . date('Y-m-d') . '</td>
+                <td><strong>إجمالي الموظفين:</strong></td>
+                <td>' . $data->count() . '</td>
+            </tr>
+        </table>';
+
+        $this->pdfGenerator->writeHtml($infoHtml);
+
+        $headers = [
+            'الرقم الوظيفي',
+            'الموظف',
+            'البريد الإلكتروني',
+            'رقم الاتصال',
+            'اسم الفرع',
+            'الدولة',
+        ];
+
+        $tableHtml = '<table border="1" cellpadding="3" cellspacing="0" style="width: 100%; font-size: 8px; font-family: dejavusans; direction: rtl; border-collapse: collapse; text-align: center;">';
+
+        // Header
+        $tableHtml .= '<thead><tr style="background-color: #f0f0f0;">';
+        foreach ($headers as $header) {
+            $tableHtml .= '<th style="border: 1px solid #000; padding: 5px;">' . $header . '</th>';
+        }
+        $tableHtml .= '</tr></thead><tbody>';
+
+        foreach ($data as $emp) {
+            $row = [
+                $emp->employee_id,
+                ($emp->first_name ?? '') . ' ' . ($emp->last_name ?? ''),
+                $emp->email,
+                $emp->contact_number ?? '--',
+                $emp->branch_name ?? '--',
+                $emp->country_name ?? $emp->country ?? '--', // Fallback to raw country column
+            ];
+
+            $tableHtml .= '<tr>';
+            foreach ($row as $cell) {
+                $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $cell . '</td>';
+            }
+            $tableHtml .= '</tr>';
+        }
+        $tableHtml .= '</tbody></table>';
+
+        $this->pdfGenerator->writeHtml($tableHtml);
+
+        // 3. Download
+        $this->pdfGenerator->download('employees_by_country_' . date('Y-m-d') . '.pdf');
     }
+
 
     // ==========================================
     // تقرير الرواتب الشهري PDF
@@ -1834,15 +2449,9 @@ class ReportService
     /**
      * توليد PDF للرواتب الشهرية
      */
-    private function generatePayrollPdf(
-        \Illuminate\Support\Collection $payrollData,
-        string $title,
-        int $companyId,
-        \Illuminate\Support\Collection $allowanceTypes,
-        \Illuminate\Support\Collection $statutoryTypes,
-        array $filters = [],
-        $user = null
-    ): void {
+    // Completed
+    private function generatePayrollPdf(Collection $payrollData, string $title, int $companyId, array $filters = []): void
+    {
         $paymentDate = $filters['payment_date'] ?? date('Y-m');
         $branchId = $filters['branch_id'] ?? null;
 
@@ -1984,7 +2593,7 @@ class ReportService
             $tableHtml .= '<tr>';
             foreach ($row as $cell) {
                 // Apply width to data cells too for consistency
-                $tableHtml .= '<td style="border: 1px solid #dee2e6; padding: 2px;">' . $cell . '</td>';
+                $tableHtml .= '<td style="border: 1px solid #000; padding: 2px;">' . $cell . '</td>';
             }
             $tableHtml .= '</tr>';
         }
@@ -1992,14 +2601,14 @@ class ReportService
         // Totals row (Color: #dce6f5 to match legacy RGB(220, 230, 245))
         // Explicitly define colspan for the first cell to span all info columns (8 columns)
         $tableHtml .= '<tr style="background-color: #dce6f5; font-weight: bold;">';
-        $tableHtml .= '<td colspan="8" style="border: 1px solid #dee2e6; padding: 3px; text-align: center;">الإجمالي</td>';
-        $tableHtml .= '<td style="border: 1px solid #dee2e6; padding: 3px;">' . ($totalBasicSalary != 0 ? number_format($totalBasicSalary, 2) : '') . '</td>';
-        $tableHtml .= '<td style="border: 1px solid #dee2e6; padding: 3px;">' . ($totalAllowances != 0 ? number_format($totalAllowances, 2) : '') . '</td>';
-        $tableHtml .= '<td style="border: 1px solid #dee2e6; padding: 3px;">' . ($totalLoan != 0 ? number_format($totalLoan, 2) : '') . '</td>';
-        $tableHtml .= '<td style="border: 1px solid #dee2e6; padding: 3px;">' . ($totalDeductions != 0 ? number_format($totalDeductions, 2) : '') . '</td>';
-        $tableHtml .= '<td style="border: 1px solid #dee2e6; padding: 3px;">' . ($totalNetSalary != 0 ? number_format($totalNetSalary, 2) : '') . '</td>';
-        $tableHtml .= '<td style="border: 1px solid #dee2e6; padding: 3px;"></td>'; // Status
-        $tableHtml .= '<td style="border: 1px solid #dee2e6; padding: 3px;"></td>'; // Payment Method
+        $tableHtml .= '<td colspan="8" style="border: 1px solid #000; padding: 3px; text-align: center;">الإجمالي</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 3px;">' . ($totalBasicSalary != 0 ? number_format($totalBasicSalary, 2) : '') . '</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 3px;">' . ($totalAllowances != 0 ? number_format($totalAllowances, 2) : '') . '</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 3px;">' . ($totalLoan != 0 ? number_format($totalLoan, 2) : '') . '</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 3px;">' . ($totalDeductions != 0 ? number_format($totalDeductions, 2) : '') . '</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 3px;">' . ($totalNetSalary != 0 ? number_format($totalNetSalary, 2) : '') . '</td>';
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 3px;"></td>'; // Status
+        $tableHtml .= '<td style="border: 1px solid #000; padding: 3px;"></td>'; // Payment Method
         $tableHtml .= '</tr>';
 
         $tableHtml .= '</table>';
@@ -2042,6 +2651,7 @@ class ReportService
     /**
      * توليد PDF للمكافآت (Awards)
      */
+    // Completed
     private function generateAwardsPdf(Collection $data, string $title, int $companyId, string $dateRange, User $user): void
     {
         $headers = [
@@ -2090,15 +2700,15 @@ class ReportService
         foreach ($rows as $row) {
             $tableHtml .= '<tr>';
             foreach ($row as $cell) {
-                $tableHtml .= '<td style="border: 1px solid #dee2e6; padding: 5px;">' . $cell . '</td>';
+                $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $cell . '</td>';
             }
             $tableHtml .= '</tr>';
         }
 
         // Totals Row
         $tableHtml .= '<tr style="background-color: #dce6f5; font-weight: bold;">';
-        $tableHtml .= '<td colspan="3" style="border: 1px solid #dee2e6; padding: 5px; text-align: right;">المكافآت: ' . count($data) . '</td>';
-        $tableHtml .= '<td colspan="2" style="border: 1px solid #dee2e6; padding: 5px;">الإجمالي: ' . number_format($totalCash, 2) . '</td>';
+        $tableHtml .= '<td colspan="3" style="border: 1px solid #000; padding: 5px; text-align: right;">المكافآت: ' . count($data) . '</td>';
+        $tableHtml .= '<td colspan="2" style="border: 1px solid #000; padding: 5px;">الإجمالي: ' . number_format($totalCash, 2) . '</td>';
         $tableHtml .= '</tr>';
 
         $tableHtml .= '</tbody></table>';
@@ -2107,10 +2717,7 @@ class ReportService
         $this->pdfGenerator->download('awards_report_' . date('Y-m-d') . '.pdf');
     }
 
-
-
-
-
+    // Completed
     private function generatePromotionsPdf(Collection $data, string $title, int $companyId, string $dateRange, User $user): void
     {
         // Headers (Right to Left visual order for RTL table)
@@ -2133,18 +2740,16 @@ class ReportService
         $rejectedCount = 0;
 
         foreach ($data as $record) {
-            $statusText = '';
-            // 0: Pending, 1: Accepted, 2: Rejected
-            if ($record->status == 0) {
-                $statusText = 'قيد الانتظار';
-                $pendingCount++;
-            } elseif ($record->status == 1) {
-                $statusText = 'تم الموافقة';
-                $approvedCount++;
-            } else {
-                $statusText = 'مرفوض';
-                $rejectedCount++;
-            }
+            $statusEnum = NumericalStatusEnum::tryFrom((int)$record->status);
+            $statusText = $statusEnum?->labelAr() ?? '-';
+
+            // Count by status
+            match ($statusEnum) {
+                NumericalStatusEnum::PENDING => $pendingCount++,
+                NumericalStatusEnum::APPROVED => $approvedCount++,
+                NumericalStatusEnum::REJECTED => $rejectedCount++,
+                default => null,
+            };
 
             $rows[] = [
                 $record->employee?->full_name ?? '-',
@@ -2183,17 +2788,17 @@ class ReportService
         foreach ($rows as $row) {
             $tableHtml .= '<tr>';
             foreach ($row as $cell) {
-                $tableHtml .= '<td style="border: 1px solid #dee2e6; padding: 5px;">' . $cell . '</td>';
+                $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $cell . '</td>';
             }
             $tableHtml .= '</tr>';
         }
 
         // Totals Row
         $tableHtml .= '<tr style="text-align: right; background-color: #dce6f5; font-weight: bold;">';
-        $tableHtml .= '<td colspan="4" style="border: 1px solid #dee2e6; padding: 5px;">الإجمالي: ' . count($data) . '</td>';
-        $tableHtml .= '<td colspan="2" style="border: 1px solid #dee2e6; padding: 5px;">قيد الانتظار: ' . $pendingCount . '</td>';
-        $tableHtml .= '<td colspan="2" style="border: 1px solid #dee2e6; padding: 5px;">تم الموافقة: ' . $approvedCount . '</td>';
-        $tableHtml .= '<td colspan="2" style="border: 1px solid #dee2e6; padding: 5px;">مرفوض: ' . $rejectedCount . '</td>';
+        $tableHtml .= '<td colspan="4" style="border: 1px solid #000; padding: 5px;">الإجمالي: ' . count($data) . '</td>';
+        $tableHtml .= '<td colspan="2" style="border: 1px solid #000; padding: 5px;">قيد الانتظار: ' . $pendingCount . '</td>';
+        $tableHtml .= '<td colspan="2" style="border: 1px solid #000; padding: 5px;">تم الموافقة: ' . $approvedCount . '</td>';
+        $tableHtml .= '<td colspan="2" style="border: 1px solid #000; padding: 5px;">مرفوض: ' . $rejectedCount . '</td>';
         $tableHtml .= '</tr>';
 
         $tableHtml .= '</tbody></table>';
@@ -2201,6 +2806,264 @@ class ReportService
         $this->pdfGenerator->writeHtml($tableHtml);
         $this->pdfGenerator->download('promotions_report_' . date('Y-m-d') . '.pdf');
     }
+
+    // Completed
+    private function generateExpiringContractsPdf(Collection $data, string $title, int $companyId, array $filters = []): void
+    {
+        $headers = [
+            'الرقم الوظيفي',
+            'الاسم',
+            'تاريخ انتهاء العقد',
+            'الأيام المتبقية',
+            'الحالة',
+        ];
+
+        $rows = [];
+        $currentDate = new \DateTime();
+
+        foreach ($data as $record) {
+            $dateOfLeaving = $record->user_details?->date_of_leaving;
+            $remainingDays = 0;
+            $status = 'غير معروف';
+            $formattedDate = '--';
+
+            if ($dateOfLeaving) {
+                $endDate = new \DateTime($dateOfLeaving);
+                $formattedDate = $endDate->format('Y-m-d');
+
+                // Calculate difference in days
+                $diff = $currentDate->diff($endDate);
+                $remainingDays = (int)$diff->format('%r%a'); // %r gives sign (+/-)
+
+                if ($remainingDays > 0) {
+                    $status = 'قارية على الانتهاء';
+                } else {
+                    $status = 'منتهي';
+                }
+            }
+
+            $rows[] = [
+                $record->user_details?->employee_id ?? '--',
+                $record->full_name,
+                $formattedDate,
+                $dateOfLeaving ? $remainingDays : '--',
+                $status,
+            ];
+        }
+
+        // Initialize PDF
+        $this->pdfGenerator->initialize($companyId, $title, 'L');
+
+        // Build info HTML
+        $endDateFilter = $filters['end_date'] ?? '';
+        $infoHtml = '<div style="text-align: right; font-family: dejavusans; font-size: 10px; margin-bottom: 5px;">';
+        $infoHtml .= '<span>' . $title . ' - ينتهي قبل ' . $endDateFilter . '</span>';
+        $infoHtml .= '</div>';
+
+        // Build table HTML
+        $tableHtml = '<table border="1" cellpadding="3" cellspacing="0" style="width: 100%; font-size: 8px; font-family: dejavusans; direction: rtl; border-collapse: collapse; text-align: center;">';
+        $tableHtml .= '<thead><tr style="background-color: #f0f0f0;">';
+        foreach ($headers as $header) {
+            $tableHtml .= '<th style="border: 1px solid #000; padding: 5px;">' . $header . '</th>';
+        }
+        $tableHtml .= '</tr></thead><tbody>';
+
+        foreach ($rows as $row) {
+            $tableHtml .= '<tr>';
+            foreach ($row as $cell) {
+                $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $cell . '</td>';
+            }
+            $tableHtml .= '</tr>';
+        }
+        $tableHtml .= '</tbody></table>';
+
+        $this->pdfGenerator
+            ->addPage($title)
+            ->writeHtml($infoHtml)
+            ->writeHtml($tableHtml)
+            ->download('ended_contracts_report_' . date('Y-m-d') . '.pdf');
+    }
+
+    // Completed
+    private function generateExpiringDocumentsPdf(Collection $data, string $title, int $companyId, array $filters = []): void
+    {
+        $headers = [
+            'الرقم الوظيفي',
+            'الاسم',
+            'تاريخ انتهاء الهوية/الإقامة',
+            'عدد الأيام المتبقية',
+            'الحالة',
+        ];
+
+        $currentDate = new \DateTime();
+        $currentDate->setTime(0, 0, 0);
+
+        foreach ($data as $record) {
+            $expiryDate = $record->user_details?->contract_date_eqama;
+            $remainingDays = 0;
+            $status = 'غير معروف';
+            $formattedDate = '--';
+
+            if ($expiryDate) {
+                $endDate = new \DateTime($expiryDate);
+                $formattedDate = $endDate->format('Y-m-d');
+
+                $diff = $currentDate->diff($endDate);
+                $remainingDays = (int)$diff->format('%r%a');
+
+                if ($remainingDays > 0) {
+                    $status = 'ستنتهي قريبا';
+                } else {
+                    $status = 'منتهية';
+                }
+            }
+
+            $rows[] = [
+                $record->user_details?->employee_id ?? '--',
+                $record->full_name,
+                $formattedDate,
+                $expiryDate ? $remainingDays : '--',
+                $status,
+            ];
+        }
+
+        // Initialize PDF
+        $this->pdfGenerator->initialize($companyId, $title, 'L');
+
+        // Build info HTML
+        $endDateFilter = $filters['end_date'] ?? '';
+        $infoHtml = '<div style="text-align: right; font-family: dejavusans; font-size: 10px; margin-bottom: 5px;">';
+        $infoHtml .= '<span>' . $title . ' - تنتهي قبل ' . $endDateFilter . '</span>';
+        $infoHtml .= '</div>';
+
+        // Build table HTML
+        $tableHtml = '<table border="1" cellpadding="3" cellspacing="0" style="width: 100%; font-size: 8px; font-family: dejavusans; direction: rtl; border-collapse: collapse; text-align: center;">';
+        $tableHtml .= '<thead><tr style="background-color: #f0f0f0;">';
+        foreach ($headers as $header) {
+            $tableHtml .= '<th style="border: 1px solid #000; padding: 5px;">' . $header . '</th>';
+        }
+        $tableHtml .= '</tr></thead><tbody>';
+
+        foreach ($rows as $row) {
+            $tableHtml .= '<tr>';
+            foreach ($row as $cell) {
+                $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $cell . '</td>';
+            }
+            $tableHtml .= '</tr>';
+        }
+        $tableHtml .= '</tbody></table>';
+
+        $this->pdfGenerator
+            ->addPage($title)
+            ->writeHtml($infoHtml)
+            ->writeHtml($tableHtml)
+            ->download('ended_ids_report_' . date('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * Generate End of Service PDF
+     */
+    private function generateEndOfServicePdf(Collection $data, string $title, int $companyId, array $filters): void
+    {
+        $headers = [
+            'اسم الموظف',
+            'الرقم الوظيفي',
+            'الحالة',
+            'تاريخ حساب المكافاه',
+            'تاريخ التعيين',
+            'تاريخ انتهاء الخدمة',
+            'نوع الانتهاء',
+            'فترة الخدمة',
+            'الراتب الأساسي',
+            ' البدلات',
+            'إجمالي الراتب',
+            'مبلغ المكافأة',
+            'أيام الإجازة غير المستخدمة',
+            'حساب الإجازات',
+            'حساب الإشعار',
+            'إجمالي الحساب',
+        ];
+
+        $total = 0;
+
+        foreach ($data as $item) {
+            $total += (float)$item->total_compensation;
+            $type = $item->termination_type == 'resignation' ? 'استقالة' : 'إنهاء خدمة';
+
+            // Build service period string
+            $servicePeriod = '';
+            if (!empty($item->service_years)) {
+                $servicePeriod .= $item->service_years . ' سنة';
+            }
+            if (!empty($item->service_months)) {
+                $servicePeriod .= ($servicePeriod ? ' و ' : '') . $item->service_months . ' شهر';
+            }
+            if (!empty($item->service_days)) {
+                $servicePeriod .= ($servicePeriod ? ' و ' : '') . $item->service_days . ' يوم';
+            }
+            if (empty($servicePeriod)) {
+                $servicePeriod = '-';
+            }
+
+            // Status text
+            $statusText = $item->is_approved ? 'معتمد' : 'قيد الانتظار';
+
+            $rows[] = [
+                ($item->employee->first_name ?? '') . ' ' . ($item->employee->last_name ?? ''),
+                $item->employee->user_details->employee_id ?? '-',
+                $statusText,
+                $item->calculated_at?->format('Y-m-d - h:i:s A') ?? '-',
+                $item->hire_date?->format('Y-m-d') ?? '-',
+                $item->termination_date?->format('Y-m-d') ?? '-',
+                $type,
+                $servicePeriod,
+                number_format((float)$item->basic_salary, 2),
+                number_format((float)$item->allowances, 2),
+                number_format((float)$item->total_salary, 2),
+                number_format((float)$item->gratuity_amount, 2),
+                $item->unused_leave_days ?? 0,
+                number_format((float)$item->leave_compensation, 2),
+                number_format((float)$item->notice_compensation, 2),
+                number_format((float)$item->total_compensation, 2),
+            ];
+        }
+
+        // Initialize PDF
+        $this->pdfGenerator->initialize($companyId, $title, 'L');
+
+        // Custom Table Construction to match styling
+        $tableHtml = '<table border="1" cellpadding="3" cellspacing="0" style="width: 100%; font-size: 8px; font-family: dejavusans; direction: rtl; border-collapse: collapse; text-align: center;">';
+
+        // Headers
+        $tableHtml .= '<thead><tr style="background-color: #f0f0f0;">';
+        foreach ($headers as $header) {
+            $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $header . '</td>';
+        }
+        $tableHtml .= '</tr></thead><tbody>';
+
+        // Data
+        $rowIndex = 0;
+        $totalRows = count($rows);
+        foreach ($rows as $row) {
+            $rowIndex++;
+            $isLastRow = ($rowIndex === $totalRows);
+            $rowStyle = $isLastRow ? 'background-color: #f0f0f0; font-weight: bold;' : '';
+
+            $tableHtml .= '<tr style="' . $rowStyle . '">';
+            foreach ($row as $cell) {
+                $tableHtml .= '<td style="border: 1px solid #000; padding: 5px;">' . $cell . '</td>';
+            }
+            $tableHtml .= '</tr>';
+        }
+
+        $tableHtml .= '</tbody></table>';
+
+        $this->pdfGenerator
+            ->addPage($title)
+            ->writeHtml($tableHtml)
+            ->download('end_of_service_report_' . date('Y-m-d') . '.pdf');
+    }
+
 
     // ==========================================
     // Helper Methods
@@ -2235,42 +3098,8 @@ class ReportService
         return ($dist <= 200) ? 'داخل الفرع' : 'خارج الفرع';
     }
 
-    /**
-     * ترجمة حالة الحضور
-     */
-    private function translateAttendanceStatus(?string $status): string
-    {
-        return match ($status) {
-            'Present' => 'حاضر',
-            'Absent' => 'غائب',
-            'Late' => 'متأخر',
-            'Half Day' => 'نصف يوم',
-            'On Leave' => 'إجازة',
-            default => $status ?? '-',
-        };
-    }
 
-    /**
-     * ترجمة الحالة العامة
-     */
-    /**
-     * ترجمة الحالة العامة
-     */
-    private function translateStatus(mixed $status): string
-    {
-        // Handle integer status from NumericalStatusEnum
-        // Assuming: 1=Pending, 2=Approved, 3=Rejected
-        $statusStr = (string) $status;
 
-        return match ($statusStr) {
-            'pending', '1' => 'قيد الانتظار',
-            'approved', '2' => 'موافق عليه',
-            'rejected', '3' => 'مرفوض',
-            'cancelled' => 'ملغي',
-            'completed' => 'مكتمل',
-            default => (string) $status ?? '-',
-        };
-    }
     private function calculateDistance(float $lat1, float $lon1, float $lat2, float $lon2): float
     {
         if (($lat1 == $lat2) && ($lon1 == $lon2)) {
@@ -2309,15 +3138,13 @@ class ReportService
         return sprintf('%02d:%02d', $hours, $minutes);
     }
 
-    /**
-     * رمز العملة
-     */
-    private function getCurrencySymbol(?int $currencyId): string
-    {
-        if (!$currencyId) return '-';
 
-        $currency = \App\Models\Currency::find($currencyId);
-        return $currency?->symbol ?? $currency?->code ?? '-';
+    /**
+     * ترجمة حالة الحضور
+     */
+    private function translateAttendanceStatus(?string $status): string
+    {
+        return AttendanceStatusEnum::tryTranslate($status);
     }
 
     /**
@@ -2325,15 +3152,7 @@ class ReportService
      */
     private function translateJobType(mixed $jobType): string
     {
-        $jobTypeStr = (string) $jobType;
-
-        return match ($jobTypeStr) {
-            'part_time', '0' => 'دوام جزئي',
-            'permanent', '1' => 'دائمة',
-            'contract', '2' => 'عقد',
-            'probation', '3' => 'تحت التجربة',
-            default => $jobTypeStr ?: '-',
-        };
+        return JobTypeEnum::tryTranslate($jobType);
     }
 
     /**
@@ -2341,11 +3160,7 @@ class ReportService
      */
     private function translatePaymentMethod(?string $method): string
     {
-        return match (strtoupper($method ?? '')) {
-            'CASH' => 'نقد',
-            'DEPOSIT', 'BANK' => 'إيداع',
-            default => $method ?? '-',
-        };
+        return PaymentMethodEnum::tryTranslate($method);
     }
 
     /**
@@ -2353,11 +3168,6 @@ class ReportService
      */
     private function getWagesTypeText(int $wagesType): string
     {
-        return match ($wagesType) {
-            1 => 'شهري',
-            2 => 'يومي',
-            3 => 'بالساعة',
-            default => '-',
-        };
+        return WagesTypeEnum::tryTranslate($wagesType);
     }
 }

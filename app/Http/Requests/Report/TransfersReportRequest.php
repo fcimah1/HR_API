@@ -1,14 +1,14 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Http\Requests\Report;
 
+use App\Enums\NumericalStatusEnum;
+use App\Enums\TransferTypeEnum;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class AwardsReportRequest extends FormRequest
+class TransfersReportRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -17,12 +17,23 @@ class AwardsReportRequest extends FormRequest
 
     public function rules(): array
     {
+        $statusValues = NumericalStatusEnum::valuesString();
+        $transferTypeValues = TransferTypeEnum::valuesString() . ',all';
         return [
             'start_date' => 'required|date_format:Y-m-d',
             'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
-            'employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
-            'employee_ids' => 'nullable|array', // For internal use (hierarchy)
-            'employee_ids.*' => 'integer',
+            'status' => 'nullable|integer|in:' . $statusValues,
+            'transfer_type' => 'nullable|string|in:' . $transferTypeValues,
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'start_date' => 'تاريخ البداية',
+            'end_date' => 'تاريخ النهاية',
+            'status' => 'الحالة',
+            'transfer_type' => 'نوع التحويل',
         ];
     }
 
@@ -30,15 +41,13 @@ class AwardsReportRequest extends FormRequest
     {
         return [
             'start_date.required' => 'تاريخ البداية مطلوب',
-            'start_date.date_format' => 'صيغة تاريخ البداية غير صحيحة (YYYY-MM-DD)',
             'end_date.required' => 'تاريخ النهاية مطلوب',
-            'end_date.date_format' => 'صيغة تاريخ النهاية غير صحيحة (YYYY-MM-DD)',
-            'end_date.after_or_equal' => 'تاريخ النهاية يجب أن يكون بعد أو يساوي تاريخ البداية',
-            'employee_id.exists' => 'الموظف غير موجود',
+            'status.in' => 'الحالة غير صالحة',
+            'transfer_type.in' => 'نوع التحويل غير صالح',
         ];
     }
-    
-   protected function failedValidation(Validator $validator)
+
+    protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(response()->json([
             'success' => false,

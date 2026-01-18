@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Report;
 
+use App\Enums\NumericalStatusEnum;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -23,11 +24,12 @@ class ResignationsReportRequest extends FormRequest
      */
     public function rules(): array
     {
+        $statusValues = NumericalStatusEnum::valuesString();
         return [
             'start_date' => 'required|date_format:Y-m-d',
             'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
             'employee_id' => 'nullable|integer', // Manual check in Service
-            'status' => 'nullable|integer|in:0,1,2', // 0: Pending, 1: Accepted, 2: Rejected
+            'status' => 'nullable|integer|in:' . $statusValues, // 0: Pending, 1: Accepted, 2: Rejected
             'employee_ids' => 'nullable|array', // For internal use
             'employee_ids.*' => 'integer',
         ];
@@ -58,7 +60,7 @@ class ResignationsReportRequest extends FormRequest
         ];
     }
 
-   protected function failedValidation(Validator $validator)
+    protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(response()->json([
             'success' => false,

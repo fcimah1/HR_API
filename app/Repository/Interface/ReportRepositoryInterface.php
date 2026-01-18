@@ -209,16 +209,8 @@ interface ReportRepositoryInterface
     /**
      * تقرير حسابات نهاية الخدمة - Placeholder
      * 
-     * @param int $companyId
-     * @param array $filters
      * @return Collection
      */
-    public function getEndOfServiceReport(int $companyId, array $filters = []): Collection;
-    /**
-     * الحصول على قائمة الموظفين للتقرير
-     * 
-     * @param AttendanceReportFilterDTO $filters
-     * @return Collection
-     */
-    // public function getEmployeesForReport(AttendanceReportFilterDTO $filters): Collection;
+    public function getEndOfServiceReport(array $filters = []): Collection;
+
 }
