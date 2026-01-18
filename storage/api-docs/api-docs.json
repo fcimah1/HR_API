@@ -10,12 +10,12 @@
     },
     "servers": [
         {
-            "url": "http://127.0.0.1:8000",
-            "description": "Local Development Server"
-        },
-        {
             "url": "https://api.firstsoft.io",
             "description": "Production Server"
+        },
+        {
+            "url": "http://127.0.0.1:8000",
+            "description": "Local Development Server"
         }
     ],
     "paths": {
@@ -2723,6 +2723,152 @@
                 }
             }
         },
+        "/api/branches": {
+            "get": {
+                "tags": [
+                    "Branches"
+                ],
+                "summary": "استرجاع فروع الشركة",
+                "description": "قائمة بالفروع الخاصة بالشركة مع إمكانية البحث",
+                "operationId": "76938a0089ac92cfb2e0fb40af32c73b",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "البحث بالاسم",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "description": "البحث برقم الفرع",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم استرجاع الفروع بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "branch_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "branch_name": {
+                                                        "type": "string",
+                                                        "example": "الفرع الرئيسي"
+                                                    },
+                                                    "description": {
+                                                        "type": "string",
+                                                        "example": "وصف الفرع"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "بيانات غير صحيحة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/branches/{id}": {
+            "get": {
+                "tags": [
+                    "Branches"
+                ],
+                "summary": "استرجاع تفاصيل الفرع",
+                "description": "تفاصيل فرع محدد تابع للشركة",
+                "operationId": "7407711705d88064eff34d513d5ccce8",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "رقم الفرع",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم استرجاع تفاصيل الفرع بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "branch_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "branch_name": {
+                                                    "type": "string",
+                                                    "example": "الفرع الرئيسي"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "وصف الفرع"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الفرع غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/complaints": {
             "get": {
                 "tags": [
@@ -3460,6 +3606,198 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/countries": {
+            "get": {
+                "tags": [
+                    "Countries"
+                ],
+                "summary": "Get all countries",
+                "description": "استرجاع قائمة بجميع الدول مع البحث الاختياري",
+                "operationId": "bbb90b9e86a9cab92aaa448fe98954c9",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "البحث بالاسم أو الرمز",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "country_id",
+                        "in": "query",
+                        "description": "البحث برقم الدولة",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "country_name",
+                        "in": "query",
+                        "description": "البحث باسم الدولة",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "country_code",
+                        "in": "query",
+                        "description": "البحث برمز الدولة",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم استرجاع الدول بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "country_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "country_name": {
+                                                        "type": "string",
+                                                        "example": "أفغانستان"
+                                                    },
+                                                    "country_code": {
+                                                        "type": "string",
+                                                        "example": "93"
+                                                    },
+                                                    "iso_code": {
+                                                        "type": "string",
+                                                        "example": "AF"
+                                                    },
+                                                    "phone_code": {
+                                                        "type": "string",
+                                                        "example": "93"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الدولة غير موجودة"
+                    },
+                    "422": {
+                        "description": "بيانات غير صحيحة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/countries/{id}": {
+            "get": {
+                "tags": [
+                    "Countries"
+                ],
+                "summary": "استرجاع تفاصيل الدولة",
+                "description": "استرجاع تفاصيل الدولة",
+                "operationId": "c172dfb1b3785a376f52b0f46f344f20",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "رقم الدولة",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم استرجاع تفاصيل الدولة بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "country_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "country_name": {
+                                                    "type": "string",
+                                                    "example": "أفغانستان"
+                                                },
+                                                "country_code": {
+                                                    "type": "string",
+                                                    "example": "93"
+                                                },
+                                                "iso_code": {
+                                                    "type": "string",
+                                                    "example": "AF"
+                                                },
+                                                "phone_code": {
+                                                    "type": "string",
+                                                    "example": "93"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الدولة غير موجودة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "بيانات غير صحيحة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -12147,6 +12485,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -12222,6 +12563,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -12298,6 +12642,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -12377,6 +12724,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -12453,6 +12803,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -12553,6 +12906,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -12628,6 +12984,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -12713,6 +13072,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -12788,6 +13150,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -12833,8 +13198,8 @@
                     {
                         "name": "status",
                         "in": "query",
+                        "description": "الحالة: 0=قيد الانتظار, 1=مقبول, 2=مرفوض",
                         "schema": {
-                            "description": "0: Pending, 1: Accepted, 2: Rejected",
                             "type": "integer",
                             "enum": [
                                 0,
@@ -12876,6 +13241,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -12903,13 +13271,20 @@
                     {
                         "name": "status",
                         "in": "query",
+                        "description": "الحالة: 0=قيد الانتظار, 1=مقبول, 2=مرفوض",
                         "schema": {
-                            "type": "string"
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1,
+                                2
+                            ]
                         }
                     },
                     {
                         "name": "start_date",
                         "in": "query",
+                        "required": true,
                         "schema": {
                             "type": "string",
                             "format": "date"
@@ -12918,6 +13293,7 @@
                     {
                         "name": "end_date",
                         "in": "query",
+                        "required": true,
                         "schema": {
                             "type": "string",
                             "format": "date"
@@ -12956,6 +13332,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -12970,8 +13349,41 @@
                 "tags": [
                     "Reports"
                 ],
-                "summary": "تقرير إنهاء الخدمة - قيد التطوير",
+                "summary": "تقرير إنهاء الخدمة",
                 "operationId": "4aa4105b433fa68e783a4777c4451362",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "الحالة: 0=قيد الانتظار, 1=مقبول, 2=مرفوض",
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1,
+                                2
+                            ]
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "PDF file"
@@ -13004,6 +13416,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -13022,22 +13437,9 @@
                 "operationId": "95d60e41d602338d11572005ce993089",
                 "parameters": [
                     {
-                        "name": "employee_id",
-                        "in": "query",
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    {
-                        "name": "status",
-                        "in": "query",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
                         "name": "start_date",
                         "in": "query",
+                        "required": true,
                         "schema": {
                             "type": "string",
                             "format": "date"
@@ -13046,9 +13448,37 @@
                     {
                         "name": "end_date",
                         "in": "query",
+                        "required": true,
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "الحالة: 0=قيد الانتظار, 1=مقبول, 2=مرفوض",
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1,
+                                2
+                            ]
+                        }
+                    },
+                    {
+                        "name": "transfer_type",
+                        "in": "query",
+                        "description": "نوع التحويل",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "internal",
+                                "branch",
+                                "intercompany",
+                                "all"
+                            ]
                         }
                     }
                 ],
@@ -13084,6 +13514,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -13098,8 +13531,18 @@
                 "tags": [
                     "Reports"
                 ],
-                "summary": "تقرير تجديد الإقامة - قيد التطوير",
+                "summary": "تقرير تجديد الإقامة",
                 "operationId": "52278c216e3400eb978680b996e5288a",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "معرف الموظف",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "PDF file"
@@ -13132,6 +13575,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -13148,6 +13594,18 @@
                 ],
                 "summary": "تقرير العقود قريبة الانتهاء - قيد التطوير",
                 "operationId": "aadfb0c85f067906edeb342343028758",
+                "parameters": [
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "تاريخ الانتهاء قبل (YYYY-MM-DD)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "PDF file"
@@ -13180,6 +13638,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -13196,6 +13657,18 @@
                 ],
                 "summary": "تقرير الوثائق قريبة الانتهاء - قيد التطوير",
                 "operationId": "44e54a82d7fa68724ff3a815773e06cc",
+                "parameters": [
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "تاريخ الانتهاء قبل (YYYY-MM-DD)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "PDF file"
@@ -13228,6 +13701,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -13248,6 +13724,8 @@
                     {
                         "name": "branch_id",
                         "in": "query",
+                        "description": "معرف الفرع (اختياري)",
+                        "required": false,
                         "schema": {
                             "type": "integer"
                         }
@@ -13255,11 +13733,15 @@
                     {
                         "name": "status",
                         "in": "query",
+                        "description": "الحالة: active, inactive, left, all",
+                        "required": false,
                         "schema": {
                             "type": "string",
                             "enum": [
                                 "active",
-                                "inactive"
+                                "inactive",
+                                "left",
+                                "all"
                             ]
                         }
                     }
@@ -13296,6 +13778,9 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
                     }
                 },
                 "security": [
@@ -13316,6 +13801,7 @@
                     {
                         "name": "country_id",
                         "in": "query",
+                        "description": "(بالاسم او بالرقم) الدولة",
                         "schema": {
                             "type": "string"
                         }
@@ -13323,6 +13809,7 @@
                     {
                         "name": "status",
                         "in": "query",
+                        "description": "الحالة",
                         "schema": {
                             "type": "string",
                             "enum": [
@@ -13364,6 +13851,114 @@
                     },
                     "500": {
                         "description": "Server error - خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "Not found - غير موجود"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/options": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "استرجاع خيارات التقارير",
+                "description": "يرجع جميع القيم المستخدمة في التقارير (حالات الحضور، نوع الوظيفة، طرق الدفع، نوع الراتب)",
+                "operationId": "078d9f449f040109ed62ba9518caa6cf",
+                "responses": {
+                    "200": {
+                        "description": "تم استرجاع الخيارات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "attendance_status": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "string",
+                                                                "example": "Present"
+                                                            },
+                                                            "label": {
+                                                                "type": "string",
+                                                                "example": "حاضر"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "job_type": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "string",
+                                                                "example": "permanent"
+                                                            },
+                                                            "label": {
+                                                                "type": "string",
+                                                                "example": "دائمة"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "payment_method": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "string",
+                                                                "example": "CASH"
+                                                            },
+                                                            "label": {
+                                                                "type": "string",
+                                                                "example": "نقد"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "wages_type": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "label": {
+                                                                "type": "string",
+                                                                "example": "شهري"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح"
                     }
                 },
                 "security": [
@@ -13378,40 +13973,40 @@
                 "tags": [
                     "Reports"
                 ],
-                "summary": "تقرير حسابات نهاية الخدمة - قيد التطوير",
+                "summary": "تقرير نهاية الخدمة",
+                "description": "استخراج تقرير نهاية الخدمة للموظفين مع دعم التصدير PDF/Excel",
                 "operationId": "c713f80a1e5f58c743382ef5a2eca210",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "فلترة حسب موظف معين",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "PDF file"
-                    },
-                    "401": {
-                        "description": "يجب تسجيل الدخول - غير مصرح"
-                    },
-                    "422": {
-                        "description": "Validation error - خطأ في التحقق",
+                        "description": "نجاح العملية",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
                                             "type": "boolean",
-                                            "example": false
+                                            "example": true
                                         },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "فشل التحقق من البيانات"
-                                        },
-                                        "errors": {
-                                            "type": "object"
+                                        "data": {
+                                            "type": "array",
+                                            "items": {}
                                         }
                                     },
                                     "type": "object"
                                 }
                             }
                         }
-                    },
-                    "500": {
-                        "description": "Server error - خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -21167,6 +21762,14 @@
         {
             "name": "Transfer Management",
             "description": "إدارة النقل والتحويلات - Transfer management endpoints"
+        },
+        {
+            "name": "Branches",
+            "description": "Branches"
+        },
+        {
+            "name": "Countries",
+            "description": "Countries"
         },
         {
             "name": "Dashboard",

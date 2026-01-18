@@ -138,6 +138,12 @@ class AppServiceProvider extends ServiceProvider
         // Report repository
         $this->app->singleton(\App\Repository\Interface\ReportRepositoryInterface::class, \App\Repository\ReportRepository::class);
 
+        // Country repository
+        $this->app->bind(\App\Repository\Interface\CountryRepositoryInterface::class, \App\Repository\CountryRepository::class);
+
+        // Branch repository
+        $this->app->bind(\App\Repository\Interface\BranchRepositoryInterface::class, \App\Repository\BranchRepository::class);
+
         // Cache Service (Singleton)
         $this->app->singleton(CacheService::class, CacheService::class);
     }

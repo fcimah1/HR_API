@@ -1,44 +1,41 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Http\Requests\Report;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-/**
- * طلب تقرير الرواتب الشهري
- * Payroll Report Request
- */
-class PayrollReportRequest extends FormRequest
+class EndOfServiceRequest extends FormRequest
 {
+    /**
+     * Determine if the user is authorized to make this request.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array|string>
+     */
     public function rules(): array
     {
         return [
-            'payment_date' => 'required|string|regex:/^\d{4}-\d{2}$/', // YYYY-MM
             'employee_id' => 'nullable|integer|exists:ci_erp_users,user_id',
-            'payment_method' => 'nullable|string|in:cash,bank,all',
-            'job_type' => 'nullable|string|in:part_time,permanent,contract,probation,all',
-            'branch_id' => 'nullable|integer|exists:ci_branchs,branch_id',
+            'employee_ids' => 'nullable|array',
+            'employee_ids.*' => 'integer',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'payment_date.required' => 'الشهر مطلوب',
-            'payment_date.regex' => 'صيغة الشهر غير صحيحة (YYYY-MM)',
             'employee_id.exists' => 'الموظف غير موجود',
-            'payment_method.in' => 'طريقة الدفع غير صحيحة',
-            'job_type.in' => 'نوع الوظيفة غير صحيح',
-            'branch_id.exists' => 'الفرع غير موجود',
+            'employee_ids.array' => 'الموظفين يجب أن يكونوا في مصفوفة',
+            'employee_ids.*.integer' => 'الموظف غير صحيح',
         ];
     }
 
