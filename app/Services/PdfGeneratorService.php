@@ -197,6 +197,19 @@ class PdfGeneratorService
             return false;
         }
     }
+
+    /**
+     * Save PDF to file path (alias for save with better clarity)
+     * Used for background report generation via Queue
+     * 
+     * @param string $filePath Full file path to save the PDF
+     * @return bool Success status
+     */
+    public function saveToFile(string $filePath): bool
+    {
+        return $this->save($filePath);
+    }
+
     public function getContent(): string
     {
         return $this->pdf->Output('', 'S');

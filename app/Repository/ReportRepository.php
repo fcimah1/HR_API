@@ -14,9 +14,12 @@ use App\Models\Termination;
 use App\Models\Transfer;
 use App\Models\AdvanceSalary;
 use App\Models\ErpConstant;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
+use function Laravel\Prompts\select;
 
 /**
  * Repository للتقارير
@@ -41,8 +44,20 @@ class ReportRepository implements ReportRepositoryInterface
     {
         $query = Attendance::query()
             ->select([
-                'ci_timesheet.*',
+                'ci_timesheet.time_attendance_id',
+                'ci_timesheet.employee_id',
+                'ci_timesheet.attendance_date',
+                'ci_timesheet.clock_in',
+                'ci_timesheet.clock_out',
+                'ci_timesheet.total_work',
+                'ci_timesheet.attendance_status',
+                'ci_timesheet.clock_in_latitude',
+                'ci_timesheet.clock_in_longitude',
+                'ci_timesheet.clock_out_latitude',
+                'ci_timesheet.clock_out_longitude',
+
                 'ci_branchs.coordinates as branch_coordinates',
+
                 'ci_office_shifts.shift_name as shift_name_joined',
                 'ci_office_shifts.monday_in_time',
                 'ci_office_shifts.tuesday_in_time',
@@ -51,7 +66,8 @@ class ReportRepository implements ReportRepositoryInterface
                 'ci_office_shifts.friday_in_time',
                 'ci_office_shifts.saturday_in_time',
                 'ci_office_shifts.sunday_in_time',
-                // Fallback Shift Info
+
+                // Fallback Shift Info (default shift from employee profile)
                 'default_shift.shift_name as default_shift_name',
                 'default_shift.monday_in_time as default_monday_in',
                 'default_shift.tuesday_in_time as default_tuesday_in',
@@ -63,7 +79,7 @@ class ReportRepository implements ReportRepositoryInterface
             ])
             ->leftJoin('ci_branchs', 'ci_timesheet.branch_id', '=', 'ci_branchs.branch_id')
             ->leftJoin('ci_office_shifts', 'ci_timesheet.shift_id', '=', 'ci_office_shifts.office_shift_id')
-            // Join UserDetails to get default shift
+            // Join UserDetails to get default shift for lateness calculation
             ->leftJoin('ci_erp_users_details', 'ci_timesheet.employee_id', '=', 'ci_erp_users_details.user_id')
             ->leftJoin('ci_office_shifts as default_shift', 'ci_erp_users_details.office_shift_id', '=', 'default_shift.office_shift_id')
             ->with(['employee:user_id,first_name,last_name,email'])
@@ -107,18 +123,23 @@ class ReportRepository implements ReportRepositoryInterface
             ->select([
                 'ci_timesheet.employee_id',
                 'ci_timesheet.attendance_date',
-                'ci_timesheet.attendance_status',
-                'ci_timesheet.time_late',
+                // الدوال التجميعية للوقت (تعمل بشكل صحيح مع MIN/MAX)
+                DB::raw('MIN(ci_timesheet.clock_in) as first_clock_in'),
+                DB::raw('MAX(ci_timesheet.clock_out) as last_clock_out'),
+
+                // Subquery for branch coordinates (Polygon) to avoid Aggregation or GroupBy issues
+                DB::raw('(SELECT coordinates FROM ci_branchs WHERE ci_branchs.branch_id = ci_timesheet.branch_id LIMIT 1) as branch_coordinates'),
+
+                // Non-aggregated columns (Added to GROUP BY below)
                 'ci_timesheet.clock_in_latitude',
                 'ci_timesheet.clock_in_longitude',
                 'ci_timesheet.clock_out_latitude',
                 'ci_timesheet.clock_out_longitude',
-                DB::raw('MIN(ci_timesheet.clock_in) as first_clock_in'),
-                DB::raw('MAX(ci_timesheet.clock_out) as last_clock_out'),
-                // Branch
-                'ci_branchs.coordinates as branch_coordinates',
-                // Shift from timesheet
+                'ci_timesheet.attendance_status',
+
                 'ci_office_shifts.shift_name as shift_name_joined',
+
+                // Shift Times
                 'ci_office_shifts.monday_in_time',
                 'ci_office_shifts.tuesday_in_time',
                 'ci_office_shifts.wednesday_in_time',
@@ -126,70 +147,48 @@ class ReportRepository implements ReportRepositoryInterface
                 'ci_office_shifts.friday_in_time',
                 'ci_office_shifts.saturday_in_time',
                 'ci_office_shifts.sunday_in_time',
-                // Default Shift from UserDetails
-                'default_shift.shift_name as default_shift_name',
-                'default_shift.monday_in_time as default_monday_in',
-                'default_shift.tuesday_in_time as default_tuesday_in',
-                'default_shift.wednesday_in_time as default_wednesday_in',
-                'default_shift.thursday_in_time as default_thursday_in',
-                'default_shift.friday_in_time as default_friday_in',
-                'default_shift.saturday_in_time as default_saturday_in',
-                'default_shift.sunday_in_time as default_sunday_in',
             ])
             ->leftJoin('ci_branchs', 'ci_timesheet.branch_id', '=', 'ci_branchs.branch_id')
             ->leftJoin('ci_office_shifts', 'ci_timesheet.shift_id', '=', 'ci_office_shifts.office_shift_id')
-            ->leftJoin('ci_erp_users_details', 'ci_timesheet.employee_id', '=', 'ci_erp_users_details.user_id')
-            ->leftJoin('ci_office_shifts as default_shift', 'ci_erp_users_details.office_shift_id', '=', 'default_shift.office_shift_id')
-            ->with(['employee:user_id,first_name,last_name,email'])
             ->where('ci_timesheet.company_id', $filters->companyId);
 
-        // فلتر الموظف (مصفوفة أو مفرد)
+        // تطبيق الفلاتر
         if (!empty($filters->employeeIds)) {
             $query->whereIn('ci_timesheet.employee_id', $filters->employeeIds);
         } elseif ($filters->employeeId) {
             $query->where('ci_timesheet.employee_id', $filters->employeeId);
         }
 
-        // فلتر التاريخ
-        if ($filters->startDate && $filters->endDate) {
-            $query->whereBetween('ci_timesheet.attendance_date', [$filters->startDate, $filters->endDate]);
-        } elseif ($filters->month) {
-            $startDate = $filters->getMonthStartDate();
-            $endDate = $filters->getMonthEndDate();
+        $startDate = $filters->startDate ?? $filters->getMonthStartDate();
+        $endDate = $filters->endDate ?? $filters->getMonthEndDate();
+
+        if ($startDate && $endDate) {
             $query->whereBetween('ci_timesheet.attendance_date', [$startDate, $endDate]);
         }
 
-        $query->groupBy(
+        // التجميع الأساسي مع كافة الحقول غير المجمعة
+        return $query->groupBy(
             'ci_timesheet.employee_id',
             'ci_timesheet.attendance_date',
-            'ci_timesheet.attendance_status',
-            'ci_timesheet.time_late',
+            'ci_timesheet.branch_id', // Required for Subquery correlation optimization
             'ci_timesheet.clock_in_latitude',
             'ci_timesheet.clock_in_longitude',
             'ci_timesheet.clock_out_latitude',
             'ci_timesheet.clock_out_longitude',
-            'branch_coordinates',
-            'shift_name_joined',
+            'ci_timesheet.attendance_status',
+            'ci_office_shifts.shift_name',
             'ci_office_shifts.monday_in_time',
             'ci_office_shifts.tuesday_in_time',
             'ci_office_shifts.wednesday_in_time',
             'ci_office_shifts.thursday_in_time',
             'ci_office_shifts.friday_in_time',
             'ci_office_shifts.saturday_in_time',
-            'ci_office_shifts.sunday_in_time',
-            'default_shift_name',
-            'default_monday_in',
-            'default_tuesday_in',
-            'default_wednesday_in',
-            'default_thursday_in',
-            'default_friday_in',
-            'default_saturday_in',
-            'default_sunday_in'
+            'ci_office_shifts.sunday_in_time'
         )
             ->orderBy('ci_timesheet.attendance_date', 'asc')
-            ->orderBy('ci_timesheet.employee_id', 'asc');
-
-        return $query->get();
+            ->orderBy('ci_timesheet.employee_id', 'asc')
+            ->with(['employee:user_id,first_name,last_name'])
+            ->get();
     }
 
     /**
@@ -1255,5 +1254,74 @@ class ReportRepository implements ReportRepositoryInterface
         }
 
         return $query->orderBy('promotion_date', 'desc')->get();
+    }
+    /**
+     * التحقق من وجود بيانات للتقرير
+     * 
+     * @param string $reportType
+     * @param int $companyId
+     * @param array $filters
+     * @return bool
+     */
+    public function hasDataForReport(string $reportType, int $companyId, array $filters): bool
+    {
+        switch ($reportType) {
+            case 'employees_by_branch':
+                $query = DB::table('ci_erp_users as u')
+                    ->leftJoin('ci_erp_users_details as ud', 'ud.user_id', '=', 'u.user_id')
+                    ->where('u.user_type', 'staff')
+                    ->where('u.company_id', $companyId);
+
+                // Filter by Branch
+                if (!empty($filters['branch_id']) && $filters['branch_id'] !== 'all') {
+                    $query->where('ud.branch_id', $filters['branch_id']);
+                }
+
+                // Filter by Status
+                $status = $filters['status'] ?? 'all';
+                if ($status === 'active') {
+                    $query->where('u.is_active', 1);
+                } elseif ($status === 'inactive') {
+                    $query->where('u.is_active', 0);
+                } elseif ($status === 'left') {
+                    $query->where('u.is_active', 0)->whereNotNull('ud.date_of_leaving');
+                }
+
+                return $query->exists();
+
+            case 'attendance_monthly':
+                $filterDTO = new AttendanceReportFilterDTO(
+                    $companyId,
+                    $filters['employee_id'] ?? null,
+                    $filters['month'] ?? null
+                );
+
+                // Partial implementation of filter logic for checking existence
+                $query = Attendance::query()
+                    ->where('company_id', $companyId);
+
+                if ($filterDTO->employeeId) {
+                    $query->where('employee_id', $filterDTO->employeeId);
+                }
+
+                // Branch via Has
+                if (!empty($filters['branch_id'])) {
+                    $query->whereHas('employee', function ($q) use ($filters) {
+                        $q->where('office_branch_id', $filters['branch_id']);
+                    });
+                }
+
+                if ($filterDTO->month) {
+                    $startDate = $filterDTO->getMonthStartDate();
+                    $endDate = $filterDTO->getMonthEndDate();
+                    $query->whereBetween('attendance_date', [$startDate, $endDate]);
+                }
+
+                return $query->exists();
+
+            default:
+                // Fallback for other reports: Assume true so job handles it (or implement specific checks)
+                return true;
+        }
     }
 }

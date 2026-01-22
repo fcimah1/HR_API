@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository\Interface;
 
 use App\DTOs\Report\AttendanceReportFilterDTO;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 /**
@@ -213,4 +214,13 @@ interface ReportRepositoryInterface
      */
     public function getEndOfServiceReport(array $filters = []): Collection;
 
+    /**
+     * التحقق من وجود بيانات للتقرير
+     * 
+     * @param string $reportType
+     * @param int $companyId
+     * @param array $filters
+     * @return bool
+     */
+    public function hasDataForReport(string $reportType, int $companyId, array $filters): bool;
 }
