@@ -22,7 +22,10 @@ use App\Http\Requests\Report\EndOfServiceRequest;
 
 use App\Http\Requests\Report\GeneralReportRequest;
 use App\Services\ReportService;
+use App\Models\GeneratedReport;
+use App\Jobs\GenerateReportJob;
 use App\DTOs\Report\AttendanceReportFilterDTO;
+use App\Repository\Interface\ReportRepositoryInterface;
 use App\Enums\AttendanceStatusEnum;
 use App\Enums\JobTypeEnum;
 use App\Enums\NumericalStatusEnum;
@@ -44,9 +47,14 @@ use Illuminate\Support\Facades\Log;
  */
 class ReportController extends Controller
 {
-    public function __construct(
-        private ReportService $reportService
-    ) {}
+    protected $reportService;
+    protected $reportRepository;
+
+    public function __construct(ReportService $reportService, ReportRepositoryInterface $reportRepository)
+    {
+        $this->reportService = $reportService;
+        $this->reportRepository = $reportRepository;
+    }
 
     // ==========================================
     // تقارير الحضور والانصراف (Attendance Reports)
@@ -55,7 +63,7 @@ class ReportController extends Controller
     /**
      * @OA\Get(
      *     path="/api/reports/attendance/monthly",
-     *     summary="تقرير الحضور الشهري",
+     *     summary="تقرير الحضور الشهري (Async)",
      *     tags={"Reports"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="start_date", required=true, in="query", @OA\Schema(type="string", format="date")),
@@ -81,15 +89,55 @@ class ReportController extends Controller
         try {
             $user = Auth::user();
             $companyId = ($user->user_type === 'company' || $user->company_id === 0) ? $user->user_id : $user->company_id;
-
             $filters = AttendanceReportFilterDTO::fromRequest(
                 $request->validated(),
                 $companyId
             );
 
             $this->reportService->generateAttendanceMonthlyReport($user, $filters);
+            // // Prepare Request Data
+            // $filters = $request->validated();
+
+            // $type = 'attendance_monthly';
+            // $title = 'تقرير الحضور الشهري';
+
+            // // Check if data exists BEFORE dispatching logic
+            // if (!$this->reportRepository->hasDataForReport($type, $companyId, $filters)) {
+            //     return response()->json([
+            //         'success' => false,
+            //         'message' => 'لا توجد بيانات لعرضها في التقرير',
+            //         'data' => []
+            //     ], 200);
+            // }
+
+            // // Create report record
+            // $report = GeneratedReport::create([
+            //     'user_id' => $user->user_id,
+            //     'company_id' => $companyId,
+            //     'report_type' => $type,
+            //     'report_title' => $title,
+            //     'status' => 'pending',
+            //     'filters' => $filters,
+            // ]);
+
+            // // Dispatch job to queue
+            // GenerateReportJob::dispatch(
+            //     $report->report_id,
+            //     $type,
+            //     $user->user_id,
+            //     $companyId,
+            //     $filters,
+            //     $title
+            // );
+
+            // return response()->json([
+            //     'message' => 'تم إضافة التقرير للمعالجة',
+            //     'report_id' => $report->report_id,
+            //     'status' => 'pending',
+            //     'estimated_time' => '1-5 دقائق'
+            // ]);
         } catch (\Exception $e) {
-            Log::error('Failed to generate attendance monthly report', [
+            Log::error('Failed to queue attendance monthly report', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -911,10 +959,50 @@ class ReportController extends Controller
         try {
             $user = Auth::user();
             $companyId = ($user->user_type === 'company' || $user->company_id === 0) ? $user->user_id : $user->company_id;
-
             $this->reportService->generateEmployeesByBranchReport($user, $companyId, $request->validated());
+            // // Prepare Request Data
+            // $filters = $request->validated();
+            // $type = 'employees_by_branch';
+            // $title = 'تقرير الموظفين حسب الفرع';
+
+            // // Check if data exists BEFORE dispatching logic
+            // // This is synchronous check for immediate feedback
+            // if (!$this->reportRepository->hasDataForReport($type, $companyId, $filters)) {
+            //     return response()->json([
+            //         'success' => false,
+            //         'message' => 'لا توجد بيانات لعرضها في التقرير',
+            //         'data' => []
+            //     ], 200); // Or 404, but 200 with explicit message is often friendlier for frontend handling
+            // }
+
+            // // Create report record
+            // $report = GeneratedReport::create([
+            //     'user_id' => $user->user_id,
+            //     'company_id' => $companyId,
+            //     'report_type' => $type,
+            //     'report_title' => $title,
+            //     'status' => 'pending',
+            //     'filters' => $filters,
+            // ]);
+
+            // // Dispatch job to queue
+            // GenerateReportJob::dispatch(
+            //     $report->report_id,
+            //     $type,
+            //     $user->user_id,
+            //     $companyId,
+            //     $filters,
+            //     $title
+            // );
+
+            // return response()->json([
+            //     'message' => 'تم إضافة التقرير للمعالجة',
+            //     'report_id' => $report->report_id,
+            //     'status' => 'pending',
+            //     'estimated_time' => '1-5 دقائق'
+            // ]);
         } catch (\Exception $e) {
-            Log::error('Failed to generate employees by branch report', [
+            Log::error('Failed to queue employees by branch report', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);

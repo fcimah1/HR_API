@@ -426,7 +426,16 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('/employees-by-branch', [\App\Http\Controllers\Api\ReportController::class, 'employeesByBranch']);
         Route::get('/employees-by-country', [\App\Http\Controllers\Api\ReportController::class, 'employeesByCountry']);
 
+
         // End of Service
         Route::get('/end-of-service', [\App\Http\Controllers\Api\ReportController::class, 'endOfService']);
+
+        // ==========================================
+        // Async Reports (Queue-based)
+        // ==========================================
+        Route::post('generate-async/{type}', [\App\Http\Controllers\Api\AsyncReportController::class, 'generateAsync']);
+        Route::get('generated', [\App\Http\Controllers\Api\AsyncReportController::class, 'generatedReports']);
+        Route::get('generated/{id}/download', [\App\Http\Controllers\Api\AsyncReportController::class, 'downloadGenerated']);
+        Route::delete('generated/{id}', [\App\Http\Controllers\Api\AsyncReportController::class, 'deleteGenerated']);
     });
 });
