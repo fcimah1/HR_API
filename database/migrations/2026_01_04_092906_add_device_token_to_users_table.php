@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('ci_erp_users', function (Blueprint $table) {
-            $table->text('device_token')->nullable();
+            if (!Schema::hasColumn('ci_erp_users', 'device_token')) {
+                $table->text('device_token')->nullable();
+            }
         });
     }
 
@@ -22,7 +24,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('ci_erp_users', function (Blueprint $table) {
-            $table->dropColumn('device_token');
+            if (Schema::hasColumn('ci_erp_users', 'device_token')) {
+                $table->dropColumn('device_token');
+            }
         });
     }
 };

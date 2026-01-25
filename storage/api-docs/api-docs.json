@@ -10,10 +10,6 @@
     },
     "servers": [
         {
-            "url": "https://api.firstsoft.io",
-            "description": "Production Server"
-        },
-        {
             "url": "http://127.0.0.1:8000",
             "description": "Local Development Server"
         }
@@ -4645,6 +4641,1210 @@
                     },
                     "422": {
                         "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Get employees list with filtering and pagination",
+                "description": "Retrieve paginated list of employees with advanced filtering options",
+                "operationId": "b9b73e1873c5fe36b951f014f711e4fa",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search in name, email, employee_id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "department_id",
+                        "in": "query",
+                        "description": "Filter by department",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "designation_id",
+                        "in": "query",
+                        "description": "Filter by designation",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "is_active",
+                        "in": "query",
+                        "description": "Filter by active status",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "Filter by joining date from",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "Filter by joining date to",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Employees retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الموظفين بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "user_id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "first_name": {
+                                                                "type": "string",
+                                                                "example": "أحمد"
+                                                            },
+                                                            "last_name": {
+                                                                "type": "string",
+                                                                "example": "محمد"
+                                                            },
+                                                            "email": {
+                                                                "type": "string",
+                                                                "example": "ahmed@company.com"
+                                                            },
+                                                            "user_type": {
+                                                                "type": "string",
+                                                                "example": "staff"
+                                                            },
+                                                            "is_active": {
+                                                                "type": "boolean",
+                                                                "example": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 20
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 100
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض الموظفين"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Create new employee",
+                "description": "Create a new employee with complete profile information",
+                "operationId": "781d9d682a574c5e2c1dab17f782b5cd",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "first_name",
+                                    "last_name",
+                                    "email",
+                                    "username",
+                                    "password",
+                                    "department_id",
+                                    "designation_id"
+                                ],
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "محمد"
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "أحمد"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "employee@company.com"
+                                    },
+                                    "username": {
+                                        "type": "string",
+                                        "example": "mohammed.ahmed"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "password123"
+                                    },
+                                    "contact_number": {
+                                        "type": "string",
+                                        "example": "01234567890"
+                                    },
+                                    "gender": {
+                                        "type": "string",
+                                        "enum": [
+                                            "M",
+                                            "F"
+                                        ],
+                                        "example": "M"
+                                    },
+                                    "department_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "designation_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "basic_salary": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 5000
+                                    },
+                                    "date_of_joining": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-15"
+                                    },
+                                    "date_of_birth": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "1990-01-01"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Employee created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء الموظف بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "first_name": {
+                                                    "type": "string",
+                                                    "example": "أحمد"
+                                                },
+                                                "last_name": {
+                                                    "type": "string",
+                                                    "example": "محمد"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "ahmed@company.com"
+                                                },
+                                                "user_type": {
+                                                    "type": "string",
+                                                    "example": "staff"
+                                                },
+                                                "is_active": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation errors"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لإضافة موظفين"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Get employee details",
+                "description": "Retrieve detailed information about a specific employee",
+                "operationId": "de09c8d9afb3f7114d227ad0645940ac",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Employee details retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب بيانات الموظف بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "first_name": {
+                                                    "type": "string",
+                                                    "example": "أحمد"
+                                                },
+                                                "last_name": {
+                                                    "type": "string",
+                                                    "example": "محمد"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "ahmed@company.com"
+                                                },
+                                                "user_type": {
+                                                    "type": "string",
+                                                    "example": "staff"
+                                                },
+                                                "is_active": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض بيانات هذا الموظف"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Update employee information",
+                "description": "Update existing employee profile information",
+                "operationId": "55e1ceec679a0d1436c869735e984a83",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "محمد"
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "أحمد"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "employee@company.com"
+                                    },
+                                    "contact_number": {
+                                        "type": "string",
+                                        "example": "01234567890"
+                                    },
+                                    "department_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "designation_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "basic_salary": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 5500
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Employee updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث بيانات الموظف بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "first_name": {
+                                                    "type": "string",
+                                                    "example": "أحمد"
+                                                },
+                                                "last_name": {
+                                                    "type": "string",
+                                                    "example": "محمد"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "ahmed@company.com"
+                                                },
+                                                "user_type": {
+                                                    "type": "string",
+                                                    "example": "staff"
+                                                },
+                                                "is_active": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لتعديل هذا الموظف"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Delete employee",
+                "description": "Soft deletes an employee (sets is_active to false)",
+                "operationId": "deleteEmployee",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Employee ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Employee deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف الموظف بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions"
+                    },
+                    "404": {
+                        "description": "Employee not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/search": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Search employees",
+                "description": "Quick search employees by name, email, or employee ID",
+                "operationId": "db1c96380066d4929196688963410fec",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Search query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Number of results",
+                        "schema": {
+                            "type": "integer",
+                            "default": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Search results retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم البحث بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "employees": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "user_id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "first_name": {
+                                                                "type": "string",
+                                                                "example": "أحمد"
+                                                            },
+                                                            "last_name": {
+                                                                "type": "string",
+                                                                "example": "محمد"
+                                                            },
+                                                            "email": {
+                                                                "type": "string",
+                                                                "example": "ahmed@company.com"
+                                                            },
+                                                            "user_type": {
+                                                                "type": "string",
+                                                                "example": "staff"
+                                                            },
+                                                            "is_active": {
+                                                                "type": "boolean",
+                                                                "example": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "query": {
+                                                    "type": "string",
+                                                    "example": "محمد"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "نص البحث مطلوب"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/statistics": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Get employee statistics",
+                "description": "Retrieve comprehensive employee statistics and analytics",
+                "operationId": "1a71567090bbe8b87c8488648b8e8fcd",
+                "responses": {
+                    "200": {
+                        "description": "Statistics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الإحصائيات بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_employees": {
+                                                    "type": "integer",
+                                                    "example": 150
+                                                },
+                                                "active_employees": {
+                                                    "type": "integer",
+                                                    "example": 140
+                                                },
+                                                "inactive_employees": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "departments_count": {
+                                                    "type": "integer",
+                                                    "example": 8
+                                                },
+                                                "designations_count": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "average_salary": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 4500.5
+                                                },
+                                                "by_department": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "by_designation": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض الإحصائيات"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/documents": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Get employee documents",
+                "description": "Retrieve all documents uploaded for specific employee",
+                "operationId": "ac580f225eaf65d289055d0bcd2f58af",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Documents retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب المستندات بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "documents": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "document_type": {
+                                                                "type": "string",
+                                                                "example": "CV"
+                                                            },
+                                                            "file_name": {
+                                                                "type": "string",
+                                                                "example": "cv_mohammed.pdf"
+                                                            },
+                                                            "file_path": {
+                                                                "type": "string",
+                                                                "example": "/storage/documents/cv_mohammed.pdf"
+                                                            },
+                                                            "uploaded_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض مستندات هذا الموظف"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/leave-balance": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Get employee leave balance",
+                "description": "Retrieve current leave balance for specific employee",
+                "operationId": "fb72cdd6d456211249a7de1735f7300b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave balance retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب رصيد الإجازات بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "annual_leave": {
+                                                    "properties": {
+                                                        "total": {
+                                                            "type": "integer",
+                                                            "example": 30
+                                                        },
+                                                        "used": {
+                                                            "type": "integer",
+                                                            "example": 12
+                                                        },
+                                                        "remaining": {
+                                                            "type": "integer",
+                                                            "example": 18
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "sick_leave": {
+                                                    "properties": {
+                                                        "total": {
+                                                            "type": "integer",
+                                                            "example": 15
+                                                        },
+                                                        "used": {
+                                                            "type": "integer",
+                                                            "example": 3
+                                                        },
+                                                        "remaining": {
+                                                            "type": "integer",
+                                                            "example": 12
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "emergency_leave": {
+                                                    "properties": {
+                                                        "total": {
+                                                            "type": "integer",
+                                                            "example": 5
+                                                        },
+                                                        "used": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "remaining": {
+                                                            "type": "integer",
+                                                            "example": 4
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض رصيد إجازات هذا الموظف"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/attendance": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Get employee attendance records",
+                "description": "Retrieve recent attendance records for specific employee",
+                "operationId": "83abc9740daf0298df3df2b480b07f04",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Number of records to return",
+                        "schema": {
+                            "type": "integer",
+                            "default": 30
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attendance records retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب سجل الحضور بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "attendance": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "date": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2024-01-15"
+                                                            },
+                                                            "check_in": {
+                                                                "type": "string",
+                                                                "format": "time",
+                                                                "example": "08:30:00"
+                                                            },
+                                                            "check_out": {
+                                                                "type": "string",
+                                                                "format": "time",
+                                                                "example": "17:00:00"
+                                                            },
+                                                            "hours_worked": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 8.5
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "present"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "summary": {
+                                                    "properties": {
+                                                        "total_days": {
+                                                            "type": "integer",
+                                                            "example": 30
+                                                        },
+                                                        "present_days": {
+                                                            "type": "integer",
+                                                            "example": 28
+                                                        },
+                                                        "absent_days": {
+                                                            "type": "integer",
+                                                            "example": 2
+                                                        },
+                                                        "average_hours": {
+                                                            "type": "number",
+                                                            "format": "float",
+                                                            "example": 8.2
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض سجل حضور هذا الموظف"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/salary-details": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Get employee salary details",
+                "description": "Retrieve salary history and details for specific employee",
+                "operationId": "903d910d0a9e54216f886004c650fb3f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Number of records to return",
+                        "schema": {
+                            "type": "integer",
+                            "default": 12
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Salary details retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب تفاصيل الراتب بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "current_salary": {
+                                                    "properties": {
+                                                        "basic_salary": {
+                                                            "type": "number",
+                                                            "format": "float",
+                                                            "example": 5000
+                                                        },
+                                                        "allowances": {
+                                                            "type": "number",
+                                                            "format": "float",
+                                                            "example": 1000
+                                                        },
+                                                        "deductions": {
+                                                            "type": "number",
+                                                            "format": "float",
+                                                            "example": 200
+                                                        },
+                                                        "net_salary": {
+                                                            "type": "number",
+                                                            "format": "float",
+                                                            "example": 5800
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "salary_history": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "month": {
+                                                                "type": "string",
+                                                                "example": "2024-01"
+                                                            },
+                                                            "basic_salary": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 5000
+                                                            },
+                                                            "gross_salary": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 6000
+                                                            },
+                                                            "net_salary": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 5800
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "paid"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض تفاصيل راتب هذا الموظف"
                     }
                 },
                 "security": [
@@ -16617,6 +17817,1457 @@
                 ]
             }
         },
+        "/api/trainers": {
+            "get": {
+                "tags": [
+                    "Trainer Management"
+                ],
+                "summary": "Get trainers list - قائمة المدربين",
+                "operationId": "210b742beec78f82014783b3b668119f",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by name",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "email",
+                        "in": "query",
+                        "description": "Filter by email",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Trainers retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TrainerResource"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "properties": {
+                                                "total": {
+                                                    "type": "integer"
+                                                },
+                                                "per_page": {
+                                                    "type": "integer"
+                                                },
+                                                "current_page": {
+                                                    "type": "integer"
+                                                },
+                                                "last_page": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Trainer Management"
+                ],
+                "summary": "Create new trainer - إنشاء مدرب جديد",
+                "operationId": "615cfa73308e8f0f7c8953aaec75e5c6",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateTrainerRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Trainer created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء المدرب بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/TrainerResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/trainers/dropdown": {
+            "get": {
+                "tags": [
+                    "Trainer Management"
+                ],
+                "summary": "Get trainers for dropdown - قائمة المدربين للاختيار",
+                "operationId": "95a37821744c930af70b1d0ffd8d42a6",
+                "responses": {
+                    "200": {
+                        "description": "Trainers list retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "trainer_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "full_name": {
+                                                        "type": "string",
+                                                        "example": "محمد أحمد"
+                                                    },
+                                                    "email": {
+                                                        "type": "string",
+                                                        "example": "trainer@example.com"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/trainers/{id}": {
+            "get": {
+                "tags": [
+                    "Trainer Management"
+                ],
+                "summary": "Show trainer details - تفاصيل المدرب",
+                "operationId": "7100c5957afd2831df20e97e335ba640",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Trainer ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Trainer details retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/TrainerResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Trainer Management"
+                ],
+                "summary": "Update trainer - تعديل مدرب",
+                "operationId": "783db27933ada3ea9e034c146c7a6ff8",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Trainer ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTrainerRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Trainer updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث المدرب بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/TrainerResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "404": {
+                        "description": "المدرب غير موجود"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Trainer Management"
+                ],
+                "summary": "Delete trainer - حذف مدرب",
+                "operationId": "a6296bf2454cebca0edbdb6dcdb22039",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Trainer ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Trainer deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف المدرب بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "404": {
+                        "description": "المدرب غير موجود"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/trainings": {
+            "get": {
+                "tags": [
+                    "Training Management"
+                ],
+                "summary": "Get trainings list - قائمة التدريبات",
+                "operationId": "7ad19f15e99a01de694b359ae175cf99",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by status (0=pending,1=started,2=completed,3=rejected)",
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1,
+                                2,
+                                3
+                            ]
+                        }
+                    },
+                    {
+                        "name": "trainer_id",
+                        "in": "query",
+                        "description": "Filter by trainer",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "training_type_id",
+                        "in": "query",
+                        "description": "Filter by training type",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "department_id",
+                        "in": "query",
+                        "description": "Filter by department",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "Filter from date (Y-m-d)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "Filter to date (Y-m-d)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search term",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Trainings retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TrainingResource"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "properties": {
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 50
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "example": 4
+                                                },
+                                                "from": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "to": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Training Management"
+                ],
+                "summary": "Create new training - إنشاء تدريب جديد",
+                "operationId": "811e7814ef0bf95a97cc9d0c5d79800c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateTrainingRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Training created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء التدريب بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/TrainingResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/trainings/{id}": {
+            "get": {
+                "tags": [
+                    "Training Management"
+                ],
+                "summary": "Show training details - تفاصيل التدريب",
+                "operationId": "116b5d4575ac2e5e3b4a17f06a91e228",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Training ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Training details retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/TrainingResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "404": {
+                        "description": "التدريب غير موجود"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Training Management"
+                ],
+                "summary": "Update training - تعديل تدريب",
+                "operationId": "b064a3ebc2496cb92bd05211a6cf386c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Training ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTrainingRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Training updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث التدريب بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/TrainingResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "404": {
+                        "description": "التدريب غير موجود"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Training Management"
+                ],
+                "summary": "Delete training - حذف تدريب",
+                "operationId": "9224bb9bb426f1253989d3382b14e240",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Training ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Training deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف التدريب بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "404": {
+                        "description": "التدريب غير موجود"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/trainings/{id}/status": {
+            "patch": {
+                "tags": [
+                    "Training Management"
+                ],
+                "summary": "Update training status - تحديث حالة التدريب",
+                "operationId": "91dee4ccced27438c9d0baa563b67fc7",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Training ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTrainingStatusRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Status updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث حالة التدريب بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/TrainingResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "404": {
+                        "description": "التدريب غير موجود"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/trainings/{id}/notes": {
+            "get": {
+                "tags": [
+                    "Training Management"
+                ],
+                "summary": "Get training notes - ملاحظات التدريب",
+                "operationId": "9d20ace88c533d9192a226ddaf2b3c3d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Training ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notes retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TrainingNoteResource"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "404": {
+                        "description": "التدريب غير موجود"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Training Management"
+                ],
+                "summary": "Add note to training - إضافة ملاحظة للتدريب",
+                "operationId": "833688f3710a6ea78cd5d471214d38c5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Training ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddTrainingNoteRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Note added successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إضافة الملاحظة بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/TrainingNoteResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "404": {
+                        "description": "التدريب غير موجود"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/trainings/enums": {
+            "get": {
+                "tags": [
+                    "Training Management"
+                ],
+                "summary": "Get training enums - قوائم التدريب",
+                "operationId": "4cde329c72ca49331b1359b2658e625a",
+                "responses": {
+                    "200": {
+                        "description": "Enums retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "statuses": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "integer",
+                                                                "example": 0
+                                                            },
+                                                            "name": {
+                                                                "type": "string",
+                                                                "example": "PENDING"
+                                                            },
+                                                            "label": {
+                                                                "type": "string",
+                                                                "example": "قيد الانتظار"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "performance_levels": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "integer",
+                                                                "example": 4
+                                                            },
+                                                            "name": {
+                                                                "type": "string",
+                                                                "example": "EXCELLENT"
+                                                            },
+                                                            "label": {
+                                                                "type": "string",
+                                                                "example": "ممتاز"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/trainings/statistics": {
+            "get": {
+                "tags": [
+                    "Training Management"
+                ],
+                "summary": "Get training statistics - إحصائيات التدريب",
+                "operationId": "249005f0b390d8f241e2137cba2cef17",
+                "responses": {
+                    "200": {
+                        "description": "Statistics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 50
+                                                },
+                                                "pending": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "started": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "completed": {
+                                                    "type": "integer",
+                                                    "example": 20
+                                                },
+                                                "rejected": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "total_cost": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 75000
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/training-skills": {
+            "get": {
+                "tags": [
+                    "Training Skills"
+                ],
+                "summary": "Get training skills list - قائمة مهارات التدريب",
+                "operationId": "3d5df3115c5511ace01b13790c48537d",
+                "responses": {
+                    "200": {
+                        "description": "Training skills retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TrainingSkillResource"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Training Skills"
+                ],
+                "summary": "Create new training skill - إنشاء مهارة تدريب جديدة",
+                "operationId": "07225c5dbfab8e1579b2381d3792bbdb",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateTrainingSkillRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Training skill created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء مهارة التدريب بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/TrainingSkillResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/training-skills/{id}": {
+            "put": {
+                "tags": [
+                    "Training Skills"
+                ],
+                "summary": "Update training skill - تعديل مهارة تدريب",
+                "operationId": "657274897925ca91042377dbbeda6d0a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Skill ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTrainingSkillRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Training skill updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث مهارة التدريب بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/TrainingSkillResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "404": {
+                        "description": " المهارة غير موجودة"
+                    },
+                    "422": {
+                        "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Training Skills"
+                ],
+                "summary": "Delete training skill - حذف مهارة تدريب",
+                "operationId": "5c0aef54d9c862e2eb438b3bb26650b2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Skill ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Training skill deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف مهارة التدريب بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    },
+                    "404": {
+                        "description": " المهارة غير موجودة"
+                    },
+                    "422": {
+                        "description": "لا يمكن حذف المهارة لأنها مستخدمة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/transfers": {
             "get": {
                 "tags": [
@@ -20050,6 +22701,213 @@
     },
     "components": {
         "schemas": {
+            "TrainerResource": {
+                "title": "Trainer Resource",
+                "description": "بيانات المدرب",
+                "properties": {
+                    "trainer_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "company_id": {
+                        "type": "integer",
+                        "example": 36
+                    },
+                    "first_name": {
+                        "type": "string",
+                        "example": "محمد"
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "example": "أحمد"
+                    },
+                    "full_name": {
+                        "type": "string",
+                        "example": "محمد أحمد"
+                    },
+                    "contact_number": {
+                        "type": "string",
+                        "example": "01234567890"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "trainer@example.com"
+                    },
+                    "expertise": {
+                        "type": "string",
+                        "example": "PHP, Laravel, JavaScript"
+                    },
+                    "address": {
+                        "type": "string",
+                        "example": "القاهرة، مصر"
+                    },
+                    "trainings_count": {
+                        "type": "integer",
+                        "example": 5
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "TrainingResource": {
+                "title": "Training Resource",
+                "description": "بيانات التدريب",
+                "properties": {
+                    "training_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "company_id": {
+                        "type": "integer",
+                        "example": 36
+                    },
+                    "department_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "department_name": {
+                        "type": "string",
+                        "example": "قسم تقنية المعلومات"
+                    },
+                    "employee_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            1,
+                            2,
+                            3
+                        ]
+                    },
+                    "training_type_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "training_type_name": {
+                        "type": "string",
+                        "example": "تطوير البرمجيات"
+                    },
+                    "trainer_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "trainer_name": {
+                        "type": "string",
+                        "example": "محمد أحمد"
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-01-15"
+                    },
+                    "finish_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-01-20"
+                    },
+                    "training_cost": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 1500
+                    },
+                    "training_status": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "status_label": {
+                        "type": "string",
+                        "example": "قيد الانتظار"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "دورة تدريبية في تطوير PHP"
+                    },
+                    "performance": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "performance_label": {
+                        "type": "string",
+                        "example": "غير منتهى"
+                    },
+                    "associated_goals": {
+                        "type": "string",
+                        "example": "تطوير مهارات البرمجة"
+                    },
+                    "remarks": {
+                        "type": "string",
+                        "example": "ملاحظات إضافية"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "TrainingNoteResource": {
+                "title": "Training Note Resource",
+                "description": "بيانات ملاحظة التدريب",
+                "properties": {
+                    "training_note_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "training_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "company_id": {
+                        "type": "integer",
+                        "example": 36
+                    },
+                    "employee_id": {
+                        "type": "integer",
+                        "example": 37
+                    },
+                    "employee_name": {
+                        "type": "string",
+                        "example": "أحمد محمود"
+                    },
+                    "training_note": {
+                        "type": "string",
+                        "example": "ملاحظة حول أداء المتدربين"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "TrainingSkillResource": {
+                "title": "Training Skill Resource",
+                "description": "بيانات نوع/مهارة التدريب",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "تطوير البرمجيات"
+                    },
+                    "company_id": {
+                        "type": "integer",
+                        "example": 36
+                    },
+                    "is_global": {
+                        "type": "boolean",
+                        "example": false
+                    }
+                },
+                "type": "object"
+            },
             "BiometricBulkLogsRequest": {
                 "type": "array",
                 "items": {
@@ -20325,14 +23183,6 @@
                     }
                 },
                 "type": "object"
-            },
-            "CreateEmployeeRequest": {
-                "title": "Create Employee Request",
-                "description": "Create Employee Request"
-            },
-            "UpdateEmployeeRequest": {
-                "title": "Update Employee Request",
-                "description": "Update Employee Request"
             },
             "CreateInternalTicketRequest": {
                 "required": [
@@ -21818,6 +24668,18 @@
             "description": "تذاكر الدعم الفني - Support Tickets management endpoints"
         },
         {
+            "name": "Trainer Management",
+            "description": "Trainers management - إدارة المدربين"
+        },
+        {
+            "name": "Training Management",
+            "description": "Training sessions management - إدارة التدريب"
+        },
+        {
+            "name": "Training Skills",
+            "description": "Training skills/types management - إدارة مهارات/أنواع التدريب"
+        },
+        {
             "name": "Transfer Management",
             "description": "إدارة النقل والتحويلات - Transfer management endpoints"
         },
@@ -21832,6 +24694,10 @@
         {
             "name": "Dashboard",
             "description": "Dashboard"
+        },
+        {
+            "name": "Employee",
+            "description": "Employee"
         },
         {
             "name": "Employee Management",

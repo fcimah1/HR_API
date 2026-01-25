@@ -58,11 +58,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('/activity', [App\Http\Controllers\Api\DashboardController::class, 'getActivity']);
     });
 
-    // // Employee management
-    // Route::get('/employees', [EmployeeController::class, 'index']);
-    // Route::get('/employees/stats', [EmployeeController::class, 'stats']);
-    // Route::get('/employees/search', [EmployeeController::class, 'search']);
-    // Route::get('/employees/by-type/{type}', [EmployeeController::class, 'getByType']);
+
 
     // Employees for duty employee - no permissions required (must come before /employees/{id})
     Route::get('/employees/employees-for-duty-employee', [EmployeeController::class, 'getEmployeesForDutyEmployee']);
@@ -79,23 +75,27 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     // Employee approval levels - returns approval chain for an employee
     Route::get('/employees/approval-levels', [EmployeeController::class, 'getApprovalLevels']);
 
+    // Employee Management with Simple Permission Checks
+    Route::middleware('simple.permission:hr_staff')->group(function () {
+        // Employee search and statistics (must come before {id} routes)
+        Route::get('/employees/search', [EmployeeController::class, 'search']);
+        Route::get('/employees/statistics', [EmployeeController::class, 'statistics']);
+        
+        // Main employee CRUD operations
+        Route::get('/employees', [EmployeeController::class, 'index']);
+        Route::post('/employees', [EmployeeController::class, 'store']);
+        Route::get('/employees/{id}', [EmployeeController::class, 'show']);
+        Route::put('/employees/{id}', [EmployeeController::class, 'update']);
+        Route::delete('/employees/{id}', [EmployeeController::class, 'destroy']);
+    });
 
-    // Route::get('/employees/{id}', [EmployeeController::class, 'show']);
-
-    // // Employee filters and exports
-    // Route::get('/employees/export/pdf', [EmployeeController::class, 'exportPdf']);
-    // Route::get('/employees/export/pdf/detailed', [EmployeeController::class, 'exportDetailedPdf']);
-    // Route::get('/employees/export/pdf/arabic', [EmployeeController::class, 'exportArabicPdf']);
-    // Route::get('/employees/export/pdf/arabic-full', [EmployeeController::class, 'exportFullArabicPdf']);
-    // Route::get('/employees/active', [EmployeeController::class, 'getActiveEmployees']);
-    // Route::get('/employees/inactive', [EmployeeController::class, 'getInactiveEmployees']);
-
-
-    // // Employee CRUD - require admin/hr roles only
-    // Route::post('/employees', [EmployeeController::class, 'store']);
-    // Route::put('/employees/{id}', [EmployeeController::class, 'update']);
-    // Route::delete('/employees/{id}', [EmployeeController::class, 'destroy']);
-
+    // Employee Profile Data (requires hr_profile permission)
+    Route::middleware('simple.permission:hr_profile')->group(function () {
+        Route::get('/employees/{id}/documents', [EmployeeController::class, 'getEmployeeDocuments']);
+        Route::get('/employees/{id}/leave-balance', [EmployeeController::class, 'getEmployeeLeaveBalance']);
+        Route::get('/employees/{id}/attendance', [EmployeeController::class, 'getEmployeeAttendance']);
+        Route::get('/employees/{id}/salary-details', [EmployeeController::class, 'getEmployeeSalaryDetails']);
+    });
 
 
     // Leave Management with Simple Permission Checks
@@ -359,37 +359,37 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/{id}/replies', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'addReply'])->middleware('simple.permission:helpdesk2');
     });
 
-    // // Training Management - إدارة التدريب
-    // Route::prefix('trainings')->middleware('simple.permission:hr_training')->group(function () {
-    //     Route::get('/enums', [\App\Http\Controllers\Api\TrainingController::class, 'enums'])->middleware('simple.permission:training1');
-    //     Route::get('/statistics', [\App\Http\Controllers\Api\TrainingController::class, 'statistics'])->middleware('simple.permission:training1');
-    //     Route::get('/', [\App\Http\Controllers\Api\TrainingController::class, 'index'])->middleware('simple.permission:training1');
-    //     Route::post('/', [\App\Http\Controllers\Api\TrainingController::class, 'store'])->middleware('simple.permission:training2');
-    //     Route::get('/{id}', [\App\Http\Controllers\Api\TrainingController::class, 'show'])->middleware('simple.permission:training1');
-    //     Route::put('/{id}', [\App\Http\Controllers\Api\TrainingController::class, 'update'])->middleware('simple.permission:training3');
-    //     Route::delete('/{id}', [\App\Http\Controllers\Api\TrainingController::class, 'destroy'])->middleware('simple.permission:training4');
-    //     Route::patch('/{id}/status', [\App\Http\Controllers\Api\TrainingController::class, 'updateStatus'])->middleware('simple.permission:training3');
-    //     Route::get('/{id}/notes', [\App\Http\Controllers\Api\TrainingController::class, 'getNotes'])->middleware('simple.permission:training1');
-    //     Route::post('/{id}/notes', [\App\Http\Controllers\Api\TrainingController::class, 'addNote'])->middleware('simple.permission:training2');
-    // });
+    // Training Management - إدارة التدريب
+    Route::prefix('trainings')->middleware('simple.permission:hr_training')->group(function () {
+        Route::get('/enums', [\App\Http\Controllers\Api\TrainingController::class, 'enums'])->middleware('simple.permission:training1');
+        Route::get('/statistics', [\App\Http\Controllers\Api\TrainingController::class, 'statistics'])->middleware('simple.permission:training1');
+        Route::get('/', [\App\Http\Controllers\Api\TrainingController::class, 'index'])->middleware('simple.permission:training1');
+        Route::post('/', [\App\Http\Controllers\Api\TrainingController::class, 'store'])->middleware('simple.permission:training2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\TrainingController::class, 'show'])->middleware('simple.permission:training1');
+        Route::put('/{id}', [\App\Http\Controllers\Api\TrainingController::class, 'update'])->middleware('simple.permission:training3');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\TrainingController::class, 'destroy'])->middleware('simple.permission:training4');
+        Route::patch('/{id}/status', [\App\Http\Controllers\Api\TrainingController::class, 'updateStatus'])->middleware('simple.permission:training3');
+        Route::get('/{id}/notes', [\App\Http\Controllers\Api\TrainingController::class, 'getNotes'])->middleware('simple.permission:training1');
+        Route::post('/{id}/notes', [\App\Http\Controllers\Api\TrainingController::class, 'addNote'])->middleware('simple.permission:training2');
+    });
 
-    // // Trainer Management - إدارة المدربين
-    // Route::prefix('trainers')->middleware('simple.permission:hr_training')->group(function () {
-    //     Route::get('/dropdown', [\App\Http\Controllers\Api\TrainerController::class, 'dropdown'])->middleware('simple.permission:training1');
-    //     Route::get('/', [\App\Http\Controllers\Api\TrainerController::class, 'index'])->middleware('simple.permission:trainer1');
-    //     Route::post('/', [\App\Http\Controllers\Api\TrainerController::class, 'store'])->middleware('simple.permission:trainer2');
-    //     Route::get('/{id}', [\App\Http\Controllers\Api\TrainerController::class, 'show'])->middleware('simple.permission:trainer1');
-    //     Route::put('/{id}', [\App\Http\Controllers\Api\TrainerController::class, 'update'])->middleware('simple.permission:trainer3');
-    //     Route::delete('/{id}', [\App\Http\Controllers\Api\TrainerController::class, 'destroy'])->middleware('simple.permission:trainer4');
-    // });
+    // Trainer Management - إدارة المدربين
+    Route::prefix('trainers')->middleware('simple.permission:hr_training')->group(function () {
+        Route::get('/dropdown', [\App\Http\Controllers\Api\TrainerController::class, 'dropdown'])->middleware('simple.permission:training1');
+        Route::get('/', [\App\Http\Controllers\Api\TrainerController::class, 'index'])->middleware('simple.permission:trainer1');
+        Route::post('/', [\App\Http\Controllers\Api\TrainerController::class, 'store'])->middleware('simple.permission:trainer2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\TrainerController::class, 'show'])->middleware('simple.permission:trainer1');
+        Route::put('/{id}', [\App\Http\Controllers\Api\TrainerController::class, 'update'])->middleware('simple.permission:trainer3');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\TrainerController::class, 'destroy'])->middleware('simple.permission:trainer4');
+    });
 
-    // // Training Skills (Training Types) - أنواع التدريب (من ci_erp_constants)
-    // Route::prefix('training-skills')->middleware('simple.permission:hr_training')->group(function () {
-    //     Route::get('/', [\App\Http\Controllers\Api\TrainingSkillController::class, 'index'])->middleware('simple.permission:training_skill1');
-    //     Route::post('/', [\App\Http\Controllers\Api\TrainingSkillController::class, 'store'])->middleware('simple.permission:training_skill2');
-    //     Route::put('/{id}', [\App\Http\Controllers\Api\TrainingSkillController::class, 'update'])->middleware('simple.permission:training_skill3');
-    //     Route::delete('/{id}', [\App\Http\Controllers\Api\TrainingSkillController::class, 'destroy'])->middleware('simple.permission:training_skill4');
-    // });
+    // Training Skills (Training Types) - أنواع التدريب (من ci_erp_constants)
+    Route::prefix('training-skills')->middleware('simple.permission:hr_training')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\TrainingSkillController::class, 'index'])->middleware('simple.permission:training_skill1');
+        Route::post('/', [\App\Http\Controllers\Api\TrainingSkillController::class, 'store'])->middleware('simple.permission:training_skill2');
+        Route::put('/{id}', [\App\Http\Controllers\Api\TrainingSkillController::class, 'update'])->middleware('simple.permission:training_skill3');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\TrainingSkillController::class, 'destroy'])->middleware('simple.permission:training_skill4');
+    });
 
     // Reports Management - صلاحية موحدة: system_reports
     Route::prefix('reports')->middleware('simple.permission:system_reports')->group(function () {

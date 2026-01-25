@@ -24,11 +24,53 @@ class TrainingService
     ) {}
 
     /**
-     * Get paginated trainings with filters
+     * Get paginated trainings with filters and permission check
      */
     public function getPaginatedTrainings(TrainingFilterDTO $filters, User $user): array
     {
-        $result = $this->trainingRepository->getPaginatedTrainings($filters, $user);
+        // إنشاء filters جديد بناءً على صلاحيات المستخدم
+        $filterData = $filters->toArray();
+
+        // التحقق من نوع المستخدم (company أو staff فقط)
+        if ($user->user_type == 'company') {
+            // مدير الشركة: يرى جميع التدريبات في الشركة
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $filterData['company_id'] = $effectiveCompanyId;
+        } else {
+            // موظف (staff): يرى التدريبات الخاصة به + تدريبات الموظفين التابعين له
+            $subordinateIds = $this->getSubordinateEmployeeIds($user);
+
+            if (!empty($subordinateIds)) {
+                // لديه موظفين تابعين: تدريباته + تدريبات التابعين
+
+                // Filter subordinates based on restrictions (Department/Branch restrictions from OperationRestriction)
+                $subordinateIds = array_filter($subordinateIds, function ($empId) use ($user) {
+                    $emp = User::findOrFail($empId);
+                    if (!$emp) return false;
+                    return $this->permissionService->canViewEmployeeRequests($user, $emp);
+                });
+
+                $subordinateIds[] = $user->user_id; // إضافة نفسه
+                $filterData['employee_ids'] = $subordinateIds;
+                $filterData['company_id'] = $user->company_id;
+
+                // إضافة فلترة المستويات الهرمية للموظفين التابعين
+                $hierarchyLevels = $this->permissionService->getUserHierarchyLevel($user);
+                if ($hierarchyLevels !== null) {
+                    // جلب المستويات الأعلى من مستوى المدير
+                    $filterData['hierarchy_levels'] = range($hierarchyLevels + 1, 5);
+                }
+            } else {
+                // ليس لديه موظفين تابعين: تدريباته فقط
+                $filterData['employee_id'] = $user->user_id;
+                $filterData['company_id'] = $user->company_id;
+            }
+        }
+
+        // إنشاء DTO جديد مع البيانات المحدثة
+        $updatedFilters = TrainingFilterDTO::fromRequest($filterData);
+
+        $result = $this->trainingRepository->getPaginatedTrainings($updatedFilters, $user);
 
         // Convert data items to Resources
         $result['data'] = TrainingResource::collection(
@@ -56,8 +98,29 @@ class TrainingService
     /**
      * Create a new training
      */
-    public function createTraining(CreateTrainingDTO $dto): TrainingResource
+    public function createTraining(CreateTrainingDTO $dto, User $user): TrainingResource
     {
+        // Check hierarchy permissions for staff users creating for other employees
+        if ($user->user_type !== 'company' && !empty($dto->employeeIds)) {
+            // Validate that the user has permission to create training for each employee
+            foreach ($dto->employeeIds as $employeeId) {
+                if ((int) $employeeId !== $user->user_id) {
+                    $employee = User::query()->where('user_id', '=', (int) $employeeId)->first();
+                    if (!$employee || !$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                        Log::warning('TrainingService::createTraining - Hierarchy permission denied', [
+                            'requester_id' => $user->user_id,
+                            'requester_type' => $user->user_type,
+                            'target_employee_id' => $employeeId,
+                            'requester_level' => $this->permissionService->getUserHierarchyLevel($user),
+                            'target_level' => $this->permissionService->getUserHierarchyLevel($employee),
+                            'message' => 'ليس لديك صلاحية لإنشاء تدريب لهذا الموظف',
+                        ]);
+                        throw new \Exception('ليس لديك صلاحية لإنشاء تدريب لهذا الموظف');
+                    }
+                }
+            }
+        }
+
         $training = $this->trainingRepository->create($dto);
 
         Log::info('Training created', [
@@ -201,5 +264,37 @@ class TrainingService
     public function getStatistics(int $companyId): array
     {
         return $this->trainingRepository->getStatistics($companyId);
+    }
+
+    /**
+     * الحصول على جميع معرفات الموظفين التابعين
+     */
+    private function getSubordinateEmployeeIds(User $manager): array
+    {
+        $allEmployees = User::query()
+            ->where('company_id', '=', $manager->company_id)
+            ->where('user_type', '=', 'staff')
+            ->with('user_details.designation')
+            ->get();
+
+        if ($allEmployees->isEmpty()) {
+            return [];
+        }
+
+        $managerLevel = $this->permissionService->getUserHierarchyLevel($manager);
+        if ($managerLevel === null) {
+            return [];
+        }
+
+        $subordinates = [];
+        foreach ($allEmployees as $emp) {
+            $empLevel = $emp->getHierarchyLevel();
+            // المدير يرى الموظفين في مستويات أعلى (أرقام أكبر)
+            if ($empLevel !== null && $empLevel > $managerLevel) {
+                $subordinates[] = $emp->user_id;
+            }
+        }
+
+        return $subordinates;
     }
 }

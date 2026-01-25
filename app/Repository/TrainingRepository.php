@@ -70,6 +70,22 @@ class TrainingRepository implements TrainingRepositoryInterface
             });
         }
 
+        // Multiple employees filter (for subordinates)
+        if ($filters->employeeIds !== null && !empty($filters->employeeIds)) {
+            $query->where(function ($q) use ($filters) {
+                foreach ($filters->employeeIds as $empId) {
+                    $q->orWhere('employee_id', $empId)
+                        ->orWhere('employee_id', 'like', $empId . ',%')
+                        ->orWhere('employee_id', 'like', '%,' . $empId . ',%')
+                        ->orWhere('employee_id', 'like', '%,' . $empId);
+                }
+            });
+        }
+
+        // Apply hierarchy level filtering if specified
+        // Note: We would need employee relationship to filter by hierarchy
+        // For now, filtering is handled at the Service level based on subordinate employee IDs
+
         // Date range filters
         if ($filters->fromDate !== null) {
             $query->where('start_date', '>=', $filters->fromDate);

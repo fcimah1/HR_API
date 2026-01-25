@@ -461,7 +461,7 @@ class SimplePermissionService
      */
     public function getEmployeesByHierarchy(int $userId, int $companyId, bool $includeSelf = true): array
     {
-        $user = User::find($userId);
+        $user = User::findOrFail($userId);
         if (!$user) {
             return [];
         }
@@ -758,5 +758,70 @@ class SimplePermissionService
         }
 
         return $result;
+    }
+
+    /**
+     * Check if a specific operation string exists in user restrictions
+     * (e.g., 'view_salary', 'report_attendance')
+     * 
+     * @param int $userId
+     * @param int $companyId
+     * @param string $operationKey
+     * @return bool
+     */
+    public function hasOperationRestriction(int $userId, int $companyId, string $operationKey): bool
+    {
+        $restriction = OperationRestriction::where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$restriction || empty($restriction->restricted_operations)) {
+            return false;
+        }
+
+        $operations = $restriction->restricted_operations;
+        if (is_string($operations)) {
+            $operations = explode(',', $operations);
+        }
+
+        return in_array(trim($operationKey), array_map('trim', $operations));
+    }
+
+    /**
+     * Check if user can view salary information
+     * 
+     * @param User $user
+     * @return bool
+     */
+    public function canViewSalaries(User $user): bool
+    {
+        // Company owners can always view salaries
+        if ($this->isCompanyOwner($user)) {
+            return true;
+        }
+
+        // Super users can view salaries
+        if ($this->isSuperUser($user)) {
+            return true;
+        }
+
+        // Check if user has specific permission to view salaries
+        if ($this->checkPermission($user, 'employee.salary.view')) {
+            return true;
+        }
+
+        // Check if user is restricted from viewing salaries
+        $companyId = $this->getEffectiveCompanyId($user);
+        if ($this->hasRestriction($user->user_id, $companyId, 'view_salary')) {
+            return false;
+        }
+
+        // HR staff with appropriate hierarchy level can view salaries
+        $hierarchyLevel = $this->getUserHierarchyLevel($user);
+        if ($hierarchyLevel && $hierarchyLevel <= 3) { // CEO, Manager, Department Head
+            return $this->checkPermission($user, 'hr_staff');
+        }
+
+        return false;
     }
 }

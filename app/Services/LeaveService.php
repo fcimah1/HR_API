@@ -66,7 +66,7 @@ class LeaveService
 
                 // Filter subordinates based on restrictions (Department/Branch restrictions from OperationRestriction)
                 $subordinateIds = array_filter($subordinateIds, function ($empId) use ($user) {
-                    $emp = User::find($empId);
+                    $emp = User::findOrFail($empId);
                     if (!$emp) return false;
                     return $this->permissionService->canViewEmployeeRequests($user, $emp);
                 });
@@ -178,13 +178,13 @@ class LeaveService
             // Check for restricted leave types
             // التحقق من قيود نوع الإجازة
             // Check for restricted leave types
-            $user = User::with(['user_details.designation'])->find($dto->employeeId);
+            $user = User::with(['user_details.designation'])->findOrFail($dto->employeeId);
 
             // Check if requester is company owner or superior (can override restrictions)
             $canOverrideRestrictions = false;
 
             if ($dto->createdBy) {
-                $requester = User::find($dto->createdBy);
+                $requester = User::findOrFail($dto->createdBy);
                 if ($requester && $user && $this->permissionService->canOverrideRestriction($requester, $user, 'leave_type_', (int)$dto->leaveTypeId)) {
                     $canOverrideRestrictions = true;
                     Log::info('LeaveService::createApplication - Restriction override allowed', [
@@ -378,7 +378,7 @@ class LeaveService
 
             if ($application) {
                 // Check if user can view this employee's requests based on hierarchy
-                $employee = User::find($application->employee_id);
+                $employee = User::findOrFail($application->employee_id);
                 if ($employee) {
                     $canView = $this->permissionService->canViewEmployeeRequests($user, $employee);
 
@@ -454,7 +454,7 @@ class LeaveService
             // صاحب الطلب يمكنه تعديله
             if (!$isOwner && !$isCompany) {
                 // التحقق من صلاحية رؤية طلبات الموظف (تشمل قيود القسم/الفرع/الهرمية)
-                $employee = User::find($application->employee_id);
+                $employee = User::findOrFail($application->employee_id);
                 if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::error('Unauthorized update attempt', [
                         'user_id' => $user->user_id,
@@ -589,7 +589,7 @@ class LeaveService
             // Check hierarchy permission (is a manager of the employee)
             $isHierarchyManager = false;
             if (!$isOwner && !$isCompany) {
-                $employee = User::find($application->employee_id);
+                $employee = User::findOrFail($application->employee_id);
                 if ($employee && $this->permissionService->canViewEmployeeRequests($user, $employee)) {
                     $isHierarchyManager = true;
                 }
@@ -669,7 +669,7 @@ class LeaveService
 
             // Check hierarchy permissions for staff users (strict: must be higher level)
             if ($user->user_type !== 'company') {
-                $employee = User::find($application->employee_id);
+                $employee = User::findOrFail($application->employee_id);
                 if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::warning('LeaveService::approveApplication - Hierarchy permission denied', [
                         'application_id' => $id,
@@ -885,9 +885,9 @@ class LeaveService
             }
 
             // Check hierarchy permissions for staff users (strict: must be higher level)
-            $rejectingUser = User::find($rejectedBy);
+            $rejectingUser = User::findOrFail($rejectedBy);
             if ($rejectingUser && $rejectingUser->user_type !== 'company') {
-                $employee = User::find($application->employee_id);
+                $employee = User::findOrFail($application->employee_id);
                 if (!$employee || !$this->permissionService->canApproveEmployeeRequests($rejectingUser, $employee)) {
                     Log::warning('LeaveService::rejectApplication - Hierarchy permission denied', [
                         'application_id' => $id,
@@ -1053,7 +1053,7 @@ class LeaveService
     public function getAvailableLeaveBalance(int $employeeId, int $leaveTypeId, int $companyId): float
     {
         // التحقق من أن نوع الإجازة غير محظور
-        $user = User::find($employeeId);
+        $user = User::findOrFail($employeeId);
         if ($user) {
             $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
             if (in_array($leaveTypeId, $restrictedIds)) {
@@ -1119,7 +1119,7 @@ class LeaveService
         })->filter()->values()->toArray();
 
         // Filter restricted leave types
-        $user = User::find($employeeId);
+        $user = User::findOrFail($employeeId);
         if ($user) {
             $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
             if (!empty($restrictedIds)) {
@@ -1261,7 +1261,7 @@ class LeaveService
         })->filter()->values()->toArray();
 
         // فلترة أنواع الإجازات المحظورة للموظف
-        $user = User::find($employeeId);
+        $user = User::findOrFail($employeeId);
         if ($user) {
             $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
             if (!empty($restrictedIds)) {

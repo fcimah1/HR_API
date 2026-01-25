@@ -45,7 +45,7 @@ interface TrainingRepositoryInterface
     /**
      * Update training status
      */
-    public function updateStatus(Training $training, int $status): Training;
+    public function updateStatus(Training $training, int $status, ?int $performance = null, ?string $remarks = null): Training;
 
     /**
      * Add note to training

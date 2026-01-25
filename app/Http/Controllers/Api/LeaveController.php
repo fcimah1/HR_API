@@ -1010,7 +1010,7 @@ class LeaveController extends Controller
 
                 // إذا كان يطلب موظفًا غير نفسه، نتحقق من الصلاحيات
                 if ($requestedEmployeeId !== $user->user_id) {
-                    $targetEmployee = User::find($requestedEmployeeId);
+                    $targetEmployee = User::findOrFail($requestedEmployeeId);
 
                     if (!$targetEmployee) {
                         return response()->json([
@@ -1224,7 +1224,7 @@ class LeaveController extends Controller
 
                 // إذا كان يطلب موظفًا غير نفسه، نتحقق من الصلاحيات
                 if ($requestedEmployeeId !== $user->user_id) {
-                    $targetEmployee = User::find($requestedEmployeeId);
+                    $targetEmployee = User::findOrFail($requestedEmployeeId);
 
                     if (!$targetEmployee) {
                         return response()->json([
