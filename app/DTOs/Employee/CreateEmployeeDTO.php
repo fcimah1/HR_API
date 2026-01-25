@@ -2,113 +2,170 @@
 
 namespace App\DTOs\Employee;
 
-class CreateEmployeeDTO extends BaseEmployeeDTO
+class CreateEmployeeDTO
 {
     public function __construct(
-        public readonly array $userData,
-        public readonly array $detailsData
+        public string $first_name,
+        public string $last_name,
+        public string $email,
+        public string $username,
+        public string $password,
+        public int $department_id,
+        public int $designation_id,
+        public ?string $contact_number = null,
+        public ?string $gender = null,
+        public ?float $basic_salary = null,
+        public ?string $date_of_joining = null,
+        public ?string $date_of_birth = null,
+        public ?string $marital_status = null,
+        public ?string $blood_group = null,
+        public ?string $address_1 = null,
+        public ?string $address_2 = null,
+        public ?string $city = null,
+        public ?string $state = null,
+        public ?string $zipcode = null,
+        public ?string $country = null,
+        public ?string $bio = null,
+        public ?string $experience = null,
+        public ?float $hourly_rate = null,
+        public ?string $salary_type = null,
+        public ?string $salary_payment_method = null,
+        public ?int $currency_id = null,
+        public ?string $role_description = null,
+        public ?string $contract_end = null,
+        public ?int $religion_id = null,
+        public ?int $citizenship_id = null,
+        public ?string $fb_profile = null,
+        public ?string $twitter_profile = null,
+        public ?string $gplus_profile = null,
+        public ?string $linkedin_profile = null,
+        public ?string $account_title = null,
+        public ?string $account_number = null,
+        public ?string $bank_name = null,
+        public ?string $iban = null,
+        public ?string $swift_code = null,
+        public ?string $bank_branch = null,
+        public ?string $contact_full_name = null,
+        public ?string $contact_phone_no = null,
+        public ?string $contact_email = null,
+        public ?string $contact_address = null,
+        public ?string $employee_idnum = null,
+        public ?string $passport_no = null,
+        public ?string $passport_date = null,
+        public ?int $branch_id = null,
+        public ?string $biotime_id = null,
+        public bool $is_active = true
     ) {}
 
-    public static function fromRequest(array $data): self
+    public static function fromArray(array $data): self
     {
-        $instance = new static([], []);
-        
-        $userData = $instance->getBasicUserData($data);
-        $userData['password'] = isset($data['password']) ? bcrypt($data['password']) : null;
-        $userData['company_id'] = (int) $data['company_id'];
-        $userData['company_name'] = $data['company_name'];
-        $userData['is_active'] = 1;
-        $userData['is_logged_in'] = 0;
-        $userData['created_at'] = date('Y-m-d H:i:s');
-
-        // تعيين نوع المستخدم الافتراضي كـ "employee" إذا لم يتم تمريره في الطلب
-        if (empty($userData['user_type'])) {
-            $userData['user_type'] = 'employee';
-        }
-
-        // تعيين صورة افتراضية فارغة إذا لم يتم تمرير profile_photo في الطلب
-        if (!array_key_exists('profile_photo', $userData) || $userData['profile_photo'] === null) {
-            $userData['profile_photo'] = '';
-        }
-
-        // تعيين قيمة افتراضية للجنس إذا لم يتم تمرير gender في الطلب
-        if (!array_key_exists('gender', $userData) || $userData['gender'] === null) {
-            $userData['gender'] = '';
-        }
-        
-        $detailsData = $instance->getEmployeeDetailsData($data);
-        $detailsData['company_id'] = (int) $data['company_id'];
-        $detailsData['leave_categories'] = $detailsData['leave_categories'] ?? 'all';
-        $detailsData['is_work_from_home'] = isset($detailsData['is_work_from_home']) ? ($detailsData['is_work_from_home'] ? 1 : 0) : 0;
-        $detailsData['is_eqama'] = isset($detailsData['is_eqama']) ? ($detailsData['is_eqama'] ? 1 : 0) : 1;
-
-        // تعيين مدير افتراضي 0 إذا لم يتم تمرير reporting_manager في الطلب
-        if (!array_key_exists('reporting_manager', $detailsData) || $detailsData['reporting_manager'] === null) {
-            $detailsData['reporting_manager'] = 0;
-        }
-
-        // تعيين قيمة افتراضية للأجر بالساعة 0 إذا لم يتم تمرير hourly_rate في الطلب
-        if (!array_key_exists('hourly_rate', $detailsData) || $detailsData['hourly_rate'] === null) {
-            $detailsData['hourly_rate'] = 0;
-        }
-
-        // تعيين قيم افتراضية لباقي الحقول الرقمية الشائعة لتفادي أخطاء الأعمدة الإلزامية
-        $numericDefaults = [
-            'department_id',
-            'designation_id',
-            'basic_salary',
-            'marital_status',
-            'experience',
-            'bank_name',
-            'job_type',
-            'branch_id',
-
-            // حقول الضرائب والمساهمات (ml_*)
-            'ml_tax_category',
-            'ml_empployee_epf_rate',
-            'ml_empployer_epf_rate',
-            'ml_eis_contribution',
-            'ml_socso_category',
-            'ml_pcb_socso',
-            'ml_hrdf',
-            'ml_tax_citizenship',
-            'zakat_fund',
-
-            // حقول أخرى رقمية مرتبطة بالراتب/العملة
-            'salary_payment_method',
-            'currency_id',
-            'contract_option_id',
-            'biotime_id',
-        ];
-
-        foreach ($numericDefaults as $field) {
-            if (!array_key_exists($field, $detailsData) || $detailsData[$field] === null) {
-                $detailsData[$field] = 0;
-            }
-        }
-
-        // مزامنة نوع الراتب مع اسم العمود القديم salay_type في قاعدة البيانات
-        if (isset($detailsData['salary_type']) && $detailsData['salary_type'] !== null) {
-            $detailsData['salay_type'] = $detailsData['salary_type'];
-        } elseif (!array_key_exists('salay_type', $detailsData) || $detailsData['salay_type'] === null) {
-            $detailsData['salay_type'] = 0;
-        }
-
-        $detailsData['created_at'] = date('Y-m-d H:i:s');
-
         return new self(
-            userData: $instance->filterNullValues($userData),
-            detailsData: $instance->filterNullValues($detailsData)
+            first_name: $data['first_name'],
+            last_name: $data['last_name'],
+            email: $data['email'],
+            username: $data['username'],
+            password: $data['password'],
+            department_id: (int) $data['department_id'],
+            designation_id: (int) $data['designation_id'],
+            contact_number: $data['contact_number'] ?? null,
+            gender: $data['gender'] ?? null,
+            basic_salary: isset($data['basic_salary']) ? (float) $data['basic_salary'] : null,
+            date_of_joining: $data['date_of_joining'] ?? null,
+            date_of_birth: $data['date_of_birth'] ?? null,
+            marital_status: $data['marital_status'] ?? null,
+            blood_group: $data['blood_group'] ?? null,
+            address_1: $data['address_1'] ?? null,
+            address_2: $data['address_2'] ?? null,
+            city: $data['city'] ?? null,
+            state: $data['state'] ?? null,
+            zipcode: $data['zipcode'] ?? null,
+            country: $data['country'] ?? null,
+            bio: $data['bio'] ?? null,
+            experience: $data['experience'] ?? null,
+            hourly_rate: isset($data['hourly_rate']) ? (float) $data['hourly_rate'] : null,
+            salary_type: $data['salary_type'] ?? null,
+            salary_payment_method: $data['salary_payment_method'] ?? null,
+            currency_id: isset($data['currency_id']) ? (int) $data['currency_id'] : null,
+            role_description: $data['role_description'] ?? null,
+            contract_end: $data['contract_end'] ?? null,
+            religion_id: isset($data['religion_id']) ? (int) $data['religion_id'] : null,
+            citizenship_id: isset($data['citizenship_id']) ? (int) $data['citizenship_id'] : null,
+            fb_profile: $data['fb_profile'] ?? null,
+            twitter_profile: $data['twitter_profile'] ?? null,
+            gplus_profile: $data['gplus_profile'] ?? null,
+            linkedin_profile: $data['linkedin_profile'] ?? null,
+            account_title: $data['account_title'] ?? null,
+            account_number: $data['account_number'] ?? null,
+            bank_name: $data['bank_name'] ?? null,
+            iban: $data['iban'] ?? null,
+            swift_code: $data['swift_code'] ?? null,
+            bank_branch: $data['bank_branch'] ?? null,
+            contact_full_name: $data['contact_full_name'] ?? null,
+            contact_phone_no: $data['contact_phone_no'] ?? null,
+            contact_email: $data['contact_email'] ?? null,
+            contact_address: $data['contact_address'] ?? null,
+            employee_idnum: $data['employee_idnum'] ?? null,
+            passport_no: $data['passport_no'] ?? null,
+            passport_date: $data['passport_date'] ?? null,
+            branch_id: isset($data['branch_id']) ? (int) $data['branch_id'] : null,
+            biotime_id: $data['biotime_id'] ?? null,
+            is_active: $data['is_active'] ?? true
         );
     }
 
-    public function getUserData(): array
+    public function toArray(): array
     {
-        return $this->userData;
-    }
-
-    public function getUserDetailsData(int $userId): array
-    {
-        return array_merge($this->detailsData, ['user_id' => $userId]);
+        return [
+            'first_name' => $this->first_name,
+            'last_name' => $this->last_name,
+            'email' => $this->email,
+            'username' => $this->username,
+            'password' => $this->password,
+            'department_id' => $this->department_id,
+            'designation_id' => $this->designation_id,
+            'contact_number' => $this->contact_number,
+            'gender' => $this->gender,
+            'basic_salary' => $this->basic_salary,
+            'date_of_joining' => $this->date_of_joining,
+            'date_of_birth' => $this->date_of_birth,
+            'marital_status' => $this->marital_status,
+            'blood_group' => $this->blood_group,
+            'address_1' => $this->address_1,
+            'address_2' => $this->address_2,
+            'city' => $this->city,
+            'state' => $this->state,
+            'zipcode' => $this->zipcode,
+            'country' => $this->country,
+            'bio' => $this->bio,
+            'experience' => $this->experience,
+            'hourly_rate' => $this->hourly_rate,
+            'salary_type' => $this->salary_type,
+            'salary_payment_method' => $this->salary_payment_method,
+            'currency_id' => $this->currency_id,
+            'role_description' => $this->role_description,
+            'contract_end' => $this->contract_end,
+            'religion_id' => $this->religion_id,
+            'citizenship_id' => $this->citizenship_id,
+            'fb_profile' => $this->fb_profile,
+            'twitter_profile' => $this->twitter_profile,
+            'gplus_profile' => $this->gplus_profile,
+            'linkedin_profile' => $this->linkedin_profile,
+            'account_title' => $this->account_title,
+            'account_number' => $this->account_number,
+            'bank_name' => $this->bank_name,
+            'iban' => $this->iban,
+            'swift_code' => $this->swift_code,
+            'bank_branch' => $this->bank_branch,
+            'contact_full_name' => $this->contact_full_name,
+            'contact_phone_no' => $this->contact_phone_no,
+            'contact_email' => $this->contact_email,
+            'contact_address' => $this->contact_address,
+            'employee_idnum' => $this->employee_idnum,
+            'passport_no' => $this->passport_no,
+            'passport_date' => $this->passport_date,
+            'branch_id' => $this->branch_id,
+            'biotime_id' => $this->biotime_id,
+            'is_active' => $this->is_active,
+        ];
     }
 }

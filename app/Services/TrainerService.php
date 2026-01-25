@@ -7,6 +7,7 @@ namespace App\Services;
 use App\DTOs\Trainer\CreateTrainerDTO;
 use App\DTOs\Trainer\TrainerFilterDTO;
 use App\Models\Trainer;
+use App\Models\User;
 use App\Repository\Interface\TrainerRepositoryInterface;
 use Illuminate\Support\Facades\Log;
 
@@ -14,29 +15,61 @@ class TrainerService
 {
     public function __construct(
         protected TrainerRepositoryInterface $trainerRepository,
+        protected SimplePermissionService $permissionService,
     ) {}
 
     /**
      * Get paginated trainers with filters
      */
-    public function getPaginatedTrainers(TrainerFilterDTO $filters): array
+    public function getPaginatedTrainers(TrainerFilterDTO $filters, ?User $user = null): array
     {
         return $this->trainerRepository->getPaginatedTrainers($filters);
     }
 
     /**
-     * Get all trainers for company (for dropdowns)
+     * Get all trainers for company (for dropdowns) with operation restrictions
      */
-    public function getAllForCompany(int $companyId): array
+    public function getAllForCompany(int $companyId, ?User $user = null): array
     {
-        return $this->trainerRepository->getAllForCompany($companyId);
+        $trainers = $this->trainerRepository->getAllForCompany($companyId);
+
+        // Apply operation restrictions if user provided
+        if ($user && !$this->permissionService->isCompanyOwner($user)) {
+            $restrictedTypes = $this->permissionService->getRestrictedValues(
+                $user->user_id,
+                $companyId,
+                'trainer_'
+            );
+
+            if (!empty($restrictedTypes)) {
+                $trainers = array_filter(
+                    $trainers,
+                    fn($trainer) => !in_array($trainer['trainer_id'], $restrictedTypes)
+                );
+            }
+        }
+
+        return $trainers;
     }
 
     /**
-     * Create a new trainer
+     * Create a new trainer with permission checks
      */
-    public function createTrainer(CreateTrainerDTO $dto): array
+    public function createTrainer(CreateTrainerDTO $dto, ?User $user = null): array
     {
+        // Check operation restriction for creating trainers
+        if ($user && !$this->permissionService->isCompanyOwner($user)) {
+            $restrictedTypes = $this->permissionService->getRestrictedValues(
+                $user->user_id,
+                $dto->companyId,
+                'trainer_'
+            );
+
+            if (!empty($restrictedTypes) && in_array(0, $restrictedTypes)) {
+                throw new \Exception('ليس لديك صلاحية لإنشاء مدرب');
+            }
+        }
+
         $trainer = $this->trainerRepository->create($dto);
 
         Log::info('Trainer created', [
@@ -62,14 +95,27 @@ class TrainerService
     }
 
     /**
-     * Update trainer
+     * Update trainer with permission checks
      */
-    public function updateTrainer(int $id, array $data, int $companyId): ?array
+    public function updateTrainer(int $id, array $data, int $companyId, ?User $user = null): ?array
     {
         $trainer = $this->trainerRepository->findByIdInCompany($id, $companyId);
 
         if (!$trainer) {
             return null;
+        }
+
+        // Check operation restriction for updating trainers
+        if ($user && !$this->permissionService->isCompanyOwner($user)) {
+            $restrictedTypes = $this->permissionService->getRestrictedValues(
+                $user->user_id,
+                $companyId,
+                'trainer_'
+            );
+
+            if (!empty($restrictedTypes) && in_array($id, $restrictedTypes)) {
+                throw new \Exception('ليس لديك صلاحية لتعديل هذا المدرب');
+            }
         }
 
         // Filter only updateable fields
@@ -97,14 +143,27 @@ class TrainerService
     }
 
     /**
-     * Delete trainer
+     * Delete trainer with permission checks
      */
-    public function deleteTrainer(int $id, int $companyId): bool
+    public function deleteTrainer(int $id, int $companyId, ?User $user = null): bool
     {
         $trainer = $this->trainerRepository->findByIdInCompany($id, $companyId);
 
         if (!$trainer) {
             return false;
+        }
+
+        // Check operation restriction for deleting trainers
+        if ($user && !$this->permissionService->isCompanyOwner($user)) {
+            $restrictedTypes = $this->permissionService->getRestrictedValues(
+                $user->user_id,
+                $companyId,
+                'trainer_'
+            );
+
+            if (!empty($restrictedTypes) && in_array($id, $restrictedTypes)) {
+                throw new \Exception('ليس لديك صلاحية لحذف هذا المدرب');
+            }
         }
 
         // Check if trainer has any trainings
