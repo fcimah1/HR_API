@@ -55,6 +55,7 @@ use App\Repository\TrainerRepository;
 use App\Repository\Interface\TrainingSkillRepositoryInterface;
 use App\Repository\TrainingSkillRepository;
 use App\Services\CacheService;
+use App\Services\FileUploadService;
 use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
@@ -146,6 +147,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Cache Service (Singleton)
         $this->app->singleton(CacheService::class, CacheService::class);
+
+        $this->app->bind(FileUploadService::class, FileUploadService::class);
     }
 
     /**
@@ -157,8 +160,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Configure Passport token expiration
         if (class_exists('Laravel\Passport\Passport')) {
-            Passport::tokensExpireIn(now()->addMinutes(config('passport.token_expiration', 1440)));
-            Passport::refreshTokensExpireIn(now()->addMinutes(config('passport.refresh_token_expiration', 20160)));
+            Passport::tokensExpireIn(now()->addMinutes(15));
+            Passport::refreshTokensExpireIn(now()->addMinutes(120));
+            Passport::personalAccessTokensExpireIn(now()->addMinutes(60));
         }
 
         // تسجيل Listener لفشل الـ Jobs

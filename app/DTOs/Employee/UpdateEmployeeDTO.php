@@ -5,6 +5,7 @@ namespace App\DTOs\Employee;
 class UpdateEmployeeDTO
 {
     public function __construct(
+        public int $user_id,
         public ?string $first_name = null,
         public ?string $last_name = null,
         public ?string $email = null,
@@ -61,6 +62,7 @@ class UpdateEmployeeDTO
     public static function fromArray(array $data): self
     {
         return new self(
+            user_id: (int) $data['user_id'],
             first_name: $data['first_name'] ?? null,
             last_name: $data['last_name'] ?? null,
             email: $data['email'] ?? null,
@@ -117,8 +119,8 @@ class UpdateEmployeeDTO
 
     public function toArray(): array
     {
-        $data = [];
-        
+        $data = ['user_id' => $this->user_id];
+
         if ($this->first_name !== null) $data['first_name'] = $this->first_name;
         if ($this->last_name !== null) $data['last_name'] = $this->last_name;
         if ($this->email !== null) $data['email'] = $this->email;
@@ -171,6 +173,37 @@ class UpdateEmployeeDTO
         if ($this->biotime_id !== null) $data['biotime_id'] = $this->biotime_id;
         if ($this->is_active !== null) $data['is_active'] = $this->is_active;
 
+        return $data;
+    }
+
+    public function hasUserUpdates(): bool
+    {
+        return $this->first_name !== null || $this->last_name !== null || $this->email !== null || $this->contact_number !== null || $this->is_active !== null;
+    }
+
+    public function hasDetailsUpdates(): bool
+    {
+        return $this->department_id !== null || $this->designation_id !== null || $this->basic_salary !== null || $this->branch_id !== null;
+    }
+
+    public function getUserData(): array
+    {
+        $data = [];
+        if ($this->first_name !== null) $data['first_name'] = $this->first_name;
+        if ($this->last_name !== null) $data['last_name'] = $this->last_name;
+        if ($this->email !== null) $data['email'] = $this->email;
+        if ($this->contact_number !== null) $data['contact_number'] = $this->contact_number;
+        if ($this->is_active !== null) $data['is_active'] = $this->is_active ? 1 : 0;
+        return $data;
+    }
+
+    public function getUserDetailsData(): array
+    {
+        $data = [];
+        if ($this->department_id !== null) $data['department_id'] = $this->department_id;
+        if ($this->designation_id !== null) $data['designation_id'] = $this->designation_id;
+        if ($this->branch_id !== null) $data['branch_id'] = $this->branch_id;
+        if ($this->basic_salary !== null) $data['basic_salary'] = $this->basic_salary;
         return $data;
     }
 }

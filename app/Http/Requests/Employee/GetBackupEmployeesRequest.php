@@ -4,6 +4,7 @@ namespace App\Http\Requests\Employee;
 
 use App\Rules\CanRequestForEmployee;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Log;
 
 class GetBackupEmployeesRequest extends FormRequest
 {
@@ -50,18 +51,16 @@ class GetBackupEmployeesRequest extends FormRequest
         ];
     }
 
-    // public function prepareForValidation()
-    // {
-    //     $this->merge([
-    //         'target_employee_id' => $this->input('target_employee_id'),
-    //         'search' => $this->input('search'),
-    //         'employee_id' => $this->input('employee_id'),
-    //     ]);
-    // }
-
 
     public function failedValidation(\Illuminate\Contracts\Validation\Validator $validator)
     {
+        Log::error('validation errors',[
+            'success' => false,
+            'status_code' => 422,
+            'url' => url()->current(),
+            'message' => 'Validation errors',
+            'data' => $validator->errors()
+        ]);
         throw new \Illuminate\Http\Exceptions\HttpResponseException(response()->json([
             'success' => false,
             'message' => 'Validation errors',

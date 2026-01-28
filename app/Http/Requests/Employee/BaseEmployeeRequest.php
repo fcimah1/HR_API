@@ -193,7 +193,7 @@ abstract class BaseEmployeeRequest extends FormRequest
 
         protected function failedValidation(Validator $validator)
     {
-            Log::warning('فشل تحديث بيانات الموظف', [
+        Log::warning('فشل تحديث بيانات الموظف', [
             'errors' => $validator->errors()->toArray(),
             'input' => $this->all()
         ]);

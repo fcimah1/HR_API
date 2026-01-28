@@ -21,174 +21,11 @@ class EmployeeService
     ) {}
 
     /**
-     * Get paginated employees with filters
-     */
-    public function getPaginatedEmployees(EmployeeFilterDTO $filters): array
-    {
-        $employees = $this->employeeRepository->getPaginatedEmployees($filters);
-
-        $employeeDTOs = collect($employees->items())->map(function ($employee) {
-            return EmployeeResponseDTO::fromModel($employee);
-        });
-
-        return [
-            'data' => $employeeDTOs->map(fn($dto) => $dto->toArray())->toArray(),
-            'pagination' => [
-                'current_page' => $employees->currentPage(),
-                'last_page' => $employees->lastPage(),
-                'per_page' => $employees->perPage(),
-                'total' => $employees->total(),
-                'from' => $employees->firstItem(),
-                'to' => $employees->lastItem(),
-                'has_more_pages' => $employees->hasMorePages(),
-            ]
-        ];
-    }
-
-    /**
-     * Get employee by ID
-     */
-    public function getEmployeeById(int $employeeId, int $companyId): ?EmployeeResponseDTO
-    {
-        $employee = $this->employeeRepository->findEmployeeInCompany($employeeId, $companyId);
-
-        return $employee ? EmployeeResponseDTO::fromModel($employee) : null;
-    }
-
-    /**
-     * Get employee statistics
-     */
-    public function getEmployeeStats(int $companyId): array
-    {
-        return $this->employeeRepository->getEmployeeStats($companyId);
-    }
-
-    /**
-     * Check if user can view employees
-     */
-    public function canViewEmployees(User $user): bool
-    {
-        $allowedRoles = ['company', 'super_user', 'admin', 'hr', 'manager'];
-        return in_array(strtolower($user->user_type), $allowedRoles);
-    }
-
-    /**
-     * Check if user can view specific employee
-     */
-    public function canViewEmployee(User $user, int $employeeId): bool
-    {
-        // Company, Super User, Admin and HR can view all employees in their company
-        if (in_array(strtolower($user->user_type), ['company', 'super_user', 'admin', 'hr'])) {
-            return $this->employeeRepository->employeeExistsInCompany($employeeId, $user->company_id);
-        }
-
-        // Managers can view employees in their company
-        if (strtolower($user->user_type) === 'manager') {
-            return $this->employeeRepository->employeeExistsInCompany($employeeId, $user->company_id);
-        }
-
-        // Regular employees can only view themselves
-        return $user->user_id === $employeeId;
-    }
-
-    /**
-     * Get employees by type
-     */
-    public function getEmployeesByType(int $companyId, string $userType): array
-    {
-        $employees = $this->employeeRepository->getEmployeesByType($companyId, $userType);
-
-        return $employees->map(function ($employee) {
-            return EmployeeResponseDTO::fromModel($employee)->toArray();
-        })->toArray();
-    }
-
-    /**
-     * Search employees
-     */
-    public function searchEmployees(int $companyId, string $searchTerm): array
-    {
-        $employees = $this->employeeRepository->searchEmployees($companyId, $searchTerm);
-
-        return $employees->map(function ($employee) {
-            return EmployeeResponseDTO::fromModel($employee)->toArray();
-        })->toArray();
-    }
-
-    /**
-     * Create new employee
-     */
-    public function createEmployee(CreateEmployeeDTO $employeeData): EmployeeResponseDTO
-    {
-        $user = $this->employeeRepository->createEmployee($employeeData);
-        return EmployeeResponseDTO::fromModel($user);
-    }
-
-    /**
-     * Update employee
-     */
-    public function updateEmployee(UpdateEmployeeDTO $employeeData): bool
-    {
-        return $this->employeeRepository->updateEmployee($employeeData);
-    }
-
-    /**
-     * Delete employee
-     */
-    public function deleteEmployee(int $employeeId, int $companyId, User $currentUser): bool
-    {
-        // Check permissions
-        if (!$this->canManageEmployee($currentUser, $employeeId)) {
-            return false;
-        }
-
-        return $this->employeeRepository->deleteEmployee($employeeId, $companyId);
-    }
-
-    /**
-     * Get employee with full details
-     */
-    public function getEmployeeWithDetails(int $employeeId, int $companyId): ?EmployeeResponseDTO
-    {
-        $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $companyId);
-
-        return $employee ? EmployeeResponseDTO::fromModel($employee) : null;
-    }
-
-    /**
-     * Check if user can manage (create/update/delete) employees
-     */
-    public function canManageEmployees(User $user): bool
-    {
-        $allowedRoles = ['company', 'super_user', 'admin', 'hr'];
-        return in_array(strtolower($user->user_type), $allowedRoles);
-    }
-
-    /**
-     * Check if user can manage specific employee
-     */
-    public function canManageEmployee(User $user, int $employeeId): bool
-    {
-        // Company, Super User, Admin and HR can manage all employees in their company
-        if (in_array(strtolower($user->user_type), ['company', 'super_user', 'admin', 'hr'])) {
-            return $this->employeeRepository->employeeExistsInCompany($employeeId, $user->company_id);
-        }
-
-        // Users cannot manage other employees
-        return false;
-    }
-
-
-
-
-    /**
-     * Get active employees for duty employee selection with optional filters
-     * Returns list of active employees in the specified company and optionally same department
+     * Get active employees for target employee selection (who can have a leave)
+     * Enforces hierarchy rules: Level X sees self and Level > X.
      * 
-     * @param int $companyId
-     * @param string|null $search Optional search term to filter by name, email, or company name
-     * @param int|null $employeeId Optional employee ID to filter by specific employee
-     * @param int|null $departmentId Optional department ID to filter by same department
+     * @param User $user Current requester
+     * @param string|null $search
      * @return array
      */
     public function getEmployeesForDutyEmployee(int $companyId, ?string $search = null, ?int $employeeId = null, ?int $departmentId = null): array
@@ -316,41 +153,57 @@ class EmployeeService
      */
     public function getBackupEmployees(User $requester, ?int $targetEmployeeId = null, ?string $search = null, ?int $employeeId = null): array
     {
-        $departmentId = null;
-        $excludeEmployeeId = null;
-
-        // Default to requester if no target provided
+        // 1. Determine target employee
         if ($targetEmployeeId === null) {
             $targetEmployeeId = $requester->user_id;
         }
 
-        if ($targetEmployeeId) {
-            $targetEmployee = User::with('user_details')->find($targetEmployeeId);
-
-            if (!$targetEmployee) {
-                throw new Exception('الموظف غير موجود');
-            }
-
-            // Permission check: Can requester view target employee?
-            if ($requester->user_id !== $targetEmployee->user_id && !$this->permissionService->canViewEmployeeRequests($requester, $targetEmployee)) {
-                throw new Exception('ليس لديك صلاحية. يجب أن تكون في مستوى أعلى.');
-            }
-
-            $departmentId = $targetEmployee->user_details->department_id ?? null;
-            $excludeEmployeeId = $targetEmployeeId;
+        $targetEmployee = User::with('user_details')->find($targetEmployeeId);
+        if (!$targetEmployee) {
+            throw new Exception('الموظف غير موجود');
         }
 
-        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($requester);
+        // 2. Permission check: Can requester view/act for target employee?
+        // (Must be self or subordinate based on Hierarchy)
+        if ($requester->user_id !== $targetEmployee->user_id && !$this->permissionService->canViewEmployeeRequests($requester, $targetEmployee)) {
+            throw new Exception('ليس لديك صلاحية لإجراء هذا الطلب لهذا الموظف.');
+        }
 
-        // Call repository to get employees
-        // If departmentId is null (no target specified or target has no department), it will fetch all staff in company (filtered by search/id if present)
-        return $this->employeeRepository->getDutyEmployee(
-            id: $effectiveCompanyId,
-            search: $search,
-            employeeId: $employeeId,
-            departmentId: $departmentId,
-            excludeEmployeeId: $excludeEmployeeId
-        );
+        // 3. Build query for backup candidates
+        $query = User::query();
+
+        // Applying "Same Department, Ignore Hierarchy" logic
+        $this->permissionService->filterBackupEmployees($query, $targetEmployee);
+
+        // Apply search and employeeId filters if provided
+        if ($search) {
+            $searchTerm = "%{$search}%";
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('first_name', 'LIKE', $searchTerm)
+                    ->orWhere('last_name', 'LIKE', $searchTerm)
+                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$searchTerm]);
+            });
+        }
+
+        if ($employeeId) {
+            $query->where('user_id', $employeeId);
+        }
+
+        // 4. Execute and map
+        return $query->with(['user_details.designation', 'user_details.department'])
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'user_id' => $user->user_id,
+                    'full_name' => $user->full_name,
+                    'email' => $user->email,
+                    'department_id' => $user->user_details->department_id ?? null,
+                    'department_name' => $user->user_details->department->department_name ?? 'N/A',
+                    'designation_name' => $user->user_details->designation->designation_name ?? 'N/A',
+                    'hierarchy_level' => $user->user_details->designation->hierarchy_level ?? null,
+                ];
+            })
+            ->toArray();
     }
 
     /**

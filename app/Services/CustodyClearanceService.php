@@ -9,13 +9,11 @@ use App\DTOs\CustodyClearance\ApproveCustodyClearanceDTO;
 use App\DTOs\CustodyClearance\CustodyResponseDTO;
 use App\DTOs\CustodyClearance\CustodyClearanceResponseDTO;
 use App\Enums\StringStatusEnum;
-use App\Models\CustodyClearance;
 use App\Models\User;
 use App\Repository\Interface\CustodyClearanceRepositoryInterface;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 
 class CustodyClearanceService
 {
