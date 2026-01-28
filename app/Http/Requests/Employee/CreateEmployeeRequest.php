@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Employee;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
 class CreateEmployeeRequest extends BaseEmployeeRequest
@@ -27,50 +29,14 @@ class CreateEmployeeRequest extends BaseEmployeeRequest
             'username' => ['required', 'string', 'max:255', 'unique:ci_erp_users,username'],
             'password' => ['required', 'string', 'min:6'],
             'contact_number' => ['nullable', 'string', 'max:20'],
-            'gender' => ['nullable', Rule::in(['M', 'F'])],
+            'gender' => ['nullable', Rule::in(['Male', 'Female'])],
             'department_id' => ['required', 'integer', 'exists:ci_departments,department_id'],
             'designation_id' => ['required', 'integer', 'exists:ci_designations,designation_id'],
+            'office_shift_id' => ['required', 'integer', 'exists:ci_office_shifts,office_shift_id'],
+            'user_role_id' => ['required', 'integer', 'exists:ci_staff_roles,role_id'], 
+            'reporting_manager' => ['nullable', 'integer', 'exists:ci_erp_users,user_id'],
             'basic_salary' => ['nullable', 'numeric', 'min:0'],
-            'date_of_joining' => ['nullable', 'date'],
-            'date_of_birth' => ['nullable', 'date', 'before:today'],
-            'marital_status' => ['nullable', 'string', 'max:50'],
-            'blood_group' => ['nullable', 'string', 'max:10'],
-            'address_1' => ['nullable', 'string', 'max:500'],
-            'address_2' => ['nullable', 'string', 'max:500'],
-            'city' => ['nullable', 'string', 'max:100'],
-            'state' => ['nullable', 'string', 'max:100'],
-            'zipcode' => ['nullable', 'string', 'max:20'],
-            'country' => ['nullable', 'string', 'max:100'],
-            'bio' => ['nullable', 'string', 'max:1000'],
-            'experience' => ['nullable', 'string', 'max:1000'],
-            'hourly_rate' => ['nullable', 'numeric', 'min:0'],
-            'salary_type' => ['nullable', 'string', 'max:50'],
-            'salary_payment_method' => ['nullable', 'string', 'max:50'],
-            'currency_id' => ['nullable', 'integer'],
-            'role_description' => ['nullable', 'string', 'max:1000'],
-            'contract_end' => ['nullable', 'date', 'after:today'],
-            'religion_id' => ['nullable', 'integer'],
-            'citizenship_id' => ['nullable', 'integer'],
-            'fb_profile' => ['nullable', 'url', 'max:255'],
-            'twitter_profile' => ['nullable', 'url', 'max:255'],
-            'gplus_profile' => ['nullable', 'url', 'max:255'],
-            'linkedin_profile' => ['nullable', 'url', 'max:255'],
-            'account_title' => ['nullable', 'string', 'max:255'],
-            'account_number' => ['nullable', 'string', 'max:255'],
-            'bank_name' => ['nullable', 'string', 'max:255'],
-            'iban' => ['nullable', 'string', 'max:255'],
-            'swift_code' => ['nullable', 'string', 'max:255'],
-            'bank_branch' => ['nullable', 'string', 'max:255'],
-            'contact_full_name' => ['nullable', 'string', 'max:255'],
-            'contact_phone_no' => ['nullable', 'string', 'max:20'],
-            'contact_email' => ['nullable', 'email', 'max:255'],
-            'contact_address' => ['nullable', 'string', 'max:500'],
-            'employee_idnum' => ['nullable', 'string', 'max:50'],
-            'passport_no' => ['nullable', 'string', 'max:50'],
-            'passport_date' => ['nullable', 'date'],
-            'branch_id' => ['nullable', 'integer'],
-            'biotime_id' => ['nullable', 'string', 'max:50'],
-            'is_active' => ['nullable', 'boolean'],
+            'currency_id' => ['nullable', 'integer', 'exists:ci_currencies,currency_id'],
         ];
     }
 
@@ -100,15 +66,11 @@ class CreateEmployeeRequest extends BaseEmployeeRequest
             'gender.in' => 'الجنس يجب أن يكون ذكر أو أنثى',
             'basic_salary.numeric' => 'الراتب الأساسي يجب أن يكون رقم',
             'basic_salary.min' => 'الراتب الأساسي لا يمكن أن يكون سالب',
-            'date_of_joining.date' => 'تاريخ التوظيف غير صحيح',
-            'date_of_birth.date' => 'تاريخ الميلاد غير صحيح',
-            'date_of_birth.before' => 'تاريخ الميلاد يجب أن يكون قبل اليوم',
-            'contract_end.after' => 'تاريخ انتهاء العقد يجب أن يكون في المستقبل',
-            'fb_profile.url' => 'رابط فيسبوك غير صحيح',
-            'twitter_profile.url' => 'رابط تويتر غير صحيح',
-            'gplus_profile.url' => 'رابط جوجل بلس غير صحيح',
-            'linkedin_profile.url' => 'رابط لينكد إن غير صحيح',
-            'contact_email.email' => 'بريد جهة الاتصال غير صحيح',
+            'shift_id.required' => 'الوردية مطلوبة',
+            'shift_id.exists' => 'الوردية المحددة غير موجودة',
+            'role_id.required' => 'الدور مطلوب',
+            'role_id.exists' => 'الدور المحدد غير موجود',
+            'reporting_manager.exists' => 'المدير المباشر المحدد غير موجود',
         ];
     }
 
@@ -128,8 +90,25 @@ class CreateEmployeeRequest extends BaseEmployeeRequest
             'department_id' => 'القسم',
             'designation_id' => 'المسمى الوظيفي',
             'basic_salary' => 'الراتب الأساسي',
-            'date_of_joining' => 'تاريخ التوظيف',
-            'date_of_birth' => 'تاريخ الميلاد',
+            'currency_id' => 'العملة',
+            'is_active' => 'الحالة',
         ];
+    }
+
+    /**
+     * Handle a failed validation attempt.
+     *
+     * @param Validator $validator
+     * @return void
+     *
+     * @throws \Illuminate\Http\Exceptions\HttpResponseException
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => 'بيانات غير صحيحة',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }

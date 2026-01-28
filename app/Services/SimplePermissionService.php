@@ -208,9 +208,15 @@ class SimplePermissionService
     /**
      * فلترة البيانات حسب الشركة
      */
-    public function filterByCompany($query, User $user, string $companyColumn = 'company_id')
+    public function filterByCompany($query, User $user, ?string $companyColumn = null)
     {
         $effectiveCompanyId = $this->getEffectiveCompanyId($user);
+
+        if ($companyColumn === null) {
+            $tableName = $query instanceof \Illuminate\Database\Eloquent\Builder ? $query->getModel()->getTable() : null;
+            $companyColumn = $tableName ? "$tableName.company_id" : 'company_id';
+        }
+
         return $query->where($companyColumn, $effectiveCompanyId);
     }
 
@@ -397,7 +403,9 @@ class SimplePermissionService
         }
 
         // 1. الشركة
-        $query->where('company_id', $manager->company_id);
+        $tableName = $query instanceof \Illuminate\Database\Eloquent\Builder ? $query->getModel()->getTable() : null;
+        $companyColumn = $tableName ? "$tableName.company_id" : 'company_id';
+        $query->where($companyColumn, $manager->company_id);
 
         // 2. الهرمية: الموظف يجب أن يكون في مستوى أدنى (رقم أعلى) أو مساوي
         $query->whereHas('user_details.designation', function ($q) use ($managerLevel) {
@@ -583,7 +591,7 @@ class SimplePermissionService
 
                 // Hierarchy Level Check (Level 0 sees all, otherwise check level)
                 if ($currentHierarchyLevel > 0) {
-                    $q->where('ci_designations.hierarchy_level', '>=', $currentHierarchyLevel);
+                    $q->where('ci_designations.hierarchy_level', '>', $currentHierarchyLevel);
                 }
 
                 // Restrictions
@@ -788,40 +796,34 @@ class SimplePermissionService
     }
 
     /**
-     * Check if user can view salary information
+     * Specialized logic for 'Backup Employee' (الموظف المناوب)
+     * Rule: Ignore hierarchy, but must be in the same department as the applicant.
      * 
-     * @param User $user
-     * @return bool
+     * @param Builder $query
+     * @param User $applicant The employee for whom the backup is being selected
      */
-    public function canViewSalaries(User $user): bool
+    public function filterBackupEmployees($query, User $applicant)
     {
-        // Company owners can always view salaries
-        if ($this->isCompanyOwner($user)) {
-            return true;
+        $applicantDeptId = $this->getUserDepartmentId($applicant);
+
+        if (!$applicantDeptId) {
+            return $query->whereRaw('1 = 0');
         }
 
-        // Super users can view salaries
-        if ($this->isSuperUser($user)) {
-            return true;
-        }
+        // Must be same company
+        $query->where('company_id', $applicant->company_id);
 
-        // Check if user has specific permission to view salaries
-        if ($this->checkPermission($user, 'employee.salary.view')) {
-            return true;
-        }
+        // Must be staff
+        $query->where('user_type', 'staff');
 
-        // Check if user is restricted from viewing salaries
-        $companyId = $this->getEffectiveCompanyId($user);
-        if ($this->hasRestriction($user->user_id, $companyId, 'view_salary')) {
-            return false;
-        }
+        // Must be same department
+        $query->whereHas('user_details', function ($q) use ($applicantDeptId) {
+            $q->where('department_id', $applicantDeptId);
+        });
 
-        // HR staff with appropriate hierarchy level can view salaries
-        $hierarchyLevel = $this->getUserHierarchyLevel($user);
-        if ($hierarchyLevel && $hierarchyLevel <= 3) { // CEO, Manager, Department Head
-            return $this->checkPermission($user, 'hr_staff');
-        }
+        // Exclude applicant themselves from being their own backup
+        $query->where('user_id', '!=', $applicant->user_id);
 
-        return false;
+        return $query;
     }
 }

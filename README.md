@@ -170,3 +170,4 @@ Rules for Uploading to GitHub:
 
 
 https://api.firstsoft.io
+ php artisan l5-swagger:generate

@@ -52,7 +52,7 @@ interface EmployeeRepositoryInterface
     public function searchEmployees(int $companyId, string $searchTerm): Collection;
 
     /**
-     * Create new employee
+     * Create employee
      */
     public function createEmployee(CreateEmployeeDTO $employeeData): User;
 
@@ -102,4 +102,94 @@ interface EmployeeRepositoryInterface
      * @return array|null
      */
     public function getUserWithHierarchyInfo(int $userId): ?array;
+
+    /**
+     * Get attendance records for an employee
+     */
+    public function getAttendanceRecords(int $employeeId, string $fromDate, string $toDate);
+
+    /**
+     * Get approved leaves for an employee within a period
+     */
+    public function getApprovedLeaves(int $employeeId, string $fromDate, string $toDate);
+
+    /**
+     * Get company holidays within a period
+     */
+    public function getHolidays(int $companyId, string $fromDate, string $toDate);
+
+    /**
+     * Get leave types constants for a company
+     */
+    public function getLeaveTypes(int $companyId);
+
+    /**
+     * Get leave applications for an employee in a specific year and status
+     */
+    public function getLeaveApplicationsByYear(int $employeeId, int $companyId, int $year, ?int $status = null);
+
+    /**
+     * Get leave adjustments for an employee in a specific year
+     */
+    public function getLeaveAdjustmentsByYear(int $employeeId, int $companyId, int $year);
+
+    /**
+     * Get recent leaves for an employee
+     */
+    public function getRecentLeaves(int $employeeId, int $companyId, int $limit = 5);
+
+    /**
+     * Generate next automatic employee ID number for a company
+     */
+    public function generateNextEmployeeIdnum(int $companyId): string;
+
+    /**
+     * Get integrated stats for dashboard
+     */
+    public function getAdvancedStats(int $companyId, array $options = []): array;
+
+    /**
+     * Update employee password
+     */
+    public function updateEmployeePassword(int $employeeId, int $companyId, string $hashedPassword): bool;
+
+    /**
+     * Update employee profile image
+     */
+    public function updateEmployeeProfileImage(int $employeeId, string $imageUrl): bool;
+
+    /**
+     * Insert employee document
+     */
+    public function insertEmployeeDocument(array $documentData): int;
+
+    /**
+     * Update employee profile info (username, email)
+     */
+    public function updateEmployeeProfileInfo(int $employeeId, int $companyId, array $profileData): bool;
+
+    /**
+     * Update employee CV data
+     */
+    public function updateEmployeeCV(int $employeeId, array $cvData): bool;
+
+    /**
+     * Update employee social links
+     */
+    public function updateEmployeeSocialLinks(int $employeeId, array $socialData): bool;
+
+    /**
+     * Update or insert employee bank info
+     */
+    public function updateEmployeeBankInfo(int $employeeId, array $bankData): bool;
+
+    /**
+     * Add employee family data
+     */
+    public function addEmployeeFamilyData(int $employeeId, array $familyData): bool;
+
+    /**
+     * Delete employee family data
+     */
+    public function deleteEmployeeFamilyData(int $contactId): bool;
 }

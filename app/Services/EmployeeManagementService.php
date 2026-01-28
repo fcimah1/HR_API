@@ -6,11 +6,19 @@ use App\Models\User;
 use App\DTOs\Employee\EmployeeFilterDTO;
 use App\DTOs\Employee\CreateEmployeeDTO;
 use App\DTOs\Employee\UpdateEmployeeDTO;
+use App\Services\FileUploadService;
+use App\Enums\ExperienceLevel;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Models\Attendance;
+use App\Models\Holiday;
+use App\Models\LeaveApplication;
+use App\Models\OfficeShift;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 
 /**
  * Employee Management Service
@@ -21,7 +29,9 @@ use Illuminate\Pagination\LengthAwarePaginator;
 class EmployeeManagementService
 {
     public function __construct(
-        private SimplePermissionService $permissionService
+        private SimplePermissionService $permissionService,
+        private \App\Repository\Interface\EmployeeRepositoryInterface $employeeRepository,
+        private FileUploadService $fileUploadService
     ) {}
 
     /**
@@ -36,27 +46,26 @@ class EmployeeManagementService
         try {
             // Get base query with company filtering
             $query = $this->buildEmployeesQuery($user, $filters);
-            
+
             // Apply additional filters
             $this->applyFilters($query, $filters);
-            
+
             // Apply search
             if ($filters->search) {
                 $this->applySearch($query, $filters->search);
             }
-            
+
             // Apply sorting
             $this->applySorting($query, $filters->sort_by ?? null, $filters->sort_direction ?? 'asc');
-            
+
             return $query->paginate($filters->limit, ['*'], 'page', $filters->page);
-            
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getEmployeesList failed', [
                 'user_id' => $user->user_id,
                 'filters' => $filters->toArray(),
                 'error' => $e->getMessage()
             ]);
-            
+
             // Return empty paginator on error
             return new LengthAwarePaginator([], 0, $filters->limit, $filters->page);
         }
@@ -72,30 +81,26 @@ class EmployeeManagementService
     public function getEmployeeDetails(User $user, int $employeeId): ?User
     {
         try {
-            $employee = User::with([
-                'user_details.designation',
-                'user_details.department',
-                'user_details.branch'
-            ])->find($employeeId);
-            
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
             if (!$employee) {
                 return null;
             }
-            
+
             // Check if user can access this employee
-            if (!$this->permissionService->canAccessEmployee($user, $employee)) {
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 return null;
             }
-            
+
             return $employee;
-            
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getEmployeeDetails failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
                 'error' => $e->getMessage()
             ]);
-            
+
             return null;
         }
     }
@@ -110,71 +115,59 @@ class EmployeeManagementService
     public function createEmployee(User $user, CreateEmployeeDTO $data): ?User
     {
         try {
-            // Check permission to create employees
-            if (!$this->permissionService->checkPermission($user, 'employee.create')) {
-                return null;
-            }
-            
+
             // Check company access
             $companyId = $this->permissionService->getEffectiveCompanyId($user);
-            
-            DB::beginTransaction();
-            
-            // Create user record
-            $employee = User::create([
-                'first_name' => $data->first_name,
-                'last_name' => $data->last_name,
-                'username' => $data->username,
-                'email' => $data->email,
-                'contact_number' => $data->contact_number,
-                'company_id' => $companyId,
-                'user_type' => 'staff',
-                'is_active' => $data->is_active,
-                'user_role_id' => 1, // Default role
-                'password' => bcrypt($data->password),
-                'profile_photo' => '', // Default empty profile photo
-                'gender' => $data->gender ?? 'M', // Default gender if not provided
-                'created_at' => now()->format('Y-m-d H:i:s'), // Manual timestamp since timestamps are disabled
-            ]);
-            
-            // Create user details
-            $employee->user_details()->create([
-                'company_id' => $companyId,
-                'designation_id' => $data->designation_id,
-                'department_id' => $data->department_id,
-                'branch_id' => $data->branch_id,
-                'date_of_joining' => $data->date_of_joining ?? now()->format('Y-m-d'),
-                'basic_salary' => $data->basic_salary ?? 0,
-                'employee_id' => $data->employee_idnum ?? 'EMP' . str_pad($employee->user_id, 4, '0', STR_PAD_LEFT),
-                'reporting_manager' => 0, // Default no reporting manager
-                'office_shift_id' => 1, // Default shift
-                'hourly_rate' => 0, // Default hourly rate
-                'salay_type' => 1, // Default salary type (monthly)
-                'bank_name' => 0, // Default no bank
-                'ml_tax_category' => 1, // Default tax category
-                'ml_eis_contribution' => 0, // Default EIS contribution
-                'ml_socso_category' => 1, // Default SOCSO category
-                'ml_hrdf' => 0, // Default HRDF
-                'job_type' => 1, // Default job type (full-time)
-                'date_of_birth' => $data->date_of_birth,
-            ]);
-            
-            DB::commit();
-            
+
+            // Handle Automatic Employee ID generation if not provided
+            $employeeId = $this->employeeRepository->generateNextEmployeeIdnum($companyId);
+
+
+            // Encrypt password before creating
+            $hashedPassword = bcrypt($data->password);
+
+            // Create using repository - map DTO to Repository DTO with all enriched info
+            $dataForRepo = new CreateEmployeeDTO(
+                first_name: $data->first_name,
+                last_name: $data->last_name,
+                company_id: $companyId,
+                company_name: $data->company_name,
+                username: $data->username,
+                email: $data->email,
+                password: $hashedPassword,
+                department_id: $data->department_id,
+                designation_id: $data->designation_id,
+                contact_number: $data->contact_number,
+                gender: $data->gender,
+                basic_salary: $data->basic_salary,
+                currency_id: $data->currency_id,
+                user_role_id: $data->user_role_id ?? 1,
+                reporting_manager: $data->reporting_manager,
+                office_shift_id: $data->office_shift_id,
+                employee_id: $employeeId,
+            );
+
+            $employee = $this->employeeRepository->createEmployee($dataForRepo);
+
+            // Repository takes care of UserDetails
+            // ... Logic moved to Repository
+
             // Clear permissions cache for the new employee
             $this->permissionService->clearUserPermissionsCache($employee->user_id);
-            
+
             return $employee->load(['user_details.designation', 'user_details.department']);
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+
             Log::error('EmployeeManagementService::createEmployee failed', [
                 'user_id' => $user->user_id,
                 'data' => $data->toArray(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
-            
+
             return null;
         }
     }
@@ -191,18 +184,18 @@ class EmployeeManagementService
     {
         try {
             $employee = User::with('user_details')->find($employeeId);
-            
+
             if (!$employee) {
                 return null;
             }
-            
+
             // Check if user can edit this employee
             if (!$this->canEditEmployee($user, $employee)) {
                 return null;
             }
-            
+
             DB::beginTransaction();
-            
+
             // Update user record
             $employee->update(array_filter([
                 'first_name' => $data->first_name,
@@ -211,7 +204,7 @@ class EmployeeManagementService
                 'contact_number' => $data->contact_number,
                 'is_active' => $data->is_active,
             ]));
-            
+
             // Update user details
             if ($employee->user_details) {
                 $employee->user_details->update(array_filter([
@@ -221,24 +214,23 @@ class EmployeeManagementService
                     'salary' => $data->basic_salary,
                 ]));
             }
-            
+
             DB::commit();
-            
+
             // Clear permissions cache
             $this->permissionService->clearUserPermissionsCache($employee->user_id);
-            
+
             return $employee->fresh(['user_details.designation', 'user_details.department']);
-            
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             Log::error('EmployeeManagementService::updateEmployee failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
                 'data' => $data->toArray(),
                 'error' => $e->getMessage()
             ]);
-            
+
             return null;
         }
     }
@@ -254,30 +246,29 @@ class EmployeeManagementService
     {
         try {
             $employee = User::find($employeeId);
-            
+
             if (!$employee) {
                 return false;
             }
-            
+
             // Check if user can delete/deactivate this employee
             if (!$this->canDeleteEmployee($user, $employee)) {
                 return false;
             }
-            
+
             $employee->update(['is_active' => 0]);
-            
+
             // Clear permissions cache
             $this->permissionService->clearUserPermissionsCache($employee->user_id);
-            
+
             return true;
-            
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::deactivateEmployee failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
                 'error' => $e->getMessage()
             ]);
-            
+
             return false;
         }
     }
@@ -294,35 +285,35 @@ class EmployeeManagementService
     {
         try {
             // Build base query with permissions
-            $baseQuery = $this->buildEmployeesQuery($user, new EmployeeFilterDTO());
-            
+            $companyId = $this->permissionService->getEffectiveCompanyId($user);
+            $baseQuery = $this->buildEmployeesQuery($user, new EmployeeFilterDTO(company_id: $companyId));
+
             // Apply comprehensive search
             $this->applyComprehensiveSearch($baseQuery, $query);
-            
+
             // Apply additional filters from options
             if (!empty($options['department_id'])) {
                 $baseQuery->whereHas('user_details', function ($q) use ($options) {
                     $q->where('department_id', $options['department_id']);
                 });
             }
-            
+
             if (!empty($options['designation_id'])) {
                 $baseQuery->whereHas('user_details', function ($q) use ($options) {
                     $q->where('designation_id', $options['designation_id']);
                 });
             }
-            
+
             // Limit results for performance
             $limit = $options['limit'] ?? 50;
             $results = $baseQuery->limit($limit)->get();
-            
+
             return [
                 'employees' => $results,
                 'total' => $results->count(),
                 'query' => $query,
                 'options' => $options
             ];
-            
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::searchEmployees failed', [
                 'user_id' => $user->user_id,
@@ -330,7 +321,7 @@ class EmployeeManagementService
                 'options' => $options,
                 'error' => $e->getMessage()
             ]);
-            
+
             return [
                 'employees' => [],
                 'total' => 0,
@@ -352,25 +343,25 @@ class EmployeeManagementService
         try {
             // Convert array to DTO
             $filterDTO = EmployeeFilterDTO::fromArray($filters);
-            
+
             // Get base query
             $query = $this->buildEmployeesQuery($user, $filterDTO);
-            
+
             // Apply all filters
             $this->applyFilters($query, $filterDTO);
             $this->applyAdvancedFilters($query, $filters);
-            
+
             // Apply search if provided
             if ($filterDTO->search) {
                 $this->applyComprehensiveSearch($query, $filterDTO->search);
             }
-            
+
             // Apply sorting
             $this->applySorting($query, $filterDTO->sort_by, $filterDTO->sort_direction);
-            
+
             // Get results with pagination
             $results = $query->paginate($filterDTO->limit, ['*'], 'page', $filterDTO->page);
-            
+
             return [
                 'employees' => $results->items(),
                 'pagination' => [
@@ -383,14 +374,13 @@ class EmployeeManagementService
                 ],
                 'filters_applied' => $filters
             ];
-            
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getEmployeesWithAdvancedFilters failed', [
                 'user_id' => $user->user_id,
                 'filters' => $filters,
                 'error' => $e->getMessage()
             ]);
-            
+
             return [
                 'employees' => [],
                 'pagination' => [
@@ -405,7 +395,7 @@ class EmployeeManagementService
             ];
         }
     }
-     /** 
+    /** 
      * @param User $user Current user requesting statistics
      * @return array
      */
@@ -413,226 +403,73 @@ class EmployeeManagementService
     {
         try {
             $companyId = $this->permissionService->getEffectiveCompanyId($user);
-            
-            $stats = [
-                'total_employees' => 0,
-                'active_employees' => 0,
-                'inactive_employees' => 0,
-                'departments_count' => 0,
-                'designations_count' => 0,
-                'average_salary' => 0,
-                'total_salary_cost' => 0,
-                'employees_by_department' => [],
-                'employees_by_designation' => [],
-                'employees_by_hierarchy' => [],
-                'by_gender' => [],
-                'by_age_group' => [],
-                'salary_statistics' => [],
-                'recent_hires' => 0,
-            ];
-            
-            // Base query for accessible employees
-            $baseQuery = User::where('ci_erp_users.company_id', $companyId)
-                           ->where('ci_erp_users.user_type', 'staff');
-            
-            // Apply hierarchy filtering if not company owner
+
+            // Get accessible user IDs for filtering stats (if not admin)
+            $userIds = null;
             if (!$this->permissionService->isCompanyOwner($user)) {
-                $baseQuery = $this->permissionService->filterSubordinates($baseQuery, $user);
+                $subordinatesQuery = User::query();
+                $subordinatesQuery = $this->permissionService->filterByCompany($subordinatesQuery, $user);
+                $subordinatesQuery = $this->permissionService->filterSubordinates($subordinatesQuery, $user);
+                $userIds = $subordinatesQuery->pluck('user_id')->toArray();
             }
-            
-            // Total counts
-            $stats['total_employees'] = $baseQuery->count();
-            $stats['active_employees'] = (clone $baseQuery)->where('is_active', 1)->count();
+
+            // Get advanced stats from Repository
+            $advStats = $this->employeeRepository->getAdvancedStats($companyId, ['user_ids' => $userIds]);
+
+            // Map and format results
+            $stats = [
+                'total_employees' => array_sum(array_column($advStats['employees_by_department'], 'total_employees')),
+                'active_employees' => array_sum(array_column($advStats['employees_by_department'], 'active_employees')),
+                'inactive_employees' => 0,
+                'departments_count' => count($advStats['employees_by_department']),
+                'designations_count' => count($advStats['employees_by_designation']),
+                'average_salary' => round($advStats['salary_sums']->average_salary ?? 0, 2),
+                'total_salary_cost' => round($advStats['salary_sums']->total_salary_cost ?? 0, 2),
+                'employees_by_department' => array_map(function ($dept) {
+                    return [
+                        'department_id' => $dept->department_id,
+                        'department_name' => $dept->department_name,
+                        'total_employees' => (int)$dept->total_employees,
+                        'active_employees' => (int)$dept->active_employees,
+                        'inactive_employees' => (int)($dept->total_employees - $dept->active_employees),
+                    ];
+                }, $advStats['employees_by_department']),
+                'employees_by_designation' => array_map(function ($desig) {
+                    return [
+                        'designation_id' => $desig->designation_id,
+                        'designation_name' => $desig->designation_name,
+                        'hierarchy_level' => $desig->hierarchy_level,
+                        'total_employees' => (int)$desig->total_employees,
+                        'active_employees' => (int)$desig->active_employees,
+                        'inactive_employees' => (int)($desig->total_employees - $desig->active_employees),
+                    ];
+                }, $advStats['employees_by_designation']),
+                'by_gender' => array_map(function ($g) {
+                    $genderName = ($g->gender === 'M' || $g->gender === 'male' || $g->gender === '1') ? 'ذكر' : 'أنثى';
+                    return ['gender' => $g->gender, 'gender_name' => $genderName, 'count' => (int)$g->count];
+                }, $advStats['by_gender']),
+                'by_age_group' => array_map(function ($age) {
+                    return ['age_group' => $age->age_group, 'count' => (int)$age->count];
+                }, $advStats['by_age_group']),
+                'salary_statistics' => [
+                    'min_salary' => round($advStats['salary_sums']->min_salary ?? 0, 2),
+                    'max_salary' => round($advStats['salary_sums']->max_salary ?? 0, 2),
+                    'employees_with_salary' => (int)($advStats['salary_sums']->employees_with_salary ?? 0),
+                ],
+                'recent_hires' => (int)$advStats['recent_hires_count'],
+            ];
+
             $stats['inactive_employees'] = $stats['total_employees'] - $stats['active_employees'];
-            
-            // Departments and designations count
-            $stats['departments_count'] = (clone $baseQuery)
-                ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
-                ->distinct('ci_erp_users_details.department_id')
-                ->whereNotNull('ci_erp_users_details.department_id')
-                ->count('ci_erp_users_details.department_id');
-                
-            $stats['designations_count'] = (clone $baseQuery)
-                ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
-                ->distinct('ci_erp_users_details.designation_id')
-                ->whereNotNull('ci_erp_users_details.designation_id')
-                ->count('ci_erp_users_details.designation_id');
-            
-            // Salary statistics (only for authorized users)
-            if ($this->permissionService->canViewSalaries($user)) {
-                $salaryStats = (clone $baseQuery)
-                    ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
-                    ->where('ci_erp_users_details.basic_salary', '>', 0)
-                    ->selectRaw('
-                        AVG(ci_erp_users_details.basic_salary) as average_salary,
-                        SUM(ci_erp_users_details.basic_salary) as total_salary,
-                        MIN(ci_erp_users_details.basic_salary) as min_salary,
-                        MAX(ci_erp_users_details.basic_salary) as max_salary,
-                        COUNT(*) as employees_with_salary
-                    ')
-                    ->first();
-                    
-                $stats['average_salary'] = round($salaryStats->average_salary ?? 0, 2);
-                $stats['total_salary_cost'] = round($salaryStats->total_salary ?? 0, 2);
-                $stats['salary_statistics'] = [
-                    'min_salary' => round($salaryStats->min_salary ?? 0, 2),
-                    'max_salary' => round($salaryStats->max_salary ?? 0, 2),
-                    'employees_with_salary' => $salaryStats->employees_with_salary ?? 0,
-                ];
-            }
-            
-            // By department with detailed info
-            $departmentStats = (clone $baseQuery)
-                ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
-                ->join('ci_departments', 'ci_erp_users_details.department_id', '=', 'ci_departments.department_id')
-                ->select([
-                    'ci_departments.department_id as dept_id',
-                    'ci_departments.department_name',
-                    DB::raw('COUNT(*) as total_count'),
-                    DB::raw('SUM(CASE WHEN ci_erp_users.is_active = 1 THEN 1 ELSE 0 END) as active_count'),
-                ])
-                ->groupBy('ci_departments.department_id', 'ci_departments.department_name')
-                ->get();
-            
-            foreach ($departmentStats as $dept) {
-                $stats['employees_by_department'][] = [
-                    'department_id' => $dept->dept_id ? (int)$dept->dept_id : null,
-                    'department_name' => $dept->department_name,
-                    'count' => (int)$dept->total_count,
-                    'total_employees' => (int)$dept->total_count,
-                    'active_employees' => (int)$dept->active_count,
-                    'inactive_employees' => (int)($dept->total_count - $dept->active_count),
-                ];
-            }
-            
-            // By designation with detailed info
-            $designationStats = DB::table('ci_erp_users')
-                ->where('ci_erp_users.company_id', $companyId)
-                ->where('ci_erp_users.user_type', 'staff')
-                ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
-                ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
-                ->select([
-                    'ci_designations.designation_id',
-                    'ci_designations.designation_name',
-                    'ci_designations.hierarchy_level',
-                    DB::raw('COUNT(*) as total_count'),
-                    DB::raw('SUM(CASE WHEN ci_erp_users.is_active = 1 THEN 1 ELSE 0 END) as active_count'),
-                ])
-                ->groupBy('ci_designations.designation_id', 'ci_designations.designation_name', 'ci_designations.hierarchy_level')
-                ->get();
-            
-            foreach ($designationStats as $desig) {
-                $stats['employees_by_designation'][] = [
-                    'designation_id' => (int)$desig->designation_id,
-                    'designation_name' => $desig->designation_name,
-                    'hierarchy_level' => $desig->hierarchy_level !== null ? (int)$desig->hierarchy_level : null,
-                    'count' => (int)$desig->total_count,
-                    'total_employees' => (int)$desig->total_count,
-                    'active_employees' => (int)$desig->active_count,
-                    'inactive_employees' => (int)($desig->total_count - $desig->active_count),
-                ];
-            }
-            
-            // By hierarchy level
-            $hierarchyStats = DB::table('ci_erp_users')
-                ->where('ci_erp_users.company_id', $companyId)
-                ->where('ci_erp_users.user_type', 'staff')
-                ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
-                ->join('ci_designations', 'ci_erp_users_details.designation_id', '=', 'ci_designations.designation_id')
-                ->select([
-                    'ci_designations.hierarchy_level',
-                    DB::raw('GROUP_CONCAT(DISTINCT ci_designations.designation_name SEPARATOR ", ") as level_names'),
-                    DB::raw('COUNT(*) as total_count'),
-                    DB::raw('SUM(CASE WHEN ci_erp_users.is_active = 1 THEN 1 ELSE 0 END) as active_count'),
-                ])
-                ->whereNotNull('ci_designations.hierarchy_level')
-                ->groupBy('ci_designations.hierarchy_level')
-                ->orderBy('ci_designations.hierarchy_level')
-                ->get();
-            
-            foreach ($hierarchyStats as $stat) {
-                $hierarchyLevel = (int)$stat->hierarchy_level;
-                
-                $stats['employees_by_hierarchy'][] = [
-                    'hierarchy_level' => $hierarchyLevel,
-                    'level_name' => $stat->level_names, // Use actual designation names from DB
-                    'count' => (int)$stat->total_count,
-                    'total_employees' => (int)$stat->total_count,
-                    'active_employees' => (int)$stat->active_count,
-                    'inactive_employees' => (int)($stat->total_count - $stat->active_count),
-                ];
-            }
-            // By gender
-            $genderStats = (clone $baseQuery)
-                ->select([
-                    'ci_erp_users.gender',
-                    DB::raw('COUNT(*) as count')
-                ])
-                ->whereNotNull('ci_erp_users.gender')
-                ->groupBy('ci_erp_users.gender')
-                ->get();
-            
-            foreach ($genderStats as $gender) {
-                // Handle different gender value formats
-                $genderCode = $gender->gender;
-                $genderName = 'غير محدد';
-                
-                // Map gender values to proper names
-                if ($genderCode === 'M' || $genderCode === 'male' || $genderCode === '1') {
-                    $genderCode = 'M';
-                    $genderName = 'ذكر';
-                } elseif ($genderCode === 'F' || $genderCode === 'female' || $genderCode === '2') {
-                    $genderCode = 'F';
-                    $genderName = 'أنثى';
-                }
-                
-                $stats['by_gender'][] = [
-                    'gender' => $genderCode,
-                    'gender_name' => $genderName,
-                    'count' => (int)$gender->count,
-                ];
-            }
-            
-            // By age group
-            $ageStats = (clone $baseQuery)
-                ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
-                ->whereNotNull('ci_erp_users_details.date_of_birth')
-                ->selectRaw('
-                    CASE 
-                        WHEN TIMESTAMPDIFF(YEAR, ci_erp_users_details.date_of_birth, CURDATE()) < 25 THEN "تحت 25"
-                        WHEN TIMESTAMPDIFF(YEAR, ci_erp_users_details.date_of_birth, CURDATE()) BETWEEN 25 AND 34 THEN "25-34"
-                        WHEN TIMESTAMPDIFF(YEAR, ci_erp_users_details.date_of_birth, CURDATE()) BETWEEN 35 AND 44 THEN "35-44"
-                        WHEN TIMESTAMPDIFF(YEAR, ci_erp_users_details.date_of_birth, CURDATE()) BETWEEN 45 AND 54 THEN "45-54"
-                        ELSE "55 فأكثر"
-                    END as age_group,
-                    COUNT(*) as count
-                ')
-                ->groupBy('age_group')
-                ->get();
-            
-            foreach ($ageStats as $age) {
-                $stats['by_age_group'][] = [
-                    'age_group' => $age->age_group,
-                    'count' => (int)$age->count,
-                ];
-            }
-            
-            // Recent hires (last 30 days)
-            $recentHires = (clone $baseQuery)
-                ->join('ci_erp_users_details', 'ci_erp_users.user_id', '=', 'ci_erp_users_details.user_id')
-                ->where('ci_erp_users_details.date_of_joining', '>=', now()->subDays(30))
-                ->count();
-            
-            $stats['recent_hires'] = (int)$recentHires;
-            
+
             return $stats;
-            
+
+            return $stats;
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getEmployeeStatistics failed', [
                 'user_id' => $user->user_id,
                 'error' => $e->getMessage()
             ]);
-            
+
             return [
                 'total_employees' => 0,
                 'active_employees' => 0,
@@ -666,18 +503,18 @@ class EmployeeManagementService
             'user_details.department',
             'user_details.branch'
         ]);
-        
+
         // Apply company filtering
         $query = $this->permissionService->filterByCompany($query, $user);
-        
+
         // Apply hierarchy filtering if not company owner
         if (!$this->permissionService->isCompanyOwner($user)) {
             $query = $this->permissionService->filterSubordinates($query, $user);
         }
-        
+
         // Only staff users
         $query->where('user_type', 'staff');
-        
+
         return $query;
     }
 
@@ -694,35 +531,35 @@ class EmployeeManagementService
                 $q->where('department_id', $filters->department_id);
             });
         }
-        
+
         if ($filters->designation_id) {
             $query->whereHas('user_details', function ($q) use ($filters) {
                 $q->where('designation_id', $filters->designation_id);
             });
         }
-        
+
         if (isset($filters->branch_id)) {
             $query->whereHas('user_details', function ($q) use ($filters) {
                 $q->where('branch_id', $filters->branch_id);
             });
         }
-        
+
         if (isset($filters->hierarchy_level)) {
             $query->whereHas('user_details.designation', function ($q) use ($filters) {
                 $q->where('hierarchy_level', $filters->hierarchy_level);
             });
         }
-        
+
         if ($filters->is_active !== null) {
             $query->where('is_active', $filters->is_active);
         }
-        
+
         if ($filters->from_date) {
             $query->whereHas('user_details', function ($q) use ($filters) {
                 $q->whereDate('date_of_joining', '>=', $filters->from_date);
             });
         }
-        
+
         if ($filters->to_date) {
             $query->whereHas('user_details', function ($q) use ($filters) {
                 $q->whereDate('date_of_joining', '<=', $filters->to_date);
@@ -739,38 +576,38 @@ class EmployeeManagementService
     private function applyComprehensiveSearch(Builder $query, string $search): void
     {
         $searchTerms = explode(' ', trim($search));
-        
+
         $query->where(function ($q) use ($searchTerms) {
             foreach ($searchTerms as $term) {
                 if (empty($term)) continue;
-                
+
                 $q->where(function ($subQ) use ($term) {
                     // Search in user basic info
                     $subQ->where('first_name', 'LIKE', "%{$term}%")
-                         ->orWhere('last_name', 'LIKE', "%{$term}%")
-                         ->orWhere('email', 'LIKE', "%{$term}%")
-                         ->orWhere('contact_number', 'LIKE', "%{$term}%")
-                         ->orWhere('username', 'LIKE', "%{$term}%")
-                         
-                         // Search in user details
-                         ->orWhereHas('user_details', function ($detailsQ) use ($term) {
-                             $detailsQ->where('employee_id', 'LIKE', "%{$term}%");
-                         })
-                         
-                         // Search in department
-                         ->orWhereHas('user_details.department', function ($deptQ) use ($term) {
-                             $deptQ->where('department_name', 'LIKE', "%{$term}%");
-                         })
-                         
-                         // Search in designation
-                         ->orWhereHas('user_details.designation', function ($desigQ) use ($term) {
-                             $desigQ->where('designation_name', 'LIKE', "%{$term}%");
-                         })
-                         
-                         // Search in branch
-                         ->orWhereHas('user_details.branch', function ($branchQ) use ($term) {
-                             $branchQ->where('branch_name', 'LIKE', "%{$term}%");
-                         });
+                        ->orWhere('last_name', 'LIKE', "%{$term}%")
+                        ->orWhere('email', 'LIKE', "%{$term}%")
+                        ->orWhere('contact_number', 'LIKE', "%{$term}%")
+                        ->orWhere('username', 'LIKE', "%{$term}%")
+
+                        // Search in user details
+                        ->orWhereHas('user_details', function ($detailsQ) use ($term) {
+                            $detailsQ->where('employee_id', 'LIKE', "%{$term}%");
+                        })
+
+                        // Search in department
+                        ->orWhereHas('user_details.department', function ($deptQ) use ($term) {
+                            $deptQ->where('department_name', 'LIKE', "%{$term}%");
+                        })
+
+                        // Search in designation
+                        ->orWhereHas('user_details.designation', function ($desigQ) use ($term) {
+                            $desigQ->where('designation_name', 'LIKE', "%{$term}%");
+                        })
+
+                        // Search in branch
+                        ->orWhereHas('user_details.branch', function ($branchQ) use ($term) {
+                            $branchQ->where('branch_name', 'LIKE', "%{$term}%");
+                        });
                 });
             }
         });
@@ -790,57 +627,57 @@ class EmployeeManagementService
                 $q->where('salary', '>=', $filters['min_salary']);
             });
         }
-        
+
         if (!empty($filters['max_salary'])) {
             $query->whereHas('user_details', function ($q) use ($filters) {
                 $q->where('salary', '<=', $filters['max_salary']);
             });
         }
-        
+
         // Age range filter (based on date_of_birth if available)
         if (!empty($filters['min_age'])) {
             $maxBirthDate = now()->subYears($filters['min_age'])->format('Y-m-d');
             $query->where('date_of_birth', '<=', $maxBirthDate);
         }
-        
+
         if (!empty($filters['max_age'])) {
             $minBirthDate = now()->subYears($filters['max_age'])->format('Y-m-d');
             $query->where('date_of_birth', '>=', $minBirthDate);
         }
-        
+
         // Gender filter
         if (!empty($filters['gender'])) {
             $query->where('gender', $filters['gender']);
         }
-        
+
         // Multiple departments filter
         if (!empty($filters['department_ids']) && is_array($filters['department_ids'])) {
             $query->whereHas('user_details', function ($q) use ($filters) {
                 $q->whereIn('department_id', $filters['department_ids']);
             });
         }
-        
+
         // Multiple designations filter
         if (!empty($filters['designation_ids']) && is_array($filters['designation_ids'])) {
             $query->whereHas('user_details', function ($q) use ($filters) {
                 $q->whereIn('designation_id', $filters['designation_ids']);
             });
         }
-        
+
         // Multiple branches filter
         if (!empty($filters['branch_ids']) && is_array($filters['branch_ids'])) {
             $query->whereHas('user_details', function ($q) use ($filters) {
                 $q->whereIn('branch_id', $filters['branch_ids']);
             });
         }
-        
+
         // Hierarchy levels filter
         if (!empty($filters['hierarchy_levels']) && is_array($filters['hierarchy_levels'])) {
             $query->whereHas('user_details.designation', function ($q) use ($filters) {
                 $q->whereIn('hierarchy_level', $filters['hierarchy_levels']);
             });
         }
-        
+
         // Experience range filter (if experience field exists)
         if (!empty($filters['min_experience_years'])) {
             $maxHireDate = now()->subYears($filters['min_experience_years'])->format('Y-m-d');
@@ -848,25 +685,25 @@ class EmployeeManagementService
                 $q->where('hire_date', '<=', $maxHireDate);
             });
         }
-        
+
         // Custom date range for hire date
         if (!empty($filters['hired_after'])) {
             $query->whereHas('user_details', function ($q) use ($filters) {
                 $q->where('hire_date', '>=', $filters['hired_after']);
             });
         }
-        
+
         if (!empty($filters['hired_before'])) {
             $query->whereHas('user_details', function ($q) use ($filters) {
                 $q->where('hire_date', '<=', $filters['hired_before']);
             });
         }
-        
+
         // Employment status filters
         if (isset($filters['is_active']) && $filters['is_active'] !== '') {
             $query->where('is_active', (bool) $filters['is_active']);
         }
-        
+
         // User type filter (if needed)
         if (!empty($filters['user_type'])) {
             $query->where('user_type', $filters['user_type']);
@@ -883,12 +720,12 @@ class EmployeeManagementService
     {
         $query->where(function ($q) use ($search) {
             $q->where('first_name', 'LIKE', "%{$search}%")
-              ->orWhere('last_name', 'LIKE', "%{$search}%")
-              ->orWhere('email', 'LIKE', "%{$search}%")
-              ->orWhere('contact_number', 'LIKE', "%{$search}%")
-              ->orWhereHas('user_details', function ($subQ) use ($search) {
-                  $subQ->where('employee_id', 'LIKE', "%{$search}%");
-              });
+                ->orWhere('last_name', 'LIKE', "%{$search}%")
+                ->orWhere('email', 'LIKE', "%{$search}%")
+                ->orWhere('contact_number', 'LIKE', "%{$search}%")
+                ->orWhereHas('user_details', function ($subQ) use ($search) {
+                    $subQ->where('employee_id', 'LIKE', "%{$search}%");
+                });
         });
     }
 
@@ -903,91 +740,91 @@ class EmployeeManagementService
     {
         $sortBy = $sortBy ?: 'first_name';
         $sortDirection = in_array(strtolower($sortDirection), ['asc', 'desc']) ? strtolower($sortDirection) : 'asc';
-        
+
         switch ($sortBy) {
             case 'name':
             case 'full_name':
                 $query->orderBy('first_name', $sortDirection)
-                      ->orderBy('last_name', $sortDirection);
+                    ->orderBy('last_name', $sortDirection);
                 break;
-                
+
             case 'first_name':
                 $query->orderBy('first_name', $sortDirection);
                 break;
-                
+
             case 'last_name':
                 $query->orderBy('last_name', $sortDirection);
                 break;
-                
+
             case 'email':
                 $query->orderBy('email', $sortDirection);
                 break;
-                
+
             case 'phone':
                 $query->orderBy('phone', $sortDirection);
                 break;
-                
+
             case 'hire_date':
             case 'joining_date':
                 $query->leftJoin('ci_erp_users_details as sort_details', 'ci_erp_users.user_id', '=', 'sort_details.user_id')
-                      ->orderBy('sort_details.hire_date', $sortDirection)
-                      ->select('ci_erp_users.*'); // Ensure we only select user columns
+                    ->orderBy('sort_details.hire_date', $sortDirection)
+                    ->select('ci_erp_users.*'); // Ensure we only select user columns
                 break;
-                
+
             case 'salary':
                 $query->leftJoin('ci_erp_users_details as sort_details2', 'ci_erp_users.user_id', '=', 'sort_details2.user_id')
-                      ->orderBy('sort_details2.salary', $sortDirection)
-                      ->select('ci_erp_users.*');
+                    ->orderBy('sort_details2.salary', $sortDirection)
+                    ->select('ci_erp_users.*');
                 break;
-                
+
             case 'department':
             case 'department_name':
                 $query->leftJoin('ci_erp_users_details as sort_details3', 'ci_erp_users.user_id', '=', 'sort_details3.user_id')
-                      ->leftJoin('ci_departments as sort_dept', 'sort_details3.department_id', '=', 'sort_dept.department_id')
-                      ->orderBy('sort_dept.department_name', $sortDirection)
-                      ->select('ci_erp_users.*');
+                    ->leftJoin('ci_departments as sort_dept', 'sort_details3.department_id', '=', 'sort_dept.department_id')
+                    ->orderBy('sort_dept.department_name', $sortDirection)
+                    ->select('ci_erp_users.*');
                 break;
-                
+
             case 'designation':
             case 'designation_name':
                 $query->leftJoin('ci_erp_users_details as sort_details4', 'ci_erp_users.user_id', '=', 'sort_details4.user_id')
-                      ->leftJoin('ci_designations as sort_desig', 'sort_details4.designation_id', '=', 'sort_desig.designation_id')
-                      ->orderBy('sort_desig.designation_name', $sortDirection)
-                      ->select('ci_erp_users.*');
+                    ->leftJoin('ci_designations as sort_desig', 'sort_details4.designation_id', '=', 'sort_desig.designation_id')
+                    ->orderBy('sort_desig.designation_name', $sortDirection)
+                    ->select('ci_erp_users.*');
                 break;
-                
+
             case 'hierarchy_level':
                 $query->leftJoin('ci_erp_users_details as sort_details5', 'ci_erp_users.user_id', '=', 'sort_details5.user_id')
-                      ->leftJoin('ci_designations as sort_desig2', 'sort_details5.designation_id', '=', 'sort_desig2.designation_id')
-                      ->orderBy('sort_desig2.hierarchy_level', $sortDirection)
-                      ->select('ci_erp_users.*');
+                    ->leftJoin('ci_designations as sort_desig2', 'sort_details5.designation_id', '=', 'sort_desig2.designation_id')
+                    ->orderBy('sort_desig2.hierarchy_level', $sortDirection)
+                    ->select('ci_erp_users.*');
                 break;
-                
+
             case 'branch':
             case 'branch_name':
                 $query->leftJoin('ci_erp_users_details as sort_details6', 'ci_erp_users.user_id', '=', 'sort_details6.user_id')
-                      ->leftJoin('ci_branchs as sort_branch', 'sort_details6.branch_id', '=', 'sort_branch.branch_id')
-                      ->orderBy('sort_branch.branch_name', $sortDirection)
-                      ->select('ci_erp_users.*');
+                    ->leftJoin('ci_branchs as sort_branch', 'sort_details6.branch_id', '=', 'sort_branch.branch_id')
+                    ->orderBy('sort_branch.branch_name', $sortDirection)
+                    ->select('ci_erp_users.*');
                 break;
-                
+
             case 'is_active':
             case 'status':
                 $query->orderBy('is_active', $sortDirection);
                 break;
-                
+
             case 'created_at':
                 $query->orderBy('created_at', $sortDirection);
                 break;
-                
+
             case 'updated_at':
                 $query->orderBy('updated_at', $sortDirection);
                 break;
-                
+
             default:
                 // Default sorting by first name
                 $query->orderBy('first_name', $sortDirection)
-                      ->orderBy('last_name', $sortDirection);
+                    ->orderBy('last_name', $sortDirection);
         }
     }
 
@@ -1002,10 +839,9 @@ class EmployeeManagementService
     public function getEmployeesByDepartment(User $user, int $departmentId, array $options = []): array
     {
         $filters = array_merge($options, ['department_id' => $departmentId]);
-        
+
         try {
             return $this->getEmployeesWithAdvancedFilters($user, $filters);
-            
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getEmployeesByDepartment failed', [
                 'user_id' => $user->user_id,
@@ -1013,7 +849,7 @@ class EmployeeManagementService
                 'options' => $options,
                 'error' => $e->getMessage()
             ]);
-            
+
             return [
                 'employees' => [],
                 'pagination' => [
@@ -1040,10 +876,9 @@ class EmployeeManagementService
     public function getEmployeesByDesignation(User $user, int $designationId, array $options = []): array
     {
         $filters = array_merge($options, ['designation_id' => $designationId]);
-        
+
         try {
             return $this->getEmployeesWithAdvancedFilters($user, $filters);
-            
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getEmployeesByDesignation failed', [
                 'user_id' => $user->user_id,
@@ -1051,7 +886,7 @@ class EmployeeManagementService
                 'options' => $options,
                 'error' => $e->getMessage()
             ]);
-            
+
             return [
                 'employees' => [],
                 'pagination' => [
@@ -1077,30 +912,31 @@ class EmployeeManagementService
     public function getFilterStatistics(User $user, array $filters = []): array
     {
         try {
-            $baseQuery = $this->buildEmployeesQuery($user, new EmployeeFilterDTO());
-            
+            $companyId = $this->permissionService->getEffectiveCompanyId($user);
+            $baseQuery = $this->buildEmployeesQuery($user, new EmployeeFilterDTO(company_id: $companyId));
+
             // Clone query for different statistics
             $totalQuery = clone $baseQuery;
             $filteredQuery = clone $baseQuery;
-            
+
             // Apply filters to get filtered count
             if (!empty($filters)) {
                 $filterDTO = EmployeeFilterDTO::fromArray($filters);
                 $this->applyFilters($filteredQuery, $filterDTO);
                 $this->applyAdvancedFilters($filteredQuery, $filters);
-                
+
                 if ($filterDTO->search) {
                     $this->applyComprehensiveSearch($filteredQuery, $filterDTO->search);
                 }
             }
-            
+
             $stats = [
                 'total_accessible' => $totalQuery->count(),
                 'filtered_count' => $filteredQuery->count(),
                 'filters_applied' => $filters,
                 'breakdown' => []
             ];
-            
+
             // Get breakdown by department if no department filter applied
             if (empty($filters['department_id']) && empty($filters['department_ids'])) {
                 $deptBreakdown = (clone $filteredQuery)
@@ -1109,10 +945,10 @@ class EmployeeManagementService
                     ->select('ci_departments.department_name', DB::raw('COUNT(*) as count'))
                     ->groupBy('ci_departments.department_id', 'ci_departments.department_name')
                     ->get();
-                
+
                 $stats['breakdown']['by_department'] = $deptBreakdown->pluck('count', 'department_name')->toArray();
             }
-            
+
             // Get breakdown by designation if no designation filter applied
             if (empty($filters['designation_id']) && empty($filters['designation_ids'])) {
                 $desigBreakdown = (clone $filteredQuery)
@@ -1121,30 +957,29 @@ class EmployeeManagementService
                     ->select('ci_designations.designation_name', DB::raw('COUNT(*) as count'))
                     ->groupBy('ci_designations.designation_id', 'ci_designations.designation_name')
                     ->get();
-                
+
                 $stats['breakdown']['by_designation'] = $desigBreakdown->pluck('count', 'designation_name')->toArray();
             }
-            
+
             // Get breakdown by status
             $statusBreakdown = (clone $filteredQuery)
                 ->select('is_active', DB::raw('COUNT(*) as count'))
                 ->groupBy('is_active')
                 ->get();
-            
+
             $stats['breakdown']['by_status'] = [
                 'active' => $statusBreakdown->where('is_active', 1)->first()->count ?? 0,
                 'inactive' => $statusBreakdown->where('is_active', 0)->first()->count ?? 0,
             ];
-            
+
             return $stats;
-            
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getFilterStatistics failed', [
                 'user_id' => $user->user_id,
                 'filters' => $filters,
                 'error' => $e->getMessage()
             ]);
-            
+
             return [
                 'total_accessible' => 0,
                 'filtered_count' => 0,
@@ -1165,9 +1000,9 @@ class EmployeeManagementService
     {
         // Check basic permission
         if (!$this->permissionService->checkPermission($editor, 'employee.edit')) {
-            return false;
+            throw new \Exception(message: 'فشل في تعديل بيانات الموظف');
         }
-        
+
         // Use existing hierarchy logic from SimplePermissionService
         return $this->permissionService->canApproveEmployeeRequests($editor, $target);
     }
@@ -1183,9 +1018,9 @@ class EmployeeManagementService
     {
         // Check basic permission
         if (!$this->permissionService->checkPermission($deleter, 'employee.delete')) {
-            return false;
+            throw new \Exception(message: 'فشل في حذف بيانات الموظف');
         }
-        
+
         // Use existing hierarchy logic from SimplePermissionService
         return $this->permissionService->canApproveEmployeeRequests($deleter, $target);
     }
@@ -1201,18 +1036,28 @@ class EmployeeManagementService
     {
         try {
             $employee = User::find($employeeId);
-            
+
             if (!$employee) {
-                return null;
+                Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Employee not found',
+                ]);
+                throw new \Exception(message: 'فشل في الحصول على الوثائق الموظف');
             }
-            
+
             // Check if user can access this employee
-            if (!$this->permissionService->canAccessEmployee($user, $employee)) {
-                return null;
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'User does not have permission to view employee documents',
+                ]);
+                throw new \Exception(message: 'فشل في الحصول على الوثائق الموظف');
             }
-            
+
             $companyId = $this->permissionService->getEffectiveCompanyId($user);
-            
+
             // Get real documents from database
             $documentsQuery = DB::table('ci_users_documents')
                 ->where('company_id', $companyId)
@@ -1226,11 +1071,11 @@ class EmployeeManagementService
                     'created_at'
                 ])
                 ->orderBy('created_at', 'desc');
-            
+
             $realDocuments = $documentsQuery->get();
-            
+
             $documents = [];
-            
+
             if ($realDocuments->count() > 0) {
                 // Use real documents from database
                 foreach ($realDocuments as $doc) {
@@ -1249,7 +1094,7 @@ class EmployeeManagementService
                 // Return empty array if no documents found
                 $documents = [];
             }
-            
+
             return [
                 'employee' => [
                     'id' => $employee->user_id,
@@ -1263,15 +1108,14 @@ class EmployeeManagementService
                     'document_types' => array_unique(array_column($documents, 'document_type'))
                 ]
             ];
-            
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
                 'error' => $e->getMessage()
             ]);
-            
-            return null;
+
+            throw new \Exception(message: 'فشل في الحصول على اجازات الموظف');
         }
     }
 
@@ -1286,111 +1130,199 @@ class EmployeeManagementService
     {
         try {
             $employee = User::find($employeeId);
-            
+
             if (!$employee) {
-                return null;
+                Log::error('EmployeeManagementService::getEmployeeLeaveBalance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Employee not found',
+                ]);
+                throw new \Exception(message: 'فشل في الحصول على اجازات الموظف');
             }
-            
+
             // Check if user can access this employee
-            if (!$this->permissionService->canAccessEmployee($user, $employee)) {
-                return null;
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::getEmployeeLeaveBalance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'User does not have permission to view employee leave balance',
+                ]);
+                throw new \Exception(message: 'فشل في الحصول على اجازات الموظف');
             }
-            
-            // Mock leave balance data - في التطبيق الحقيقي ستأتي من قاعدة البيانات
+
             $currentYear = now()->year;
-            
-            $leaveTypes = [
-                'annual_leave' => [
-                    'name' => 'الإجازة السنوية',
-                    'total' => 30,
-                    'used' => rand(5, 20),
-                    'pending' => rand(0, 3),
-                    'remaining' => 0
-                ],
-                'sick_leave' => [
-                    'name' => 'الإجازة المرضية',
-                    'total' => 15,
-                    'used' => rand(0, 8),
-                    'pending' => rand(0, 2),
-                    'remaining' => 0
-                ],
-                'emergency_leave' => [
-                    'name' => 'الإجازة الطارئة',
-                    'total' => 5,
-                    'used' => rand(0, 3),
-                    'pending' => rand(0, 1),
-                    'remaining' => 0
-                ],
-                'maternity_leave' => [
-                    'name' => 'إجازة الأمومة',
-                    'total' => $employee->gender === 'F' ? 90 : 0,
-                    'used' => $employee->gender === 'F' ? rand(0, 90) : 0,
-                    'pending' => 0,
-                    'remaining' => 0
-                ],
-                'paternity_leave' => [
-                    'name' => 'إجازة الأبوة',
-                    'total' => $employee->gender === 'M' ? 7 : 0,
-                    'used' => $employee->gender === 'M' ? rand(0, 7) : 0,
-                    'pending' => 0,
-                    'remaining' => 0
-                ]
-            ];
-            
-            // Calculate remaining days for each leave type
-            foreach ($leaveTypes as $key => &$leaveType) {
-                $leaveType['remaining'] = max(0, $leaveType['total'] - $leaveType['used'] - $leaveType['pending']);
+            $companyId = $employee->company_id;
+
+            // Get Office Shift hours_per_day (from Repository through Model if needed, or stick to current logic but cleaner)
+            $shiftId = $employee->user_details->office_shift_id ?? null;
+            $hoursPerDay = 8;
+            if ($shiftId) {
+                $shift = $this->employeeRepository->getUserWithHierarchyInfo($employeeId)['user_details']['office_shift'] ?? null;
+                // Wait, getUserWithHierarchyInfo returns array. Better way.
+                $shift = DB::table('ci_office_shifts')->where('office_shift_id', $shiftId)->first();
+                if ($shift && !empty($shift->hours_per_day)) {
+                    $hoursPerDay = (int)$shift->hours_per_day;
+                }
             }
-            
-            // Calculate totals
-            $totalAllocated = array_sum(array_column($leaveTypes, 'total'));
-            $totalUsed = array_sum(array_column($leaveTypes, 'used'));
-            $totalPending = array_sum(array_column($leaveTypes, 'pending'));
-            $totalRemaining = array_sum(array_column($leaveTypes, 'remaining'));
-            
+
+            // Get data from Repository
+            $leaveTypes = $this->employeeRepository->getLeaveTypes($companyId);
+            $approvedLeaves = $this->employeeRepository->getLeaveApplicationsByYear($employeeId, $companyId, $currentYear, 1);
+            $pendingLeaves = $this->employeeRepository->getLeaveApplicationsByYear($employeeId, $companyId, $currentYear, 0);
+            $approvedAdjustments = $this->employeeRepository->getLeaveAdjustmentsByYear($employeeId, $companyId, $currentYear);
+
+            // Helper function to parse quota from field_one
+            $parseQuota = function ($fieldOne, $companyId = 0) {
+                if (empty($fieldOne) || $fieldOne === 'Null') {
+                    return 0;
+                }
+
+                // Try to unserialize the PHP array
+                $data = @unserialize($fieldOne);
+                if ($data && isset($data['quota_assign']) && is_array($data['quota_assign'])) {
+                    // Return quota for company index (default to index 0)
+                    return (int)($data['quota_assign'][$companyId] ?? $data['quota_assign'][0] ?? 0);
+                }
+
+                // If it's a simple number
+                if (is_numeric($fieldOne)) {
+                    return (int)$fieldOne;
+                }
+
+                return 0;
+            };
+
+            // Calculate usage by leave type
+            $usedHours = [];
+            $pendingHours = [];
+
+            // Calculate used hours from approved leaves
+            foreach ($approvedLeaves as $leave) {
+                if (!isset($usedHours[$leave->leave_type_id])) {
+                    $usedHours[$leave->leave_type_id] = 0;
+                }
+                $usedHours[$leave->leave_type_id] += (int)$leave->leave_hours;
+            }
+
+            // Calculate pending hours
+            foreach ($pendingLeaves as $leave) {
+                if (!isset($pendingHours[$leave->leave_type_id])) {
+                    $pendingHours[$leave->leave_type_id] = 0;
+                }
+                $pendingHours[$leave->leave_type_id] += (int)$leave->leave_hours;
+            }
+
+            // Add approved adjustments (these add to available balance)
+            foreach ($approvedAdjustments as $adjustment) {
+                if (!isset($usedHours[$adjustment->leave_type_id])) {
+                    $usedHours[$adjustment->leave_type_id] = 0;
+                }
+                // Adjustments are positive additions to balance, so subtract from used
+                $usedHours[$adjustment->leave_type_id] -= (int)$adjustment->adjust_hours;
+                $usedHours[$adjustment->leave_type_id] = max(0, $usedHours[$adjustment->leave_type_id]); // Don't go negative
+            }
+
+            // Build leave types response based on actual database leave types
+            $leaveTypesResponse = [];
+
+            // Process actual leave types from database
+            foreach ($leaveTypes as $leaveType) {
+                $categoryName = trim($leaveType->category_name);
+                $totalHours = $parseQuota($leaveType->field_one, 0); // Use company index 0 as default
+
+                // Skip if no quota assigned
+                if ($totalHours <= 0) {
+                    continue;
+                }
+
+                $used = $usedHours[$leaveType->constants_id] ?? 0;
+                $pending = $pendingHours[$leaveType->constants_id] ?? 0;
+                $remaining = max(0, $totalHours - $used - $pending);
+
+                // Use actual category name as key (make it safe for JSON)
+                $safeKey = $leaveType->constants_id; // Use the ID as key for consistency
+
+                $leaveTypesResponse[$safeKey] = [
+                    'name' => $categoryName,
+                    'total_days' => round($totalHours / $hoursPerDay, 2), // Convert hours to days using shift specific hours
+                    'used_days' => round($used / $hoursPerDay, 2),
+                    'pending_days' => round($pending / $hoursPerDay, 2),
+                    'remaining_days' => round($remaining / $hoursPerDay, 2),
+                    'total_hours' => (int)$totalHours,
+                    'used_hours' => (int)$used,
+                    'pending_hours' => (int)$pending,
+                    'remaining_hours' => (int)$remaining
+                ];
+            }
+
+            // Calculate totals (Days)
+            $totalAllocated = array_sum(array_column($leaveTypesResponse, 'total_days'));
+            $totalUsed = array_sum(array_column($leaveTypesResponse, 'used_days'));
+            $totalPending = array_sum(array_column($leaveTypesResponse, 'pending_days'));
+            $totalRemaining = array_sum(array_column($leaveTypesResponse, 'remaining_days'));
+
+            // Calculate totals (Hours)
+            $totalAllocatedHours = array_sum(array_column($leaveTypesResponse, 'total_hours'));
+            $totalUsedHours = array_sum(array_column($leaveTypesResponse, 'used_hours'));
+            $totalPendingHours = array_sum(array_column($leaveTypesResponse, 'pending_hours'));
+            $totalRemainingHours = array_sum(array_column($leaveTypesResponse, 'remaining_hours'));
+
+            // Get recent leaves (last 5 approved leaves) from Repository
+            $recentLeaves = $this->employeeRepository->getRecentLeaves($employeeId, $companyId, 5);
+
+            $recentLeavesFormatted = [];
+            foreach ($recentLeaves as $leave) {
+                $categoryName = $leave->category_name ?? 'غير محدد';
+
+                // Use actual category name as type
+                $safeKey = $leave->leave_type_id; // Use the leave type ID
+
+                // Calculate days from hours using shift specific hours
+                $days = round((int)$leave->leave_hours / $hoursPerDay, 2);
+
+                $recentLeavesFormatted[] = [
+                    'type' => $safeKey,
+                    'type_name' => $categoryName,
+                    'start_date' => $leave->from_date,
+                    'end_date' => $leave->to_date,
+                    'days' => $days,
+                    'hours' => (int)$leave->leave_hours,
+                    'status' => 'approved',
+                    'reason' => $leave->reason ?: 'غير محدد'
+                ];
+            }
+
             return [
                 'employee' => [
                     'id' => $employee->user_id,
-                    'name' => $employee->first_name . ' ' . $employee->last_name,
-                    'employee_id' => $employee->user_details->employee_id ?? 'EMP' . str_pad($employee->user_id, 4, '0', STR_PAD_LEFT)
+                    'name' => trim($employee->first_name . ' ' . $employee->last_name),
+                    'employee_id' => $employee->user_details->employee_id ?? 'EMP' . str_pad($employee->user_id, 4, '0', STR_PAD_LEFT),
+                    'hours_per_day' => $hoursPerDay
                 ],
                 'year' => $currentYear,
-                'leave_types' => $leaveTypes,
+                'leave_types' => $leaveTypesResponse,
                 'summary' => [
-                    'total_allocated' => $totalAllocated,
-                    'total_used' => $totalUsed,
-                    'total_pending' => $totalPending,
-                    'total_remaining' => $totalRemaining,
-                    'utilization_rate' => $totalAllocated > 0 ? round(($totalUsed / $totalAllocated) * 100, 1) : 0
+                    'total_allocated_days' => round($totalAllocated, 2),
+                    'total_used_days' => round($totalUsed, 2),
+                    'total_pending_days' => round($totalPending, 2),
+                    'total_remaining_days' => round($totalRemaining, 2),
+                    'total_allocated_hours' => (int)$totalAllocatedHours,
+                    'total_used_hours' => (int)$totalUsedHours,
+                    'total_pending_hours' => (int)$totalPendingHours,
+                    'total_remaining_hours' => (int)$totalRemainingHours,
+                    'utilization_rate' => $totalAllocated > 0 ? round(($totalUsed / $totalAllocated) * 100, 2) : 0
                 ],
-                'recent_leaves' => [
-                    [
-                        'type' => 'annual_leave',
-                        'start_date' => now()->subDays(rand(10, 60))->format('Y-m-d'),
-                        'end_date' => now()->subDays(rand(5, 9))->format('Y-m-d'),
-                        'days' => rand(2, 7),
-                        'status' => 'approved',
-                        'reason' => 'إجازة شخصية'
-                    ],
-                    [
-                        'type' => 'sick_leave',
-                        'start_date' => now()->subDays(rand(80, 120))->format('Y-m-d'),
-                        'end_date' => now()->subDays(rand(78, 79))->format('Y-m-d'),
-                        'days' => rand(1, 3),
-                        'status' => 'approved',
-                        'reason' => 'إجازة مرضية'
-                    ]
-                ]
+                'recent_leaves' => $recentLeavesFormatted
             ];
-            
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getEmployeeLeaveBalance failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
-            
-            return null;
+
+            throw new \Exception(message: 'فشل في الحصول على اجازات الموظف');
         }
     }
 
@@ -1405,246 +1337,762 @@ class EmployeeManagementService
     public function getEmployeeAttendance(User $user, int $employeeId, array $options = []): ?array
     {
         try {
-            $employee = User::find($employeeId);
-            
+            $employee = User::with('user_details')->find($employeeId);
+
             if (!$employee) {
-                return null;
+                Log::error('EmployeeManagementService::getEmployeeAttendance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Employee not found',
+                ]);
+                throw new \Exception(message: 'فشل في الحصول على حضور الموظف');
             }
-            
+
             // Check if user can access this employee
-            if (!$this->permissionService->canAccessEmployee($user, $employee)) {
-                return null;
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::getEmployeeAttendance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'User does not have permission to view employee attendance',
+                ]);
+                throw new \Exception(message: 'فشل في الحصول على حضور الموظف');
             }
-            
-            $limit = $options['limit'] ?? 30;
-            $fromDate = $options['from_date'] ?? now()->subDays($limit)->format('Y-m-d');
+
+            $limit = (int) ($options['limit'] ?? 30);
+            $fromDate = $options['from_date'] ?? now()->subDays($limit - 1)->format('Y-m-d');
             $toDate = $options['to_date'] ?? now()->format('Y-m-d');
-            
-            // Mock attendance data - في التطبيق الحقيقي ستأتي من قاعدة البيانات
+
+            $companyId = $employee->company_id;
+
+            // 1. Fetch Attendance records (ci_timesheet) from Repository
+            $attendanceRecords = $this->employeeRepository->getAttendanceRecords($employeeId, $fromDate, $toDate);
+
+            // 2. Fetch Holidays (ci_holidays) from Repository
+            $holidays = $this->employeeRepository->getHolidays($companyId, $fromDate, $toDate);
+
+            // 3. Fetch Approved Leaves (ci_leave_applications) from Repository
+            $leaves = $this->employeeRepository->getApprovedLeaves($employeeId, $fromDate, $toDate);
+
+            // 4. Get Office Shift to determine weekends
+            $shiftId = $employee->user_details->office_shift_id ?? null;
+            $officeShift = $shiftId ? OfficeShift::find($shiftId) : null;
+
             $attendance = [];
             $presentDays = 0;
             $totalHours = 0;
             $lateDays = 0;
             $earlyLeaveDays = 0;
-            
-            $startDate = \Carbon\Carbon::parse($fromDate);
-            $endDate = \Carbon\Carbon::parse($toDate);
-            
-            for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
-                // Skip weekends (Friday and Saturday in many Arab countries)
-                if ($date->isFriday() || $date->isSaturday()) {
-                    continue;
-                }
-                
-                // 90% attendance rate
-                if (rand(1, 10) > 1) {
-                    $checkInHour = rand(7, 9);
-                    $checkInMinute = rand(0, 59);
-                    $checkOutHour = rand(16, 18);
-                    $checkOutMinute = rand(0, 59);
-                    
-                    $checkIn = sprintf('%02d:%02d:00', $checkInHour, $checkInMinute);
-                    $checkOut = sprintf('%02d:%02d:00', $checkOutHour, $checkOutMinute);
-                    
-                    $hoursWorked = ($checkOutHour - $checkInHour) + (($checkOutMinute - $checkInMinute) / 60);
-                    $hoursWorked = round($hoursWorked, 1);
-                    
-                    $isLate = $checkInHour > 8 || ($checkInHour == 8 && $checkInMinute > 15);
-                    $isEarlyLeave = $checkOutHour < 17 || ($checkOutHour == 17 && $checkOutMinute < 0);
-                    
-                    if ($isLate) $lateDays++;
-                    if ($isEarlyLeave) $earlyLeaveDays++;
-                    
+
+            $period = CarbonPeriod::create($fromDate, $toDate);
+
+            foreach ($period as $date) {
+                $dateStr = $date->format('Y-m-d');
+                $dayNameAr = $date->locale('ar')->dayName;
+
+                // Priority 1: Attendance Record
+                if (isset($attendanceRecords[$dateStr])) {
+                    $record = $attendanceRecords[$dateStr];
+
+                    // Helper to parse duration string (HH:MM or HH:MM:SS) to hours float
+                    $parseHours = function ($val) {
+                        if (empty($val) || $val === '00:00' || $val === '00:00:00' || $val === '0' || $val === 0) return 0;
+                        // If it contains a date pattern (corrupted data), don't parse as duration
+                        if (preg_match('/\d{4}-\d{2}-\d{2}/', (string)$val)) return 0;
+
+                        if (strpos((string)$val, ':') !== false) {
+                            $parts = explode(':', (string)$val);
+                            $h = (int)($parts[0] ?? 0);
+                            $m = (int)($parts[1] ?? 0);
+                            return $h + ($m / 60);
+                        }
+                        return (float)$val;
+                    };
+
+                    // Helper to format hours float back to HH:MM format
+                    $formatHours = function ($hours) {
+                        if ($hours <= 0) return '0:00';
+                        $h = floor(round($hours * 60) / 60);
+                        $m = round($hours * 60) % 60;
+                        return sprintf('%d:%02d', $h, $m);
+                    };
+
+                    $worked = $parseHours($record->total_work);
+                    $overtime = 0;
+                    $isLate = false;
+                    $isEarlyLeave = false;
+
+                    // Effective Clock Out detection (handling corrupted database where overtime field contains exit timestamp)
+                    $effectiveClockOut = $record->clock_out;
+                    if (empty($effectiveClockOut) && !empty($record->overtime) && preg_match('/\d{4}-\d{2}-\d{2}/', (string)$record->overtime)) {
+                        $effectiveClockOut = $record->overtime;
+                    }
+
+                    // If we have an office shift, recalculate late/early/overtime based on timestamps
+                    // This fixes corrupted duration fields in the database
+                    if ($officeShift) {
+                        if ($record->clock_in) {
+                            $lateStr = $officeShift->calculateTimeLate($dateStr, $record->clock_in);
+                            $isLate = $lateStr !== '00:00';
+                        }
+
+                        if ($effectiveClockOut) {
+                            $earlyStr = $officeShift->calculateEarlyLeaving($dateStr, $effectiveClockOut);
+                            $isEarlyLeave = $earlyStr !== '00:00';
+
+                            $overtimeStr = $officeShift->calculateOvertime($dateStr, $effectiveClockOut);
+                            $overtime = $parseHours($overtimeStr);
+                        }
+                    } else {
+                        // Fallback to database values if no shift info
+                        $overtime = $parseHours($record->overtime);
+                        $lateAmount = $parseHours($record->time_late);
+                        $isLate = $lateAmount > 0;
+                        $isEarlyLeave = $parseHours($record->early_leaving) > 0;
+                    }
+
                     $attendance[] = [
-                        'date' => $date->format('Y-m-d'),
-                        'day_name' => $date->locale('ar')->dayName,
-                        'check_in' => $checkIn,
-                        'check_out' => $checkOut,
-                        'hours_worked' => $hoursWorked,
+                        'date' => $dateStr,
+                        'day_name' => $dayNameAr,
+                        'check_in' => $record->clock_in ? date('H:i:s', strtotime($record->clock_in)) : null,
+                        'check_out' => $effectiveClockOut ? date('H:i:s', strtotime($effectiveClockOut)) : null,
+                        'hours_worked' => $formatHours($worked),
                         'status' => 'present',
                         'is_late' => $isLate,
                         'is_early_leave' => $isEarlyLeave,
-                        'overtime_hours' => max(0, $hoursWorked - 8),
-                        'notes' => $isLate ? 'تأخير' : ($isEarlyLeave ? 'مغادرة مبكرة' : null)
+                        'overtime_hours' => $formatHours($overtime),
+                        'notes' => $record->attendance_status === 'Holiday Work' ? 'عمل يوم عطلة' : ($isLate ? 'تأخير' : ($isEarlyLeave ? 'مغادرة مبكرة' : null))
                     ];
-                    
+
                     $presentDays++;
-                    $totalHours += $hoursWorked;
-                } else {
+                    $totalHours += $worked;
+                    if ($isLate) $lateDays++;
+                    if ($isEarlyLeave) $earlyLeaveDays++;
+                    continue;
+                }
+
+                // Priority 2: Approved Leave
+                $leaveOnDay = $leaves->first(function ($l) use ($dateStr) {
+                    $start = is_string($l->from_date) ? $l->from_date : $l->from_date->format('Y-m-d');
+                    $end = is_string($l->to_date) ? $l->to_date : $l->to_date->format('Y-m-d');
+                    return $dateStr >= $start && $dateStr <= $end;
+                });
+
+                if ($leaveOnDay) {
                     $attendance[] = [
-                        'date' => $date->format('Y-m-d'),
-                        'day_name' => $date->locale('ar')->dayName,
+                        'date' => $dateStr,
+                        'day_name' => $dayNameAr,
                         'check_in' => null,
                         'check_out' => null,
-                        'hours_worked' => 0,
-                        'status' => rand(1, 3) == 1 ? 'sick_leave' : (rand(1, 2) == 1 ? 'annual_leave' : 'absent'),
+                        'hours_worked' => '0:00',
+                        'status' => 'leave',
                         'is_late' => false,
                         'is_early_leave' => false,
-                        'overtime_hours' => 0,
+                        'overtime_hours' => '0:00',
+                        'notes' => 'إجازة: ' . ($leaveOnDay->leaveType->category_name ?? 'إجازة معتمدة')
+                    ];
+                    continue;
+                }
+
+                // Priority 3: Holiday
+                $holidayOnDay = $holidays->first(function ($h) use ($dateStr) {
+                    $start = is_string($h->start_date) ? $h->start_date : $h->start_date->format('Y-m-d');
+                    $end = is_string($h->end_date) ? $h->end_date : $h->end_date->format('Y-m-d');
+                    return $dateStr >= $start && $dateStr <= $end;
+                });
+
+                if ($holidayOnDay) {
+                    $attendance[] = [
+                        'date' => $dateStr,
+                        'day_name' => $dayNameAr,
+                        'check_in' => null,
+                        'check_out' => null,
+                        'hours_worked' => '0:00',
+                        'status' => 'holiday',
+                        'is_late' => false,
+                        'is_early_leave' => false,
+                        'overtime_hours' => '0:00',
+                        'notes' => 'عطلة: ' . ($holidayOnDay->event_name)
+                    ];
+                    continue;
+                }
+
+                // Priority 4: Weekly Off
+                $isDayOff = $officeShift ? $officeShift->isDayOff($dateStr) : ($date->isFriday() || $date->isSaturday());
+                if ($isDayOff) {
+                    $attendance[] = [
+                        'date' => $dateStr,
+                        'day_name' => $dayNameAr,
+                        'check_in' => null,
+                        'check_out' => null,
+                        'hours_worked' => '0:00',
+                        'status' => 'weekend',
+                        'is_late' => false,
+                        'is_early_leave' => false,
+                        'overtime_hours' => '0:00',
+                        'notes' => 'عطلة إسبوعية'
+                    ];
+                    continue;
+                }
+
+                // Default: Absent
+                if ($date->isPast() && !$date->isToday()) {
+                    $attendance[] = [
+                        'date' => $dateStr,
+                        'day_name' => $dayNameAr,
+                        'check_in' => null,
+                        'check_out' => null,
+                        'hours_worked' => '0:00',
+                        'status' => 'absent',
+                        'is_late' => false,
+                        'is_early_leave' => false,
+                        'overtime_hours' => '0:00',
                         'notes' => 'غياب'
                     ];
                 }
             }
-            
-            $workingDays = count($attendance);
-            $absentDays = $workingDays - $presentDays;
-            $averageHours = $presentDays > 0 ? round($totalHours / $presentDays, 1) : 0;
-            $attendanceRate = $workingDays > 0 ? round(($presentDays / $workingDays) * 100, 1) : 0;
-            
+
+            $workingDaysCount = count($attendance);
+            $absentDays = collect($attendance)->where('status', 'absent')->count();
+            $averageHours = $presentDays > 0 ? $formatHours($totalHours / $presentDays) : '0:00';
+            $attendanceRate = $workingDaysCount > 0 ? round(($presentDays / $workingDaysCount) * 100, 2) : 0;
+            $punctualityRate = $presentDays > 0 ? round((($presentDays - $lateDays) / $presentDays) * 100, 2) : 0;
+
             return [
                 'employee' => [
                     'id' => $employee->user_id,
                     'name' => $employee->first_name . ' ' . $employee->last_name,
-                    'employee_id' => $employee->user_details->employee_id ?? 'EMP' . str_pad($employee->user_id, 4, '0', STR_PAD_LEFT)
+                    'employee_id' => $employee->user_details->employee_id ?? '7'
                 ],
                 'period' => [
                     'from' => $fromDate,
                     'to' => $toDate,
-                    'total_days' => $workingDays
+                    'total_days' => $workingDaysCount
                 ],
-                'attendance' => array_reverse($attendance), // Most recent first
+                'attendance' => array_values(array_reverse($attendance)),
                 'summary' => [
-                    'total_working_days' => $workingDays,
+                    'total_working_days' => $workingDaysCount,
                     'present_days' => $presentDays,
                     'absent_days' => $absentDays,
                     'late_days' => $lateDays,
                     'early_leave_days' => $earlyLeaveDays,
-                    'total_hours_worked' => round($totalHours, 1),
+                    'total_hours_worked' => round($totalHours, 2),
                     'average_hours_per_day' => $averageHours,
                     'attendance_rate' => $attendanceRate,
-                    'punctuality_rate' => $presentDays > 0 ? round((($presentDays - $lateDays) / $presentDays) * 100, 1) : 0
+                    'punctuality_rate' => $punctualityRate
                 ]
             ];
-            
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getEmployeeAttendance failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'options' => $options,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
-            
-            return null;
+
+            throw new \Exception(message: 'فشل في الحصول على حضور الموظف');
         }
     }
 
     /**
-     * Get employee salary details with permission check
-     * 
-     * @param User $user Current user requesting the data
-     * @param int $employeeId Target employee ID
-     * @param array $options Additional options (limit, year)
-     * @return array|null
+     * Change employee password
      */
-    public function getEmployeeSalaryDetails(User $user, int $employeeId, array $options = []): ?array
+    public function changeEmployeePassword(User $user, int $employeeId, string $password): bool
     {
         try {
-            $employee = User::with('user_details')->find($employeeId);
-            
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // For self password change, get the user directly
+            if ($user->user_id === $employeeId) {
+                $employee = $user; // Use the authenticated user directly
+            } else {
+                // For changing other employees' passwords, use the repository method
+                $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            }
+
             if (!$employee) {
-                return null;
+                Log::warning('Employee not found for password change', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'effective_company_id' => $effectiveCompanyId
+                ]);
+                throw new \Exception(message: 'فشل في تعديل كلمة المرور');
             }
-            
-            // Check if user can access this employee
-            if (!$this->permissionService->canAccessEmployee($user, $employee)) {
-                return null;
+
+            // Allow users to change their own password, or check permissions for others
+            $canModify = ($user->user_id === $employeeId) ||
+                $this->permissionService->canViewEmployeeRequests($user, $employee);
+
+            if (!$canModify) {
+                Log::warning('Permission denied for password change', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'is_self' => $user->user_id === $employeeId
+                ]);
+                throw new \Exception(message: 'فشل في تعديل كلمة المرور');
             }
-            
-            // Check if user can view salaries
-            if (!$this->permissionService->canViewSalaries($user)) {
-                return null;
-            }
-            
-            $limit = $options['limit'] ?? 12;
-            $year = $options['year'] ?? now()->year;
-            
-            // Get basic salary from employee details
-            $basicSalary = $employee->user_details->salary ?? 5000;
-            
-            // Mock salary components
-            $salaryComponents = [
-                'basic_salary' => $basicSalary,
-                'housing_allowance' => round($basicSalary * 0.15, 2),
-                'transport_allowance' => round($basicSalary * 0.05, 2),
-                'food_allowance' => 500,
-                'overtime_pay' => rand(0, 1000),
-                'bonus' => rand(0, 2000),
-                'commission' => rand(0, 1500)
-            ];
-            
-            $totalAllowances = array_sum(array_slice($salaryComponents, 1));
-            $grossSalary = $salaryComponents['basic_salary'] + $totalAllowances;
-            
-            // Mock deductions
-            $deductions = [
-                'social_insurance' => round($basicSalary * 0.09, 2),
-                'income_tax' => round($grossSalary * 0.05, 2),
-                'medical_insurance' => 200,
-                'loan_deduction' => rand(0, 500),
-                'advance_deduction' => rand(0, 300)
-            ];
-            
-            $totalDeductions = array_sum($deductions);
-            $netSalary = $grossSalary - $totalDeductions;
-            
-            // Mock salary history
-            $salaryHistory = [];
-            for ($i = 0; $i < $limit; $i++) {
-                $month = now()->subMonths($i);
-                $monthlyBasic = $basicSalary + rand(-200, 200); // Small variations
-                $monthlyGross = $monthlyBasic + $totalAllowances + rand(-500, 500);
-                $monthlyDeductions = $totalDeductions + rand(-100, 100);
-                $monthlyNet = $monthlyGross - $monthlyDeductions;
-                
-                $salaryHistory[] = [
-                    'month' => $month->format('Y-m'),
-                    'month_name' => $month->locale('ar')->monthName . ' ' . $month->year,
-                    'basic_salary' => round($monthlyBasic, 2),
-                    'allowances' => round($totalAllowances + rand(-200, 200), 2),
-                    'deductions' => round($monthlyDeductions, 2),
-                    'gross_salary' => round($monthlyGross, 2),
-                    'net_salary' => round($monthlyNet, 2),
-                    'status' => $i === 0 ? 'pending' : 'paid',
-                    'pay_date' => $i === 0 ? null : $month->endOfMonth()->format('Y-m-d')
-                ];
-            }
-            
-            return [
-                'employee' => [
-                    'id' => $employee->user_id,
-                    'name' => $employee->first_name . ' ' . $employee->last_name,
-                    'employee_id' => $employee->user_details->employee_id ?? 'EMP' . str_pad($employee->user_id, 4, '0', STR_PAD_LEFT),
-                    'department' => $employee->user_details->department->department_name ?? null,
-                    'designation' => $employee->user_details->designation->designation_name ?? null
-                ],
-                'current_salary' => [
-                    'components' => $salaryComponents,
-                    'deductions' => $deductions,
-                    'gross_salary' => round($grossSalary, 2),
-                    'total_deductions' => round($totalDeductions, 2),
-                    'net_salary' => round($netSalary, 2)
-                ],
-                'salary_history' => array_reverse($salaryHistory), // Most recent first
-                'summary' => [
-                    'year' => $year,
-                    'total_months' => count($salaryHistory),
-                    'total_gross_paid' => round(collect($salaryHistory)->where('status', 'paid')->sum('gross_salary'), 2),
-                    'total_net_paid' => round(collect($salaryHistory)->where('status', 'paid')->sum('net_salary'), 2),
-                    'average_net_salary' => round(collect($salaryHistory)->where('status', 'paid')->avg('net_salary'), 2),
-                    'highest_net_salary' => round(collect($salaryHistory)->where('status', 'paid')->max('net_salary'), 2),
-                    'lowest_net_salary' => round(collect($salaryHistory)->where('status', 'paid')->min('net_salary'), 2)
-                ]
-            ];
-            
+
+            // Hash password and update using repository
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+            // For self password change, use the user's actual company_id
+            $targetCompanyId = ($user->user_id === $employeeId) ? $user->company_id : $effectiveCompanyId;
+
+            return $this->employeeRepository->updateEmployeePassword($employeeId, $targetCompanyId, $hashedPassword);
         } catch (\Exception $e) {
-            Log::error('EmployeeManagementService::getEmployeeSalaryDetails failed', [
+            Log::error('EmployeeManagementService::changeEmployeePassword failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'options' => $options,
                 'error' => $e->getMessage()
             ]);
-            
-            return null;
+            throw new \Exception(message: 'فشل في تعديل كلمة المرور');
+        }
+    }
+
+    /**
+     * Upload employee profile image
+     */
+    public function uploadEmployeeProfileImage(User $user, int $employeeId, $imageFile): ?array
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            Log::info('EmployeeManagementService::uploadEmployeeProfileImage started', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'effective_company_id' => $effectiveCompanyId
+            ]);
+
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            if (!$employee) {
+                Log::warning('Employee not found or not in same company', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'effective_company_id' => $effectiveCompanyId
+                ]);
+                throw new \Exception(message: 'فشل في تعديل الصورة الشخصية');
+            }
+
+            Log::info('Employee found', [
+                'employee_id' => $employee->user_id,
+                'employee_company_id' => $employee->company_id ?? 'N/A'
+            ]);
+
+            // Check if user can modify this employee
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::warning('User does not have permission to modify this employee', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'user_type' => $user->user_type,
+                    'employee_company_id' => $employee->company_id ?? 'N/A'
+                ]);
+                throw new \Exception(message: 'فشل في تعديل الصورة الشخصية');
+            }
+
+            Log::info(message: 'Permission check passed, proceeding with file upload');
+
+            // Upload image using FileUploadService
+            $uploadResult = $this->fileUploadService->uploadProfileImage($imageFile, $employeeId);
+            if (!$uploadResult) {
+                Log::error('File upload failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'File upload failed'
+                ]);
+                throw new \Exception(message: 'فشل في تعديل الصورة الشخصية');
+            }
+
+            // Update employee profile image using repository
+            $success = $this->employeeRepository->updateEmployeeProfileImage($employeeId, $uploadResult['filename']);
+            if (!$success) {
+                Log::error('Database update failed, deleting uploaded file', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Database update failed'
+                ]);
+                // Delete uploaded file if database update failed
+                $this->fileUploadService->deleteFile($uploadResult['file_path']);
+                throw new \Exception(message: 'فشل في تعديل الصورة الشخصية');
+            }
+
+            Log::info('Profile image updated successfully');
+
+            return [
+                'profile_image_url' => $uploadResult['file_url']
+            ];
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::uploadEmployeeProfileImage failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            throw new \Exception(message: 'فشل في تعديل الصورة الشخصية');
+        }
+    }
+
+    /**
+     * Upload employee document
+     */
+    public function uploadEmployeeDocument(User $user, int $employeeId, array $documentData): ?array
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            if (!$employee) {
+                Log::warning('Employee not found', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Employee not found'
+                ]);
+                throw new \Exception(message: 'فشل في إضافة الوثيقة');
+            }
+
+            // Check if user can modify this employee
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::warning('Permission denied for document upload', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Permission denied'
+                ]);
+                throw new \Exception(message: 'فشل في إضافة الوثيقة');
+            }
+
+            // Upload document using FileUploadService
+            $documentFile = $documentData['document_file'];
+            $uploadResult = $this->fileUploadService->uploadDocument($documentFile, $employeeId, $documentData['document_type']);
+            if (!$uploadResult) {
+                Log::warning('Failed to upload document', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Failed to upload document'
+                ]);
+                throw new \Exception(message: 'فشل في إضافة الوثيقة');
+            }
+
+            // Insert document record using repository
+            $documentId = $this->employeeRepository->insertEmployeeDocument([
+                'user_id' => $employeeId,
+                'company_id' => $effectiveCompanyId,
+                'document_name' => $documentData['document_name'],
+                'document_type' => $documentData['document_type'],
+                'file_path' => $uploadResult['filename'],
+                'expiration_date' => $documentData['expiration_date'] ?? null,
+            ]);
+
+            if (!$documentId) {
+                // Delete uploaded file if database insert failed
+                Log::warning('Failed to insert document record', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Failed to insert document record'
+                ]);
+                $this->fileUploadService->deleteFile($uploadResult['file_path']);
+                throw new \Exception(message: 'فشل في إضافة الوثيقة');
+            }
+
+            return [
+                'document_id' => $documentId,
+                'document_url' => $uploadResult['file_url']
+            ];
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::uploadEmployeeDocument failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+
+            throw new \Exception(message: 'فشل في إضافة الوثيقة');
+        }
+    }
+
+    /**
+     * Update employee profile info (username and email)
+     */
+    public function updateEmployeeProfileInfo(User $user, int $employeeId, array $profileData): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            if (!$employee) {
+                Log::warning('Employee not found', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Employee not found'
+                ]);
+                throw new \Exception(message: 'فشل في تعديل البيانات الشخصية');
+            }
+
+            // Check if user can modify this employee
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::warning('Permission denied for profile update', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Permission denied'
+                ]);
+                throw new \Exception(message: 'فشل في تعديل البيانات الشخصية');
+            }
+
+            // Update profile info using repository
+            return $this->employeeRepository->updateEmployeeProfileInfo($employeeId, $effectiveCompanyId, $profileData);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::updateEmployeeProfileInfo failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+
+            throw new \Exception(message: 'فشل في تعديل البيانات الشخصية');
+        }
+    }
+
+    /**
+     * Update employee CV (bio and experience)
+     */
+    public function updateEmployeeCV(User $user, int $employeeId, array $cvData): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            if (!$employee) {
+                return false;
+            }
+
+            // Check if user can modify this employee
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::warning('Permission denied for CV update', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Permission denied'
+                ]);
+                throw new \Exception(message: 'فشل في تعديل السيرة الذاتية و الخبرة');
+            }
+
+            // Convert Arabic experience label to enum value if provided
+            if (isset($cvData['experience'])) {
+                $experienceValue = null;
+                foreach (ExperienceLevel::cases() as $level) {
+                    if ($level->getArabicLabel() === $cvData['experience']) {
+                        $experienceValue = $level->value;
+                        break;
+                    }
+                }
+
+                if ($experienceValue !== null) {
+                    $cvData['experience'] = $experienceValue;
+                } else {
+                    Log::warning('Invalid experience value provided', [
+                        'provided_value' => $cvData['experience'],
+                        'employee_id' => $employeeId
+                    ]);
+                    throw new \Exception(message: 'فشل في تعديل السيرة الذاتية و الخبرة');
+                }
+            }
+
+            // Update CV using repository
+            return $this->employeeRepository->updateEmployeeCV($employeeId, $cvData);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::updateEmployeeCV failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+
+            throw new \Exception(message: 'فشل في تعديل السيرة الذاتية و الخبرة');
+        }
+    }
+
+    /**
+     * Update employee social links
+     */
+    public function updateEmployeeSocialLinks(User $user, int $employeeId, array $socialData): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            if (!$employee) {
+                throw new \Exception(message: 'فشل في تعديل بيانات مواقع التواصل الاجتماعى');
+            }
+
+            // Check if user can modify this employee
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                throw new \Exception(message: 'فشل في تعديل بيانات مواقع التواصل الاجتماعى');
+            }
+
+            // Update social links using repository
+            return $this->employeeRepository->updateEmployeeSocialLinks($employeeId, $socialData);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::updateEmployeeSocialLinks failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+
+            throw new \Exception(message: 'فشل في تعديل بيانات مواقع التواصل الاجتماعى');
+        }
+    }
+
+    /**
+     * Update employee bank information
+     */
+    public function updateEmployeeBankInfo(User $user, int $employeeId, array $bankData): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // First try to find employee in the effective company
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            // If not found and user is company owner (company_id = 0), try to find employee in any company they manage
+            if (!$employee && $user->company_id == 0) {
+                // For company owners, try to find the employee by ID without company filtering
+                $employee = User::with('user_details')->where('user_id', $employeeId)->first();
+
+                Log::info('Company owner looking for employee across companies', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'employee_found' => $employee ? true : false,
+                    'employee_company_id' => $employee?->company_id
+                ]);
+            }
+
+            if (!$employee) {
+                Log::error('EmployeeManagementService::updateEmployeeBankInfo failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'effective_company_id' => $effectiveCompanyId,
+                    'user_company_id' => $user->company_id,
+                    'error' => 'Employee not found'
+                ]);
+                throw new \Exception(message: 'فشل في تعديل البيانات البنكيه');
+            }
+
+            // Check if user can modify this employee
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::updateEmployeeBankInfo failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'employee_company_id' => $employee->company_id,
+                    'error' => 'Permission denied'
+                ]);
+                throw new \Exception(message: 'فشل في تعديل البيانات البنكيه');
+            }
+
+            Log::info('EmployeeManagementService::updateEmployeeBankInfo proceeding', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'employee_company_id' => $employee->company_id,
+                'bank_data' => $bankData
+            ]);
+
+            // Update bank info using repository
+            return $this->employeeRepository->updateEmployeeBankInfo($employeeId, $bankData);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::updateEmployeeBankInfo failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+
+            throw new \Exception('فشل في تعديل البيانات البنكيه');
+        }
+    }
+
+    /**
+     * Add employee family data
+     */
+    public function addEmployeeFamilyData(User $user, int $employeeId, array $familyData): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            if (!$employee) {
+                Log::error('', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Employee not found'
+                ]);
+                throw new \Exception(message: 'فشل في إضافة البيانات العائلية');
+            }
+
+            // Check if user can modify this employee
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Employee not found'
+                ]);
+                throw new \Exception(message: 'فشل في إضافة البيانات العائلية');
+            }
+
+            // Update family data using repository
+            return $this->employeeRepository->addEmployeeFamilyData($employeeId, $familyData);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::addEmployeeFamilyData failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+
+            throw new \Exception(message: 'فشل في إضافة البيانات العائلية');
+        }
+    }
+
+    /**
+     * Delete employee family data
+     */
+    public function deleteEmployeeFamilyData(User $user, int $employeeId, int $contactId): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            if (!$employee) {
+                Log::error('', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Employee not found'
+                ]);
+                throw new \Exception(message: 'فشل في حذف البيانات العائلية');
+            }
+
+            // Check if user can modify this employee
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Permission denied'
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحية لحذف هذه البيانات');
+            }
+
+            // Verify the contact belongs to the employee
+            $contact = DB::table('ci_erp_employee_contacts')
+                ->where('contact_id', $contactId)
+                ->where('user_id', $employeeId)
+                ->first();
+
+            if (!$contact) {
+                throw new \Exception(message: 'بيانات العائلة غير موجودة');
+            }
+
+            // Delete family data using repository
+            return $this->employeeRepository->deleteEmployeeFamilyData($contactId);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::deleteEmployeeFamilyData failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'contact_id' => $contactId,
+                'error' => $e->getMessage()
+            ]);
+
+            throw $e;
         }
     }
 }

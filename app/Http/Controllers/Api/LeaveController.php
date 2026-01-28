@@ -1019,7 +1019,7 @@ class LeaveController extends Controller
                         ], 404);
                     }
 
-                    if (!$this->permissionService->canAccessEmployee($user, $targetEmployee)) {
+                    if (!$this->permissionService->canViewEmployeeRequests($user, $targetEmployee)) {
                         return response()->json([
                             'success' => false,
                             'message' => 'ليس لديك صلاحية لعرض ملخص رصيد هذا الموظف',
@@ -1233,7 +1233,7 @@ class LeaveController extends Controller
                         ], 404);
                     }
 
-                    if (!$this->permissionService->canAccessEmployee($user, $targetEmployee)) {
+                    if (!$this->permissionService->canViewEmployeeRequests($user, $targetEmployee)) {
                         return response()->json([
                             'success' => false,
                             'message' => 'ليس لديك صلاحية لعرض إحصائيات هذا الموظف',
