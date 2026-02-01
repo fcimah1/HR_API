@@ -189,7 +189,22 @@ trait ApiResponseTrait
         }
 
         // Handle general exceptions
+        // If the exception message is in Arabic (custom user-facing message), show it
+        $message = $exception->getMessage();
+        if ($this->isArabicMessage($message)) {
+            return $this->errorResponse($message, Response::HTTP_NOT_FOUND, null);
+        }
+
         return $this->serverErrorResponse('حدث خطأ غير متوقع', $exception, $context);
+    }
+
+    /**
+     * Check if the message is in Arabic (user-facing message)
+     */
+    private function isArabicMessage(string $message): bool
+    {
+        // Check if the message contains Arabic characters
+        return preg_match('/[\x{0600}-\x{06FF}]/u', $message) === 1;
     }
 
     /**
@@ -226,7 +241,7 @@ trait ApiResponseTrait
     protected function validateRequiredParameters(array $required, array $data): ?JsonResponse
     {
         $missing = [];
-        
+
         foreach ($required as $field) {
             if (!isset($data[$field]) || empty($data[$field])) {
                 $missing[] = $field;

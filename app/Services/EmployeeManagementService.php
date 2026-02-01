@@ -19,6 +19,7 @@ use App\Models\LeaveApplication;
 use App\Models\OfficeShift;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * Employee Management Service
@@ -189,11 +190,6 @@ class EmployeeManagementService
                 return null;
             }
 
-            // Check if user can edit this employee
-            if (!$this->canEditEmployee($user, $employee)) {
-                return null;
-            }
-
             DB::beginTransaction();
 
             // Update user record
@@ -248,11 +244,6 @@ class EmployeeManagementService
             $employee = User::find($employeeId);
 
             if (!$employee) {
-                return false;
-            }
-
-            // Check if user can delete/deactivate this employee
-            if (!$this->canDeleteEmployee($user, $employee)) {
                 return false;
             }
 
@@ -989,135 +980,135 @@ class EmployeeManagementService
         }
     }
 
-    /**
-     * Check if editor can edit target employee
-     * 
-     * @param User $editor
-     * @param User $target
-     * @return bool
-     */
-    private function canEditEmployee(User $editor, User $target): bool
-    {
-        // Check basic permission
-        if (!$this->permissionService->checkPermission($editor, 'employee.edit')) {
-            throw new \Exception(message: 'فشل في تعديل بيانات الموظف');
-        }
+    // /**
+    //  * Check if editor can edit target employee
+    //  * 
+    //  * @param User $editor
+    //  * @param User $target
+    //  * @return bool
+    //  */
+    // private function canEditEmployee(User $editor, User $target): bool
+    // {
+    //     // Check basic permission
+    //     if (!$this->permissionService->checkPermission($editor, 'employee.edit')) {
+    //         throw new \Exception(message: 'فشل في تعديل بيانات الموظف');
+    //     }
 
-        // Use existing hierarchy logic from SimplePermissionService
-        return $this->permissionService->canApproveEmployeeRequests($editor, $target);
-    }
+    //     // Use existing hierarchy logic from SimplePermissionService
+    //     return $this->permissionService->canApproveEmployeeRequests($editor, $target);
+    // }
 
-    /**
-     * Check if user can delete employee (uses SimplePermissionService logic)
-     * 
-     * @param User $deleter
-     * @param User $target
-     * @return bool
-     */
-    private function canDeleteEmployee(User $deleter, User $target): bool
-    {
-        // Check basic permission
-        if (!$this->permissionService->checkPermission($deleter, 'employee.delete')) {
-            throw new \Exception(message: 'فشل في حذف بيانات الموظف');
-        }
+    // /**
+    //  * Check if user can delete employee (uses SimplePermissionService logic)
+    //  * 
+    //  * @param User $deleter
+    //  * @param User $target
+    //  * @return bool
+    //  */
+    // private function canDeleteEmployee(User $deleter, User $target): bool
+    // {
+    //     // Check basic permission
+    //     if (!$this->permissionService->checkPermission($deleter, 'employee.delete')) {
+    //         throw new \Exception(message: 'فشل في حذف بيانات الموظف');
+    //     }
 
-        // Use existing hierarchy logic from SimplePermissionService
-        return $this->permissionService->canApproveEmployeeRequests($deleter, $target);
-    }
+    //     // Use existing hierarchy logic from SimplePermissionService
+    //     return $this->permissionService->canApproveEmployeeRequests($deleter, $target);
+    // }
 
-    /**
-     * Get employee documents with permission check
-     * 
-     * @param User $user Current user requesting the data
-     * @param int $employeeId Target employee ID
-     * @return array|null
-     */
-    public function getEmployeeDocuments(User $user, int $employeeId): ?array
-    {
-        try {
-            $employee = User::find($employeeId);
+    // /**
+    //  * Get employee documents with permission check
+    //  * 
+    //  * @param User $user Current user requesting the data
+    //  * @param int $employeeId Target employee ID
+    //  * @return array|null
+    //  */
+    // public function getEmployeeDocuments(User $user, int $employeeId): ?array
+    // {
+    //     try {
+    //         $employee = User::find($employeeId);
 
-            if (!$employee) {
-                Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
-                    'user_id' => $user->user_id,
-                    'employee_id' => $employeeId,
-                    'error' => 'Employee not found',
-                ]);
-                throw new \Exception(message: 'فشل في الحصول على الوثائق الموظف');
-            }
+    //         if (!$employee) {
+    //             Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
+    //                 'user_id' => $user->user_id,
+    //                 'employee_id' => $employeeId,
+    //                 'error' => 'Employee not found',
+    //             ]);
+    //             throw new \Exception(message: 'فشل في الحصول على الوثائق الموظف');
+    //         }
 
-            // Check if user can access this employee
-            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
-                Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
-                    'user_id' => $user->user_id,
-                    'employee_id' => $employeeId,
-                    'error' => 'User does not have permission to view employee documents',
-                ]);
-                throw new \Exception(message: 'فشل في الحصول على الوثائق الموظف');
-            }
+    //         // Check if user can access this employee
+    //         if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+    //             Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
+    //                 'user_id' => $user->user_id,
+    //                 'employee_id' => $employeeId,
+    //                 'error' => 'User does not have permission to view employee documents',
+    //             ]);
+    //             throw new \Exception(message: 'فشل في الحصول على الوثائق الموظف');
+    //         }
 
-            $companyId = $this->permissionService->getEffectiveCompanyId($user);
+    //         $companyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            // Get real documents from database
-            $documentsQuery = DB::table('ci_users_documents')
-                ->where('company_id', $companyId)
-                ->where('user_id', $employeeId)
-                ->select([
-                    'document_id as id',
-                    'document_type',
-                    'document_name as file_name',
-                    'document_file as file_path',
-                    'expiry_date',
-                    'created_at'
-                ])
-                ->orderBy('created_at', 'desc');
+    //         // Get real documents from database
+    //         $documentsQuery = DB::table('ci_users_documents')
+    //             ->where('company_id', $companyId)
+    //             ->where('user_id', $employeeId)
+    //             ->select([
+    //                 'document_id as id',
+    //                 'document_type',
+    //                 'document_name as file_name',
+    //                 'document_file as file_path',
+    //                 'expiry_date',
+    //                 'created_at'
+    //             ])
+    //             ->orderBy('created_at', 'desc');
 
-            $realDocuments = $documentsQuery->get();
+    //         $realDocuments = $documentsQuery->get();
 
-            $documents = [];
+    //         $documents = [];
 
-            if ($realDocuments->count() > 0) {
-                // Use real documents from database
-                foreach ($realDocuments as $doc) {
-                    $documents[] = [
-                        'id' => $doc->id,
-                        'document_type' => $doc->document_type,
-                        'file_name' => $doc->file_name,
-                        'file_path' => $doc->file_path ? '/storage/documents/' . $doc->file_path : null,
-                        'file_size' => 'غير محدد', // File size not stored in database
-                        'expiry_date' => $doc->expiry_date,
-                        'uploaded_at' => $doc->created_at,
-                        'uploaded_by' => 'النظام', // Uploader not stored in database
-                    ];
-                }
-            } else {
-                // Return empty array if no documents found
-                $documents = [];
-            }
+    //         if ($realDocuments->count() > 0) {
+    //             // Use real documents from database
+    //             foreach ($realDocuments as $doc) {
+    //                 $documents[] = [
+    //                     'id' => $doc->id,
+    //                     'document_type' => $doc->document_type,
+    //                     'file_name' => $doc->file_name,
+    //                     'file_path' => $doc->file_path ? '/storage/documents/' . $doc->file_path : null,
+    //                     'file_size' => 'غير محدد', // File size not stored in database
+    //                     'expiry_date' => $doc->expiry_date,
+    //                     'uploaded_at' => $doc->created_at,
+    //                     'uploaded_by' => 'النظام', // Uploader not stored in database
+    //                 ];
+    //             }
+    //         } else {
+    //             // Return empty array if no documents found
+    //             $documents = [];
+    //         }
 
-            return [
-                'employee' => [
-                    'id' => $employee->user_id,
-                    'name' => $employee->first_name . ' ' . $employee->last_name,
-                    'employee_id' => $employee->user_details->employee_id ?? 'EMP' . str_pad($employee->user_id, 4, '0', STR_PAD_LEFT)
-                ],
-                'documents' => $documents,
-                'total' => count($documents),
-                'summary' => [
-                    'total_size' => count($documents) > 0 ? 'غير محدد' : '0 KB',
-                    'document_types' => array_unique(array_column($documents, 'document_type'))
-                ]
-            ];
-        } catch (\Exception $e) {
-            Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
-                'user_id' => $user->user_id,
-                'employee_id' => $employeeId,
-                'error' => $e->getMessage()
-            ]);
+    //         return [
+    //             'employee' => [
+    //                 'id' => $employee->user_id,
+    //                 'name' => $employee->first_name . ' ' . $employee->last_name,
+    //                 'employee_id' => $employee->user_details->employee_id ?? 'EMP' . str_pad($employee->user_id, 4, '0', STR_PAD_LEFT)
+    //             ],
+    //             'documents' => $documents,
+    //             'total' => count($documents),
+    //             'summary' => [
+    //                 'total_size' => count($documents) > 0 ? 'غير محدد' : '0 KB',
+    //                 'document_types' => array_unique(array_column($documents, 'document_type'))
+    //             ]
+    //         ];
+    //     } catch (\Exception $e) {
+    //         Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
+    //             'user_id' => $user->user_id,
+    //             'employee_id' => $employeeId,
+    //             'error' => $e->getMessage()
+    //         ]);
 
-            throw new \Exception(message: 'فشل في الحصول على اجازات الموظف');
-        }
-    }
+    //         throw new \Exception(message: 'فشل في الحصول على اجازات الموظف');
+    //     }
+    // }
 
     /**
      * Get employee leave balance with permission check
@@ -1859,6 +1850,11 @@ class EmployeeManagementService
             $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
 
             if (!$employee) {
+                Log::warning('Employee not found', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Employee not found'
+                ]);
                 return false;
             }
 
@@ -2092,6 +2088,993 @@ class EmployeeManagementService
                 'error' => $e->getMessage()
             ]);
 
+            throw $e;
+        }
+    }
+
+    /**
+     * Get employee documents with optional search
+     */
+    public function getEmployeeDocuments(User $user, int $employeeId, ?string $search = null): \Illuminate\Support\Collection
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            if (!$employee) {
+                Log::error('EmployeeManagementService::getEmployeeDocuments failed - Employee not found', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId
+                ]);
+                throw new \Exception(message: 'الموظف غير موجود');
+            }
+
+            // Check permissions (should be able to view requests of this employee)
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::getEmployeeDocuments failed - Permission denied', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحية لعرض مستندات هذا الموظف');
+            }
+
+            return $this->employeeRepository->getEmployeeDocuments($employeeId, $search);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'search' => $search,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Update employee basic information
+     */
+    public function updateEmployeeBasicInfo(User $user, int $employeeId, array $data): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            if (!$employee) {
+                // Check if it's the owner themselves (company_id 0)
+                if ($user->user_id === $employeeId && $user->company_id === 0) {
+                    $employee = $user;
+                } else {
+                    Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
+                        'user_id' => $user->user_id,
+                        'employee_id' => $employeeId,
+                        'error' => 'الموظف غير موجود أو ليس في شركتك'
+                    ]);
+                    throw new \Exception(message: 'الموظف غير موجود أو ليس في شركتك');
+                }
+            }
+
+            // Check authorization (self or manager)
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'ليس لديك صلاحية لتعديل بيانات هذا الموظف'
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحية لتعديل بيانات هذا الموظف');
+            }
+
+            // Split data into user table and details table
+            $userData = array_intersect_key($data, array_flip([
+                'first_name',
+                'last_name',
+                'contact_number',
+                'country',
+                'state',
+                'city',
+                'address_1',
+                'address_2',
+                'zipcode',
+            ]));
+
+            // Map gender if string provided
+            if (isset($userData['gender'])) {
+                if ($userData['gender'] === 'Male') {
+                    $userData['gender'] = 1;
+                } elseif ($userData['gender'] === 'Female') {
+                    $userData['gender'] = 2;
+                }
+            }
+
+            $detailsData = array_intersect_key($data, array_flip([
+                'date_of_birth',
+                'marital_status',
+                'blood_group',
+                'religion_id',
+                'citizenship_id',
+                'employee_id'
+            ]));
+
+            // Additional mapping if needed
+            if (isset($data['id_number'])) {
+                $detailsData['employee_idnum'] = $data['id_number'];
+            }
+
+            return $this->employeeRepository->updateEmployeeBasicInfo($employeeId, $userData, $detailsData);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::updateEmployeeBasicInfo failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Get all profile related enums and types
+     */
+    public function getProfileEnums(): array
+    {
+        $user = Auth::user();
+        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+        return [
+            'blood_groups' => \App\Enums\BloodGroupEnum::toArray(),
+            'marital_statuses' => \App\Enums\MaritalStatusEnum::toArray(),
+            'experience_levels' => \App\Enums\ExperienceLevel::toArray(),
+            'relative_places' => \App\Enums\RelativePlace::toArray(),
+            'relative_relations' => \App\Enums\RelativeRelation::toArray(),
+            'job_types' => \App\Enums\JobTypeEnum::toArray(),
+            'banks' => DB::table('ci_employee_accounts')->where('company_id', $effectiveCompanyId)->select('account_id', 'account_name')->get(),
+            'genders' => [
+                ['value' => 1, 'label_ar' => 'ذكر', 'label_en' => 'Male'],
+                ['value' => 2, 'label_ar' => 'أنثى', 'label_en' => 'Female'],
+            ],
+            'religions' => [
+                ['value' => 23, 'label_ar' => 'مسلم', 'label_en' => 'Muslim'],
+            ],
+            'salay_type' => [
+                ['value' => 1, 'label_ar' => 'فى الشهر', 'label_en' => 'Month'],
+                ['value' => 2, 'label_ar' => 'فى الساعة', 'label_en' => 'Hour'],
+            ],
+            'salary_payment_method' => [
+                ['value' => 'CASH', 'label_ar' => 'كاش', 'label_en' => 'Cash'],
+                ['value' => 'DEPOSIT', 'label_ar' => 'ايداع', 'label_en' => 'Deposit'],
+            ],
+        ];
+    }
+
+
+    /**
+     * Get employee contract data
+     */
+    public function getEmployeeContractData(User $user, int $employeeId): array
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // Fetch employee with company check
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            if (!$employee) {
+                // Check if it's the owner themselves (company_id 0)
+                if ($user->user_id === $employeeId && $user->company_id === 0) {
+                    $employee = $user;
+                } else {
+                    Log::error('EmployeeManagementService::getEmployeeContractData failed', [
+                        'user_id' => $user->user_id,
+                        'employee_id' => $employeeId,
+                        'error' => 'الموظف غير موجود أو ليس في شركتك'
+                    ]);
+                    throw new \Exception(message: 'الموظف غير موجود أو ليس في شركتك');
+                }
+            }
+
+            // Check authorization (self or manager)
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::getEmployeeContractData failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'ليس لديك صلاحية لعرض بيانات عقد هذا الموظف'
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحية لعرض بيانات عقد هذا الموظف');
+            }
+
+            return $this->employeeRepository->getEmployeeContractData($employeeId);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::getEmployeeContractData failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+    /**
+     * Update employee contract data
+     */
+    public function updateEmployeeContractData(User $user, int $employeeId, array $data): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // Fetch employee with company check
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            if (!$employee) {
+                // Check if it's the owner themselves (company_id 0)
+                if ($user->user_id === $employeeId && $user->company_id === 0) {
+                    $employee = $user;
+                } else {
+                    Log::error('EmployeeManagementService::getEmployeeContractData failed', [
+                        'user_id' => $user->user_id,
+                        'employee_id' => $employeeId,
+                        'error' => 'الموظف غير موجود أو ليس في شركتك'
+                    ]);
+                    throw new \Exception(message: 'الموظف غير موجود أو ليس في شركتك');
+                }
+            }
+
+            // Check authorization (Must have permission to edit employees)
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::updateEmployeeContractData failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'ليس لديك صلاحية لتعديل بيانات عقد هذا الموظف'
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحية لتعديل بيانات عقد هذا الموظف');
+            }
+            $success = $this->employeeRepository->updateEmployeeContractData($employeeId, $data);
+            if (!$success) {
+                Log::error('EmployeeManagementService::updateEmployeeContractData failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'فشل تحديث بيانات العقد'
+                ]);
+                throw new \Exception(message: 'فشل تحديث بيانات العقد');
+            }
+
+            Log::info('EmployeeManagementService::updateEmployeeContractData success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'data' => $data
+            ]);
+            return $success;
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::updateEmployeeContractData failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Get available contract options for the user's company
+     */
+    public function getContractOptions(User $user): array
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            return $this->employeeRepository->getContractOptions($effectiveCompanyId);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::getContractOptions failed', [
+                'user_id' => $user->user_id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function addAllowance(User $user, int $employeeId, array $data): int
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::addAllowance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception(message: 'الموظف غير موجود');
+            }
+
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::addAllowance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'ليس لديك صلاحية لإضافة بدل لهذا الموظف'
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحية لإضافة بدل لهذا الموظف');
+            }
+
+            // Check if allowance already exists
+            if ($this->employeeRepository->allowanceExists($employeeId, $data['pay_title'])) {
+                Log::error('EmployeeManagementService::addAllowance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'البدل موجود بالفعل'
+                ]);
+                throw new \Exception('البدل موجود بالفعل');
+            }
+
+            Log::info('EmployeeManagementService::addAllowance', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'data' => $data
+            ]);
+            $data['company_id'] = $effectiveCompanyId;
+            return $this->employeeRepository->addAllowance($employeeId, $data);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::addAllowance failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'فشل إضافة البدل',
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function addCommission(User $user, int $employeeId, array $data): int
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::addCommission failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception(message: 'الموظف غير موجود');
+            }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::addCommission failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'ليس لديك صلاحية لإضافة عمولة لهذا الموظف'
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحية لإضافة عمولة لهذا الموظف');
+            }
+
+            // Check if commission already exists
+            if ($this->employeeRepository->commissionExists($employeeId, $data['pay_title'])) {
+                Log::error('EmployeeManagementService::addCommission failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'العمولة موجودة بالفعل',
+                ]);
+                throw new \Exception('العمولة موجودة بالفعل');
+            }
+
+            Log::info('EmployeeManagementService::addCommission', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'data' => $data
+            ]);
+            $data['company_id'] = $effectiveCompanyId;
+            return $this->employeeRepository->addCommission($employeeId, $data);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::addCommission failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'فشل إضافة العمولة',
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function addStatutoryDeduction(User $user, int $employeeId, array $data): int
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::addStatutoryDeduction failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود',
+                ]);
+                throw new \Exception(message: 'الموظف غير موجود');
+            }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::addStatutoryDeduction failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لإضافة خصم لهذا الموظف',
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحية لإضافة خصم لهذا الموظف');
+            }
+
+            // Check if statutory deduction already exists
+            if ($this->employeeRepository->statutoryDeductionExists($employeeId, $data['pay_title'])) {
+                Log::error('EmployeeManagementService::addStatutoryDeduction failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الخصم القانوني موجود بالفعل',
+                ]);
+                throw new \Exception('الخصم القانوني موجود بالفعل');
+            }
+
+            Log::info('EmployeeManagementService::addStatutoryDeduction', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'data' => $data
+            ]);
+            $data['company_id'] = $effectiveCompanyId;
+            return $this->employeeRepository->addStatutoryDeduction($employeeId, $data);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::addStatutoryDeduction failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'فشل إضافة الخصم القانوني',
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function addOtherPayment(User $user, int $employeeId, array $data): int
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::addOtherPayment failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception(message: 'الموظف غير موجود');
+            }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::addOtherPayment failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لإضافة تعويض لهذا الموظف'
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحية لإضافة تعويض لهذا الموظف');
+            }
+
+            // Check if other payment already exists
+            if ($this->employeeRepository->otherPaymentExists($employeeId, $data['pay_title'])) {
+                Log::error('EmployeeManagementService::addOtherPayment failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'التعويض موجود بالفعل'
+                ]);
+                throw new \Exception('التعويض موجود بالفعل');
+            }
+
+            Log::info('EmployeeManagementService::addOtherPayment', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'data' => $data
+            ]);
+            $data['company_id'] = $effectiveCompanyId;
+            return $this->employeeRepository->addOtherPayment($employeeId, $data);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::addOtherPayment failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'فشل إضافة التعويض',
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    // ==================== Update Contract Components ====================
+
+    public function updateAllowance(User $user, int $employeeId, int $id, array $data): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::updateAllowance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception('الموظف غير موجود');
+            }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::updateAllowance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لتعديل بدل هذا الموظف'
+                ]);
+                throw new \Exception('ليس لديك صلاحية لتعديل بدل هذا الموظف');
+            }
+
+            $allowance = $this->employeeRepository->getAllowanceById($id);
+            if (!$allowance || $allowance->staff_id !== $employeeId) {
+                Log::error('EmployeeManagementService::updateAllowance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'البدل غير موجود'
+                ]);
+                throw new \Exception('البدل غير موجود');
+            }
+
+            return $this->employeeRepository->updateAllowance($id, $data);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::updateAllowance failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function deleteAllowance(User $user, int $employeeId, int $id): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::deleteAllowance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception('الموظف غير موجود');
+            }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::deleteAllowance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لحذف بدل هذا الموظف'
+                ]);
+                throw new \Exception('ليس لديك صلاحية لحذف بدل هذا الموظف');
+            }
+
+            $allowance = $this->employeeRepository->getAllowanceById($id);
+            if (!$allowance || $allowance->staff_id !== $employeeId) {
+                Log::error('EmployeeManagementService::deleteAllowance failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'البدل غير موجود'
+                ]);
+                throw new \Exception('البدل غير موجود');
+            }
+
+            return $this->employeeRepository->deleteAllowance($id);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::deleteAllowance failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function updateCommission(User $user, int $employeeId, int $id, array $data): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::updateCommission failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception('الموظف غير موجود');
+            }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::updateCommission failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لتعديل عمولة هذا الموظف'
+                ]);
+                throw new \Exception('ليس لديك صلاحية لتعديل عمولة هذا الموظف');
+            }
+
+            $commission = $this->employeeRepository->getCommissionById($id);
+            if (!$commission || $commission->staff_id !== $employeeId) {
+                Log::error('EmployeeManagementService::updateCommission failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'العمولة غير موجودة'
+                ]);
+                throw new \Exception('العمولة غير موجودة');
+            }
+
+            return $this->employeeRepository->updateCommission($id, $data);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::updateCommission failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function deleteCommission(User $user, int $employeeId, int $id): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::deleteCommission failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception('الموظف غير موجود');
+            }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::deleteCommission failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لحذف عمولة هذا الموظف'
+                ]);
+                throw new \Exception('ليس لديك صلاحية لحذف عمولة هذا الموظف');
+            }
+
+            $commission = $this->employeeRepository->getCommissionById($id);
+            if (!$commission || $commission->staff_id !== $employeeId) {
+                Log::error('EmployeeManagementService::deleteCommission failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'العمولة غير موجودة'
+                ]);
+                throw new \Exception('العمولة غير موجودة');
+            }
+
+            return $this->employeeRepository->deleteCommission($id);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::deleteCommission failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function updateStatutoryDeduction(User $user, int $employeeId, int $id, array $data): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::updateStatutoryDeduction failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception('الموظف غير موجود');
+            }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::updateStatutoryDeduction failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لتعديل خصم هذا الموظف'
+                ]);
+                throw new \Exception('ليس لديك صلاحية لتعديل خصم هذا الموظف');
+            }
+
+            $deduction = $this->employeeRepository->getStatutoryDeductionById($id);
+            if (!$deduction || $deduction->staff_id !== $employeeId) {
+                Log::error('EmployeeManagementService::updateStatutoryDeduction failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الخصم غير موجود'
+                ]);
+                throw new \Exception('الخصم غير موجود');
+            }
+
+            return $this->employeeRepository->updateStatutoryDeduction($id, $data);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::updateStatutoryDeduction failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function deleteStatutoryDeduction(User $user, int $employeeId, int $id): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::deleteStatutoryDeduction failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception('الموظف غير موجود');
+            }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::deleteStatutoryDeduction failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لحذف خصم هذا الموظف'
+                ]);
+                throw new \Exception('ليس لديك صلاحية لحذف خصم هذا الموظف');
+            }
+
+            $deduction = $this->employeeRepository->getStatutoryDeductionById($id);
+            if (!$deduction || $deduction->staff_id !== $employeeId) {
+                Log::error('EmployeeManagementService::deleteStatutoryDeduction failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الخصم غير موجود'
+                ]);
+                throw new \Exception('الخصم غير موجود');
+            }
+
+            return $this->employeeRepository->deleteStatutoryDeduction($id);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::deleteStatutoryDeduction failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function updateOtherPayment(User $user, int $employeeId, int $id, array $data): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::updateOtherPayment failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception('الموظف غير موجود');
+            }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::updateOtherPayment failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لتعديل دفع هذا الموظف'
+                ]);
+                throw new \Exception('ليس لديك صلاحية لتعديل دفع هذا الموظف');
+            }
+
+            $payment = $this->employeeRepository->getOtherPaymentById($id);
+            if (!$payment || $payment->staff_id !== $employeeId) {
+                Log::error('EmployeeManagementService::updateOtherPayment failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'التعويض غير موجود'
+                ]);
+                throw new \Exception('التعويض غير موجود');
+            }
+
+            return $this->employeeRepository->updateOtherPayment($id, $data);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::updateOtherPayment failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function deleteOtherPayment(User $user, int $employeeId, int $id): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::deleteOtherPayment failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception('الموظف غير موجود');
+            }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::deleteOtherPayment failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لحذف دفع هذا الموظف'
+                ]);
+                throw new \Exception('ليس لديك صلاحية لحذف دفع هذا الموظف');
+            }
+
+            $payment = $this->employeeRepository->getOtherPaymentById($id);
+            if (!$payment || $payment->staff_id !== $employeeId) {
+                Log::error('EmployeeManagementService::deleteOtherPayment failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'التعويض غير موجود'
+                ]);
+                throw new \Exception('التعويض غير موجود');
+            }
+
+            return $this->employeeRepository->deleteOtherPayment($id);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::deleteOtherPayment failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function getAllowances(User $user, int $employeeId, ?string $search = null): array
+    {
+        try{
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::getAllowances failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception('الموظف غير موجود');
+            }
+
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::getAllowances failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف'
+                ]);
+                throw new \Exception('ليس لديك صلاحية لعرض بيانات هذا الموظف');
+            }
+
+            return $this->employeeRepository->getAllowances($employeeId, $search);
+        } catch (\Exception $e) {
+                Log::error('EmployeeManagementService::getAllowances failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => $e->getMessage()
+                ]);
+                throw $e;
+        }
+    }
+
+    public function getCommissions(User $user, int $employeeId, ?string $search = null): array
+    {
+        try{
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::getCommissions failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception('الموظف غير موجود');
+            }
+
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::getCommissions failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف'
+                ]);
+                throw new \Exception('ليس لديك صلاحية لعرض بيانات هذا الموظف');
+            }
+
+            return $this->employeeRepository->getCommissions($employeeId, $search);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::getCommissions failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function getStatutoryDeductions(User $user, int $employeeId, ?string $search = null): array
+    {
+        try{
+        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+        $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+        if (!$employee) {
+            Log::error('EmployeeManagementService::getStatutoryDeductions failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'الموظف غير موجود'
+            ]);
+            throw new \Exception('الموظف غير موجود');
+        }
+
+        if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+            Log::error('EmployeeManagementService::getStatutoryDeductions failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف'
+            ]);
+            throw new \Exception('ليس لديك صلاحية لعرض بيانات هذا الموظف');
+        }
+
+        return $this->employeeRepository->getStatutoryDeductions($employeeId, $search);
+    } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::getStatutoryDeductions failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function getOtherPayments(User $user, int $employeeId, ?string $search = null): array
+    {
+        try{
+        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+        $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+        if (!$employee) {
+            Log::error('EmployeeManagementService::getOtherPayments failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'الموظف غير موجود'
+            ]);
+            throw new \Exception('الموظف غير موجود');
+        }
+
+        if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+            Log::error('EmployeeManagementService::getOtherPayments failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف'
+            ]);
+            throw new \Exception('ليس لديك صلاحية لعرض بيانات هذا الموظف');
+        }
+
+        return $this->employeeRepository->getOtherPayments($employeeId, $search);
+    } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::getOtherPayments failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Get employee counts grouped by country for the company
+     * 
+     * @param User $user
+     * @return array
+     */
+    public function getEmployeeCountryStats(User $user): array
+    {
+        try{
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            
+            return $this->employeeRepository->getEmployeeCountByCountry($effectiveCompanyId);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::getEmployeeCountryStats failed', [
+                'user_id' => $user->user_id,
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء جلب إحصائيات الموظفين حسب الدولة'
+            ]);
             throw $e;
         }
     }

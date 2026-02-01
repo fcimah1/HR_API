@@ -54,6 +54,8 @@ use App\Repository\Interface\TrainerRepositoryInterface;
 use App\Repository\TrainerRepository;
 use App\Repository\Interface\TrainingSkillRepositoryInterface;
 use App\Repository\TrainingSkillRepository;
+use App\Repository\Interface\OfficeShiftRepositoryInterface;
+use App\Repository\OfficeShiftRepository;
 use App\Services\CacheService;
 use App\Services\FileUploadService;
 use Laravel\Passport\Passport;
@@ -144,6 +146,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Branch repository
         $this->app->bind(\App\Repository\Interface\BranchRepositoryInterface::class, \App\Repository\BranchRepository::class);
+
+        // Office Shift repository
+        $this->app->singleton(OfficeShiftRepositoryInterface::class, OfficeShiftRepository::class);
 
         // Cache Service (Singleton)
         $this->app->singleton(CacheService::class, CacheService::class);

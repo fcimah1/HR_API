@@ -23,7 +23,11 @@ use App\DTOs\Employee\EmployeeFilterDTO;
 use App\DTOs\Employee\CreateEmployeeDTO;
 use App\DTOs\Employee\UpdateEmployeeDTO;
 use App\Http\Requests\Employee\GetBackupEmployeesRequest;
+use App\Http\Requests\Employee\UpdateBasicInfoRequest;
+use App\Http\Requests\Employee\UpdateContractDataRequest;
+use App\Http\Requests\Employee\AddContractComponentRequest;
 use App\Services\EmployeeService;
+use App\Services\UnifiedRequestService;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -41,6 +45,7 @@ class EmployeeController extends Controller
         private readonly SimplePermissionService $permissionService,
         private readonly EmployeeService $employeeManagementService,
         private readonly FileUploadService $fileUploadService,
+        private readonly UnifiedRequestService $unifiedRequestService,
 
     ) {}
 
@@ -100,14 +105,28 @@ class EmployeeController extends Controller
             // Get employees list
             $employees = $this->employeeService->getEmployeesList($user, $filters);
 
+            Log::info('EmployeeController::index success', [
+                'user_id' => $user->user_id,
+                'filters' => $filters,
+                'employees' => $employees
+            ]);
             return $this->paginatedResponse(
                 $employees,
                 'تم جلب الموظفين بنجاح',
                 EmployeeListResource::class
             );
         } catch (ValidationException $e) {
+            Log::error('EmployeeController::index validation failed', [
+                'message' => $e->getMessage(),
+                'errors' => $e->errors(),
+                'user_id' => $user->user_id,
+            ]);
             return $this->validationErrorResponse($e);
         } catch (\Exception $e) {
+            Log::error('EmployeeController::index failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+            ]);
             return $this->handleException($e, 'EmployeeController::index');
         }
     }
@@ -192,6 +211,11 @@ class EmployeeController extends Controller
                 return $this->serverErrorResponse('فشل في إنشاء الموظف');
             }
 
+            Log::info('تم إنشاء الموظف بنجاح', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employee->user_id,
+                'employee' => $employee
+            ]);
             return $this->successResponse(
                 new EmployeeResource($employee),
                 'تم إنشاء الموظف بنجاح',
@@ -253,14 +277,29 @@ class EmployeeController extends Controller
             $employee = $this->employeeService->getEmployeeDetails($user, $id);
 
             if (!$employee) {
+                Log::error('EmployeeController::show failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لعرض بياناته',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لعرض بياناته');
             }
 
+            Log::info('EmployeeController::show success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'employee' => $employee
+            ]);
             return $this->successResponse(
                 new EmployeeResource($employee),
                 'تم جلب بيانات الموظف بنجاح'
             );
         } catch (\Exception $e) {
+            Log::error('EmployeeController::show failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::show');
         }
     }
@@ -320,16 +359,37 @@ class EmployeeController extends Controller
             $employee = $this->employeeService->updateEmployee($user, $id, $updateData);
 
             if (!$employee) {
+                Log::error('EmployeeController::update failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديله',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديله');
             }
 
+            Log::info('EmployeeController::update success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'employee' => $employee
+            ]);
             return $this->successResponse(
                 new EmployeeResource($employee),
                 'تم تحديث بيانات الموظف بنجاح'
             );
         } catch (ValidationException $e) {
+            Log::error('EmployeeController::update validation failed', [
+                'message' => $e->getMessage(),
+                'errors' => $e->errors(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->validationErrorResponse($e);
         } catch (\Exception $e) {
+            Log::error('EmployeeController::update failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::update');
         }
     }
@@ -374,11 +434,25 @@ class EmployeeController extends Controller
             $success = $this->employeeService->deactivateEmployee($user, $id);
 
             if (!$success) {
+                Log::error('EmployeeController::destroy failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لحذفه',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لحذفه');
             }
 
+            Log::info('EmployeeController::destroy success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم إلغاء تفعيل الموظف بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeController::destroy failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::destroy');
         }
     }
@@ -427,6 +501,11 @@ class EmployeeController extends Controller
 
             // Validate required parameter and check for empty/whitespace
             if (!$request->has('q') || empty(trim($query))) {
+                Log::error('EmployeeController::search failed', [
+                    'message' => 'نص البحث مطلوب',
+                    'user_id' => $user->user_id,
+                    'query' => $query,
+                ]);
                 return $this->errorResponse('نص البحث مطلوب', 400);
             }
 
@@ -437,12 +516,23 @@ class EmployeeController extends Controller
             // Search employees
             $results = $this->employeeService->searchEmployees($user, $query, $options);
 
+            Log::info('EmployeeController::search success', [
+                'user_id' => $user->user_id,
+                'query' => $query,
+                'options' => $options,
+                'results' => $results
+            ]);
             return $this->successResponse([
                 'employees' => EmployeeListResource::collection($results['employees']),
                 'total' => $results['total'],
                 'query' => $results['query']
             ], 'تم البحث بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeController::search failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'query' => $query,
+            ]);
             return $this->handleException($e, 'EmployeeController::search');
         }
     }
@@ -495,112 +585,196 @@ class EmployeeController extends Controller
     //     }
     // }
 
-    // /**
-    //  * @OA\Get(
-    //  *     path="/api/employees/{id}/documents",
-    //  *     summary="Get employee documents",
-    //  *     description="Retrieve all documents uploaded for specific employee",
-    //  *     tags={"Employee"},
-    //  *     security={{"bearerAuth":{}}},
-    //  *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
-    //  *     @OA\Response(
-    //  *         response=200,
-    //  *         description="Documents retrieved successfully",
-    //  *         @OA\JsonContent(
-    //  *             @OA\Property(property="success", type="boolean", example=true),
-    //  *             @OA\Property(property="message", type="string", example="تم جلب المستندات بنجاح"),
-    //  *             @OA\Property(property="data", type="object",
-    //  *                 @OA\Property(property="documents", type="array", @OA\Items(type="object",
-    //  *                     @OA\Property(property="id", type="integer", example=1),
-    //  *                     @OA\Property(property="document_type", type="string", example="CV"),
-    //  *                     @OA\Property(property="file_name", type="string", example="cv_mohammed.pdf"),
-    //  *                     @OA\Property(property="file_path", type="string", example="/storage/documents/cv_mohammed.pdf"),
-    //  *                     @OA\Property(property="uploaded_at", type="string", format="date-time")
-    //  *                 )),
-    //  *                 @OA\Property(property="total", type="integer", example=5)
-    //  *             )
-    //  *         )
-    //  *     ),
-    //  *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
-    //  *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب مستندات الموظف"),
-    //  *     @OA\Response(response=422, description="بيانات غير صحيحة"),
-    //  *     @OA\Response(response=500, description="خطأ في الخادم")
-    //  * )
-    //  */
-    // public function getEmployeeDocuments(int $id): JsonResponse
-    // {
-    //     try {
-    //         $user = Auth::user();
+    /**
+     * @OA\Get(
+     *     path="/api/employees/{id}/documents",
+     *     summary="Get employee documents",
+     *     description="Retrieve all documents uploaded for specific employee",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Documents retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب المستندات بنجاح"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="documents", type="array", @OA\Items(type="object",
+     *                     @OA\Property(property="id", type="integer", example=1),
+     *                     @OA\Property(property="document_type", type="string", example="CV"),
+     *                     @OA\Property(property="file_name", type="string", example="cv_mohammed.pdf"),
+     *                     @OA\Property(property="file_path", type="string", example="/storage/documents/cv_mohammed.pdf"),
+     *                     @OA\Property(property="uploaded_at", type="string", format="date-time")
+     *                 )),
+     *                 @OA\Property(property="total", type="integer", example=5)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب مستندات الموظف"),
+     *     @OA\Response(response=422, description="بيانات غير صحيحة"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function getEmployeeDocuments(int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
 
-    //         // Get employee documents using service
-    //         $result = $this->employeeService->getEmployeeDocuments($user, $id);
+            // Get employee documents using service
+            $result = $this->employeeService->getEmployeeDocuments($user, $id);
 
-    //         if (!$result) {
-    //             return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لعرض مستنداته');
-    //         }
+            if (!$result) {
+                Log::error('EmployeeController::getEmployeeDocuments failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لعرض مستنداته',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لعرض مستنداته');
+            }
 
-    //         return $this->successResponse($result, 'تم جلب المستندات بنجاح');
-    //     } catch (\Exception $e) {
-    //         return $this->handleException($e, 'EmployeeController::getEmployeeDocuments');
-    //     }
-    // }
+            Log::info('EmployeeController::getEmployeeDocuments success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'result' => $result
+            ]);
+            return $this->successResponse($result, 'تم جلب المستندات بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getEmployeeDocuments failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::getEmployeeDocuments');
+        }
+    }
 
-    // /**
-    //  * @OA\Get(
-    //  *     path="/api/employees/{id}/leave-balance",
-    //  *     summary="Get employee leave balance",
-    //  *     description="Retrieve current leave balance for specific employee",
-    //  *     tags={"Employee"},
-    //  *     security={{"bearerAuth":{}}},
-    //  *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
-    //  *     @OA\Response(
-    //  *         response=200,
-    //  *         description="Leave balance retrieved successfully",
-    //  *         @OA\JsonContent(
-    //  *             @OA\Property(property="success", type="boolean", example=true),
-    //  *             @OA\Property(property="message", type="string", example="تم جلب رصيد الإجازات بنجاح"),
-    //  *             @OA\Property(property="data", type="object",
-    //  *                 @OA\Property(property="annual_leave", type="object",
-    //  *                     @OA\Property(property="total", type="integer", example=30),
-    //  *                     @OA\Property(property="used", type="integer", example=12),
-    //  *                     @OA\Property(property="remaining", type="integer", example=18)
-    //  *                 ),
-    //  *                 @OA\Property(property="sick_leave", type="object",
-    //  *                     @OA\Property(property="total", type="integer", example=15),
-    //  *                     @OA\Property(property="used", type="integer", example=3),
-    //  *                     @OA\Property(property="remaining", type="integer", example=12)
-    //  *                 ),
-    //  *                 @OA\Property(property="emergency_leave", type="object",
-    //  *                     @OA\Property(property="total", type="integer", example=5),
-    //  *                     @OA\Property(property="used", type="integer", example=1),
-    //  *                     @OA\Property(property="remaining", type="integer", example=4)
-    //  *                 )
-    //  *             )
-    //  *         )
-    //  *     ),
-    //  *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
-    //  *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب رصيد إجازات الموظف"),
-    //  *     @OA\Response(response=422, description="بيانات غير صحيحة"),
-    //  *     @OA\Response(response=500, description="خطأ في الخادم")
-    //  * )
-    //  */
-    // public function getEmployeeLeaveBalance(int $id): JsonResponse
-    // {
-    //     try {
-    //         $user = Auth::user();
+    /**
+     * @OA\Get(
+     *     path="/api/employees/{id}/leave-balance",
+     *     summary="Get employee leave balance",
+     *     description="Retrieve current leave balance for specific employee",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Leave balance retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب رصيد الإجازات بنجاح"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="annual_leave", type="object",
+     *                     @OA\Property(property="total", type="integer", example=30),
+     *                     @OA\Property(property="used", type="integer", example=12),
+     *                     @OA\Property(property="remaining", type="integer", example=18)
+     *                 ),
+     *                 @OA\Property(property="sick_leave", type="object",
+     *                     @OA\Property(property="total", type="integer", example=15),
+     *                     @OA\Property(property="used", type="integer", example=3),
+     *                     @OA\Property(property="remaining", type="integer", example=12)
+     *                 ),
+     *                 @OA\Property(property="emergency_leave", type="object",
+     *                     @OA\Property(property="total", type="integer", example=5),
+     *                     @OA\Property(property="used", type="integer", example=1),
+     *                     @OA\Property(property="remaining", type="integer", example=4)
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب رصيد إجازات الموظف"),
+     *     @OA\Response(response=422, description="بيانات غير صحيحة"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function getEmployeeLeaveBalance(int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
 
-    //         // Get employee leave balance using service
-    //         $result = $this->employeeService->getEmployeeLeaveBalance($user, $id);
+            // Get employee leave balance using service
+            $result = $this->employeeService->getEmployeeLeaveBalance($user, $id);
 
-    //         if (!$result) {
-    //             return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لعرض رصيد إجازاته');
-    //         }
+            if (!$result) {
+                Log::error('EmployeeController::getEmployeeLeaveBalance failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لعرض رصيد إجازاته',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لعرض رصيد إجازاته');
+            }
 
-    //         return $this->successResponse($result, 'تم جلب رصيد الإجازات بنجاح');
-    //     } catch (\Exception $e) {
-    //         return $this->handleException($e, 'EmployeeController::getEmployeeLeaveBalance');
-    //     }
-    // }
+            Log::info('EmployeeController::getEmployeeLeaveBalance success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'result' => $result
+            ]);
+            return $this->successResponse($result, 'تم جلب رصيد الإجازات بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getEmployeeLeaveBalance failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::getEmployeeLeaveBalance');
+        }
+    }
+
+        /**
+     * Get employee counts grouped by country
+     * 
+     * @OA\Get(
+     *     path="/api/employees/stats/by-country",
+     *     tags={"Employee"},
+     *     summary="جلب إحصائيات الموظفين حسب الدولة",
+     *     description="Returns a summary of employee counts grouped by their country of origin",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم جلب إحصائيات الموظفين حسب الدولة بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب إحصائيات الموظفين حسب الدولة بنجاح"),
+     *             @OA\Property(property="data", type="array", @OA\Items(
+     *                 @OA\Property(property="country", type="string", example="مصر"),
+     *                 @OA\Property(property="count", type="integer", example=1),
+     *                 @OA\Property(property="is_total", type="boolean", example=false)
+     *             ))
+     *         )
+     *     ),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function getCountryStats(): \Illuminate\Http\JsonResponse
+    {
+        try {
+            $stats = $this->employeeService->getEmployeeCountryStats(Auth::user());
+            if (!$stats) {
+                Log::error('EmployeeController::getCountryStats failed', [
+                    'message' => 'فشل جلب إحصائيات الموظفين حسب الدولة',
+                    'user_id' => Auth::user()->user_id,
+                ]);
+                return $this->errorResponse('فشل جلب إحصائيات الموظفين حسب الدولة', 500);
+            }
+            Log::info('EmployeeController::getCountryStats success', [
+                'user_id' => Auth::user()->user_id,
+            ]);
+            return $this->successResponse($stats, 'تم جلب إحصائيات الموظفين حسب الدولة بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getCountryStats failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل جلب إحصائيات الموظفين حسب الدولة',
+                'user_id' => Auth::user()->user_id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::getCountryStats');
+        }
+    }
+
 
     // /**
     //  * @OA\Get(
@@ -751,6 +925,14 @@ class EmployeeController extends Controller
                 $departmentId
             );
 
+            Log::info('EmployeeController::getEmployeesForDutyEmployee success', [
+                'user_id' => $user->user_id,
+                'company_id' => $companyId,
+                'department_id' => $departmentId,
+                'search' => $search,
+                'employee_id' => $employeeId,
+                'employees' => $employees
+            ]);
             return response()->json([
                 'success' => true,
                 'data' => $employees
@@ -758,7 +940,6 @@ class EmployeeController extends Controller
         } catch (\Exception $e) {
             Log::error('EmployeeController::getEmployeesForDutyEmployee failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
                 'user_id' => $user->user_id ?? null
             ]);
 
@@ -819,6 +1000,13 @@ class EmployeeController extends Controller
 
             $dutyEmployees = $this->employeeManagementService->getBackupEmployees($user, $targetEmployeeId, $search, $employeeId);
 
+            Log::info('EmployeeController::getDutyEmployeesForEmployee success', [
+                'user_id' => $user->user_id,
+                'target_employee_id' => $targetEmployeeId,
+                'search' => $search,
+                'employee_id' => $employeeId,
+                'duty_employees' => $dutyEmployees
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم جلب الموظفين المناوبين بنجاح',
@@ -827,7 +1015,8 @@ class EmployeeController extends Controller
         } catch (\Exception $e) {
             Log::error('EmployeeController::getDutyEmployeesForEmployee failed', [
                 'error' => $e->getMessage(),
-                'user_id' => Auth::id()
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             $statusCode = $e->getCode() === 403 ? 403 : 500;
@@ -904,6 +1093,11 @@ class EmployeeController extends Controller
                 $search
             );
 
+            Log::info('EmployeeController::getEmployeesForNotify success', [
+                'user_id' => $user->user_id,
+                'effective_company_id' => $effectiveCompanyId,
+                'employees' => $employees
+            ]);
             return response()->json([
                 'success' => true,
                 'data' => $employees
@@ -911,7 +1105,6 @@ class EmployeeController extends Controller
         } catch (\Exception $e) {
             Log::error('EmployeeController::getEmployeesForNotify failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
                 'user_id' => $user->user_id ?? null
             ]);
 
@@ -961,7 +1154,11 @@ class EmployeeController extends Controller
             // But based on implementation it returns array of objects/arrays.
             // Let's format specifically if needed, but the service returns a good structure.
             // We might just return directly.
-
+            Log::info('EmployeeController::getSubordinates success', [
+                'user_id' => $user->user_id,
+                'effective_company_id' => $effectiveCompanyId,
+                'subordinates' => $subordinates
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم جلب الموظفين التابعين بنجاح',
@@ -1055,8 +1252,14 @@ class EmployeeController extends Controller
 
             $approvalLevels = $this->employeeManagementService->getApprovalLevels($user, $targetEmployeeId);
 
+            Log::info('EmployeeController::getApprovalLevels success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $targetEmployeeId,
+            ]);
             return response()->json([
                 'success' => true,
+                'user_id' => $user->user_id,
+                'employee_id' => $targetEmployeeId,
                 'message' => 'تم جلب مستويات الاعتماد بنجاح',
                 'data' => $approvalLevels
             ], 200);
@@ -1079,6 +1282,39 @@ class EmployeeController extends Controller
                 'message' => $e->getMessage()
             ], $statusCode);
         }
+    }
+
+
+    /**
+     * Get all profile related enums and types
+     * 
+     * @OA\Get(
+     *     path="/api/employees/enums",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="جلب الثوابت الخاصة بملف الموظف",
+     *     description="يجلب فصائل الدم، الحالة الاجتماعية، والجنس",
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم جلب البيانات بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="blood_groups", type="array", @OA\Items(type="object")),
+     *                 @OA\Property(property="marital_statuses", type="array", @OA\Items(type="object")),
+     *                 @OA\Property(property="genders", type="array", @OA\Items(type="object"))
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=422, description="بيانات غير صحيحة"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function getProfileEnums(): JsonResponse
+    {
+        return $this->successResponse($this->employeeService->getProfileEnums(), 'تم جلب البيانات بنجاح');
     }
 
 
@@ -1120,11 +1356,25 @@ class EmployeeController extends Controller
             $success = $this->employeeService->changeEmployeePassword($user, $id, $request->password);
 
             if (!$success) {
+                Log::error('EmployeeController::changePassword failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل كلمة المرور',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل كلمة المرور');
             }
 
+            Log::info('EmployeeController::changePassword success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم تغيير كلمة المرور بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeController::changePassword failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::changePassword');
         }
     }
@@ -1172,11 +1422,25 @@ class EmployeeController extends Controller
             $result = $this->employeeService->uploadEmployeeProfileImage($user, $id, $request->file('profile_image'));
 
             if (!$result) {
+                Log::error('EmployeeController::uploadProfileImage failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل الصورة الشخصية',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل الصورة الشخصية');
             }
 
+            Log::info('EmployeeController::uploadProfileImage success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse($result, 'تم رفع صورة الملف الشخصي بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeController::uploadProfileImage failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::uploadProfileImage');
         }
     }
@@ -1233,11 +1497,25 @@ class EmployeeController extends Controller
             ]);
 
             if (!$result) {
+                Log::error('EmployeeController::uploadDocument failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لرفع المستندات',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لرفع المستندات');
             }
 
+            Log::info('EmployeeController::uploadDocument success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse($result, 'تم رفع المستند بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeController::uploadDocument failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::uploadDocument');
         }
     }
@@ -1279,16 +1557,25 @@ class EmployeeController extends Controller
             $success = $this->employeeService->updateEmployeeProfileInfo($user, $id, $request->only(['username', 'email']));
 
             if (!$success) {
-                Log::error('not found', [
-                    "success" => false,
-                    'message' => 'not found',
-                    'error' => $success
+                Log::error('EmployeeController::updateProfileInfo failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل معلومات الملف الشخصي',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
                 ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل معلومات الملف الشخصي');
             }
 
+            Log::info('EmployeeController::updateProfileInfo success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم تحديث معلومات الملف الشخصي بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeController::updateProfileInfo failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::updateProfileInfo');
         }
     }
@@ -1330,11 +1617,25 @@ class EmployeeController extends Controller
             $success = $this->employeeService->updateEmployeeCV($user, $id, $request->only(['bio', 'experience']));
 
             if (!$success) {
+                Log::error('EmployeeController::updateCV failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل السيرة الذاتية',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل السيرة الذاتية');
             }
 
+            Log::info('EmployeeController::updateCV success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم تحديث السيرة الذاتية بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeController::updateCV failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::updateCV');
         }
     }
@@ -1383,11 +1684,25 @@ class EmployeeController extends Controller
             ]));
 
             if (!$success) {
+                Log::error('EmployeeController::updateSocialLinks failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل الروابط الاجتماعية',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل الروابط الاجتماعية');
             }
 
+            Log::info('EmployeeController::updateSocialLinks success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم تحديث الروابط الاجتماعية بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeController::updateSocialLinks failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::updateSocialLinks');
         }
     }
@@ -1407,6 +1722,14 @@ class EmployeeController extends Controller
      *             @OA\Property(property="bank_name", type="int", example="11"),
      *             @OA\Property(property="iban", type="string", example="SA1234567890123456789012"),
      *             @OA\Property(property="bank_branch", type="string", example="فرع الرياض الرئيسي")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Bank identity updated successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تحديث المعلومات البنكية بنجاح")
      *         )
      *     ),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
@@ -1429,15 +1752,21 @@ class EmployeeController extends Controller
 
             if (!$success) {
                 Log::error('EmployeeController::updateBankInfo failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل المعلومات البنكية',
                     'user_id' => $user->user_id,
                     'employee_id' => $id,
                 ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل المعلومات البنكية');
             }
 
+            Log::info('EmployeeController::updateBankInfo success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم تحديث المعلومات البنكية بنجاح');
         } catch (\Exception $e) {
             Log::error('EmployeeController::updateBankInfo failed', [
+                'message' => $e->getMessage(),
                 'user_id' => $user?->user_id,
                 'employee_id' => $id,
             ]);
@@ -1493,11 +1822,25 @@ class EmployeeController extends Controller
             ]));
 
             if (!$success) {
+                Log::error('EmployeeController::addFamilyData failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لإضافة بيانات العائلة',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لإضافة بيانات العائلة');
             }
 
+            Log::info('EmployeeController::addFamilyData success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم إضافة بيانات العائلة بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeController::addFamilyData failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::addFamilyData');
         }
     }
@@ -1533,14 +1876,1057 @@ class EmployeeController extends Controller
             $success = $this->employeeService->deleteEmployeeFamilyData($user, $id, $contactId);
 
             if (!$success) {
+                Log::error('EmployeeController::deleteFamilyData failed', [
+                    'message' => 'الموظف أو البيانات غير موجودة أو ليس لديك صلاحية للحذف',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف أو البيانات غير موجودة أو ليس لديك صلاحية للحذف');
             }
 
+            Log::info('EmployeeController::deleteFamilyData success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم حذف بيانات العائلة بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeController::deleteFamilyData failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::deleteFamilyData');
         }
     }
 
+
+    /**
+     * Update employee basic information
+     * 
+     * @OA\Put(
+     *     path="/api/employees/{id}/basic-info",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="تحديث المعلومات الأساسية للموظف",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(ref="#/components/schemas/UpdateBasicInfoRequest")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم تحديث المعلومات بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تحديث المعلومات الأساسية بنجاح")
+     *         )
+     *     ),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف غير موجود"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function updateBasicInfo(UpdateBasicInfoRequest $request, int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            $success = $this->employeeService->updateEmployeeBasicInfo($user, $id, $request->validated());
+
+            if (!$success) {
+                Log::error('EmployeeProfileController::updateBasicInfo failed', [
+                    'message' => 'فشل تحديث المعلومات الأساسية',
+                    'trace' => $success,
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل تحديث المعلومات الأساسية', 500);
+            }
+
+            Log::info('EmployeeProfileController::updateBasicInfo success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(null, 'تم تحديث المعلومات الأساسية بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeProfileController::updateBasicInfo failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeProfileController::updateBasicInfo');
+        }
+    }
+
+    /**
+     * get employee contract data
+     * 
+     * @OA\Get(
+     *     path="/api/employees/{id}/contract-data",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="جلب بيانات العقد لموظف معين",
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="رقم الموظف",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم جلب البيانات بنجاح"
+     *     ),
+     *     @OA\Response(response=403, description="ليس لديك صلاحية"),
+     *     @OA\Response(response=404, description="الموظف غير موجود"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     * )
+     */
+    public function getEmployeeContractData(int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            $data = $this->employeeService->getEmployeeContractData($user, $id);
+            if (!$data) {
+                Log::error('EmployeeController::getEmployeeContractData failed', [
+                    'message' => 'فشل جلب بيانات العقد',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل جلب بيانات العقد', 500);
+            }
+            Log::info('EmployeeController::getEmployeeContractData success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse($data, 'تم جلب بيانات العقد بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getEmployeeContractData failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل جلب بيانات العقد',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::getEmployeeContractData');
+        }
+    }
+
+    /**
+     * update employee contract data
+     * 
+     * @OA\Put(
+     *     path="/api/employees/{id}/contract-data",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="تعديل بيانات العقد لموظف معين",
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="رقم الموظف",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(ref="#/components/schemas/UpdateContractDataRequest")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم جلب البيانات بنجاح"
+     *     ),
+     *     @OA\Response(response=403, description="ليس لديك صلاحية"),
+     *     @OA\Response(response=404, description="الموظف غير موجود"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     * )
+     */
+    public function updateContractData(int $id, UpdateContractDataRequest $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            $success = $this->employeeService->updateEmployeeContractData($user, $id, $request->validated());
+            if (!$success) {
+                Log::error('EmployeeController::updateContractData failed', [
+                    'message' => 'فشل تحديث بيانات العقد',
+                    'trace' => $success,
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل تحديث بيانات العقد', 500);
+            }
+
+            Log::info('EmployeeController::updateContractData success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(null, 'تم تحديث بيانات العقد بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::updateContractData failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل تحديث بيانات العقد',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeProfileController::getEmployeeContractData');
+        }
+    }
+
+    // method to get allowance, commissions, statutory and other_payments from ci_contract_options table available for company of employee
+    /**
+     * 
+     * @OA\Get(
+     *     path="/api/employees/contract-options",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="جلب خيارات البدلات والاستقطاعات والتعويضات والعمولات الممكنه للشركة",
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم جلب خيارات البدلات والاستقطاعات والتعويضات والعمولات الممكنه للشركة بنجاح"
+     *     ),
+     *     @OA\Response(response=403, description="ليس لديك صلاحية"),
+     *     @OA\Response(response=404, description="الشركة غير موجودة"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     * )
+     */
+    public function getContractOptions(): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            $data = $this->employeeService->getContractOptions($user);
+            if (!$data) {
+                Log::error('EmployeeController::getContractOptions failed', [
+                    'message' => 'فشل جلب خيارات البدلات والتعويضات والاستقطاعات والعمولات الممكنه للشركة',
+                    'user_id' => $user->user_id,
+                ]);
+                return $this->errorResponse('فشل جلب خيارات البدلات والتعويضات والاستقطاعات والعمولات الممكنه للشركة', 500);
+            }
+
+            Log::info('EmployeeController::getContractOptions success', [
+                'user_id' => $user->user_id,
+            ]);
+            return $this->successResponse($data, 'تم جلب خيارات البدلات والتعويضات والاستقطاعات والعمولات الممكنه للشركة بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getContractOptions failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل جلب خيارات البدلات والتعويضات والاستقطاعات والعمولات الممكنه للشركة',
+                'user_id' => $user->user_id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::getContractOptions');
+        }
+    }
+
+    // ==================== Add/Update/Delete/Get Allowances ====================
+
+    /**
+     * @OA\Get(
+     *     path="/api/employees/{id}/allowances",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="جلب البدلات لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="البحث في مسمى البدل"),
+     *     @OA\Response(response=200, description="تم جلب البدلات بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function getAllowances(Request $request, int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $search = $request->query('search');
+            $data = $this->employeeService->getAllowances($user, $id, $search);
+            if (!$data) {
+                Log::error('EmployeeController::getAllowances failed', [
+                    'message' => 'فشل جلب البدلات',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                    'search' => $search
+                ]);
+                return $this->errorResponse('فشل جلب البدلات', 500);
+            }
+            Log::info('EmployeeController::getAllowances success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'search' => $search
+            ]);
+            return $this->successResponse($data, 'تم جلب البدلات بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getAllowances failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل جلب البدلات',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'search' => $search
+            ]);
+            return $this->handleException($e, 'EmployeeController::getAllowances');
+        }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/employees/{id}/allowances",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="إضافة بدل لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/AddContractComponentRequest")),
+     *     @OA\Response(response=200, description="تمت الإضافة بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function addAllowance(int $id, AddContractComponentRequest $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $newId = $this->employeeService->addAllowance($user, $id, $request->validated());
+            if (!$newId) {
+                Log::error('EmployeeController::addAllowance failed', [
+                    'message' => 'فشل إضافة البدل',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل إضافة البدل', 500);
+            }
+            Log::info('EmployeeController::addAllowance success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(['id' => $newId], 'تمت إضافة البدل بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::addAllowance failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل إضافة البدل',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::addAllowance');
+        }
+    }
+
+
+    /**
+     * @OA\Put(
+     *     path="/api/employees/{id}/allowances/{allowanceId}",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="تعديل بدل لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="allowanceId", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(required=true, @OA\JsonContent(
+     *         @OA\Property(property="pay_amount", type="number", example=1000)
+     *     )),
+     *     @OA\Response(response=200, description="تم التعديل بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function updateAllowance(int $id, int $allowanceId, Request $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $success = $this->employeeService->updateAllowance($user, $id, $allowanceId, $request->all());
+            if (!$success) {
+                Log::error('EmployeeController::updateAllowance failed', [
+                    'message' => 'فشل تعديل البدل',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل تعديل البدل', 500);
+            }
+            Log::info('EmployeeController::updateAllowance success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(null, 'تم تعديل البدل بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::updateAllowance failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل تعديل البدل',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::updateAllowance');
+        }
+    }
+
+    /**
+     * @OA\Delete(
+     *     path="/api/employees/{id}/allowances/{allowanceId}",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="حذف بدل لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="allowanceId", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="تم الحذف بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function deleteAllowance(int $id, int $allowanceId): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $success = $this->employeeService->deleteAllowance($user, $id, $allowanceId);
+            if (!$success) {
+                Log::error('EmployeeController::deleteAllowance failed', [
+                    'message' => 'فشل حذف البدل',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل حذف البدل', 500);
+            }
+            Log::info('EmployeeController::deleteAllowance success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(null, 'تم حذف البدل بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::deleteAllowance failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل حذف البدل',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::deleteAllowance');
+        }
+    }
+
+    // ==================== Add/Update/Delete Commissions ====================
+
+    /**
+     * @OA\Get(
+     *     path="/api/employees/{id}/commissions",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="جلب العمولات لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="البحث في مسمى العمولة"),
+     *     @OA\Response(response=200, description="تم جلب العمولات بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function getCommissions(Request $request, int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $search = $request->query('search');
+            $data = $this->employeeService->getCommissions($user, $id, $search);
+            if (!$data) {
+                Log::error('EmployeeController::getCommissions failed', [
+                    'message' => 'فشل جلب العمولات',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                    'search' => $search
+                ]);
+                return $this->errorResponse('فشل جلب العمولات', 500);
+            }
+            Log::info('EmployeeController::getCommissions success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'search' => $search
+            ]);
+
+            return $this->successResponse($data, 'تم جلب العمولات بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getCommissions failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل جلب العمولات',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'search' => $search
+            ]);
+            return $this->handleException($e, 'EmployeeController::getCommissions');
+        }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/employees/{id}/commissions",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="إضافة عمولة لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/AddContractComponentRequest")),
+     *     @OA\Response(response=200, description="تمت الإضافة بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function addCommission(int $id, AddContractComponentRequest $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $newId = $this->employeeService->addCommission($user, $id, $request->validated());
+            if (!$newId) {
+                Log::error('EmployeeController::addCommission failed', [
+                    'message' => 'فشل إضافة العمولة',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل إضافة العمولة', 500);
+            }
+            Log::info('EmployeeController::addCommission success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(['id' => $newId], 'تمت إضافة العمولة بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::addCommission failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل إضافة العمولة',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::addCommission');
+        }
+    }
+
+
+
+    /**
+     * @OA\Put(
+     *     path="/api/employees/{id}/commissions/{commissionId}",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="تعديل عمولة لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="commissionId", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(required=true, @OA\JsonContent(
+     *         @OA\Property(property="pay_amount", type="number", example=500)
+     *     )),
+     *     @OA\Response(response=200, description="تم التعديل بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function updateCommission(int $id, int $commissionId, Request $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $success = $this->employeeService->updateCommission($user, $id, $commissionId, $request->all());
+            if (!$success) {
+                Log::error('EmployeeController::updateCommission failed', [
+                    'message' => 'فشل تعديل العمولة',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل تعديل العمولة', 500);
+            }
+            Log::info('EmployeeController::updateCommission success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(null, 'تم تعديل العمولة بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::updateCommission failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل تعديل العمولة',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::updateCommission');
+        }
+    }
+
+    /**
+     * @OA\Delete(
+     *     path="/api/employees/{id}/commissions/{commissionId}",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="حذف عمولة لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="commissionId", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="تم الحذف بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function deleteCommission(int $id, int $commissionId): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $success = $this->employeeService->deleteCommission($user, $id, $commissionId);
+            if (!$success) {
+                Log::error('EmployeeController::deleteCommission failed', [
+                    'message' => 'فشل حذف العمولة',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل حذف العمولة', 500);
+            }
+            Log::info('EmployeeController::deleteCommission success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(null, 'تم حذف العمولة بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::deleteCommission failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل حذف العمولة',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::deleteCommission');
+        }
+    }
+
+    // ==================== Add/Update/Delete Statutory Deductions ====================
+
+    /**
+     * @OA\Get(
+     *     path="/api/employees/{id}/statutory-deductions",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="جلب الاستقطاعات لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="البحث في مسمى الاستقطاع"),
+     *     @OA\Response(response=200, description="تم جلب الاستقطاعات بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function getStatutoryDeductions(Request $request, int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $search = $request->query('search');
+            $data = $this->employeeService->getStatutoryDeductions($user, $id, $search);
+            if (!$data) {
+                Log::error('EmployeeController::getStatutoryDeductions failed', [
+                    'message' => 'فشل جلب الاستقطاعات',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                    'search' => $search
+                ]);
+                return $this->errorResponse('فشل جلب الاستقطاعات', 500);
+            }
+            Log::info('EmployeeController::getStatutoryDeductions success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'search' => $search
+            ]);
+            return $this->successResponse($data, 'تم جلب الاستقطاعات بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getStatutoryDeductions failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل جلب الاستقطاعات',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'search' => $search
+            ]);
+            return $this->handleException($e, 'EmployeeController::getStatutoryDeductions');
+        }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/employees/{id}/statutory-deductions",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="إضافة خصم قانوني لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/AddContractComponentRequest")),
+     *     @OA\Response(response=200, description="تمت الإضافة بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function addStatutoryDeduction(int $id, AddContractComponentRequest $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $newId = $this->employeeService->addStatutoryDeduction($user, $id, $request->validated());
+            if (!$newId) {
+                Log::error('EmployeeController::addStatutoryDeduction failed', [
+                    'message' => 'فشل إضافة الخصم',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل إضافة الخصم', 500);
+            }
+            Log::info('EmployeeController::addStatutoryDeduction success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(['id' => $newId], 'تمت إضافة الخصم بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::addStatutoryDeduction failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل إضافة الخصم',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::addStatutoryDeduction');
+        }
+    }
+
+
+    /**
+     * @OA\Put(
+     *     path="/api/employees/{id}/statutory-deductions/{deductionId}",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="تعديل خصم قانوني لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="deductionId", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(required=true, @OA\JsonContent(
+     *         @OA\Property(property="pay_amount", type="number", example=200)
+     *     )),
+     *     @OA\Response(response=200, description="تم التعديل بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function updateStatutoryDeduction(int $id, int $deductionId, Request $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $success = $this->employeeService->updateStatutoryDeduction($user, $id, $deductionId, $request->all());
+            if (!$success) {
+                Log::error('EmployeeController::updateStatutoryDeduction failed', [
+                    'message' => 'فشل تعديل الخصم',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل تعديل الخصم', 500);
+            }
+            Log::info('EmployeeController::updateStatutoryDeduction success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(null, 'تم تعديل الخصم بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::updateStatutoryDeduction failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل تعديل الخصم',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::updateStatutoryDeduction');
+        }
+    }
+
+    /**
+     * @OA\Delete(
+     *     path="/api/employees/{id}/statutory-deductions/{deductionId}",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="حذف خصم قانوني لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="deductionId", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="تم الحذف بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function deleteStatutoryDeduction(int $id, int $deductionId): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $success = $this->employeeService->deleteStatutoryDeduction($user, $id, $deductionId);
+            if (!$success) {
+                Log::error('EmployeeController::deleteStatutoryDeduction failed', [
+                    'message' => 'فشل حذف الخصم',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل حذف الخصم', 500);
+            }
+            Log::info('EmployeeController::deleteStatutoryDeduction success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(null, 'تم حذف الخصم بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::deleteStatutoryDeduction failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل حذف الخصم',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::deleteStatutoryDeduction');
+        }
+    }
+
+    // ==================== Add/Update/Delete Other Payments ====================
+
+    /**
+     * @OA\Get(
+     *     path="/api/employees/{id}/other-payments",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="جلب التعويضات الأخرى لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="البحث في مسمى الدفعة"),
+     *     @OA\Response(response=200, description="تم جلب التعويضات الأخرى بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function getOtherPayments(Request $request, int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $search = $request->query('search');
+            $data = $this->employeeService->getOtherPayments($user, $id, $search);
+            if (!$data) {
+                Log::error('EmployeeController::getOtherPayments failed', [
+                    'message' => 'فشل جلب التعويضات الأخرى',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                    'search' => $search
+                ]);
+                return $this->errorResponse('فشل جلب التعويضات الأخرى', 500);
+            }
+            Log::info('EmployeeController::getOtherPayments success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'search' => $search
+            ]);
+            return $this->successResponse($data, 'تم جلب التعويضات الأخرى بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getOtherPayments failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل جلب التعويضات الأخرى',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'search' => $search
+            ]);
+            return $this->handleException($e, 'EmployeeController::getOtherPayments');
+        }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/employees/{id}/other-payments",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="إضافة تعويضات أخرى لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/AddContractComponentRequest")),
+     *     @OA\Response(response=200, description="تمت الإضافة بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function addOtherPayment(int $id, AddContractComponentRequest $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $newId = $this->employeeService->addOtherPayment($user, $id, $request->validated());
+            if (!$newId) {
+                Log::error('EmployeeController::addOtherPayment failed', [
+                    'message' => 'فشل إضافة التعويضات',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل إضافة التعويضات', 500);
+            }
+            Log::info('EmployeeController::addOtherPayment success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(['id' => $newId], 'تمت إضافة التعويضات بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::addOtherPayment failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل إضافة التعويضات',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::addOtherPayment');
+        }
+    }
+
+    /**
+     * @OA\Put(
+     *     path="/api/employees/{id}/other-payments/{paymentId}",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="تعديل تعويض آخر لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="paymentId", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(required=true, @OA\JsonContent(
+     *         @OA\Property(property="pay_amount", type="number", example=300)
+     *     )),
+     *     @OA\Response(response=200, description="تم التعديل بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function updateOtherPayment(int $id, int $paymentId, Request $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $success = $this->employeeService->updateOtherPayment($user, $id, $paymentId, $request->all());
+            if (!$success) {
+                Log::error('EmployeeController::updateOtherPayment failed', [
+                    'message' => 'فشل تعديل التعويضات',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل تعديل التعويضات', 500);
+            }
+            Log::info('EmployeeController::updateOtherPayment success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(null, 'تم تعديل التعويضات بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::updateOtherPayment failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل تعديل التعويضات',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::updateOtherPayment');
+        }
+    }
+
+    /**
+     * @OA\Delete(
+     *     path="/api/employees/{id}/other-payments/{paymentId}",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="حذف تعويض آخر لموظف",
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="paymentId", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="تم الحذف بنجاح"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function deleteOtherPayment(int $id, int $paymentId): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $success = $this->employeeService->deleteOtherPayment($user, $id, $paymentId);
+            if (!$success) {
+                Log::error('EmployeeController::deleteOtherPayment failed', [
+                    'message' => 'فشل حذف التعويضات',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل حذف التعويضات', 500);
+            }
+            Log::info('EmployeeController::deleteOtherPayment success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(null, 'تم حذف التعويضات بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::deleteOtherPayment failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل حذف التعويضات',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeController::deleteOtherPayment');
+        }
+    }
+
+    /**
+     * Get unified requests for a specific employee.
+     * 
+     * @OA\Get(
+     *     path="/api/employees/{id}/requests",
+     *     summary="جلب الطلبات الموحدة لموظف",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, description="Employee ID", @OA\Schema(type="integer")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم جلب الطلبات الموحدة بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب الطلبات الموحدة بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function getUnifiedRequests(int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $requests = $this->unifiedRequestService->getEmployeeRequests($id, $user);
+            if (!$requests) {
+                Log::error('EmployeeController::getUnifiedRequests failed', [
+                    'message' => 'فشل جلب الطلبات الموحدة',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل جلب الطلبات الموحدة', 500);
+            }
+            Log::info('EmployeeController::getUnifiedRequests success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse($requests, 'تم جلب الطلبات الموحدة بنجاح');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('EmployeeController::getUnifiedRequests failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل جلب الطلبات الموحدة',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->errorResponse('الموظف غير موجود', 404);
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getUnifiedRequests failed', [
+                'error' => $e->getMessage(),
+                'message' => 'فشل جلب الطلبات الموحدة',
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            $statusCode = $e->getMessage() === 'ليس لديك صلاحية لعرض طلبات هذا الموظف' ? 403 : 500;
+            return $this->errorResponse($e->getMessage(), $statusCode);
+        }
+    }
 
 }

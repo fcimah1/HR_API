@@ -11,6 +11,8 @@ use App\Http\Requests\Employee\UpdateCVRequest;
 use App\Http\Requests\Employee\UpdateSocialLinksRequest;
 use App\Http\Requests\Employee\UpdateBankInfoRequest;
 use App\Http\Requests\Employee\AddFamilyDataRequest;
+use App\Http\Requests\Employee\GetDocumentRequest;
+use App\Http\Requests\Employee\UpdateBasicInfoRequest;
 use App\Services\EmployeeManagementService;
 use App\Services\SimplePermissionService;
 use App\Services\FileUploadService;
@@ -33,7 +35,7 @@ class EmployeeProfileController extends Controller
 
     ) {}
 
-    
+
     /**
      * @OA\Put(
      *     path="/api/my-profile/change-password",
@@ -71,11 +73,25 @@ class EmployeeProfileController extends Controller
             $success = $this->employeeService->changeEmployeePassword($user, $targetEmployeeId, $request->password);
 
             if (!$success) {
+                Log::error('EmployeeProfileController::changePassword failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل كلمة المرور',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $targetEmployeeId,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل كلمة المرور');
             }
 
+            Log::info('EmployeeProfileController::changePassword success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $targetEmployeeId,
+            ]);
             return $this->successResponse(null, 'تم تغيير كلمة المرور بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeProfileController::changePassword failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $targetEmployeeId,
+            ]);
             return $this->handleException($e, 'EmployeeController::changePassword');
         }
     }
@@ -123,74 +139,26 @@ class EmployeeProfileController extends Controller
             $result = $this->employeeService->uploadEmployeeProfileImage($user, $targetEmployeeId, $request->file('profile_image'));
 
             if (!$result) {
-                return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل الصورة الشخصية');
+                Log::error('EmployeeProfileController::uploadProfileImage failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لرفع الصورة الشخصية',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $targetEmployeeId,
+                ]);
+                return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لرفع الصورة الشخصية');
             }
 
+            Log::info('EmployeeProfileController::uploadProfileImage success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $targetEmployeeId,
+            ]);
             return $this->successResponse($result, 'تم رفع صورة الملف الشخصي بنجاح');
         } catch (\Exception $e) {
-            return $this->handleException($e, 'EmployeeController::uploadProfileImage');
-        }
-    }
-
-
-    /**
-     * @OA\Post(
-     *     path="/api/my-profile/upload-document",
-     *     summary="Upload employee document",
-     *     description="Upload a document for employee",
-     *     tags={"Employee Profile"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\MediaType(
-     *             mediaType="multipart/form-data",
-     *             @OA\Schema(
-     *                 required={"document_name", "document_type", "document_file"},
-     *                 @OA\Property(property="document_name", type="string", example="CV"),
-     *                 @OA\Property(property="document_type", type="string", example="resume"),
-     *                 @OA\Property(property="document_file", type="string", format="binary", description="Document file"),
-     *                 @OA\Property(property="expiration_date", type="string", format="date", example="2025-12-31")
-     *             )
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Document uploaded successfully",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="تم رفع المستند بنجاح"),
-     *             @OA\Property(property="data", type="object",
-     *                 @OA\Property(property="document_id", type="integer", example=1),
-     *                 @OA\Property(property="document_url", type="string", example="/storage/documents/cv_123.pdf")
-     *             )
-     *         )
-     *     ),
-     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
-     *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لرفع المستندات"),
-     *     @OA\Response(response=422, description="بيانات غير صحيحة"),
-     *     @OA\Response(response=500, description="خطأ في الخادم")
-     * )
-     */
-    public function uploadDocument(UploadDocumentRequest $request): JsonResponse
-    {
-        try {
-            $user = Auth::user();
-            $id = $user->user_id;
-
-            $result = $this->employeeService->uploadEmployeeDocument($user, $id, [
-                'document_name' => $request->document_name,
-                'document_type' => $request->document_type,
-                'document_file' => $request->file('document_file'),
-                'expiration_date' => $request->expiration_date
+            Log::error('EmployeeProfileController::uploadProfileImage failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $targetEmployeeId,
             ]);
-
-            if (!$result) {
-                return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لرفع المستندات');
-            }
-
-            return $this->successResponse($result, 'تم رفع المستند بنجاح');
-        } catch (\Exception $e) {
-            return $this->handleException($e, 'EmployeeController::uploadDocument');
+            return $this->handleException($e, 'EmployeeController::uploadProfileImage');
         }
     }
 
@@ -231,16 +199,25 @@ class EmployeeProfileController extends Controller
             $success = $this->employeeService->updateEmployeeProfileInfo($user, $id, $request->only(['username', 'email']));
 
             if (!$success) {
-                Log::error('not found', [
-                    "success" => false,
-                    'message' => 'not found',
-                    'error' => $success
+                Log::error('EmployeeProfileController::updateProfileInfo failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل معلومات الملف الشخصي',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
                 ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل معلومات الملف الشخصي');
             }
 
+            Log::info('EmployeeProfileController::updateProfileInfo success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم تحديث معلومات الملف الشخصي بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeProfileController::updateProfileInfo failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::updateProfileInfo');
         }
     }
@@ -282,11 +259,25 @@ class EmployeeProfileController extends Controller
             $success = $this->employeeService->updateEmployeeCV($user, $id, $request->only(['bio', 'experience']));
 
             if (!$success) {
+                Log::error('EmployeeProfileController::updateCV failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل السيرة الذاتية',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل السيرة الذاتية');
             }
 
+            Log::info('EmployeeProfileController::updateCV success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم تحديث السيرة الذاتية بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeProfileController::updateCV failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::updateCV');
         }
     }
@@ -335,11 +326,25 @@ class EmployeeProfileController extends Controller
             ]));
 
             if (!$success) {
+                Log::error('EmployeeProfileController::updateSocialLinks failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل الروابط الاجتماعية',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل الروابط الاجتماعية');
             }
 
+            Log::info('EmployeeProfileController::updateSocialLinks success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم تحديث الروابط الاجتماعية بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeProfileController::updateSocialLinks failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::updateSocialLinks');
         }
     }
@@ -358,6 +363,14 @@ class EmployeeProfileController extends Controller
      *             @OA\Property(property="bank_name", type="int", example="11"),
      *             @OA\Property(property="iban", type="string", example="SA1234567890123456789012"),
      *             @OA\Property(property="bank_branch", type="string", example="فرع الرياض الرئيسي")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Bank information updated successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تحديث المعلومات البنكية بنجاح")
      *         )
      *     ),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
@@ -387,9 +400,14 @@ class EmployeeProfileController extends Controller
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل المعلومات البنكية');
             }
 
+            Log::info('EmployeeController::updateBankInfo success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم تحديث المعلومات البنكية بنجاح');
         } catch (\Exception $e) {
             Log::error('EmployeeController::updateBankInfo failed', [
+                'message' => $e->getMessage(),
                 'user_id' => $user?->user_id,
                 'employee_id' => $id,
             ]);
@@ -445,11 +463,25 @@ class EmployeeProfileController extends Controller
             ]));
 
             if (!$success) {
+                Log::error('EmployeeProfileController::addFamilyData failed', [
+                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لإضافة بيانات العائلة',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لإضافة بيانات العائلة');
             }
 
+            Log::info('EmployeeProfileController::addFamilyData success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم إضافة بيانات العائلة بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeProfileController::addFamilyData failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::addFamilyData');
         }
     }
@@ -486,12 +518,238 @@ class EmployeeProfileController extends Controller
             $success = $this->employeeService->deleteEmployeeFamilyData($user, $id, $contactId);
 
             if (!$success) {
+                Log::error('EmployeeProfileController::deleteFamilyData failed', [
+                    'message' => 'الموظف أو البيانات غير موجودة أو ليس لديك صلاحية للحذف',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
                 return $this->notFoundResponse('الموظف أو البيانات غير موجودة أو ليس لديك صلاحية للحذف');
             }
 
+            Log::info('EmployeeProfileController::deleteFamilyData success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم حذف بيانات العائلة بنجاح');
         } catch (\Exception $e) {
+            Log::error('EmployeeProfileController::deleteFamilyData failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
             return $this->handleException($e, 'EmployeeController::deleteFamilyData');
         }
     }
+
+    /**
+     * @OA\Get(
+     *     path="/api/my-profile/documents",
+     *     summary="Get employee documents",
+     *     description="Retrieve and search through employee documents",
+     *     tags={"Employee Profile"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search term for document name or type",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Documents retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب المستندات بنجاح"),
+     *             @OA\Property(property="data", type="array",
+     *                 @OA\Items(
+     *                     @OA\Property(property="document_id", type="integer", example=1),
+     *                     @OA\Property(property="document_name", type="string", example="CV"),
+     *                     @OA\Property(property="document_type", type="string", example="resume"),
+     *                     @OA\Property(property="document_file", type="string", example="/storage/documents/cv_123.pdf"),
+     *                     @OA\Property(property="expiry_date", type="string", format="date", example="2025-12-31"),
+     *                     @OA\Property(property="created_at", type="string", format="date-time", example="2024-01-01T12:00:00Z")
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف غير موجود"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function getEmployeeDocuments(GetDocumentRequest $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $id = $user->user_id;
+
+            $documents = $this->employeeService->getEmployeeDocuments($user, $id, $request->search);
+            if (!$documents) {
+                Log::error('EmployeeProfileController::getEmployeeDocuments failed', [
+                    'message' => 'الموظف أو البيانات غير موجودة أو ليس لديك صلاحية للحذف',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->notFoundResponse('الموظف أو البيانات غير موجودة أو ليس لديك صلاحية للحذف');
+            }
+
+            Log::info('EmployeeProfileController::getEmployeeDocuments success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse($documents, 'تم جلب المستندات بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeProfileController::getEmployeeDocuments failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeProfileController::getEmployeeDocuments');
+        }
+    }
+
+    /**
+     * Get all profile related enums and types
+     * 
+     * @OA\Get(
+     *     path="/api/my-profile/enums",
+     *     tags={"Employee Profile"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="جلب الثوابت الخاصة بملف الموظف",
+     *     description="يجلب فصائل الدم، الحالة الاجتماعية، والجنس",
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم جلب البيانات بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="blood_groups", type="array", @OA\Items(type="object")),
+     *                 @OA\Property(property="marital_statuses", type="array", @OA\Items(type="object")),
+     *                 @OA\Property(property="genders", type="array", @OA\Items(type="object"))
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function getProfileEnums(): JsonResponse
+    {
+        return $this->successResponse($this->employeeService->getProfileEnums(), 'تم جلب البيانات بنجاح');
+    }
+
+    /**
+     * Update employee basic information
+     * 
+     * @OA\Put(
+     *     path="/api/my-profile/basic-info",
+     *     tags={"Employee Profile"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="تحديث المعلومات الأساسية للموظف",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(ref="#/components/schemas/UpdateBasicInfoRequest")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم تحديث المعلومات بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم تحديث المعلومات الأساسية بنجاح")
+     *         )
+     *     ),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=404, description="الموظف غير موجود"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function updateBasicInfo(UpdateBasicInfoRequest $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $id = $user->user_id;
+
+            $success = $this->employeeService->updateEmployeeBasicInfo($user, $id, $request->validated());
+
+            if (!$success) {
+                Log::error('EmployeeProfileController::updateBasicInfo failed', [
+                    'message' => 'فشل تحديث المعلومات الأساسية',
+                    'trace' => $success,
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('فشل تحديث المعلومات الأساسية', 500);
+            }
+
+            Log::info('EmployeeProfileController::updateBasicInfo success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->successResponse(null, 'تم تحديث المعلومات الأساسية بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeProfileController::updateBasicInfo failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeProfileController::updateBasicInfo');
+        }
+    }
+
+    /**
+     * Get current employee contract data
+     * 
+     * @OA\Get(
+     *     path="/api/my-profile/contract-data",
+     *     tags={"Employee Profile"},
+     *     security={{"bearerAuth":{}}},
+     *     summary="جلب بيانات العقد للموظف الحالي",
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم جلب بيانات العقد بنجاح",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=404, description="الموظف غير موجود"),
+     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=403, description="ليس لديك صلاحية"),
+     * )
+     */
+    public function getContractData(): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $id = $user->user_id;
+
+            $data = $this->employeeService->getEmployeeContractData($user, $id);
+
+            if(!$data){
+                Log::error('EmployeeProfileController::getContractData failed', [
+                    'message' => 'بيانات العقد غير موجودة',
+                    'user_id' => $user->user_id,
+                    'employee_id' => $id,
+                ]);
+                return $this->errorResponse('بيانات العقد غير موجودة', 404);
+            }
+
+            Log::info('EmployeeProfileController::getContractData success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+
+            return $this->successResponse($data, 'تم جلب بيانات العقد بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeProfileController::getContractData failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+            ]);
+            return $this->handleException($e, 'EmployeeProfileController::getContractData');
+        }
+    }
+
 }

@@ -257,7 +257,13 @@ class EmployeeRepository implements EmployeeRepositoryInterface
     {
         return $this->model->with('user_details')
             ->where('user_id', $employeeId)
-            ->where('company_id', $companyId)
+            ->where(function ($q) use ($employeeId, $companyId) {
+                $q->where('company_id', $companyId);
+                // If searching for the company owner themself, their company_id is 0
+                if ($employeeId === $companyId) {
+                    $q->orWhere('company_id', 0);
+                }
+            })
             ->first();
     }
 
@@ -710,12 +716,26 @@ class EmployeeRepository implements EmployeeRepositoryInterface
                 return true;
             }
 
-
             $affected = DB::table('ci_erp_users_details')
                 ->where('user_id', $employeeId)
                 ->update($updateData);
 
-            return $affected > 0;
+            if ($affected > 0) {
+                return true;
+            }
+
+            // Check if record exists - if not, employee details not found
+            $exists = DB::table('ci_erp_users_details')->where('user_id', $employeeId)->exists();
+            if ($exists) {
+                return true; // Record exists, but data was the same (no rows affected)
+            }
+
+            // Record missing: return error
+            Log::error('EmployeeRepository::updateEmployeeCV failed', [
+                'employee_id' => $employeeId,
+                'error' => 'الموظف غير موجود - لا يوجد سجل بيانات'
+            ]);
+            throw new \Exception('الموظف غير موجود');
         } catch (\Exception $e) {
             Log::error('EmployeeRepository::updateEmployeeCV failed', [
                 'employee_id' => $employeeId,
@@ -744,7 +764,22 @@ class EmployeeRepository implements EmployeeRepositoryInterface
                 ->where('user_id', $employeeId)
                 ->update($updateData);
 
-            return $affected > 0;
+            if ($affected > 0) {
+                return true;
+            }
+
+            // Check if record exists - if not, employee details not found
+            $exists = DB::table('ci_erp_users_details')->where('user_id', $employeeId)->exists();
+            if ($exists) {
+                return true; // Record exists, but data was the same
+            }
+
+            // Record missing: return error
+            Log::error('EmployeeRepository::updateEmployeeSocialLinks failed', [
+                'employee_id' => $employeeId,
+                'error' => 'الموظف غير موجود - لا يوجد سجل بيانات'
+            ]);
+            throw new \Exception('الموظف غير موجود');
         } catch (\Exception $e) {
             Log::error('EmployeeRepository::updateEmployeeSocialLinks failed', [
                 'employee_id' => $employeeId,
@@ -790,7 +825,7 @@ class EmployeeRepository implements EmployeeRepositoryInterface
                 Log::error('EmployeeRepository::updateEmployeeBankInfo failed', [
                     'employee_id' => $employeeId,
                     'bank_data' => $bankData,
-                    'error' => 'No user_details record found for employee'
+                    'error' => 'الموظف غير موجود - لا يوجد سجل بيانات'
                 ]);
                 throw new \Exception(message: 'فشل في إتعديل البيانات البنكيه');
             }
@@ -867,5 +902,683 @@ class EmployeeRepository implements EmployeeRepositoryInterface
             ]);
             throw new \Exception(message: 'فشل في حذف البيانات العائلية');
         }
+    }
+
+    /**
+     * Get employee documents with optional search
+     */
+    public function getEmployeeDocuments(int $employeeId, ?string $search = null): \Illuminate\Support\Collection
+    {
+        try {
+            $query = DB::table('ci_users_documents')
+                ->where('user_id', $employeeId);
+
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('document_name', 'like', "%{$search}%")
+                        ->orWhere('document_type', 'like', "%{$search}%");
+                });
+            }
+
+            return $query->get();
+        } catch (\Exception $e) {
+            Log::error('EmployeeRepository::getEmployeeDocuments failed', [
+                'employee_id' => $employeeId,
+                'search' => $search,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception(message: 'فشل في جلب المستندات');
+        }
+    }
+
+    public function updateEmployeeBasicInfo(int $employeeId, array $userData, array $detailsData): bool
+    {
+        return DB::transaction(function () use ($employeeId, $userData, $detailsData) {
+            try {
+                if (!empty($userData)) {
+                    DB::table('ci_erp_users')
+                        ->where('user_id', $employeeId)
+                        ->update($userData);
+                }
+
+                if (!empty($detailsData)) {
+                    // Check if record exists first
+                    $exists = DB::table('ci_erp_users_details')->where('user_id', $employeeId)->exists();
+                    if (!$exists) {
+                        Log::error('EmployeeRepository::updateEmployeeBasicInfo failed', [
+                            'employee_id' => $employeeId,
+                            'error' => 'الموظف غير موجود - لا يوجد سجل بيانات'
+                        ]);
+                        throw new \Exception('الموظف غير موجود');
+                    }
+
+                    DB::table('ci_erp_users_details')
+                        ->where('user_id', $employeeId)
+                        ->update($detailsData);
+                }
+
+                return true;
+            } catch (\Exception $e) {
+                Log::error('EmployeeRepository::updateEmployeeBasicInfo failed', [
+                    'employee_id' => $employeeId,
+                    'error' => $e->getMessage()
+                ]);
+                throw new \Exception(message: 'فشل في تحديث المعلومات الأساسية');
+            }
+        });
+    }
+
+
+    public function getEmployeeContractData(int $employeeId): array
+    {
+        try {
+            // 1. Get basic contract info from Details
+            $basicInfo = DB::table('ci_erp_users_details as d')
+                ->leftJoin('ci_departments as dept', 'd.department_id', '=', 'dept.department_id')
+                ->leftJoin('ci_designations as desg', 'd.designation_id', '=', 'desg.designation_id')
+                ->leftJoin('ci_office_shifts as shift', 'd.office_shift_id', '=', 'shift.office_shift_id')
+                ->where('d.user_id', $employeeId)
+                ->select([
+                    'd.basic_salary',
+                    'd.hourly_rate',
+                    'd.date_of_joining',
+                    'd.contract_end',
+                    'd.hourly_rate',
+                    'd.salay_type as salary_type_id',
+                    'dept.department_name',
+                    'desg.designation_name',
+                    'shift.shift_name',
+                    'd.role_description'
+                ])
+                ->first();
+
+            // 2. Get contract components from the specific payslip tables
+            // These tables seem to store recurring components linked to payslips or with payslip_id = 0 for master records
+            $allowances = DB::table('ci_payslip_allowances')
+                ->select('payslip_allowances_id', 'pay_title', 'pay_amount')
+                ->where('staff_id', $employeeId)
+                ->where('payslip_id', 0) // Traditionally, 0 might represent current contract template
+                ->get();
+
+            // If 0 returns nothing, fallback to latest payslip to show what's currently active in the system
+            if ($allowances->isEmpty()) {
+                $latestPayslipId = DB::table('ci_payslip_allowances')
+                    ->where('staff_id', $employeeId)
+                    ->orderBy('payslip_id', 'desc')
+                    ->value('payslip_id');
+
+                if ($latestPayslipId) {
+                    $allowances = DB::table('ci_payslip_allowances')
+                        ->where('staff_id', $employeeId)
+                        ->where('payslip_id', $latestPayslipId)
+                        ->get();
+                }
+            }
+
+            $commissions = DB::table('ci_payslip_commissions')
+                ->select('payslip_commissions_id', 'pay_title', 'pay_amount')
+                ->where('staff_id', $employeeId)
+                ->where('payslip_id', 0)
+                ->get();
+            if ($commissions->isEmpty()) {
+                $latestPayslipId = DB::table('ci_payslip_commissions')->where('staff_id', $employeeId)->orderBy('payslip_id', 'desc')->value('payslip_id');
+                if ($latestPayslipId) $commissions = DB::table('ci_payslip_commissions')->where('staff_id', $employeeId)->where('payslip_id', $latestPayslipId)->get();
+            }
+
+            $statutory = DB::table('ci_payslip_statutory_deductions')
+                ->select('payslip_deduction_id', 'pay_title', 'pay_amount')
+                ->where('staff_id', $employeeId)
+                ->where('payslip_id', 0)
+                ->get();
+            if ($statutory->isEmpty()) {
+                $latestPayslipId = DB::table('ci_payslip_statutory_deductions')->where('staff_id', $employeeId)->orderBy('payslip_id', 'desc')->value('payslip_id');
+                if ($latestPayslipId) $statutory = DB::table('ci_payslip_statutory_deductions')->where('staff_id', $employeeId)->where('payslip_id', $latestPayslipId)->get();
+            }
+
+            $other_payments = DB::table('ci_payslip_other_payments')
+                ->select('payslip_other_payment_id', 'pay_title', 'pay_amount')
+                ->where('staff_id', $employeeId)
+                ->where('payslip_id', 0)
+                ->get();
+            if ($other_payments->isEmpty()) {
+                $latestPayslipId = DB::table('ci_payslip_other_payments')->where('staff_id', $employeeId)->orderBy('payslip_id', 'desc')->value('payslip_id');
+                if ($latestPayslipId) $other_payments = DB::table('ci_payslip_other_payments')->where('staff_id', $employeeId)->where('payslip_id', $latestPayslipId)->get();
+            }
+
+            return [
+                'basic_info' => $basicInfo,
+                'allowances' => $allowances,
+                'commissions' => $commissions,
+                'statutory' => $statutory,
+                'other_payments' => $other_payments,
+            ];
+        } catch (\Exception $e) {
+            Log::error('EmployeeRepository::getEmployeeContractData failed', [
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception(message: 'فشل في جلب بيانات العقد');
+        }
+    }
+
+    public function updateEmployeeContractData(int $employeeId, array $data): bool
+    {
+        return DB::transaction(function () use ($employeeId, $data) {
+            try {
+                // 1. define detailsData array
+                $detailsData = [];
+
+                // 2. Map fields to ci_erp_users_details
+                if (isset($data['branch_id'])) $detailsData['branch_id'] = $data['branch_id'];
+                if (isset($data['default_language'])) $detailsData['default_language'] = $data['default_language'];
+                if (isset($data['date_of_joining'])) $detailsData['date_of_joining'] = $data['date_of_joining'];
+                if (isset($data['department_id'])) $detailsData['department_id'] = $data['department_id'];
+                if (isset($data['designation_id'])) $detailsData['designation_id'] = $data['designation_id'];
+                if (isset($data['basic_salary'])) $detailsData['basic_salary'] = $data['basic_salary'];
+                if (isset($data['currency_id'])) $detailsData['currency_id'] = $data['currency_id'];
+                if (isset($data['hourly_rate'])) $detailsData['hourly_rate'] = $data['hourly_rate'];
+                if (isset($data['salary_payment_method'])) $detailsData['salary_payment_method'] = $data['salary_payment_method'];
+                if (isset($data['salay_type'])) $detailsData['salay_type'] = $data['salary_type'];
+                if (isset($data['office_shift_id'])) $detailsData['office_shift_id'] = $data['office_shift_id'];
+                if (isset($data['contract_end'])) $detailsData['contract_end'] = $data['contract_end'];
+                if (isset($data['date_of_leaving'])) $detailsData['date_of_leaving'] = $data['date_of_leaving'];
+                if (isset($data['reporting_manager'])) $detailsData['reporting_manager'] = $data['reporting_manager'];
+                if (isset($data['job_type'])) $detailsData['job_type'] = $data['job_type'];
+                if (isset($data['is_work_from_home'])) $detailsData['is_work_from_home'] = $data['is_work_from_home'];
+                if (isset($data['not_part_of_orgchart'])) $detailsData['not_part_of_orgchart'] = $data['not_part_of_orgchart'];
+                if (isset($data['not_part_of_system_reports'])) $detailsData['not_part_of_system_reports'] = $data['not_part_of_system_reports'];
+                if (isset($data['role_description'])) $detailsData['role_description'] = $data['role_description'];
+
+                // 3. Perform updates
+                if (!empty($detailsData)) {
+                    DB::table('ci_erp_users_details')->where('user_id', $employeeId)->update($detailsData);
+                }
+
+                return true;
+            } catch (\Exception $e) {
+                Log::error('EmployeeRepository::updateEmployeeContractData failed', [
+                    'employee_id' => $employeeId,
+                    'error' => $e->getMessage()
+                ]);
+                throw new \Exception(message: 'فشل تحديث بيانات العقد');
+            }
+        });
+    }
+
+    public function getContractOptions(int $companyId): array
+    {
+        try {
+            $options = DB::table('ci_contract_options')
+                ->where('company_id', $companyId)
+                ->get();
+
+            $grouped = [
+                'allowances' => [],
+                'commissions' => [],
+                'statutory' => [],
+                'other_payments' => [],
+            ];
+
+            foreach ($options as $option) {
+                $type = $option->salay_type;
+                if (array_key_exists($type, $grouped)) {
+                    $grouped[$type][] = [
+                        'id' => $option->contract_option_id,
+                        'name' => $option->option_title,
+                        'amount' => $option->contract_amount,
+                        'is_fixed' => $option->is_fixed,
+                        'tax_option' => $option->contract_tax_option,
+                    ];
+                }
+            }
+
+            return $grouped;
+        } catch (\Exception $e) {
+            Log::error('EmployeeRepository::getContractOptions failed', [
+                'company_id' => $companyId,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception(message: 'فشل جلب البدلات والتعويضات والاستقطاعات والعمولات الممكنه للشركة');
+        }
+    }
+
+    public function addAllowance(int $employeeId, array $data): int
+    {
+        DB::beginTransaction();
+
+        try {
+            $contractOption = DB::table('ci_contract_options')
+                ->where('option_title', $data['pay_title'])
+                ->where('company_id', $data['company_id'])
+                ->where('salay_type', 'allowances')
+                ->select('contract_option_id')->first();
+            $allowanceId = DB::table('ci_payslip_allowances')->insertGetId([
+                'staff_id' => $employeeId,
+                'payslip_id' => 0,
+                'pay_title' => $data['pay_title'],
+                'pay_amount' => $data['pay_amount'],
+                'is_taxable' => $data['is_taxable'] ?? 1,
+                'is_fixed' => $data['is_fixed'] ?? 1,
+                'contract_option_id' => $contractOption->contract_option_id ?? 0,
+                'salary_month' => now()->format('Y-m'),
+                'created_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return $allowanceId;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('EmployeeRepository::addAllowance failed', [
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception(message: 'فشل اضافة البدلات');
+        }
+    }
+
+    public function addCommission(int $employeeId, array $data): int
+    {
+        DB::beginTransaction();
+
+        try {
+            $contractOption = DB::table('ci_contract_options')
+                ->where('option_title', $data['pay_title'])
+                ->where('company_id', $data['company_id'])
+                ->where('salay_type', 'commissions')
+                ->select('contract_option_id')->first();
+
+            $commissionId = DB::table('ci_payslip_commissions')->insertGetId([
+                'staff_id' => $employeeId,
+                'payslip_id' => 0,
+                'pay_title' => $data['pay_title'],
+                'pay_amount' => $data['pay_amount'],
+                'is_taxable' => $data['is_taxable'] ?? 1,
+                'is_fixed' => $data['is_fixed'] ?? 1,
+                'contract_option_id' => $contractOption->contract_option_id ?? 0,
+                'salary_month' => now()->format('Y-m'),
+                'created_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return $commissionId;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('EmployeeRepository::addCommission failed', [
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception(message: 'فشل اضافة العمولات');
+        }
+    }
+
+    public function addStatutoryDeduction(int $employeeId, array $data): int
+    {
+        DB::beginTransaction();
+
+        try {
+            $contractOption = DB::table('ci_contract_options')
+                ->where('option_title', $data['pay_title'])
+                ->where('company_id', $data['company_id'])
+                ->where('salay_type', 'statutory')
+                ->select('contract_option_id')->first();
+
+            $deductionId = DB::table('ci_payslip_statutory_deductions')->insertGetId([
+                'staff_id' => $employeeId,
+                'payslip_id' => 0,
+                'pay_title' => $data['pay_title'],
+                'pay_amount' => $data['pay_amount'],
+                'is_fixed' => $data['is_fixed'] ?? 1,
+                'contract_option_id' => $contractOption->contract_option_id ?? 0,
+                'salary_month' => now()->format('Y-m'),
+                'created_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return $deductionId;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('EmployeeRepository::addStatutoryDeduction failed', [
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception(message: 'فشل اضافة الاستقطاعات');
+        }
+    }
+
+    public function addOtherPayment(int $employeeId, array $data): int
+    {
+        DB::beginTransaction();
+
+        try {
+            $contractOption = DB::table('ci_contract_options')
+                ->where('option_title', $data['pay_title'])
+                ->where('company_id', $data['company_id'])
+                ->where('salay_type', 'other_payments')
+                ->select('contract_option_id')->first();
+
+            $paymentId = DB::table('ci_payslip_other_payments')->insertGetId([
+                'staff_id' => $employeeId,
+                'payslip_id' => 0,
+                'pay_title' => $data['pay_title'],
+                'pay_amount' => $data['pay_amount'],
+                'is_taxable' => $data['is_taxable'] ?? 1,
+                'is_fixed' => $data['is_fixed'] ?? 1,
+                'contract_option_id' => $contractOption->contract_option_id ?? 0,
+                'salary_month' => now()->format('Y-m'),
+                'created_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return $paymentId;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('EmployeeRepository::addOtherPayment failed', [
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception(message: 'فشل اضافة المدفوعات الأخرى');
+        }
+    }
+
+    // ==================== Allowance CRUD ====================
+
+    public function allowanceExists(int $employeeId, string $payTitle): bool
+    {
+        return DB::table('ci_payslip_allowances')
+            ->where('staff_id', $employeeId)
+            ->where('pay_title', $payTitle)
+            ->where('payslip_id', 0)
+            ->exists();
+    }
+
+    public function getAllowanceById(int $id): ?object
+    {
+        return DB::table('ci_payslip_allowances')
+            ->where('payslip_allowances_id', $id)
+            ->first();
+    }
+
+    public function updateAllowance(int $id, array $data): bool
+    {
+        try {
+            DB::table('ci_payslip_allowances')
+                ->where('payslip_allowances_id', $id)
+                ->update([
+                    'pay_amount' => $data['pay_amount'],
+                    'pay_title' => $data['pay_title'] ?? DB::table('ci_payslip_allowances')->where('payslip_allowances_id', $id)->value('pay_title')
+                ]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error('EmployeeRepository::updateAllowance failed', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception('فشل تعديل البدل');
+        }
+    }
+
+    public function deleteAllowance(int $id): bool
+    {
+        try {
+            DB::table('ci_payslip_allowances')
+                ->where('payslip_allowances_id', $id)
+                ->delete();
+            return true;
+        } catch (\Exception $e) {
+            Log::error('EmployeeRepository::deleteAllowance failed', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception('فشل حذف البدل');
+        }
+    }
+
+    // ==================== Commission CRUD ====================
+
+    public function commissionExists(int $employeeId, string $payTitle): bool
+    {
+        return DB::table('ci_payslip_commissions')
+            ->where('staff_id', $employeeId)
+            ->where('pay_title', $payTitle)
+            ->where('payslip_id', 0)
+            ->exists();
+    }
+
+    public function getCommissionById(int $id): ?object
+    {
+        return DB::table('ci_payslip_commissions')
+            ->where('payslip_commissions_id', $id)
+            ->first();
+    }
+
+    public function updateCommission(int $id, array $data): bool
+    {
+        try {
+            DB::table('ci_payslip_commissions')
+                ->where('payslip_commissions_id', $id)
+                ->update([
+                    'pay_amount' => $data['pay_amount'],
+                    'pay_title' => $data['pay_title'] ?? DB::table('ci_payslip_commissions')->where('payslip_commissions_id', $id)->value('pay_title')
+                ]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error('EmployeeRepository::updateCommission failed', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception('فشل تعديل العمولة');
+        }
+    }
+
+    public function deleteCommission(int $id): bool
+    {
+        try {
+            DB::table('ci_payslip_commissions')
+                ->where('payslip_commissions_id', $id)
+                ->delete();
+            return true;
+        } catch (\Exception $e) {
+            Log::error('EmployeeRepository::deleteCommission failed', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception('فشل حذف العمولة');
+        }
+    }
+
+    // ==================== Statutory Deduction CRUD ====================
+
+    public function statutoryDeductionExists(int $employeeId, string $payTitle): bool
+    {
+        return DB::table('ci_payslip_statutory_deductions')
+            ->where('staff_id', $employeeId)
+            ->where('pay_title', $payTitle)
+            ->where('payslip_id', 0)
+            ->exists();
+    }
+
+    public function getStatutoryDeductionById(int $id): ?object
+    {
+        return DB::table('ci_payslip_statutory_deductions')
+            ->where('payslip_deduction_id', $id)
+            ->first();
+    }
+
+    public function updateStatutoryDeduction(int $id, array $data): bool
+    {
+        try {
+            DB::table('ci_payslip_statutory_deductions')
+                ->where('payslip_deduction_id', $id)
+                ->update([
+                    'pay_amount' => $data['pay_amount'],
+                    'pay_title' => $data['pay_title'] ?? DB::table('ci_payslip_statutory_deductions')->where('payslip_deduction_id', $id)->value('pay_title')
+                ]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error('EmployeeRepository::updateStatutoryDeduction failed', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception('فشل تعديل الخصم');
+        }
+    }
+
+    public function deleteStatutoryDeduction(int $id): bool
+    {
+        try {
+            DB::table('ci_payslip_statutory_deductions')
+                ->where('payslip_deduction_id', $id)
+                ->delete();
+            return true;
+        } catch (\Exception $e) {
+            Log::error('EmployeeRepository::deleteStatutoryDeduction failed', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception('فشل حذف الخصم');
+        }
+    }
+
+    // ==================== Other Payment CRUD ====================
+
+    public function otherPaymentExists(int $employeeId, string $payTitle): bool
+    {
+        return DB::table('ci_payslip_other_payments')
+            ->where('staff_id', $employeeId)
+            ->where('pay_title', $payTitle)
+            ->where('payslip_id', 0)
+            ->exists();
+    }
+
+    public function getOtherPaymentById(int $id): ?object
+    {
+        return DB::table('ci_payslip_other_payments')
+            ->where('payslip_other_payment_id', $id)
+            ->first();
+    }
+
+    public function updateOtherPayment(int $id, array $data): bool
+    {
+        try {
+            DB::table('ci_payslip_other_payments')
+                ->where('payslip_other_payment_id', $id)
+                ->update([
+                    'pay_amount' => $data['pay_amount'],
+                    'pay_title' => $data['pay_title'] ?? DB::table('ci_payslip_other_payments')->where('payslip_other_payment_id', $id)->value('pay_title')
+                ]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error('EmployeeRepository::updateOtherPayment failed', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception('فشل تعديل التعويض');
+        }
+    }
+
+    public function deleteOtherPayment(int $id): bool
+    {
+        try {
+            DB::table('ci_payslip_other_payments')
+                ->where('payslip_other_payment_id', $id)
+                ->delete();
+            return true;
+        } catch (\Exception $e) {
+            Log::error('EmployeeRepository::deleteOtherPayment failed', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception('فشل حذف التعويض');
+        }
+    }
+
+    public function getAllowances(int $employeeId, ?string $search = null): array
+    {
+        $query = DB::table('ci_payslip_allowances')
+            ->where('staff_id', $employeeId)
+            ->where('payslip_id', 0);
+
+        if ($search) {
+            $query->where('pay_title', 'like', "%{$search}%");
+        }
+
+        return $query->get()->toArray();
+    }
+
+    public function getCommissions(int $employeeId, ?string $search = null): array
+    {
+        $query = DB::table('ci_payslip_commissions')
+            ->where('staff_id', $employeeId)
+            ->where('payslip_id', 0);
+
+        if ($search) {
+            $query->where('pay_title', 'like', "%{$search}%");
+        }
+
+        return $query->get()->toArray();
+    }
+
+    public function getStatutoryDeductions(int $employeeId, ?string $search = null): array
+    {
+        $query = DB::table('ci_payslip_statutory_deductions')
+            ->where('staff_id', $employeeId)
+            ->where('payslip_id', 0);
+
+        if ($search) {
+            $query->where('pay_title', 'like', "%{$search}%");
+        }
+
+        return $query->get()->toArray();
+    }
+
+    public function getOtherPayments(int $employeeId, ?string $search = null): array
+    {
+        $query = DB::table('ci_payslip_other_payments')
+            ->where('staff_id', $employeeId)
+            ->where('payslip_id', 0);
+
+        if ($search) {
+                $query->where('pay_title', 'like', "%{$search}%");
+        }
+
+        return $query->get()->toArray();
+    }
+
+    
+    public function getEmployeeCountByCountry(int $companyId): array
+    {
+        $stats = DB::table('ci_erp_users as u')
+            ->select([
+                DB::raw('COALESCE(c.country_name, "--") as country'),
+                DB::raw('COUNT(u.user_id) as employee_count')
+            ])
+            ->leftJoin('ci_countries as c', 'c.country_id', '=', 'u.country')
+            ->where('u.company_id', $companyId)
+            ->where('u.user_type', 'staff')
+            ->where('u.is_active', 1)
+            ->groupBy('c.country_name')
+            ->get();
+
+        $totalCount = $stats->sum('employee_count');
+
+        $result = $stats->map(function ($item) {
+            return [
+                'country' => $item->country,
+                'count' => (int)$item->employee_count,
+            ];
+        })->toArray();
+
+        // Add Total row as in the screenshot
+        $result[] = [
+            'country' => 'الإجمالي',
+            'count' => (int)$totalCount,
+            'is_total' => true
+        ];
+
+        return $result;
     }
 }

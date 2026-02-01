@@ -90,4 +90,12 @@ enum RelativePlace: int
     {
         return [0, 1];
     }
+
+    public static function toArray(): array
+    {
+        return [
+            ['value' => self::OUTSIDE_COUNTRY->value, 'label_ar' => self::OUTSIDE_COUNTRY->getArabicLabel(), 'label_en' => self::OUTSIDE_COUNTRY->getEnglishLabel()],
+            ['value' => self::INSIDE_COUNTRY->value, 'label_ar' => self::INSIDE_COUNTRY->getArabicLabel(), 'label_en' => self::INSIDE_COUNTRY->getEnglishLabel()],
+        ];
+    }
 }

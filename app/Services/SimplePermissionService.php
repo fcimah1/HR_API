@@ -39,9 +39,11 @@ class SimplePermissionService
      */
     public function checkCompanyAccess(User $user, int $targetCompanyId): bool
     {
-        // إذا كان صاحب الشركة (company_id = 0) يمكنه الوصول لشركته فقط
+        // إذا كان صاحب الشركة (company_id = 0)
         if ($user->company_id == 0) {
-            return $targetCompanyId == $user->user_id;
+            // يمكنه الوصول لموظفي شركته (targetCompanyId == user_id)
+            // أو لبياناته الشخصية (targetCompanyId == 0)
+            return $targetCompanyId == $user->user_id || $targetCompanyId == 0;
         }
 
         // إذا كان موظف، يمكنه الوصول لشركته فقط
@@ -130,6 +132,10 @@ class SimplePermissionService
     {
         return strtolower(trim($user->user_type ?? '')) === 'company' || ($user->company_id == 0 && $user->user_role_id == 0);
     }
+
+    /**
+     * التحقق إذا كان المستخدم موظف
+     */
 
     public function isEmployee(User $user): bool
     {
@@ -243,9 +249,15 @@ class SimplePermissionService
 
     public function canViewEmployeeRequests(User $manager, User $employee): bool
     {
-        // مدير الشركة يرى الجميع
+        // يمكن للمستخدم دائماً رؤية طلباته الخاصة
+        if ($manager->user_id === $employee->user_id) {
+            return true;
+        }
+
+        // مدير الشركة يرى الجميع في شركته
         if ($this->isCompanyOwner($manager)) {
             // Check if the employee belongs to the company owner's company (which is the owner's user_id)
+            // Or if it's the owner themselves (though handled by self-check above)
             return $employee->company_id == $manager->user_id;
         }
 
@@ -591,7 +603,7 @@ class SimplePermissionService
 
                 // Hierarchy Level Check (Level 0 sees all, otherwise check level)
                 if ($currentHierarchyLevel > 0) {
-                    $q->where('ci_designations.hierarchy_level', '>', $currentHierarchyLevel);
+                    $q->where('ci_designations.hierarchy_level', '>=', $currentHierarchyLevel);
                 }
 
                 // Restrictions

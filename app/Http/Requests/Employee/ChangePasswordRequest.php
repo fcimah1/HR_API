@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Employee;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class ChangePasswordRequest extends FormRequest
 {
@@ -37,5 +39,21 @@ class ChangePasswordRequest extends FormRequest
             'confirm_password.required' => 'تأكيد كلمة المرور مطلوب',
             'confirm_password.same' => 'تأكيد كلمة المرور يجب أن يطابق كلمة المرور'
         ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'password' => 'كلمة المرور',
+            'confirm_password' => 'تأكيد كلمة المرور',
+        ];
+    }
+
+    public function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(response()->json([
+            'message' => 'Validation failed',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }
