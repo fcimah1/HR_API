@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Employee;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class UploadProfileImageRequest extends FormRequest
 {
@@ -35,5 +37,20 @@ class UploadProfileImageRequest extends FormRequest
             'profile_image.mimes' => 'صيغة الصورة يجب أن تكون: jpeg, png, jpg, gif',
             'profile_image.max' => 'حجم الصورة يجب أن يكون أقل من 2 ميجابايت'
         ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'profile_image' => 'صورة الملف الشخصي',
+        ];
+    }
+
+    public function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(response()->json([
+            'message' => 'Validation failed',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }

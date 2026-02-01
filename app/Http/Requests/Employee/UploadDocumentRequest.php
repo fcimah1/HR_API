@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Employee;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class UploadDocumentRequest extends FormRequest
 {
@@ -44,5 +46,23 @@ class UploadDocumentRequest extends FormRequest
             'expiration_date.date' => 'تاريخ انتهاء الصلاحية يجب أن يكون تاريخ صحيح',
             'expiration_date.after' => 'تاريخ انتهاء الصلاحية يجب أن يكون بعد اليوم'
         ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'document_name' => 'اسم المستند',
+            'document_type' => 'نوع المستند',
+            'document_file' => 'ملف المستند',
+            'expiration_date' => 'تاريخ انتهاء الصلاحية'
+        ];
+    }
+
+    public function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(response()->json([
+            'message' => 'Validation failed',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }

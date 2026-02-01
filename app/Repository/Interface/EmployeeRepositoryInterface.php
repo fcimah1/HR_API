@@ -192,4 +192,82 @@ interface EmployeeRepositoryInterface
      * Delete employee family data
      */
     public function deleteEmployeeFamilyData(int $contactId): bool;
+
+    /**
+     * Get employee documents with optional search
+     */
+    public function getEmployeeDocuments(int $employeeId, ?string $search = null): \Illuminate\Support\Collection;
+
+    /**
+     * Update employee basic information
+     */
+    public function updateEmployeeBasicInfo(int $employeeId, array $userData, array $detailsData): bool;
+
+    /**
+     * Get employee contract data
+     */
+    public function getEmployeeContractData(int $employeeId): array;
+
+    /**
+     * Update employee contract data
+     */
+    public function updateEmployeeContractData(int $employeeId, array $data): bool;
+
+    /**
+     * Get available contract options for a company
+     */
+    public function getContractOptions(int $companyId): array;
+
+    /**
+     * Add contract components
+     */
+    public function addAllowance(int $employeeId, array $data): int;
+    public function addCommission(int $employeeId, array $data): int;
+    public function addStatutoryDeduction(int $employeeId, array $data): int;
+    public function addOtherPayment(int $employeeId, array $data): int;
+
+    /**
+     * Contract components existence check
+     */
+    public function allowanceExists(int $employeeId, string $payTitle): bool;
+    public function commissionExists(int $employeeId, string $payTitle): bool;
+    public function statutoryDeductionExists(int $employeeId, string $payTitle): bool;
+    public function otherPaymentExists(int $employeeId, string $payTitle): bool;
+
+    /**
+     * Update contract components
+     */
+    public function updateAllowance(int $id, array $data): bool;
+    public function updateCommission(int $id, array $data): bool;
+    public function updateStatutoryDeduction(int $id, array $data): bool;
+    public function updateOtherPayment(int $id, array $data): bool;
+
+    /**
+     * Delete contract components
+     */
+    public function deleteAllowance(int $id): bool;
+    public function deleteCommission(int $id): bool;
+    public function deleteStatutoryDeduction(int $id): bool;
+    public function deleteOtherPayment(int $id): bool;
+
+    /**
+     * Get contract components by ID
+     */
+    public function getAllowanceById(int $id): ?object;
+    public function getCommissionById(int $id): ?object;
+    public function getStatutoryDeductionById(int $id): ?object;
+    public function getOtherPaymentById(int $id): ?object;
+
+    /**
+     * Get contract components with optional search
+     */
+    public function getAllowances(int $employeeId, ?string $search = null): array;
+    public function getCommissions(int $employeeId, ?string $search = null): array;
+    public function getStatutoryDeductions(int $employeeId, ?string $search = null): array;
+    public function getOtherPayments(int $employeeId, ?string $search = null): array;
+
+    /**
+     * Get employee count grouped by country
+     */
+    public function getEmployeeCountByCountry(int $companyId): array;
 }

@@ -13,6 +13,10 @@ namespace App\Http\Controllers;
  * )
  * 
  * @OA\Server(
+ *     url="https://api.firstsoft.io",
+ *     description="Production Server"
+ * ),
+ * @OA\Server(
  *     url="http://127.0.0.1:8000",
  *     description="Local Development Server"
  * )

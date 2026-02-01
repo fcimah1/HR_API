@@ -10,6 +10,10 @@
     },
     "servers": [
         {
+            "url": "https://api.firstsoft.io",
+            "description": "Production Server"
+        },
+        {
             "url": "http://127.0.0.1:8000",
             "description": "Local Development Server"
         }
@@ -5400,6 +5404,286 @@
                 ]
             }
         },
+        "/api/employees/{id}/documents": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Get employee documents",
+                "description": "Retrieve all documents uploaded for specific employee",
+                "operationId": "ac580f225eaf65d289055d0bcd2f58af",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Documents retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب المستندات بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "documents": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "document_type": {
+                                                                "type": "string",
+                                                                "example": "CV"
+                                                            },
+                                                            "file_name": {
+                                                                "type": "string",
+                                                                "example": "cv_mohammed.pdf"
+                                                            },
+                                                            "file_path": {
+                                                                "type": "string",
+                                                                "example": "/storage/documents/cv_mohammed.pdf"
+                                                            },
+                                                            "uploaded_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب مستندات الموظف"
+                    },
+                    "422": {
+                        "description": "بيانات غير صحيحة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/leave-balance": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Get employee leave balance",
+                "description": "Retrieve current leave balance for specific employee",
+                "operationId": "fb72cdd6d456211249a7de1735f7300b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leave balance retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب رصيد الإجازات بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "annual_leave": {
+                                                    "properties": {
+                                                        "total": {
+                                                            "type": "integer",
+                                                            "example": 30
+                                                        },
+                                                        "used": {
+                                                            "type": "integer",
+                                                            "example": 12
+                                                        },
+                                                        "remaining": {
+                                                            "type": "integer",
+                                                            "example": 18
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "sick_leave": {
+                                                    "properties": {
+                                                        "total": {
+                                                            "type": "integer",
+                                                            "example": 15
+                                                        },
+                                                        "used": {
+                                                            "type": "integer",
+                                                            "example": 3
+                                                        },
+                                                        "remaining": {
+                                                            "type": "integer",
+                                                            "example": 12
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "emergency_leave": {
+                                                    "properties": {
+                                                        "total": {
+                                                            "type": "integer",
+                                                            "example": 5
+                                                        },
+                                                        "used": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "remaining": {
+                                                            "type": "integer",
+                                                            "example": 4
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب رصيد إجازات الموظف"
+                    },
+                    "422": {
+                        "description": "بيانات غير صحيحة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/stats/by-country": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "جلب إحصائيات الموظفين حسب الدولة",
+                "description": "Returns a summary of employee counts grouped by their country of origin",
+                "operationId": "e031097bea1a1405615f58428e37665f",
+                "responses": {
+                    "200": {
+                        "description": "تم جلب إحصائيات الموظفين حسب الدولة بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب إحصائيات الموظفين حسب الدولة بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "country": {
+                                                        "type": "string",
+                                                        "example": "مصر"
+                                                    },
+                                                    "count": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "is_total": {
+                                                        "type": "boolean",
+                                                        "example": false
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/employees/employees-for-duty-employee": {
             "get": {
                 "tags": [
@@ -5898,6 +6182,74 @@
                                 }
                             }
                         }
+                    },
+                    "422": {
+                        "description": "بيانات غير صحيحة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/enums": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "جلب الثوابت الخاصة بملف الموظف",
+                "description": "يجلب فصائل الدم، الحالة الاجتماعية، والجنس",
+                "operationId": "9ff5bbb461603ff5a0ab76fa83790248",
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "blood_groups": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "marital_statuses": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "genders": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
                     },
                     "422": {
                         "description": "بيانات غير صحيحة"
@@ -6500,6 +6852,26 @@
                     }
                 },
                 "responses": {
+                    "200": {
+                        "description": "Bank identity updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث المعلومات البنكية بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
                     },
@@ -6683,6 +7055,1103 @@
                 ]
             }
         },
+        "/api/employees/{id}/basic-info": {
+            "put": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "تحديث المعلومات الأساسية للموظف",
+                "description": "Update employee basic information",
+                "operationId": "725d67f2f1ab22b4d411c68f6ceef5ca",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateBasicInfoRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث المعلومات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث المعلومات الأساسية بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/contract-data": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "جلب بيانات العقد لموظف معين",
+                "description": "get employee contract data",
+                "operationId": "574b24823700e1079288f31ead36560a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "رقم الموظف",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "تعديل بيانات العقد لموظف معين",
+                "description": "update employee contract data",
+                "operationId": "3671db94de9b5426b8866512cb28c0ca",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "رقم الموظف",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateContractDataRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/contract-options": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "جلب خيارات البدلات والاستقطاعات والتعويضات والعمولات الممكنه للشركة",
+                "operationId": "d1b9053d111f31525732c71cdba37bae",
+                "responses": {
+                    "200": {
+                        "description": "تم جلب خيارات البدلات والاستقطاعات والتعويضات والعمولات الممكنه للشركة بنجاح"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية"
+                    },
+                    "404": {
+                        "description": "الشركة غير موجودة"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/allowances": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "جلب البدلات لموظف",
+                "operationId": "cccebed3c4068f103a349fb3de24e3fd",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "البحث في مسمى البدل",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البدلات بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "إضافة بدل لموظف",
+                "operationId": "2fefc1adfb461ea4c84bb694ce712a3a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddContractComponentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تمت الإضافة بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/allowances/{allowanceId}": {
+            "put": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "تعديل بدل لموظف",
+                "operationId": "a8cc49671590a131ba08d52a725e5bb6",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "allowanceId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "pay_amount": {
+                                        "type": "number",
+                                        "example": 1000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التعديل بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "حذف بدل لموظف",
+                "operationId": "a24498e046eaae17bbf8b6777038b0ba",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "allowanceId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/commissions": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "جلب العمولات لموظف",
+                "operationId": "74123313dcc93513fabf3a29a8ed95a7",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "البحث في مسمى العمولة",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب العمولات بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "إضافة عمولة لموظف",
+                "operationId": "a516eab649fa30c0902c1dfef078d433",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddContractComponentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تمت الإضافة بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/commissions/{commissionId}": {
+            "put": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "تعديل عمولة لموظف",
+                "operationId": "f928ace736593fb97c67611efe611b1d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "commissionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "pay_amount": {
+                                        "type": "number",
+                                        "example": 500
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التعديل بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "حذف عمولة لموظف",
+                "operationId": "2337afacdf09018120bcf7be43f3e9f0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "commissionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/statutory-deductions": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "جلب الاستقطاعات لموظف",
+                "operationId": "79e418d3780f8a3c5e2978c4a11b34da",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "البحث في مسمى الاستقطاع",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الاستقطاعات بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "إضافة خصم قانوني لموظف",
+                "operationId": "a4ac9956bdc05e556ea8ee9c3eae1717",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddContractComponentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تمت الإضافة بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/statutory-deductions/{deductionId}": {
+            "put": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "تعديل خصم قانوني لموظف",
+                "operationId": "4b4fde1085238988c759b30c0e88fb1d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "deductionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "pay_amount": {
+                                        "type": "number",
+                                        "example": 200
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التعديل بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "حذف خصم قانوني لموظف",
+                "operationId": "07f484a19abd01d226fb8b9c3a41f9f8",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "deductionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/other-payments": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "جلب التعويضات الأخرى لموظف",
+                "operationId": "84adaa1fe9b89ae659d3aa33de186737",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "البحث في مسمى الدفعة",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التعويضات الأخرى بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "إضافة تعويضات أخرى لموظف",
+                "operationId": "d2a3db0ee54f926f727e596e8675873b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddContractComponentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تمت الإضافة بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/other-payments/{paymentId}": {
+            "put": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "تعديل تعويض آخر لموظف",
+                "operationId": "b8d53c2322698d812e07269c6fbd5281",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "pay_amount": {
+                                        "type": "number",
+                                        "example": 300
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التعديل بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "حذف تعويض آخر لموظف",
+                "operationId": "1c238a95931da439ed162296f0418d09",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/requests": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "جلب الطلبات الموحدة لموظف",
+                "description": "Get unified requests for a specific employee.",
+                "operationId": "5f4c38c7ad5b58d9e3ef309a530be1fd",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Employee ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الطلبات الموحدة بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الطلبات الموحدة بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/my-profile/change-password": {
             "put": {
                 "tags": [
@@ -6821,103 +8290,6 @@
                     },
                     "404": {
                         "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لرفع الصورة الشخصية"
-                    },
-                    "422": {
-                        "description": "بيانات غير صحيحة"
-                    },
-                    "500": {
-                        "description": "خطأ في الخادم"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/my-profile/upload-document": {
-            "post": {
-                "tags": [
-                    "Employee Profile"
-                ],
-                "summary": "Upload employee document",
-                "description": "Upload a document for employee",
-                "operationId": "67d544e03c7f4bbe02b9dbf940941829",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "required": [
-                                    "document_name",
-                                    "document_type",
-                                    "document_file"
-                                ],
-                                "properties": {
-                                    "document_name": {
-                                        "type": "string",
-                                        "example": "CV"
-                                    },
-                                    "document_type": {
-                                        "type": "string",
-                                        "example": "resume"
-                                    },
-                                    "document_file": {
-                                        "description": "Document file",
-                                        "type": "string",
-                                        "format": "binary"
-                                    },
-                                    "expiration_date": {
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2025-12-31"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Document uploaded successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تم رفع المستند بنجاح"
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "document_id": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "document_url": {
-                                                    "type": "string",
-                                                    "example": "/storage/documents/cv_123.pdf"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "غير مصرح - يجب تسجيل الدخول"
-                    },
-                    "404": {
-                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لرفع المستندات"
                     },
                     "422": {
                         "description": "بيانات غير صحيحة"
@@ -7200,6 +8572,26 @@
                     }
                 },
                 "responses": {
+                    "200": {
+                        "description": "Bank information updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث المعلومات البنكية بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
                     },
@@ -7364,6 +8756,263 @@
                     },
                     "500": {
                         "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/my-profile/documents": {
+            "get": {
+                "tags": [
+                    "Employee Profile"
+                ],
+                "summary": "Get employee documents",
+                "description": "Retrieve and search through employee documents",
+                "operationId": "833438c6abf547c7f8492545c735e968",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search term for document name or type",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Documents retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب المستندات بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "document_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "document_name": {
+                                                        "type": "string",
+                                                        "example": "CV"
+                                                    },
+                                                    "document_type": {
+                                                        "type": "string",
+                                                        "example": "resume"
+                                                    },
+                                                    "document_file": {
+                                                        "type": "string",
+                                                        "example": "/storage/documents/cv_123.pdf"
+                                                    },
+                                                    "expiry_date": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                        "example": "2025-12-31"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-01-01T12:00:00Z"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/my-profile/enums": {
+            "get": {
+                "tags": [
+                    "Employee Profile"
+                ],
+                "summary": "جلب الثوابت الخاصة بملف الموظف",
+                "description": "يجلب فصائل الدم، الحالة الاجتماعية، والجنس",
+                "operationId": "6bc9ce8cc5a011a18b2770226eaac67e",
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "blood_groups": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "marital_statuses": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "genders": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/my-profile/basic-info": {
+            "put": {
+                "tags": [
+                    "Employee Profile"
+                ],
+                "summary": "تحديث المعلومات الأساسية للموظف",
+                "description": "Update employee basic information",
+                "operationId": "6ba2feaf2f89e31a48d5904e2eeb5038",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateBasicInfoRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث المعلومات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث المعلومات الأساسية بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/my-profile/contract-data": {
+            "get": {
+                "tags": [
+                    "Employee Profile"
+                ],
+                "summary": "جلب بيانات العقد للموظف الحالي",
+                "description": "Get current employee contract data",
+                "operationId": "d181ef959b9c0666bbda9cc825e6dae3",
+                "responses": {
+                    "200": {
+                        "description": "تم جلب بيانات العقد بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية"
                     }
                 },
                 "security": [
@@ -13496,6 +15145,528 @@
                 "responses": {
                     "200": {
                         "description": "Settings updated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/office-shifts": {
+            "get": {
+                "tags": [
+                    "OfficeShifts"
+                ],
+                "summary": "جلب قائمة نوبات العمل",
+                "operationId": "640268ccab3c75e29530edcd42e044fd",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "OfficeShifts"
+                ],
+                "summary": "إضافة نوبة عمل جديدة",
+                "operationId": "306bc143ec26b69ffc35521366158e4c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "shift_name": {
+                                        "type": "string",
+                                        "example": "Morning Shift"
+                                    },
+                                    "hours_per_day": {
+                                        "type": "integer",
+                                        "example": 8
+                                    },
+                                    "monday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "monday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "monday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "monday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "tuesday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "tuesday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "tuesday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "tuesday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "wednesday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "wednesday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "wednesday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "wednesday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "thursday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "thursday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "thursday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "thursday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "friday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "friday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "friday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "friday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "saturday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "saturday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "saturday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "saturday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "sunday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "sunday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "sunday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "sunday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "in_time_beginning": {
+                                        "type": "string",
+                                        "example": "08:30"
+                                    },
+                                    "in_time_end": {
+                                        "type": "string",
+                                        "example": "10:00"
+                                    },
+                                    "out_time_beginning": {
+                                        "type": "string",
+                                        "example": "16:30"
+                                    },
+                                    "out_time_end": {
+                                        "type": "string",
+                                        "example": "18:30"
+                                    },
+                                    "late_allowance": {
+                                        "type": "integer",
+                                        "example": 15
+                                    },
+                                    "break_start": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "break_end": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم الإضافة بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/office-shifts/{id}": {
+            "get": {
+                "tags": [
+                    "OfficeShifts"
+                ],
+                "summary": "جلب تفاصيل نوبة عمل",
+                "operationId": "0055a2ab81fa1d2601af73d933ff5de8",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "OfficeShifts"
+                ],
+                "summary": "تعديل نوبة عمل",
+                "operationId": "ecd64d4c43b6ddaa35ce74f48c076371",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "shift_name": {
+                                        "type": "string",
+                                        "example": "Morning Shift Updated"
+                                    },
+                                    "hours_per_day": {
+                                        "type": "integer",
+                                        "example": 8
+                                    },
+                                    "monday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "monday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "monday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "monday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "tuesday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "tuesday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "tuesday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "tuesday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "wednesday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "wednesday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "wednesday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "wednesday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "thursday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "thursday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "thursday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "thursday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "friday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "friday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "friday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "friday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "saturday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "saturday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "saturday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "saturday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "sunday_in_time": {
+                                        "type": "string",
+                                        "example": "09:00"
+                                    },
+                                    "sunday_out_time": {
+                                        "type": "string",
+                                        "example": "17:00"
+                                    },
+                                    "sunday_lunch_break": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "sunday_lunch_break_out": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    },
+                                    "in_time_beginning": {
+                                        "type": "string",
+                                        "example": "08:30"
+                                    },
+                                    "in_time_end": {
+                                        "type": "string",
+                                        "example": "10:00"
+                                    },
+                                    "out_time_beginning": {
+                                        "type": "string",
+                                        "example": "16:30"
+                                    },
+                                    "out_time_end": {
+                                        "type": "string",
+                                        "example": "18:30"
+                                    },
+                                    "late_allowance": {
+                                        "type": "integer",
+                                        "example": 15
+                                    },
+                                    "break_start": {
+                                        "type": "string",
+                                        "example": "13:00"
+                                    },
+                                    "break_end": {
+                                        "type": "string",
+                                        "example": "14:00"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التعديل بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "OfficeShifts"
+                ],
+                "summary": "حذف نوبة عمل",
+                "operationId": "d1060e8c69c5de9c8187404da920ce56",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -23981,6 +26152,24 @@
                     "type": "object"
                 }
             },
+            "AddContractComponentRequest": {
+                "title": "Add Contract Component Request",
+                "required": [
+                    "pay_title",
+                    "pay_amount"
+                ],
+                "properties": {
+                    "pay_title": {
+                        "type": "string",
+                        "example": "Transport Allowance"
+                    },
+                    "pay_amount": {
+                        "type": "number",
+                        "example": 500
+                    }
+                },
+                "type": "object"
+            },
             "BaseEmployeeRequest": {
                 "title": "Base Employee Request",
                 "required": [
@@ -24202,6 +26391,167 @@
                     "employee_idnum": {
                         "description": "Employee ID number",
                         "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateBasicInfoRequest": {
+                "title": "Update Basic Info Request",
+                "required": [
+                    "first_name",
+                    "last_name",
+                    "contact_number"
+                ],
+                "properties": {
+                    "first_name": {
+                        "type": "string",
+                        "example": "Ahmed"
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "example": "Mohamed"
+                    },
+                    "contact_number": {
+                        "type": "string",
+                        "example": "0123456789"
+                    },
+                    "date_of_birth": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "1990-01-01"
+                    },
+                    "marital_status": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "blood_group": {
+                        "type": "string",
+                        "example": "A+"
+                    },
+                    "religion_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "gender": {
+                        "type": "string",
+                        "example": "Male"
+                    },
+                    "city": {
+                        "type": "string",
+                        "example": "Cairo"
+                    },
+                    "state": {
+                        "type": "string",
+                        "example": "Cairo"
+                    },
+                    "zipcode": {
+                        "type": "string",
+                        "example": "12345"
+                    },
+                    "citizenship_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "country": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "address_1": {
+                        "type": "string",
+                        "example": "123 Street"
+                    },
+                    "address_2": {
+                        "type": "string",
+                        "example": "456 Street"
+                    },
+                    "id_number": {
+                        "type": "string",
+                        "example": "123456789"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateContractDataRequest": {
+                "title": "Update Contract Data Request",
+                "required": [],
+                "properties": {
+                    "branch_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "default_language": {
+                        "type": "string",
+                        "example": "en"
+                    },
+                    "date_of_joining": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2022-01-01"
+                    },
+                    "department_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "designation_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "basic_salary": {
+                        "type": "number",
+                        "example": 1000
+                    },
+                    "currency_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "hourly_rate": {
+                        "type": "number",
+                        "example": 10
+                    },
+                    "salary_payment_method": {
+                        "type": "string",
+                        "example": "DEPOSIT"
+                    },
+                    "salary_type": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "office_shift_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "contract_end": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "date_of_leaving": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2022-12-31"
+                    },
+                    "reporting_manager": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "job_type": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "is_work_from_home": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "not_part_of_orgchart": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "not_part_of_system_reports": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "role_description": {
+                        "type": "string",
+                        "example": "Description"
                     }
                 },
                 "type": "object"
@@ -25668,6 +28018,10 @@
         {
             "name": "Notifications",
             "description": "API for managing notifications and notification settings"
+        },
+        {
+            "name": "OfficeShifts",
+            "description": "إدارة نوبات العمل"
         },
         {
             "name": "Overtime Management",

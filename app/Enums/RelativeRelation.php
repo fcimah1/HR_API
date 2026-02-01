@@ -104,4 +104,14 @@ enum RelativeRelation: int
     {
         return [1, 2, 3, 4];
     }
+
+    public static function toArray(): array
+    {
+        return [
+            ['value' => self::FIRST_DEGREE->value, 'label_ar' => self::FIRST_DEGREE->getArabicLabel(), 'label_en' => self::FIRST_DEGREE->getEnglishLabel()],
+            ['value' => self::SECOND_DEGREE->value, 'label_ar' => self::SECOND_DEGREE->getArabicLabel(), 'label_en' => self::SECOND_DEGREE->getEnglishLabel()],
+            ['value' => self::THIRD_DEGREE->value, 'label_ar' => self::THIRD_DEGREE->getArabicLabel(), 'label_en' => self::THIRD_DEGREE->getEnglishLabel()],
+            ['value' => self::FOURTH_DEGREE->value, 'label_ar' => self::FOURTH_DEGREE->getArabicLabel(), 'label_en' => self::FOURTH_DEGREE->getEnglishLabel()],
+        ];
+    }
 }

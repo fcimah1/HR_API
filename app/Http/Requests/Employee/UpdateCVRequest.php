@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Employee;
 
 use App\Enums\ExperienceLevel;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
 class UpdateCVRequest extends FormRequest
@@ -45,5 +47,21 @@ class UpdateCVRequest extends FormRequest
             'experience.required' => 'مستوى الخبرة مطلوب',
             'experience.in' => 'مستوى الخبرة غير موجود',
         ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'bio' => 'النبذة الشخصية',
+            'experience' => 'مستوى الخبرة',
+        ];
+    }
+
+    public function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(response()->json([
+            'message' => 'Validation failed',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }

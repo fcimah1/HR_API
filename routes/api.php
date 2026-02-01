@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\EmployeeProfileController;
 use App\Http\Controllers\Api\ResignationController;
 use App\Http\Controllers\Api\TransferController;
+use App\Http\Controllers\Api\OfficeShiftController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -33,6 +34,7 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/companies', [AuthController::class, 'getCompanies']);
 Route::post('/refresh', [AuthController::class, 'refresh']);
+Route::get('/all-countries', [EmployeeProfileController::class, 'getCountries']); // Keep internal name or use existing
 
 // Biometric Device Integration (Public - لا يحتاج تسجيل دخول)
 Route::post('/biometric/punch', [BiometricAttendanceController::class, 'punch']);
@@ -58,23 +60,23 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('/stats', [App\Http\Controllers\Api\DashboardController::class, 'getStats']);
         Route::get('/activity', [App\Http\Controllers\Api\DashboardController::class, 'getActivity']);
     });
-    
+
     Route::prefix('employees')->group(function () {
         // Employees for duty employee - no permissions required (must come before /employees/{id})
         Route::get('/employees-for-duty-employee', [EmployeeController::class, 'getEmployeesForDutyEmployee']);
-        
+
         // Backup employees based on target employee department
         Route::get('/duty-employees', [EmployeeController::class, 'getDutyEmployeesForEmployee']);
-        
+
         // Employees for notify - returns employees who can receive notifications
         Route::get('/employees-for-notify', [EmployeeController::class, 'getEmployeesForNotify']);
-        
+
         // Employees subordinates - returns employees based on hierarchy and restrictions
         Route::get('/subordinates', [EmployeeController::class, 'getSubordinates']);
-        
+
         // Employee approval levels - returns approval chain for an employee
         Route::get('/approval-levels', [EmployeeController::class, 'getApprovalLevels']);
-        
+
         // Main employee CRUD operations
         Route::get('/', [EmployeeController::class, 'index'])->middleware('simple.permission:staff2');
         Route::post('/', [EmployeeController::class, 'store'])->middleware('simple.permission:staff3');
@@ -82,17 +84,16 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::put('/{id}', [EmployeeController::class, 'update'])->middleware('simple.permission:staff4')->where('id', '[0-9]+');
         Route::delete('/{id}', [EmployeeController::class, 'destroy'])->middleware('simple.permission:staff5')->where('id', '[0-9]+');
         Route::get('/search', [EmployeeController::class, 'search'])->middleware('simple.permission:staff2');
-        
-        // Employee Profile Data (requires hr_profile permission)
+        Route::get('/{id}/documents', [EmployeeController::class, 'getEmployeeDocuments'])->middleware('simple.permission:hr_documents');
+        Route::get('/{id}/leave-balance', [EmployeeController::class, 'getEmployeeLeaveBalance']);
+        Route::get('stats/by-country', [EmployeeController::class, 'getCountryStats'])->middleware('simple.permission:staff2');
+        Route::get('/enums', [EmployeeController::class, 'getProfileEnums']);
         // Route::get('/statistics', [EmployeeController::class, 'statistics'])->middleware('simple.permission:staff2');
-        // Route::get('/{id}/documents', [EmployeeController::class, 'getEmployeeDocuments'])->middleware('simple.permission:hr_documents');
-        // Route::get('/{id}/leave-balance', [EmployeeController::class, 'getEmployeeLeaveBalance']);
         // Route::get('/{id}/attendance', [EmployeeController::class, 'getEmployeeAttendance']);
         // Route::get('/{id}/salary-details', [EmployeeController::class, 'getEmployeeSalaryDetails']);
     });
-    
+
     // Employee Management with Simple Permission Checks
-    // Employee Profile Update Endpoints
     Route::prefix('employees')->middleware('simple.permission:staff4')->group(function () {
         Route::put('/{id}/change-password', [EmployeeController::class, 'changePassword']);
         Route::post('/{id}/upload-profile-image', [EmployeeController::class, 'uploadProfileImage']);
@@ -103,89 +104,128 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::put('/{id}/update-bank-info', [EmployeeController::class, 'updateBankInfo']);
         Route::put('/{id}/add-family-data', [EmployeeController::class, 'addFamilyData']);
         Route::delete('/{id}/delete-family-data/{contactId}', [EmployeeController::class, 'deleteFamilyData']);
+        Route::put('/{id}/update-basic-info', [EmployeeController::class, 'updateBasicInfo']);
+        Route::get('/{id}/contract-data', [EmployeeController::class, 'getEmployeeContractData']);
+        Route::put('/{id}/contract-data', [EmployeeController::class, 'updateContractData']);
+        Route::get('/contract-options', [EmployeeController::class, 'getContractOptions']);
+        Route::get('/{id}/allowances', [EmployeeController::class, 'getAllowances'])->where('id', '[0-9]+');
+        Route::post('/{id}/allowances', [EmployeeController::class, 'addAllowance'])->where('id', '[0-9]+');
+        Route::put('/{id}/allowances/{allowanceId}', [EmployeeController::class, 'updateAllowance']);
+        Route::delete('/{id}/allowances/{allowanceId}', [EmployeeController::class, 'deleteAllowance']);
+        Route::get('/{id}/commissions', [EmployeeController::class, 'getCommissions'])->where('id', '[0-9]+');
+        Route::post('/{id}/commissions', [EmployeeController::class, 'addCommission'])->where('id', '[0-9]+');
+        Route::put('/{id}/commissions/{commissionId}', [EmployeeController::class, 'updateCommission']);
+        Route::delete('/{id}/commissions/{commissionId}', [EmployeeController::class, 'deleteCommission']);
+        Route::get('/{id}/statutory-deductions', [EmployeeController::class, 'getStatutoryDeductions'])->where('id', '[0-9]+');
+        Route::post('/{id}/statutory-deductions', [EmployeeController::class, 'addStatutoryDeduction'])->where('id', '[0-9]+');
+        Route::put('/{id}/statutory-deductions/{deductionId}', [EmployeeController::class, 'updateStatutoryDeduction']);
+        Route::delete('/{id}/statutory-deductions/{deductionId}', [EmployeeController::class, 'deleteStatutoryDeduction']);
+        Route::get('/{id}/other-payments', [EmployeeController::class, 'getOtherPayments'])->where('id', '[0-9]+');
+        Route::post('/{id}/other-payments', [EmployeeController::class, 'addOtherPayment'])->where('id', '[0-9]+');
+        Route::put('/{id}/other-payments/{paymentId}', [EmployeeController::class, 'updateOtherPayment']);
+        Route::delete('/{id}/other-payments/{paymentId}', [EmployeeController::class, 'deleteOtherPayment']);
+        Route::get('{id}/requests/unified', [EmployeeController::class, 'getUnifiedRequests'])->where('id', '[0-9]+');
     });
-    
+
+
 
     // Employee Profile Update Endpoints for self
-    Route::prefix('profile')->group(function () {
+    Route::prefix('my-profile')->group(function () {
         Route::put('/change-password', [EmployeeProfileController::class, 'changePassword'])->middleware('simple.permission:change_password');
         Route::post('/upload-profile-image', [EmployeeProfileController::class, 'uploadProfileImage'])->middleware('simple.permission:hr_picture');
-        Route::post('/upload-document', [EmployeeController::class, 'uploadDocument'])->middleware('simple.permission:hr_documents');
-        Route::put('/update-profile-info', [EmployeeController::class, 'updateProfileInfo'])->middleware('simple.permission:account_info');
-        Route::put('/update-cv', [EmployeeProfileController::class, 'updateCV'])->middleware('simple.permission:hr_personal_info');
-        Route::put('/update-social-links', [EmployeeProfileController::class, 'updateSocialLinks'])->middleware('simple.permission:hr_personal_info');
-        Route::put('/update-bank-info', [EmployeeProfileController::class, 'updateBankInfo'])->middleware('simple.permission:hr_personal_info');
-        Route::put('/add-family-data', [EmployeeProfileController::class, 'addFamilyData'])->middleware('simple.permission:hr_personal_info');
-        Route::delete('/delete-family-data/{contactId}', [EmployeeProfileController::class, 'deleteFamilyData'])->middleware('simple.permission:hr_personal_info');
+        Route::put('/profile-info', [EmployeeController::class, 'updateProfileInfo'])->middleware('simple.permission:account_info');
+        Route::put('/basic-info', [EmployeeProfileController::class, 'updateBasicInfo'])->middleware('simple.permission:account_info');
+        Route::put('/cv', [EmployeeProfileController::class, 'updateCV'])->middleware('simple.permission:hr_personal_info');
+        Route::put('/social-links', [EmployeeProfileController::class, 'updateSocialLinks'])->middleware('simple.permission:hr_personal_info');
+        Route::put('/bank-info', [EmployeeProfileController::class, 'updateBankInfo'])->middleware('simple.permission:hr_personal_info');
+        Route::put('/family-data', [EmployeeProfileController::class, 'addFamilyData'])->middleware('simple.permission:hr_personal_info');
+        Route::delete('/family-data/{contactId}', [EmployeeProfileController::class, 'deleteFamilyData'])->middleware('simple.permission:hr_personal_info');
+        Route::get('/documents', [EmployeeProfileController::class, 'getEmployeeDocuments'])->middleware('simple.permission:hr_documents');
+        Route::get('/enums', [EmployeeProfileController::class, 'getProfileEnums']);
+        Route::get('/contract-data', [EmployeeProfileController::class, 'getContractData'])->middleware('simple.permission:hr_personal_info');
+    });
+
+    // Office Shifts Management
+    Route::prefix('office-shifts')->group(function () {
+        Route::get('/', [OfficeShiftController::class, 'index'])->middleware('simple.permission:shift1');
+        Route::get('/{id}', [OfficeShiftController::class, 'show'])->middleware('simple.permission:shift1');
+        Route::post('/', [OfficeShiftController::class, 'store'])->middleware('simple.permission:shift2');
+        Route::put('/{id}', [OfficeShiftController::class, 'update'])->middleware('simple.permission:shift3');
+        Route::delete('/{id}', [OfficeShiftController::class, 'destroy'])->middleware('simple.permission:shift4');
     });
 
     // Leave Management with Simple Permission Checks
-    Route::middleware('simple.permission:hr_leave')->group(function () {
-        Route::get('/leaves/enums', [LeaveController::class, 'getLeaveEnums']);
-        Route::get('/leaves/applications', [LeaveController::class, 'getApplications']);
-        Route::post('/leaves/applications', [LeaveController::class, 'createApplication']);
-        Route::delete('/leaves/applications/{id}/cancel', [LeaveController::class, 'cancelApplication']);
-        Route::put('/leaves/applications/{id}', [LeaveController::class, 'updateApplication']);
-        Route::get('/leaves/applications/{id}', [LeaveController::class, 'showApplication']);
+    Route::prefix('leaves')->group(function () {
+        Route::get('/enums', [LeaveController::class, 'getLeaveEnums']);
+        Route::get('/applications', [LeaveController::class, 'getApplications']);
+        Route::post('/applications', [LeaveController::class, 'createApplication']);
+        Route::delete('/applications/{id}/cancel', [LeaveController::class, 'cancelApplication']);
+        Route::put('/applications/{id}', [LeaveController::class, 'updateApplication']);
+        Route::get('/applications/{id}', [LeaveController::class, 'showApplication']);
 
-        // Hourly Leave Management
-        Route::get('/hourly-leaves/enums', [HourlyLeaveController::class, 'getEnums']);
-        route::apiResource('/hourly-leaves', HourlyLeaveController::class);
-        Route::delete('/hourly-leaves/{id}/cancel', [HourlyLeaveController::class, 'cancel']);
-        Route::post('/hourly-leaves/{id}/approve-or-reject', [HourlyLeaveController::class, 'approveOrReject']);
+        Route::get('/adjustments/enums', [LeaveAdjustmentController::class, 'getLeaveAdjustmentsEnums']);
+        Route::get('/adjustments', [LeaveAdjustmentController::class, 'getAdjustments']);
+        Route::post('/adjustments', [LeaveAdjustmentController::class, 'createAdjustment']);
+        Route::delete('/adjustments/{id}/cancel', [LeaveAdjustmentController::class, 'cancelAdjustment']);
+        Route::get('/adjustments/{id}', [LeaveAdjustmentController::class, 'showLeaveAdjustment']);
+        Route::put('/adjustments/{id}', [LeaveAdjustmentController::class, 'updateAdjustment']);
+        Route::get('/check-balance', [LeaveController::class, 'checkLeaveBalance']);
+        Route::get('/monthly-statistics', [LeaveController::class, 'getMonthlyStatistics']);
+        Route::get('/stats', [LeaveController::class, 'getStats']);
 
-        Route::get('/leaves/adjustments/enums', [LeaveAdjustmentController::class, 'getLeaveAdjustmentsEnums']);
-        Route::get('/leaves/adjustments', [LeaveAdjustmentController::class, 'getAdjustments']);
-        Route::post('/leaves/adjustments', [LeaveAdjustmentController::class, 'createAdjustment']);
-        Route::delete('/leaves/adjustments/{id}/cancel', [LeaveAdjustmentController::class, 'cancelAdjustment']);
-        Route::get('/leaves/adjustments/{id}', [LeaveAdjustmentController::class, 'showLeaveAdjustment']);
-        Route::put('/leaves/adjustments/{id}', [LeaveAdjustmentController::class, 'updateAdjustment']);
-
-        Route::get('/leave-types', [LeaveTypeController::class, 'index']);
-        Route::post('/leave-types', [LeaveTypeController::class, 'storeLeaveType']);
-        Route::get('/leave-types/{id}', [LeaveTypeController::class, 'showLeaveType']);
-        Route::put('/leave-types/{id}', [LeaveTypeController::class, 'updateLeaveType']);
-        Route::delete('/leave-types/{id}', [LeaveTypeController::class, 'destroyLeaveType']);
-        // Leave balance check 
-        Route::get('/leaves/check-balance', [LeaveController::class, 'checkLeaveBalance']);
-        Route::get('/leaves/monthly-statistics', [LeaveController::class, 'getMonthlyStatistics']);
-        Route::get('/leaves/stats', [LeaveController::class, 'getStats']);
-
-        Route::post('/leaves/applications/{id}/approve-or-reject', [LeaveController::class, 'approveApplication']);
-        Route::post('/leaves/adjustments/{id}/approve-or-reject', [LeaveAdjustmentController::class, 'approveAdjustment']);
+        Route::post('/applications/{id}/approve-or-reject', [LeaveController::class, 'approveApplication']);
+        Route::post('/adjustments/{id}/approve-or-reject', [LeaveAdjustmentController::class, 'approveAdjustment']);
+    });
+    // Hourly Leave Management
+    Route::prefix('hourly-leaves')->group(function () {
+        Route::get('/enums', [HourlyLeaveController::class, 'getEnums']);
+        route::apiResource('/', HourlyLeaveController::class);
+        Route::delete('/{id}/cancel', [HourlyLeaveController::class, 'cancel']);
+        Route::post('/{id}/approve-or-reject', [HourlyLeaveController::class, 'approveOrReject']);
     });
 
+    Route::prefix('leave-types')->group(function () {
+        Route::get('/', [LeaveTypeController::class, 'index']);
+        Route::post('/', [LeaveTypeController::class, 'storeLeaveType']);
+        Route::get('/{id}', [LeaveTypeController::class, 'showLeaveType']);
+        Route::put('/{id}', [LeaveTypeController::class, 'updateLeaveType']);
+        Route::delete('/{id}', [LeaveTypeController::class, 'destroyLeaveType']);
+    });
+    // Leave balance check 
+
     // Advance Salary & Loan Management
-    Route::middleware('simple.permission:hradvance_salary')->group(function () {
-        Route::get('/advances', [AdvanceSalaryController::class, 'index']);
-        Route::post('/advances', [AdvanceSalaryController::class, 'store']);
-        Route::post('/advances/tier-based', [AdvanceSalaryController::class, 'storeTierBased']);
-        Route::get('/advances/stats', [AdvanceSalaryController::class, 'stats']);
-        Route::post('/advances/{id}/approve', [AdvanceSalaryController::class, 'approve']);
-        Route::delete('/advances/{id}/cancel', [AdvanceSalaryController::class, 'cancel']);
-        Route::get('/advances/{id}', [AdvanceSalaryController::class, 'show']);
-        Route::put('/advances/{id}', [AdvanceSalaryController::class, 'update']);
-        // Loan Eligibility & Tiers (Simplified)
-        Route::get('/loans/form-init', [\App\Http\Controllers\Api\LoanController::class, 'formInit']);
-        Route::post('/loans/preview', [\App\Http\Controllers\Api\LoanController::class, 'preview']);
+    Route::prefix('advances')->group(function () {
+        Route::get('/', [AdvanceSalaryController::class, 'index']);
+        Route::post('/', [AdvanceSalaryController::class, 'store']);
+        Route::post('/tier-based', [AdvanceSalaryController::class, 'storeTierBased']);
+        Route::get('/stats', [AdvanceSalaryController::class, 'stats']);
+        Route::post('/{id}/approve', [AdvanceSalaryController::class, 'approve']);
+        Route::delete('/{id}/cancel', [AdvanceSalaryController::class, 'cancel']);
+        Route::get('/{id}', [AdvanceSalaryController::class, 'show']);
+        Route::put('/{id}', [AdvanceSalaryController::class, 'update']);
+    });
+    // Loan Eligibility & Tiers (Simplified)
+    Route::prefix('loans')->group(function () {
+        Route::get('/form-init', [\App\Http\Controllers\Api\LoanController::class, 'formInit']);
+        Route::post('/preview', [\App\Http\Controllers\Api\LoanController::class, 'preview']);
     });
 
 
 
     // Overtime Management
-    Route::middleware('simple.permission:overtime_req1')->group(function () {
-        Route::get('/overtime/requests', [OvertimeController::class, 'index']);
-        Route::post('/overtime/requests', [OvertimeController::class, 'store']);
-        Route::get('/overtime/requests/{id}', [OvertimeController::class, 'show']);
-        Route::put('/overtime/requests/{id}', [OvertimeController::class, 'update']);
-        Route::delete('/overtime/requests/{id}', [OvertimeController::class, 'destroy']);
-        Route::post('/overtime/requests/{id}/approve', [OvertimeController::class, 'approve']);
-        Route::post('/overtime/requests/{id}/reject', [OvertimeController::class, 'reject']);
+    Route::prefix('overtime')->group(function () {
+        Route::get('/requests', [OvertimeController::class, 'index']);
+        Route::post('/requests', [OvertimeController::class, 'store']);
+        Route::get('/requests/{id}', [OvertimeController::class, 'show']);
+        Route::put('/requests/{id}', [OvertimeController::class, 'update']);
+        Route::delete('/requests/{id}', [OvertimeController::class, 'destroy']);
+        Route::post('/requests/{id}/approve', [OvertimeController::class, 'approve']);
+        Route::post('/requests/{id}/reject', [OvertimeController::class, 'reject']);
+        Route::get('/enums', [OvertimeController::class, 'getEnums']);
+        Route::get('/requests/pending', [OvertimeController::class, 'pending']);
+        Route::get('/requests/team', [OvertimeController::class, 'team']);
+        // Route::get('/overtime/stats', [OvertimeController::class, 'stats']);
     });
-    Route::get('/overtime/enums', [OvertimeController::class, 'getEnums']);
-    Route::get('/overtime/requests/pending', [OvertimeController::class, 'pending']);
-    Route::get('/overtime/requests/team', [OvertimeController::class, 'team']);
-    // Route::get('/overtime/stats', [OvertimeController::class, 'stats']);
 
     // System Logs
     Route::middleware('role:company')->group(function () {
@@ -196,46 +236,46 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::get('/attendances', [AttendanceController::class, 'index'])->middleware('simple.permission:attendance');
 
     // Attendance Management
-    Route::middleware('simple.permission:timesheet')->group(function () {
+    Route::prefix('attendances')->group(function () {
         // Clock in/out operations
-        Route::post('/attendances/clock-in', [AttendanceController::class, 'clockIn'])->middleware('simple.permission:upattendance2');
-        Route::post('/attendances/clock-out', [AttendanceController::class, 'clockOut'])->middleware('simple.permission:upattendance2');
+        Route::post('/clock-in', [AttendanceController::class, 'clockIn'])->middleware('simple.permission:upattendance2');
+        Route::post('/clock-out', [AttendanceController::class, 'clockOut'])->middleware('simple.permission:upattendance2');
 
         // Lunch break operations
-        Route::post('/attendances/lunch-break-in', [AttendanceController::class, 'lunchBreakIn'])->middleware('simple.permission:upattendance2');
-        Route::post('/attendances/lunch-break-out', [AttendanceController::class, 'lunchBreakOut'])->middleware('simple.permission:upattendance2');
+        Route::post('/lunch-break-in', [AttendanceController::class, 'lunchBreakIn'])->middleware('simple.permission:upattendance2');
+        Route::post('/lunch-break-out', [AttendanceController::class, 'lunchBreakOut'])->middleware('simple.permission:upattendance2');
 
         // Today's status and monthly reports
-        Route::get('/attendances/today', [AttendanceController::class, 'getTodayStatus'])->middleware('simple.permission:upattendance2');
-        Route::get('/attendances/monthly-report', [AttendanceController::class, 'getMonthlyReport'])->middleware('simple.permission:monthly_time');
-        Route::get('/attendances/details', [AttendanceController::class, 'getAttendanceDetails'])->middleware('simple.permission:timesheet');
+        Route::get('/today', [AttendanceController::class, 'getTodayStatus'])->middleware('simple.permission:upattendance2');
+        Route::get('/monthly-report', [AttendanceController::class, 'getMonthlyReport'])->middleware('simple.permission:monthly_time');
+        Route::get('/attendance-etails', [AttendanceController::class, 'getAttendanceDetails'])->middleware('simple.permission:timesheet');
 
         // CRUD operations (admin/manager only)
         // Route::get('/attendances/{id}', [AttendanceController::class, 'show'])->middleware('simple.permission:upattendance1');
-        Route::put('/attendances/{id}', [AttendanceController::class, 'update'])->middleware('simple.permission:upattendance3');
-        Route::delete('/attendances/{id}', [AttendanceController::class, 'destroy'])->middleware('simple.permission:upattendance4');
+        Route::put('/{id}', [AttendanceController::class, 'update'])->middleware('simple.permission:upattendance3');
+        Route::delete('/{id}', [AttendanceController::class, 'destroy'])->middleware('simple.permission:upattendance4');
     });
 
     // Travel Management
-    Route::middleware('simple.permission:hr_travel')->group(function () {
-        Route::get('/travels/enums', [App\Http\Controllers\Api\TravelController::class, 'getEnums']);
-        Route::get('/travels', [App\Http\Controllers\Api\TravelController::class, 'index']);
-        Route::post('/travels', [App\Http\Controllers\Api\TravelController::class, 'storeTravel']);
-        Route::get('/travels/search', [App\Http\Controllers\Api\TravelController::class, 'search']);
-        Route::get('/travels/{id}', [App\Http\Controllers\Api\TravelController::class, 'showTravel']);
-        Route::put('/travels/{id}', [App\Http\Controllers\Api\TravelController::class, 'updateTravel']);
-        Route::delete('/travels/{id}', [App\Http\Controllers\Api\TravelController::class, 'cancelTravel']);
-        Route::post('/travels/{id}/approve-or-reject', [App\Http\Controllers\Api\TravelController::class, 'approveTravel']);
-
-        // Travel Type Management
-        Route::get('/travel-types', [App\Http\Controllers\Api\TravelTypeController::class, 'index']);
-        Route::post('/travel-types', [App\Http\Controllers\Api\TravelTypeController::class, 'storeTravelType']);
-        Route::get('/travel-types/search', [App\Http\Controllers\Api\TravelTypeController::class, 'search']);
-        Route::get('/travel-types/{id}', [App\Http\Controllers\Api\TravelTypeController::class, 'showTravelType']);
-        Route::put('/travel-types/{id}', [App\Http\Controllers\Api\TravelTypeController::class, 'updateTravelType']);
-        Route::delete('/travel-types/{id}', [App\Http\Controllers\Api\TravelTypeController::class, 'destroyTravelType']);
+    Route::prefix('travels')->group(function () {
+        Route::get('/enums', [App\Http\Controllers\Api\TravelController::class, 'getEnums']);
+        Route::get('/', [App\Http\Controllers\Api\TravelController::class, 'index']);
+        Route::post('/', [App\Http\Controllers\Api\TravelController::class, 'storeTravel']);
+        Route::get('/search', [App\Http\Controllers\Api\TravelController::class, 'search']);
+        Route::get('/{id}', [App\Http\Controllers\Api\TravelController::class, 'showTravel']);
+        Route::put('/{id}', [App\Http\Controllers\Api\TravelController::class, 'updateTravel']);
+        Route::delete('/{id}', [App\Http\Controllers\Api\TravelController::class, 'cancelTravel']);
+        Route::post('/{id}/approve-or-reject', [App\Http\Controllers\Api\TravelController::class, 'approveTravel']);
     });
-
+    // Travel Type Management
+    Route::prefix('travel-types')->group(function () {
+        Route::get('/', [App\Http\Controllers\Api\TravelTypeController::class, 'index']);
+        Route::post('/', [App\Http\Controllers\Api\TravelTypeController::class, 'storeTravelType']);
+        Route::get('/search', [App\Http\Controllers\Api\TravelTypeController::class, 'search']);
+        Route::get('/{id}', [App\Http\Controllers\Api\TravelTypeController::class, 'showTravelType']);
+        Route::put('/{id}', [App\Http\Controllers\Api\TravelTypeController::class, 'updateTravelType']);
+        Route::delete('/{id}', [App\Http\Controllers\Api\TravelTypeController::class, 'destroyTravelType']);
+    });
     // Notifications & Approvals
     Route::prefix('notifications')->group(function () {
         // User notifications
@@ -259,7 +299,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Holidays Management
-    Route::prefix('holidays')->middleware('simple.permission:holiday')->group(function () {
+    Route::prefix('holidays')->group(function () {
         Route::get('/', [App\Http\Controllers\Api\HolidayController::class, 'index']);
         Route::post('/', [App\Http\Controllers\Api\HolidayController::class, 'store']);
         Route::get('/{id}', [App\Http\Controllers\Api\HolidayController::class, 'show']);
@@ -269,7 +309,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Suggestions Management
-    Route::prefix('suggestions')->middleware('simple.permission:hr_suggestions')->group(function () {
+    Route::prefix('suggestions')->group(function () {
         Route::get('/', [SuggestionController::class, 'index'])->middleware('simple.permission:suggestions1');
         Route::post('/', [SuggestionController::class, 'store'])->middleware('simple.permission:suggestions2');
         Route::get('/{id}', [SuggestionController::class, 'show'])->middleware('simple.permission:suggestions1');
@@ -281,7 +321,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Complaints Management
-    Route::prefix('complaints')->middleware('simple.permission:hr_complaints')->group(function () {
+    Route::prefix('complaints')->group(function () {
         Route::get('/', [ComplaintController::class, 'index'])->middleware('simple.permission:complaint1');
         Route::post('/', [ComplaintController::class, 'store'])->middleware('simple.permission:complaint2');
         Route::get('/statuses', [ComplaintController::class, 'getStatuses'])->middleware('simple.permission:complaint1');
@@ -292,7 +332,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Resignations Management
-    Route::prefix('resignations')->middleware('simple.permission:hr_resignations')->group(function () {
+    Route::prefix('resignations')->group(function () {
         Route::get('/', [ResignationController::class, 'index'])->middleware('simple.permission:resignation1');
         Route::post('/', [ResignationController::class, 'store'])->middleware('simple.permission:resignation2');
         Route::get('/statuses', [ResignationController::class, 'getStatuses'])->middleware('simple.permission:resignation1');
@@ -303,7 +343,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Transfers Management
-    Route::prefix('transfers')->middleware('simple.permission:hr_transfers')->group(function () {
+    Route::prefix('transfers')->group(function () {
         // Routes المحددة أولاً (قبل {id})
         Route::get('/', [TransferController::class, 'index'])->middleware('simple.permission:transfers1');
         Route::get('/statuses', [TransferController::class, 'getStatuses'])->middleware('simple.permission:transfers1');
@@ -333,7 +373,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     // Custody Clearance Management - إخلاء طرف العهد
     Route::get('/assets', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getAssets'])->middleware('simple.permission:hr_assets');
     Route::get('/custodies', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getCustodies'])->middleware('simple.permission:hr_custody_clearance1');
-    Route::prefix('custody-clearances')->middleware('simple.permission:hr_custody_clearance')->group(function () {
+    Route::prefix('custody-clearances')->group(function () {
         Route::get('/types', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getClearanceTypes'])->middleware('simple.permission:hr_custody_clearance1');
         Route::get('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'index'])->middleware('simple.permission:hr_custody_clearance1');
         Route::post('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'store'])->middleware('simple.permission:hr_custody_clearance2');
@@ -351,7 +391,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Support Tickets Management - تذاكر الدعم الفني
-    Route::prefix('support-tickets')->middleware('simple.permission:hr_helpdesk')->group(function () {
+    Route::prefix('support-tickets')->group(function () {
         Route::get('/enums', [\App\Http\Controllers\Api\SupportTicketController::class, 'getEnums'])->middleware('simple.permission:helpdesk1');
         Route::get('/', [\App\Http\Controllers\Api\SupportTicketController::class, 'index'])->middleware('simple.permission:helpdesk1');
         Route::post('/', [\App\Http\Controllers\Api\SupportTicketController::class, 'store'])->middleware('simple.permission:helpdesk2');
@@ -365,7 +405,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Internal Helpdesk - التذاكر الداخلية للدعم الفني
-    Route::prefix('internal-helpdesk')->middleware('simple.permission:hr_helpdesk')->group(function () {
+    Route::prefix('internal-helpdesk')->group(function () {
         Route::get('/enums', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'getEnums'])->middleware('simple.permission:helpdesk1');
         Route::get('/departments', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'getDepartments'])->middleware('simple.permission:helpdesk1');
         Route::get('/employees/{departmentId}', [\App\Http\Controllers\Api\InternalHelpdeskController::class, 'getEmployees'])->middleware('simple.permission:helpdesk1');
@@ -381,7 +421,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Training Management - إدارة التدريب
-    Route::prefix('trainings')->middleware('simple.permission:hr_training')->group(function () {
+    Route::prefix('trainings')->group(function () {
         Route::get('/enums', [\App\Http\Controllers\Api\TrainingController::class, 'enums'])->middleware('simple.permission:training1');
         Route::get('/statistics', [\App\Http\Controllers\Api\TrainingController::class, 'statistics'])->middleware('simple.permission:training1');
         Route::get('/', [\App\Http\Controllers\Api\TrainingController::class, 'index'])->middleware('simple.permission:training1');
@@ -395,7 +435,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Trainer Management - إدارة المدربين
-    Route::prefix('trainers')->middleware('simple.permission:hr_training')->group(function () {
+    Route::prefix('trainers')->group(function () {
         Route::get('/dropdown', [\App\Http\Controllers\Api\TrainerController::class, 'dropdown'])->middleware('simple.permission:training1');
         Route::get('/', [\App\Http\Controllers\Api\TrainerController::class, 'index'])->middleware('simple.permission:trainer1');
         Route::post('/', [\App\Http\Controllers\Api\TrainerController::class, 'store'])->middleware('simple.permission:trainer2');
@@ -405,7 +445,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Training Skills (Training Types) - أنواع التدريب (من ci_erp_constants)
-    Route::prefix('training-skills')->middleware('simple.permission:hr_training')->group(function () {
+    Route::prefix('training-skills')->group(function () {
         Route::get('/', [\App\Http\Controllers\Api\TrainingSkillController::class, 'index'])->middleware('simple.permission:training_skill1');
         Route::post('/', [\App\Http\Controllers\Api\TrainingSkillController::class, 'store'])->middleware('simple.permission:training_skill2');
         Route::put('/{id}', [\App\Http\Controllers\Api\TrainingSkillController::class, 'update'])->middleware('simple.permission:training_skill3');
