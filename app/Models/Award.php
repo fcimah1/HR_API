@@ -17,11 +17,14 @@ class Award extends Model
     protected $fillable = [
         'employee_id',
         'award_type_id',
+        'company_id',
         'gift_item',
         'cash_price',
+        'award_photo',
         'award_month_year',
+        'award_information',
+        'description',
         'created_at',
-        'company_id',
     ];
 
     protected $casts = [
@@ -29,6 +32,7 @@ class Award extends Model
         'award_type_id' => 'integer',
         'company_id' => 'integer',
         'cash_price' => 'decimal:2',
+        'created_at' => 'datetime',
     ];
 
     /**

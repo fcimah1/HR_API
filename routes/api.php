@@ -77,6 +77,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         // Employee approval levels - returns approval chain for an employee
         Route::get('/approval-levels', [EmployeeController::class, 'getApprovalLevels']);
 
+
         // Main employee CRUD operations
         Route::get('/', [EmployeeController::class, 'index'])->middleware('simple.permission:staff2');
         Route::post('/', [EmployeeController::class, 'store'])->middleware('simple.permission:staff3');
@@ -95,6 +96,8 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
 
     // Employee Management with Simple Permission Checks
     Route::prefix('employees')->middleware('simple.permission:staff4')->group(function () {
+        Route::get('/{id}/eligible-approvers', [EmployeeController::class, 'getEligibleApprovers']);
+        Route::post('/{id}/approvers', [EmployeeController::class, 'setApprovers']);
         Route::put('/{id}/change-password', [EmployeeController::class, 'changePassword']);
         Route::post('/{id}/upload-profile-image', [EmployeeController::class, 'uploadProfileImage']);
         Route::post('/{id}/upload-document', [EmployeeController::class, 'uploadDocument']);
@@ -256,6 +259,20 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::delete('/{id}', [AttendanceController::class, 'destroy'])->middleware('simple.permission:upattendance4');
     });
 
+    // Award Management
+    Route::prefix('awards')->group(function () {
+        Route::get('types', [\App\Http\Controllers\Api\AwardConfigurationController::class, 'indexTypes'])->middleware('simple.permission:award_type1');
+        Route::post('types', [\App\Http\Controllers\Api\AwardConfigurationController::class, 'storeType'])->middleware('simple.permission:award_type2');
+        Route::put('types/{id}', [\App\Http\Controllers\Api\AwardConfigurationController::class, 'updateType'])->middleware('simple.permission:award_type3');
+        Route::delete('types/{id}', [\App\Http\Controllers\Api\AwardConfigurationController::class, 'destroyType'])->middleware('simple.permission:award_type4');
+
+        Route::get('/', [\App\Http\Controllers\Api\AwardController::class, 'index'])->middleware('simple.permission:award1');
+        Route::post('/', [\App\Http\Controllers\Api\AwardController::class, 'store'])->middleware('simple.permission:award2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\AwardController::class, 'show'])->middleware('simple.permission:award1');
+        Route::match(['put', 'post'], '/{id}', [\App\Http\Controllers\Api\AwardController::class, 'update'])->middleware('simple.permission:award3'); // Using POST with _method=PUT to handle files
+        Route::delete('/{id}', [\App\Http\Controllers\Api\AwardController::class, 'destroy'])->middleware('simple.permission:award4');
+    });
+
     // Travel Management
     Route::prefix('travels')->group(function () {
         Route::get('/enums', [App\Http\Controllers\Api\TravelController::class, 'getEnums']);
@@ -371,14 +388,35 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     });
 
     // Custody Clearance Management - إخلاء طرف العهد
-    Route::get('/assets', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getAssets'])->middleware('simple.permission:hr_assets');
-    Route::get('/custodies', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getCustodies'])->middleware('simple.permission:hr_custody_clearance1');
+    // Route::get('/assets', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getAssets'])->middleware('simple.permission:hr_assets');
     Route::prefix('custody-clearances')->group(function () {
         Route::get('/types', [App\Http\Controllers\Api\CustodyClearanceController::class, 'getClearanceTypes'])->middleware('simple.permission:hr_custody_clearance1');
         Route::get('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'index'])->middleware('simple.permission:hr_custody_clearance1');
         Route::post('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'store'])->middleware('simple.permission:hr_custody_clearance2');
         Route::get('/{id}', [App\Http\Controllers\Api\CustodyClearanceController::class, 'show'])->middleware('simple.permission:hr_custody_clearance1');
         Route::post('/{id}/approve-or-reject', [App\Http\Controllers\Api\CustodyClearanceController::class, 'approveOrReject'])->middleware('simple.permission:hr_custody_clearance5');
+    });
+
+    // Asset Management Configuration (Categories & Brands)
+    Route::prefix('assets')->group(function () {
+        // Categories
+        Route::get('/categories', [App\Http\Controllers\Api\AssetConfigurationController::class, 'indexCategories'])->middleware('simple.permission:asset_cat1');
+        Route::post('/categories', [App\Http\Controllers\Api\AssetConfigurationController::class, 'storeCategory'])->middleware('simple.permission:asset_cat2');
+        Route::put('/categories/{id}', [App\Http\Controllers\Api\AssetConfigurationController::class, 'updateCategory'])->middleware('simple.permission:asset_cat3');
+        Route::delete('/categories/{id}', [App\Http\Controllers\Api\AssetConfigurationController::class, 'destroyCategory'])->middleware('simple.permission:asset_cat4');
+
+        // Brands
+        Route::get('/brands', [App\Http\Controllers\Api\AssetConfigurationController::class, 'indexBrands'])->middleware('simple.permission:asset_brand1');
+        Route::post('/brands', [App\Http\Controllers\Api\AssetConfigurationController::class, 'storeBrand'])->middleware('simple.permission:asset_brand2');
+        Route::put('/brands/{id}', [App\Http\Controllers\Api\AssetConfigurationController::class, 'updateBrand'])->middleware('simple.permission:asset_brand3');
+        Route::delete('/brands/{id}', [App\Http\Controllers\Api\AssetConfigurationController::class, 'destroyBrand'])->middleware('simple.permission:asset_brand4');
+
+        // Assets CRUD
+        Route::get('/', [App\Http\Controllers\Api\AssetController::class, 'index'])->middleware('simple.permission:asset1');
+        Route::post('/', [App\Http\Controllers\Api\AssetController::class, 'store'])->middleware('simple.permission:asset2');
+        Route::get('/{id}', [App\Http\Controllers\Api\AssetController::class, 'show'])->middleware('simple.permission:asset1');
+        Route::put('/{id}', [App\Http\Controllers\Api\AssetController::class, 'update'])->middleware('simple.permission:asset3');
+        Route::delete('/{id}', [App\Http\Controllers\Api\AssetController::class, 'destroy'])->middleware('simple.permission:asset4');
     });
 
     // Jobs Monitor (للشركات فقط)

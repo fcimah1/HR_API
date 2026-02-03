@@ -18,8 +18,8 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * @OA\Tag(
- *     name="Assets & Custody Clearance",
- *     description="إدارة الأصول وإخلاء طرف العهد"
+ *     name="Custody Clearance",
+ *     description="إدارة إخلاء طرف العهد"
  * )
  */
 class CustodyClearanceController extends Controller
@@ -32,7 +32,7 @@ class CustodyClearanceController extends Controller
      * @OA\Get(
      *     path="/api/custody-clearances/types",
      *     summary="عرض أنواع إخلاء الطرف",
-     *     tags={"Assets & Custody Clearance"},
+     *     tags={"Custody Clearance"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
@@ -65,88 +65,88 @@ class CustodyClearanceController extends Controller
 
 
 
-    /**
-     * @OA\Get(
-     *     path="/api/assets",
-     *     summary="عرض الأصول",
-     *     tags={"Assets & Custody Clearance"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="employee_id", in="query", description="معرف الموظف", @OA\Schema(type="integer")),
-     *     @OA\Parameter(name="search", in="query", description="بحث", @OA\Schema(type="string")),
-     *     @OA\Parameter(name="status", in="query", description="حالة الأصل", @OA\Schema(type="string", enum={"working","damaged","disposed"})),
-     *     @OA\Response(
-     *         response=200,
-     *         description="تم جلب العهد بنجاح",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="تم جلب العهد بنجاح"),
-     *             @OA\Property(
-     *                 property="data",
-     *                 type="array",
-     *                 @OA\Items(
-     *                     @OA\Property(property="assets_id", type="integer", example=1),
-     *                     @OA\Property(property="name", type="string", example="لابتوب Dell"),
-     *                     @OA\Property(property="serial_number", type="string", example="SN123456"),
-     *                     @OA\Property(property="company_asset_code", type="string", example="AST-001"),
-     *                     @OA\Property(property="status", type="string", example="working"),
-     *                     @OA\Property(property="purchase_date", type="string", format="date", example="2024-01-01"),
-     *                     @OA\Property(property="brand_name", type="string", example="Dell"),
-     *                     @OA\Property(property="assets_category", type="string", example="Laptops"),
-     *                     @OA\Property(
-     *                         property="employee",
-     *                         type="object",
-     *                         @OA\Property(property="id", type="integer", example=101),
-     *                         @OA\Property(property="name", type="string", example="أحمد محمد")
-     *                     )
-     *                 )
-     *             ),
-     *             @OA\Property(
-     *                 property="pagination",
-     *                 type="object",
-     *                 @OA\Property(property="current_page", type="integer", example=1),
-     *                 @OA\Property(property="last_page", type="integer", example=5),
-     *                 @OA\Property(property="per_page", type="integer", example=15),
-     *                 @OA\Property(property="total", type="integer", example=75)
-     *             )
-     *         )
-     *     ),
-     *     @OA\Response(response=403, description="غير مصرح"),
-     *     @OA\Response(response=500, description="خطأ في الخادم")
-     * )
-     */
-    public function getAssets(GetCustodiesRequest $request): JsonResponse
-    {
-        try {
-            $user = Auth::user();
-            $filters = CustodyFilterDTO::fromRequest($request->validated());
+    // /**
+    //  * @OA\Get(
+    //  *     path="/api/assets",
+    //  *     summary="عرض الأصول",
+    //  *     tags={"Custody Clearance"},
+    //  *     security={{"bearerAuth":{}}},
+    //  *     @OA\Parameter(name="employee_id", in="query", description="معرف الموظف", @OA\Schema(type="integer")),
+    //  *     @OA\Parameter(name="search", in="query", description="بحث", @OA\Schema(type="string")),
+    //  *     @OA\Parameter(name="status", in="query", description="حالة الأصل", @OA\Schema(type="string", enum={"working","damaged","disposed"})),
+    //  *     @OA\Response(
+    //  *         response=200,
+    //  *         description="تم جلب العهد بنجاح",
+    //  *         @OA\JsonContent(
+    //  *             @OA\Property(property="success", type="boolean", example=true),
+    //  *             @OA\Property(property="message", type="string", example="تم جلب العهد بنجاح"),
+    //  *             @OA\Property(
+    //  *                 property="data",
+    //  *                 type="array",
+    //  *                 @OA\Items(
+    //  *                     @OA\Property(property="assets_id", type="integer", example=1),
+    //  *                     @OA\Property(property="name", type="string", example="لابتوب Dell"),
+    //  *                     @OA\Property(property="serial_number", type="string", example="SN123456"),
+    //  *                     @OA\Property(property="company_asset_code", type="string", example="AST-001"),
+    //  *                     @OA\Property(property="status", type="string", example="working"),
+    //  *                     @OA\Property(property="purchase_date", type="string", format="date", example="2024-01-01"),
+    //  *                     @OA\Property(property="brand_name", type="string", example="Dell"),
+    //  *                     @OA\Property(property="assets_category", type="string", example="Laptops"),
+    //  *                     @OA\Property(
+    //  *                         property="employee",
+    //  *                         type="object",
+    //  *                         @OA\Property(property="id", type="integer", example=101),
+    //  *                         @OA\Property(property="name", type="string", example="أحمد محمد")
+    //  *                     )
+    //  *                 )
+    //  *             ),
+    //  *             @OA\Property(
+    //  *                 property="pagination",
+    //  *                 type="object",
+    //  *                 @OA\Property(property="current_page", type="integer", example=1),
+    //  *                 @OA\Property(property="last_page", type="integer", example=5),
+    //  *                 @OA\Property(property="per_page", type="integer", example=15),
+    //  *                 @OA\Property(property="total", type="integer", example=75)
+    //  *             )
+    //  *         )
+    //  *     ),
+    //  *     @OA\Response(response=403, description="غير مصرح"),
+    //  *     @OA\Response(response=500, description="خطأ في الخادم")
+    //  * )
+    //  */
+    // public function getAssets(GetCustodiesRequest $request): JsonResponse
+    // {
+    //     try {
+    //         $user = Auth::user();
+    //         $filters = CustodyFilterDTO::fromRequest($request->validated());
 
-            $result = $this->clearanceService->getCustodiesForEmployee($user, $filters);
+    //         $result = $this->clearanceService->getCustodiesForEmployee($user, $filters);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'تم جلب العهد بنجاح',
-                'data' => $result['data'],
-                'pagination' => $result['pagination'],
-            ]);
-        } catch (\Exception $e) {
-            Log::error('CustodyClearanceController::getCustodies failed', [
-                'error' => $e->getMessage(),
-            ]);
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'تم جلب العهد بنجاح',
+    //             'data' => $result['data'],
+    //             'pagination' => $result['pagination'],
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         Log::error('CustodyClearanceController::getCustodies failed', [
+    //             'error' => $e->getMessage(),
+    //         ]);
 
-            $statusCode = str_contains($e->getMessage(), 'صلاحية') ? 403 : 500;
+    //         $statusCode = str_contains($e->getMessage(), 'صلاحية') ? 403 : 500;
 
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], $statusCode);
-        }
-    }
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => $e->getMessage(),
+    //         ], $statusCode);
+    //     }
+    // }
 
     /**
      * @OA\Get(
      *     path="/api/custody-clearances",
      *     summary="عرض طلبات إخلاء الطرف",
-     *     tags={"Assets & Custody Clearance"},
+     *     tags={"Custody Clearance"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="employee_id", in="query", @OA\Schema(type="integer")),
      *     @OA\Parameter(name="status", in="query", @OA\Schema(type="string", enum={"pending","approved","rejected"})),
@@ -218,7 +218,7 @@ class CustodyClearanceController extends Controller
      * @OA\Get(
      *     path="/api/custody-clearances/{id}",
      *     summary="عرض تفاصيل طلب إخلاء طرف",
-     *     tags={"Assets & Custody Clearance"},
+     *     tags={"Custody Clearance"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(
@@ -295,7 +295,7 @@ class CustodyClearanceController extends Controller
      * @OA\Post(
      *     path="/api/custody-clearances",
      *     summary="إنشاء طلب إخلاء طرف جديد",
-     *     tags={"Assets & Custody Clearance"},
+     *     tags={"Custody Clearance"},
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
@@ -359,7 +359,7 @@ class CustodyClearanceController extends Controller
      * @OA\Post(
      *     path="/api/custody-clearances/{id}/approve-or-reject",
      *     summary="الموافقة أو رفض طلب إخلاء الطرف",
-     *     tags={"Assets & Custody Clearance"},
+     *     tags={"Custody Clearance"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\RequestBody(

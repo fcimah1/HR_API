@@ -3,15 +3,11 @@
 namespace App\Services;
 
 use App\Repository\Interface\EmployeeRepositoryInterface;
-use App\DTOs\Employee\EmployeeFilterDTO;
-use App\DTOs\Employee\EmployeeResponseDTO;
-use App\DTOs\Employee\CreateEmployeeDTO;
-use App\DTOs\Employee\UpdateEmployeeDTO;
 use App\Models\User;
 use App\Models\UserDetails;
-
 use App\Services\SimplePermissionService;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 class EmployeeService
 {
@@ -31,12 +27,7 @@ class EmployeeService
     public function getEmployeesForDutyEmployee(int $companyId, ?string $search = null, ?int $employeeId = null, ?int $departmentId = null): array
     {
 
-        $employees = $this->employeeRepository->getDutyEmployee(
-            $companyId,
-            $search,
-            $employeeId,
-            $departmentId
-        );
+        $employees = $this->employeeRepository->getDutyEmployee($companyId, $search, $employeeId, $departmentId);
 
         return $employees;
     }
@@ -58,13 +49,7 @@ class EmployeeService
     public function getEmployeesForNotify(int $companyId, int $currentUserId, ?int $currentHierarchyLevel = null, ?int $currentDepartmentId = null, ?string $search = null): array
     {
 
-        $employeesArray = $this->employeeRepository->getEmployeesForNotify(
-            $companyId,
-            $currentUserId,
-            $currentHierarchyLevel,
-            $currentDepartmentId,
-            $search
-        );
+        $employeesArray = $this->employeeRepository->getEmployeesForNotify($companyId, $currentUserId, $currentHierarchyLevel, $currentDepartmentId, $search);
 
         // Convert to collection of User models for filtering with model methods
         $employees = collect($employeesArray)->map(function ($employeeData) {
@@ -143,11 +128,13 @@ class EmployeeService
     }
 
     /**
-     * Get backup employees (duty alternatives) based on target employee's department.
-     * Enforces that the requester has permission to view the target employee.
-     *
+     * Get employees for backup assignment during leave
+     * Rule: Same Department, Ignore Hierarchy
+     * 
      * @param User $requester
-     * @param int $targetEmployeeId
+     * @param int|null $targetEmployeeId
+     * @param string|null $search
+     * @param int|null $employeeId
      * @return array
      * @throws Exception
      */
@@ -158,52 +145,35 @@ class EmployeeService
             $targetEmployeeId = $requester->user_id;
         }
 
-        $targetEmployee = User::with('user_details')->find($targetEmployeeId);
+        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($requester);
+        $targetEmployee = $this->employeeRepository->getEmployeeWithDetails($targetEmployeeId, $effectiveCompanyId);
+
         if (!$targetEmployee) {
-            throw new Exception('الموظف غير موجود');
+            Log::error('Employee not found for ID', [
+                'targetEmployeeId' => $targetEmployeeId,
+                'effectiveCompanyId' => $effectiveCompanyId,
+                'message' => 'الموظف غير موجود',
+            ]);
+            throw new Exception('الموظف غير موجود', 404);
         }
 
         // 2. Permission check: Can requester view/act for target employee?
-        // (Must be self or subordinate based on Hierarchy)
         if ($requester->user_id !== $targetEmployee->user_id && !$this->permissionService->canViewEmployeeRequests($requester, $targetEmployee)) {
-            throw new Exception('ليس لديك صلاحية لإجراء هذا الطلب لهذا الموظف.');
+            Log::error('Permission denied for user', [
+                'requesterId' => $requester->user_id,
+                'targetEmployeeId' => $targetEmployee->user_id,
+                'message' => 'ليس لديك صلاحية لإجراء هذا الطلب لهذا الموظف.',
+            ]);
+            throw new Exception('ليس لديك صلاحية لإجراء هذا الطلب لهذا الموظف.', 403);
         }
 
-        // 3. Build query for backup candidates
-        $query = User::query();
-
-        // Applying "Same Department, Ignore Hierarchy" logic
-        $this->permissionService->filterBackupEmployees($query, $targetEmployee);
-
-        // Apply search and employeeId filters if provided
-        if ($search) {
-            $searchTerm = "%{$search}%";
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('first_name', 'LIKE', $searchTerm)
-                    ->orWhere('last_name', 'LIKE', $searchTerm)
-                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$searchTerm]);
-            });
+        $departmentId = $targetEmployee->user_details?->department_id;
+        if (!$departmentId) {
+            return [];
         }
 
-        if ($employeeId) {
-            $query->where('user_id', $employeeId);
-        }
-
-        // 4. Execute and map
-        return $query->with(['user_details.designation', 'user_details.department'])
-            ->get()
-            ->map(function ($user) {
-                return [
-                    'user_id' => $user->user_id,
-                    'full_name' => $user->full_name,
-                    'email' => $user->email,
-                    'department_id' => $user->user_details->department_id ?? null,
-                    'department_name' => $user->user_details->department->department_name ?? 'N/A',
-                    'designation_name' => $user->user_details->designation->designation_name ?? 'N/A',
-                    'hierarchy_level' => $user->user_details->designation->hierarchy_level ?? null,
-                ];
-            })
-            ->toArray();
+        // 3. Fetch from repository
+        return $this->employeeRepository->getBackupEmployees($effectiveCompanyId, $departmentId, $search, $targetEmployee->user_id);
     }
 
     /**
@@ -226,7 +196,7 @@ class EmployeeService
         $targetEmployee = User::with(['user_details.designation'])->find($targetEmployeeId);
 
         if (!$targetEmployee) {
-            throw new Exception('الموظف غير موجود');
+            throw new Exception('الموظف غير موجود', 404);
         }
 
         // Permission check: Can requester view target employee?
@@ -235,7 +205,7 @@ class EmployeeService
             $requester->user_type !== 'company' &&
             !$this->permissionService->canViewEmployeeRequests($requester, $targetEmployee)
         ) {
-            throw new Exception('ليس لديك صلاحية لعرض بيانات هذا الموظف');
+            throw new Exception('ليس لديك صلاحية لعرض بيانات هذا الموظف', 403);
         }
 
         // Get UserDetails for approval levels

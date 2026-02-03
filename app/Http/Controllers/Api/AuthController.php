@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * @OA\Tag(
  *     name="Authentication",
- *     description="User authentication endpoints"
+ *     description="روابط التحقق"
  * )
  */
 class AuthController extends Controller
@@ -213,7 +213,7 @@ class AuthController extends Controller
         // إنشاء توكن جديد
         $tokenResult = $user->createToken('HR-API-Token');
         $token = $tokenResult->accessToken;
-        $tokenResult->token->expires_at = now()->addDays(1);
+        $tokenResult->token->expires_at = now()->addMinutes(120);
         $tokenResult->token->save();
 
         // Get user permissions and role data

@@ -13,6 +13,10 @@ class SimplePermissionService
     // Cache TTL for permissions (5 minutes)
     private const PERMISSION_CACHE_TTL = 300;
 
+    public function __construct(
+        private readonly \App\Repository\Interface\EmployeeRepositoryInterface $employeeRepository
+    ) {}
+
     /**
      * التحقق من صلاحية المستخدم
      */
@@ -467,7 +471,6 @@ class SimplePermissionService
                 $q->whereNotIn('branch_id', $restrictedBranches);
             });
         }
-
         return $query;
     }
 
@@ -481,7 +484,7 @@ class SimplePermissionService
      */
     public function getEmployeesByHierarchy(int $userId, int $companyId, bool $includeSelf = true): array
     {
-        $user = User::findOrFail($userId);
+        $user = User::find($userId);
         if (!$user) {
             return [];
         }
@@ -489,31 +492,13 @@ class SimplePermissionService
         // 1. إذا كان صاحب الشركة (Admin)، يرى الجميع فوراً
         if ($this->isCompanyOwner($user)) {
             // For company owner, their user_id is the company_id for staff
-            return DB::table('ci_erp_users')
-                ->select(
-                    'ci_erp_users.user_id',
-                    'ci_erp_users.first_name',
-                    'ci_erp_users.last_name',
-                    'ci_erp_users_details.designation_id',
-                    'ci_designations.designation_name as designation_name',
-                    'ci_designations.hierarchy_level as hierarchy_level',
-                    'ci_erp_users_details.department_id',
-                    'ci_departments.department_name as department_name',
-                    'ci_erp_users_details.branch_id',
-                    'ci_branchs.branch_name as branch_name',
-                    'ci_office_shifts.shift_name as shift_name',
-
-                )
-                ->leftJoin('ci_erp_users_details', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
-                ->leftJoin('ci_designations', 'ci_designations.designation_id', '=', 'ci_erp_users_details.designation_id')
-                ->leftJoin('ci_departments', 'ci_departments.department_id', '=', 'ci_erp_users_details.department_id')
-                ->leftJoin('ci_branchs', 'ci_branchs.branch_id', '=', 'ci_erp_users_details.branch_id')
-                ->leftJoin('ci_office_shifts', 'ci_office_shifts.office_shift_id', '=', 'ci_erp_users_details.office_shift_id')
-                ->where('ci_erp_users.company_id', $user->user_id)
-                ->where('ci_erp_users.user_type', 'staff')
-                ->where('ci_erp_users.is_active', 1)
-                ->get()
-                ->toArray();
+            return $this->employeeRepository->getEmployeesByHierarchy(
+                $user->user_id,
+                0, // Level 0 sees everyone
+                [],
+                [],
+                null // No specific user_id filter, as owner sees all staff
+            );
         }
 
         // 2. تحليل القيود (Restrictions) - الأقسام والفروع المحظورة
@@ -544,88 +529,14 @@ class SimplePermissionService
         // 3. معرفة المستوى الهرمي للمستخدم الحالي
         $currentHierarchyLevel = $this->getUserHierarchyLevel($user) ?? 5; // Default to 5 (lowest)
 
-        // المستوى 0 يرى الجميع
-        if ($currentHierarchyLevel === 0) {
-            return DB::table('ci_erp_users')
-                ->select(
-                    'ci_erp_users.user_id',
-                    'ci_erp_users.first_name',
-                    'ci_erp_users.last_name',
-                    'ci_erp_users_details.designation_id',
-                    'ci_designations.designation_name as designation_name',
-                    'ci_designations.hierarchy_level as hierarchy_level',
-                    'ci_erp_users_details.department_id',
-                    'ci_departments.department_name as department_name',
-                    'ci_erp_users_details.branch_id',
-                    'ci_branchs.branch_name as branch_name',
-                    'ci_office_shifts.shift_name as shift_name'
-                )
-                ->leftJoin('ci_erp_users_details', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
-                ->leftJoin('ci_designations', 'ci_designations.designation_id', '=', 'ci_erp_users_details.designation_id')
-                ->leftJoin('ci_departments', 'ci_departments.department_id', '=', 'ci_erp_users_details.department_id')
-                ->leftJoin('ci_branchs', 'ci_branchs.branch_id', '=', 'ci_erp_users_details.branch_id')
-                ->leftJoin('ci_office_shifts', 'ci_office_shifts.office_shift_id', '=', 'ci_erp_users_details.office_shift_id')
-                ->where('ci_erp_users.company_id', $companyId)
-                ->where('ci_erp_users.user_type', 'staff')
-                ->where('ci_erp_users.is_active', 1)
-                ->get()
-                ->toArray();
-        }
-
-        // 4. بناء الاستعلام مع الشروط
-        $baseQuery = DB::table('ci_erp_users')
-            ->select(
-                'ci_erp_users.user_id',
-                'ci_erp_users.first_name',
-                'ci_erp_users.last_name',
-                'ci_erp_users_details.designation_id',
-                'ci_designations.designation_name as designation_name',
-                'ci_designations.hierarchy_level as hierarchy_level',
-                'ci_erp_users_details.department_id',
-                'ci_departments.department_name as department_name',
-                'ci_branchs.branch_name as branch_name',
-                'ci_office_shifts.shift_name as shift_name'
-            )
-            ->leftJoin('ci_erp_users_details', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
-            ->leftJoin('ci_designations', 'ci_designations.designation_id', '=', 'ci_erp_users_details.designation_id')
-            ->leftJoin('ci_departments', 'ci_departments.department_id', '=', 'ci_erp_users_details.department_id')
-            ->leftJoin('ci_branchs', 'ci_branchs.branch_id', '=', 'ci_erp_users_details.branch_id')
-            ->leftJoin('ci_office_shifts', 'ci_office_shifts.office_shift_id', '=', 'ci_erp_users_details.office_shift_id')
-            ->where('ci_erp_users.company_id', $companyId)
-            ->where('ci_erp_users.user_type', 'staff')
-            ->where('ci_erp_users.is_active', 1);
-
-        $baseQuery->where(function ($masterQ) use ($userId, $includeSelf, $currentHierarchyLevel, $restrictedDepartments, $restrictedBranches) {
-
-            // Group 1: Matches Hierarchy & Restrictions & Staff Type
-            $masterQ->where(function ($q) use ($currentHierarchyLevel, $restrictedDepartments, $restrictedBranches) {
-                $q->where('ci_erp_users.user_type', 'staff');
-
-                // Hierarchy Level Check (Level 0 sees all, otherwise check level)
-                if ($currentHierarchyLevel > 0) {
-                    $q->where('ci_designations.hierarchy_level', '>=', $currentHierarchyLevel);
-                }
-
-                // Restrictions
-                if (!empty($restrictedDepartments)) {
-                    $q->whereNotIn('ci_erp_users_details.department_id', $restrictedDepartments);
-                }
-                if (!empty($restrictedBranches)) {
-                    $q->whereNotIn('ci_erp_users_details.branch_id', $restrictedBranches);
-                }
-            });
-
-            // Group 2: Include Self (Explicitly allowed regardless of above)
-            if ($includeSelf) {
-                $masterQ->orWhere('ci_erp_users.user_id', $userId);
-            }
-        });
-
-        if (!$includeSelf) {
-            $baseQuery->where('ci_erp_users.user_id', '!=', $userId);
-        }
-
-        return $baseQuery->get()->toArray();
+        // 4. بناء الاستعلام عبر المستودع (Repository)
+        return $this->employeeRepository->getEmployeesByHierarchy(
+            $companyId,
+            $currentHierarchyLevel,
+            $restrictedDepartments,
+            $restrictedBranches,
+            $includeSelf ? $userId : null
+        );
     }
 
     /**

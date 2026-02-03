@@ -1,32 +1,40 @@
 # HR Management API System
 
 ## 📋 Overview
+
 An enterprise-grade Human Resources Management API built with **Laravel**. This system provides a robust backend for managing the complete employee lifecycle, from recruitment to resignation/retirement. It features a sophisticated **hierarchical permission system**, multi-level approval workflows, and extensive module logical isolation (Departments/Branches).
 
 ## 🚀 Key Features
 
 ### 👤 Employee Management
+
 - **Complete Profile Management:** Personal, official, and document details.
 - **Hierarchical Visibility:** Access to employee data is strictly governed by `hierarchy_level` (Levels 1-5).
 - **Subordinates Management:** Automatic subordinate detection based on hierarchy.
 - **Duty/Backup Employees:** Logic for handling temporary assignments.
 
 ### 🕒 Attendance & Time Tracking
+
 - **Biometric Integration:** Endpoints for syncing logs from biometric devices.
 - **Manual Adjustments:** Support for manual clock-in/out with approval.
 - **Reports:** Daily status and monthly detailed reports.
 
 ### 🏝️ Leave Management
+
 - **Types:** Annual, Sick, Unpaid, etc.
 - **Hourly Leaves:** Short duration leave request tracking.
 - **Adjustments:** Automatic calculation adjustments and balance checks.
 - **Leave Balance:** Real-time checking endpoint.
 
 ### 💸 Payroll & Financials
+
 - **Advance Salary/Loans:** Request and approval cycle.
 - **Overtime:** Request management with rate calculations.
 
-### 🔄 Request Modules
+### 🔄 Request & Workflow Modules
+
+- **Office Shift Management:** Complete management of working hours, lunch breaks, and late allowances with full daily configuration.
+- **Unified Employee Requests:** Centralized view for all types of requests (Leaves, Overtimes, Transfers, etc.) for a specific employee.
 - **Custody Clearance (إخلاء طرف):** Asset tracking and return validation strictly tied to employee assignments.
 - **Transfers:** Internal (Dept to Dept), Branch, and Inter-company transfers with multi-step approvals.
 - **Resignations:** Formal resignation process with approval workflow.
@@ -34,20 +42,23 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 - **Complaints & Suggestions:** Feedback channels with privacy controls.
 
 ### 🔐 Security & Access Control
+
 - **OAuth2 Authentication:** Secure API access using Bearer tokens.
 - **Simple Permission Service:** Custom service layer enforcing:
-  - **Hierarchy Check:** Users can only view/act on subordinates.
-  - **Operation Restrictions:** Department and Branch level isolation.
-  - **Leaves Types Restrictions:** Leaves types restrictions.
+    - **Hierarchy Check:** Users can only view/act on subordinates.
+    - **Operation Restrictions:** Department and Branch level isolation.
+    - **Leaves Types Restrictions:** Leaves types restrictions.
 
 - **Company Isolation:** Multi-tenant architecture support (Company vs. Staff users).
 
 ### ✅ Approval Workflow
+
 - **Multi-Level Approvals:** Configurable approval chains (Level 1, 2, 3).
 - **Fallback Logic:** Automatic fallback to direct manager if no approval chain is defined.
 - **Notifications:** Integrated notification system for pending approvals.
 
 ## 🛠️ Technology Stack
+
 - **Framework:** Laravel 11/12 (PHP > 8.2)
 - **Database:** MySQL
 - **Documentation:** Swagger/OpenAPI (`l5-swagger`)
@@ -64,101 +75,127 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 ## ⚙️ Installation
 
 1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd HR_API
-   ```
+
+    ```bash
+    git clone <repository-url>
+    cd HR_API
+    ```
 
 2. **Install Dependencies:**
-   ```bash
-   composer install
-   npm install
-   ```
+
+    ```bash
+    composer install
+    npm install
+    ```
 
 3. **Environment Setup:**
-   ```bash
-   cp .env.example .env
-   php artisan key:generate
-   ```
-   *Configure your database credentials in `.env`*
+
+    ```bash
+    cp .env.example .env
+    php artisan key:generate
+    ```
+
+    _Configure your database credentials in `.env`_
 
 4. **Database Migration:**
-   ```bash
-   php artisan migrate
-   ```
+
+    ```bash
+    php artisan migrate
+    ```
 
 5. **API Documentation:**
    Generate Swagger documentation:
-   ```bash
-   php artisan l5-swagger:generate
-   ```
+
+    ```bash
+    php artisan l5-swagger:generate
+    ```
 
 6. **Serve:**
-   ```bash
-   php artisan serve
-   ```
+    ```bash
+    php artisan serve
+    ```
 
 ## 📚 API Structure
 
-| Module | Base Path | Key Operations |
-|--------|-----------|----------------|
-| **Employees** | `/api/employees` | List, View, Create, Update, Export (PDF) |
-| **Leaves** | `/api/leaves` | Apply, Approve/Reject, Balance Check |
-| **Hourly Leaves** | `/api/hourly-leaves` | Apply, Approve/Reject, Balance Check |
-| **Leave Adjustments** | `/api/leave-adjustments` | Apply, Approve/Reject |
-| **Leave Balance** | `/api/leave-balance` | Check Balance |
-| **Overtime** | `/api/overtimes` | Apply, Approve/Reject |
-| **Advance Salary/Loans** | `/api/advances` | Apply, Approve/Reject |
-| **Attendance** | `/api/attendances` | Clock In/Out, Monthly Report |
-| **Custody** | `/api/custody-clearances` | Create Clearance, List Assets |
-| **Transfers** | `/api/transfers` | Internal/Branch Transfer Requests |
-| **Resignations** | `/api/resignations` | Apply, Approve/Reject |
-| **Travels** | `/api/travels` | Apply, Approve/Reject |
-| **Complaints & Suggestions** | `/api/complaints` | Apply, Approve/Reject |
-| **Support Tickets** | `/api/support-tickets` | Create, Reply, Close, Reopen (See [docs/SUPPORT_TICKETS.md](docs/SUPPORT_TICKETS.md)) |
-| **Internal Helpdesk** | `/api/internal-helpdesk` | Internal IT/HR Support Tickets (See [docs/INTERNAL_HELPDESK_PLAN.md](docs/INTERNAL_HELPDESK_PLAN.md)) |
-| **Training** | `/api/trainings` | Manage Training Sessions (See [docs/TRAINING.md](docs/TRAINING.md)) |
-| **Trainers** | `/api/trainers` | Manage Trainers (See [docs/TRAINING.md](docs/TRAINING.md)) |
-| **Training Skills** | `/api/training-skills` | Manage Training Types/Skills (See [docs/TRAINING.md](docs/TRAINING.md)) |
-| **Biometric Attendance** | `/api/biometric-logs` | Sync Logs |
-| **Manual Attendance** | `/api/attendances` | Clock In/Out, Monthly Report |
-| **Notifications** | `/api/notifications` | List, Mark as Read |
-| **Approval** | `/api/approvals` | Pending List, History, Process |
+| Module                       | Base Path                              | Key Operations                                                                                        |
+| ---------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Employees**                | `/api/employees`                       | List, View, Create, Update, Export, Stats by Country                                                  |
+| **Office Shifts**            | `/api/office-shifts`                   | CRUD for office working schedules                                                                     |
+| **Unified Requests**         | `/api/employees/{id}/requests/unified` | Combined view of all request types                                                                    |
+| **Leaves**                   | `/api/leaves`                          | Apply, Approve/Reject, Balance Check                                                                  |
+| **Hourly Leaves**            | `/api/hourly-leaves`                   | Apply, Approve/Reject, Balance Check                                                                  |
+| **Leave Adjustments**        | `/api/leave-adjustments`               | Apply, Approve/Reject                                                                                 |
+| **Leave Balance**            | `/api/leave-balance`                   | Check Balance                                                                                         |
+| **Overtime**                 | `/api/overtimes`                       | Apply, Approve/Reject                                                                                 |
+| **Advance Salary/Loans**     | `/api/advances`                        | Apply, Approve/Reject                                                                                 |
+| **Attendance**               | `/api/attendances`                     | Clock In/Out, Monthly Report                                                                          |
+| **Custody**                  | `/api/custody-clearances`              | Create Clearance, List Assets                                                                         |
+| **Transfers**                | `/api/transfers`                       | Internal/Branch Transfer Requests                                                                     |
+| **Resignations**             | `/api/resignations`                    | Apply, Approve/Reject                                                                                 |
+| **Travels**                  | `/api/travels`                         | Apply, Approve/Reject                                                                                 |
+| **Complaints & Suggestions** | `/api/complaints`                      | Apply, Approve/Reject                                                                                 |
+| **Support Tickets**          | `/api/support-tickets`                 | Create, Reply, Close, Reopen (See [docs/SUPPORT_TICKETS.md](docs/SUPPORT_TICKETS.md))                 |
+| **Internal Helpdesk**        | `/api/internal-helpdesk`               | Internal IT/HR Support Tickets (See [docs/INTERNAL_HELPDESK_PLAN.md](docs/INTERNAL_HELPDESK_PLAN.md)) |
+| **Training**                 | `/api/trainings`                       | Manage Training Sessions (See [docs/TRAINING.md](docs/TRAINING.md))                                   |
+| **Trainers**                 | `/api/trainers`                        | Manage Trainers (See [docs/TRAINING.md](docs/TRAINING.md))                                            |
+| **Training Skills**          | `/api/training-skills`                 | Manage Training Types/Skills (See [docs/TRAINING.md](docs/TRAINING.md))                               |
+| **Biometric Attendance**     | `/api/biometric-logs`                  | Sync Logs                                                                                             |
+| **Manual Attendance**        | `/api/attendances`                     | Clock In/Out, Monthly Report                                                                          |
+| **Notifications**            | `/api/notifications`                   | List, Mark as Read                                                                                    |
+| **Approval**                 | `/api/approvals`                       | Pending List, History, Process                                                                        |
 
-*For full endpoint details, please refer to the Swagger UI at `/api/documentation`*
+_For full endpoint details, please refer to the Swagger UI at `/api/documentation`_
 
 ## 🛡️ Architecture Highlights
 
+### Standard Implementation Pattern
+
+To ensure scalability and maintainability, the project uses a layered architecture:
+
+- **DTOs (Data Transfer Objects):** For structured data passing between layers and request validation assistance.
+- **Repository Pattern:** Decoupling database logic from business logic.
+- **Service Layer:** Explicit business logic handling (e.g., `OfficeShiftService`).
+- **Form Requests:** Specialized request classes for robust input validation.
+
 ### The `SimplePermissionService`
+
 The core of our access control. Unlike standard RBAC, this service evaluates **dynamic relationships**:
+
 - Is User A numerically superior to User B? (`hierarchy_level`)
 - Is User A restricted from User B's department? (`OperationRestriction`)
 
 ### The `ApprovalService`
+
 A unified service for all approval-based modules.
+
 - **Checks:** `canUserApprove($userId, $requestId)`
 - **Logic:**
-  1. Checks defined approval chain in `ci_erp_users_details`.
-  2. If empty, falls back to `SimplePermissionService` hierarchy check.
-  3. Records approval steps in `ci_erp_notifications_approval`.
+    1. Checks defined approval chain in `ci_erp_users_details`.
+    2. If empty, falls back to `SimplePermissionService` hierarchy check.
+    3. Records approval steps in `ci_erp_notifications_approval`.
 
 ### Validation
+
 Strict validation rules prevent logical errors, such as:
+
 - Preventing creating requests for non-subordinates (403 Forbidden).
 - Ensuring assets in Custody Clearance actually belong to the employee.
 
 ---
-**Developed by:** FirstSoft Development Team
 
+**Developed by:** FirstSoft Development Team
+Eng: Mohamed Ahmed 
+Email: mohamed.firstsoft@gmail.com
+Phone No : 01120882362
 
 https://api.firstsoft.io
 
 Rules for Uploading to GitHub:
-1- git add .   
+1- git add .  
 2- git commit -m "Your commit message"
 3- git checkout -b <branch_name>
 4- git push -u origin <branch_name>
-5- git fetch origin     
+5- git fetch origin  
 6- git merge origin/main
 7- solve conflicts if any
 8- git add .
@@ -167,7 +204,5 @@ Rules for Uploading to GitHub:
 11- in github create pull request
 12- git pull origin main
 
-
-
 https://api.firstsoft.io
- php artisan l5-swagger:generate
+php artisan l5-swagger:generate

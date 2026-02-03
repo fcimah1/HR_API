@@ -1166,6 +1166,782 @@
                 ]
             }
         },
+        "/api/assets/categories": {
+            "get": {
+                "tags": [
+                    "Asset Configuration"
+                ],
+                "summary": "جلب قائمة فئات العهد",
+                "operationId": "a83e89f66ba6c41c082572c3811d446f",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الفئات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الفئات بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "constants_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "category_name": {
+                                                        "type": "string",
+                                                        "example": "Laptops"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "example": "2024-01-01 10:00:00"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Asset Configuration"
+                ],
+                "summary": "إضافة فئة عهد جديدة",
+                "operationId": "630c50298ae84a760eed75f8a1d32dc7",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Laptops"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة الفئة بنجاح"
+                    },
+                    "400": {
+                        "description": "خطأ في الطلب"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/categories/{id}": {
+            "put": {
+                "tags": [
+                    "Asset Configuration"
+                ],
+                "summary": "تعديل فئة عهد",
+                "operationId": "9483784fb1bc660cd5508821f693084b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Updated Category"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تعديل الفئة بنجاح"
+                    },
+                    "404": {
+                        "description": "الفئة غير موجودة"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Asset Configuration"
+                ],
+                "summary": "حذف فئة عهد",
+                "operationId": "028017ec1034db1fc342917cc78fcc1a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "الفئة غير موجودة"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/brands": {
+            "get": {
+                "tags": [
+                    "Asset Configuration"
+                ],
+                "summary": "جلب قائمة العلامات التجارية للعهد",
+                "operationId": "d7c980b46153c302c4d2ece5bc4d55d2",
+                "responses": {
+                    "200": {
+                        "description": "تم جلب العلامات التجارية بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب العلامات التجارية بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "constants_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "category_name": {
+                                                        "type": "string",
+                                                        "example": "Dell"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "example": "2024-01-01 10:00:00"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Asset Configuration"
+                ],
+                "summary": "إضافة علامة تجارية جديدة للعهد",
+                "operationId": "6a5655b2b07f1f1cf63499753a223398",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Dell"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة العلامة التجارية بنجاح"
+                    },
+                    "400": {
+                        "description": "خطأ في الطلب"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/brands/{id}": {
+            "put": {
+                "tags": [
+                    "Asset Configuration"
+                ],
+                "summary": "تعديل علامة تجارية",
+                "operationId": "915bd622ccb8bdc3a8450487a4fb4a6b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Updated Brand"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تعديل العلامة التجارية بنجاح"
+                    },
+                    "404": {
+                        "description": "العلامة التجارية غير موجودة"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Asset Configuration"
+                ],
+                "summary": "حذف علامة تجارية",
+                "operationId": "b932281e04f31e4658d81931e1acfe8c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "العلامة التجارية غير موجودة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets": {
+            "get": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "جلب قائمة العهد (Assets)",
+                "operationId": "50c726a8d4ee77df00ce287ce38f08e7",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث بالاسم أو الكود أو الرقم التسلسلي",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "asset_status",
+                        "in": "query",
+                        "description": "حالة العهدة",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "working"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "description": "تصفية حسب الفئة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "brand_id",
+                        "in": "query",
+                        "description": "تصفية حسب العلامة التجارية",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "تصفية حسب الموظف",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "إضافة عهدة جديدة",
+                "operationId": "5f044bcc586b0942143ae0541308a29f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "assets_category_id"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "MacBook Pro"
+                                    },
+                                    "assets_category_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "brand_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "employee_id": {
+                                        "type": "integer",
+                                        "example": 101
+                                    },
+                                    "company_asset_code": {
+                                        "type": "string",
+                                        "example": "AST-001"
+                                    },
+                                    "purchase_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-01"
+                                    },
+                                    "invoice_number": {
+                                        "type": "string",
+                                        "example": "INV-2024-001"
+                                    },
+                                    "serial_number": {
+                                        "type": "string",
+                                        "example": "SN123456789"
+                                    },
+                                    "warranty_end_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-01-01"
+                                    },
+                                    "is_working": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "asset_note": {
+                                        "type": "string",
+                                        "example": "ملحوظات"
+                                    },
+                                    "asset_image": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة العهدة بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/assets/{id}": {
+            "get": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "جلب تفاصيل عهدة",
+                "operationId": "bd8cd9b5700d93a32b257b93822796d1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التفاصيل بنجاح"
+                    },
+                    "404": {
+                        "description": "العهدة غير موجودة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "تحديث بيانات عهدة (method spoofing used for multipart: _method=PUT)",
+                "operationId": "28d6cbd2d8f6b575bc4d180c03b1475b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "_method": {
+                                        "type": "string",
+                                        "example": "PUT"
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Laptop"
+                                    },
+                                    "is_working": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "asset_image": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
+                                    "employee_id": {
+                                        "type": "integer",
+                                        "example": 767
+                                    },
+                                    "assets_category_id": {
+                                        "type": "integer",
+                                        "example": 325
+                                    },
+                                    "brand_id": {
+                                        "type": "integer",
+                                        "example": 326
+                                    },
+                                    "company_asset_code": {
+                                        "type": "string",
+                                        "example": "AST-001"
+                                    },
+                                    "purchase_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-01"
+                                    },
+                                    "invoice_number": {
+                                        "type": "string",
+                                        "example": "INV-2024-001"
+                                    },
+                                    "serial_number": {
+                                        "type": "string",
+                                        "example": "SN123456789"
+                                    },
+                                    "warranty_end_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2025-01-01"
+                                    },
+                                    "asset_note": {
+                                        "type": "string",
+                                        "example": "ملحوظات"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التحديث بنجاح"
+                    },
+                    "404": {
+                        "description": "العهدة غير موجودة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Asset Management"
+                ],
+                "summary": "حذف عهدة",
+                "operationId": "ebdb1a140fdcc2a0ce3b9bcd9a809879",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "العهدة غير موجودة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/attendances": {
             "get": {
                 "tags": [
@@ -2303,6 +3079,575 @@
                     },
                     "401": {
                         "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/awards/types": {
+            "get": {
+                "tags": [
+                    "Award Configuration"
+                ],
+                "summary": "عرض أنواع المكافئات",
+                "description": "يعرض قائمة بأنواع المكافئات المتاحة للشركة",
+                "operationId": "d5f45ad061783ffff96cdfbcd99da9ce",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث باسم النوع",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الأنواع بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "constants_id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "category_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Award Configuration"
+                ],
+                "summary": "إضافة نوع مكافئة جديد",
+                "description": "يضيف نوع مكافئة جديد للشركة",
+                "operationId": "38660edf6dc897a4c53edab472efe0c6",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "description": "اسم النوع",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة النوع بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إضافة النوع بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "constants_id": {
+                                                    "type": "integer"
+                                                },
+                                                "category_name": {
+                                                    "type": "string"
+                                                },
+                                                "type": {
+                                                    "type": "string",
+                                                    "example": "award_type"
+                                                },
+                                                "company_id": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "خطأ في الطلب"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/awards/types/{id}": {
+            "put": {
+                "tags": [
+                    "Award Configuration"
+                ],
+                "summary": "تحديث نوع مكافئة",
+                "description": "يحدث نوع مكافئة موجود",
+                "operationId": "5e8ea3963b1ad6f11e9d201ac3cd592e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "description": "اسم النوع",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التحديث بنجاح"
+                    },
+                    "404": {
+                        "description": "النوع غير موجود"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Award Configuration"
+                ],
+                "summary": "حذف نوع مكافئة",
+                "description": "يحذف نوع مكافئة موجود",
+                "operationId": "8718347ccacc172f5a1d8095d8fe840c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "النوع غير موجود"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/awards": {
+            "get": {
+                "tags": [
+                    "Award Management"
+                ],
+                "summary": "عرض قائمة المكافئات",
+                "description": "يعرض قائمة بجميع المكافئات مع إمكانية التصفية",
+                "operationId": "a9658008b205af3ef0e805200fd20850",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "description": "تصفية حسب الموظف",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "award_type_id",
+                        "in": "query",
+                        "description": "تصفية حسب نوع المكافئة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث عن المكافئة",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Award Management"
+                ],
+                "summary": "إضافة مكافئة جديدة",
+                "description": "يضيف مكافئة جديدة للموظف",
+                "operationId": "9cbcba3d6845b520b4f050302c4b4314",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "employee_id",
+                                    "award_type_id",
+                                    "award_date"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "type": "integer",
+                                        "example": 101
+                                    },
+                                    "award_type_id": {
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "award_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-01"
+                                    },
+                                    "gift_item": {
+                                        "type": "string",
+                                        "example": "الساعة الذكية"
+                                    },
+                                    "cash_price": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 500
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "مكافئة للأداء المتميز"
+                                    },
+                                    "award_information": {
+                                        "type": "string",
+                                        "example": "تفاصيل إضافية"
+                                    },
+                                    "award_file": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة المكافئة بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/awards/{id}": {
+            "get": {
+                "tags": [
+                    "Award Management"
+                ],
+                "summary": "عرض تفاصيل المكافئة",
+                "description": "يعرض تفاصيل مكافئة محددة",
+                "operationId": "5e45c7c75c5b1611d7d8eca80015c6f6",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التفاصيل بنجاح"
+                    },
+                    "404": {
+                        "description": "المكافئة غير موجودة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Award Management"
+                ],
+                "summary": "تعديل مكافئة",
+                "description": "يقوم بتعديل بيانات مكافئة موجودة (استخدم POST مع _method=PUT لدعم رفع الملفات)",
+                "operationId": "ffad7ee0b26f826bd23119b3cf639d85",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "_method": {
+                                        "type": "string",
+                                        "example": "PUT"
+                                    },
+                                    "employee_id": {
+                                        "type": "integer",
+                                        "example": "1"
+                                    },
+                                    "award_type_id": {
+                                        "type": "integer",
+                                        "example": "1"
+                                    },
+                                    "award_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-02-02"
+                                    },
+                                    "gift_item": {
+                                        "type": "string",
+                                        "example": "Gift Item"
+                                    },
+                                    "cash_price": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": "100.00"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Description"
+                                    },
+                                    "award_information": {
+                                        "type": "string",
+                                        "example": "Award Information"
+                                    },
+                                    "award_file": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "example": "Award File"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تعديل المكافئة بنجاح"
+                    },
+                    "404": {
+                        "description": "المكافئة غير موجودة"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Award Management"
+                ],
+                "summary": "حذف مكافئة",
+                "description": "يحذف مكافئة موجودة",
+                "operationId": "c88fbbd9642904283b789f3c120bfd23",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "المكافئة غير موجودة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -3810,7 +5155,7 @@
         "/api/custody-clearances/types": {
             "get": {
                 "tags": [
-                    "Assets & Custody Clearance"
+                    "Custody Clearance"
                 ],
                 "summary": "عرض أنواع إخلاء الطرف",
                 "operationId": "4d0c4ad2ee9d5482f4c85ea2cfa9d48a",
@@ -3867,158 +5212,10 @@
                 ]
             }
         },
-        "/api/assets": {
-            "get": {
-                "tags": [
-                    "Assets & Custody Clearance"
-                ],
-                "summary": "عرض الأصول",
-                "operationId": "8617eaf511f6e254bd595806326d951a",
-                "parameters": [
-                    {
-                        "name": "employee_id",
-                        "in": "query",
-                        "description": "معرف الموظف",
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    {
-                        "name": "search",
-                        "in": "query",
-                        "description": "بحث",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "status",
-                        "in": "query",
-                        "description": "حالة الأصل",
-                        "schema": {
-                            "type": "string",
-                            "enum": [
-                                "working",
-                                "damaged",
-                                "disposed"
-                            ]
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "تم جلب العهد بنجاح",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تم جلب العهد بنجاح"
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "properties": {
-                                                    "assets_id": {
-                                                        "type": "integer",
-                                                        "example": 1
-                                                    },
-                                                    "name": {
-                                                        "type": "string",
-                                                        "example": "لابتوب Dell"
-                                                    },
-                                                    "serial_number": {
-                                                        "type": "string",
-                                                        "example": "SN123456"
-                                                    },
-                                                    "company_asset_code": {
-                                                        "type": "string",
-                                                        "example": "AST-001"
-                                                    },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "example": "working"
-                                                    },
-                                                    "purchase_date": {
-                                                        "type": "string",
-                                                        "format": "date",
-                                                        "example": "2024-01-01"
-                                                    },
-                                                    "brand_name": {
-                                                        "type": "string",
-                                                        "example": "Dell"
-                                                    },
-                                                    "assets_category": {
-                                                        "type": "string",
-                                                        "example": "Laptops"
-                                                    },
-                                                    "employee": {
-                                                        "properties": {
-                                                            "id": {
-                                                                "type": "integer",
-                                                                "example": 101
-                                                            },
-                                                            "name": {
-                                                                "type": "string",
-                                                                "example": "أحمد محمد"
-                                                            }
-                                                        },
-                                                        "type": "object"
-                                                    }
-                                                },
-                                                "type": "object"
-                                            }
-                                        },
-                                        "pagination": {
-                                            "properties": {
-                                                "current_page": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "last_page": {
-                                                    "type": "integer",
-                                                    "example": 5
-                                                },
-                                                "per_page": {
-                                                    "type": "integer",
-                                                    "example": 15
-                                                },
-                                                "total": {
-                                                    "type": "integer",
-                                                    "example": 75
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "غير مصرح"
-                    },
-                    "500": {
-                        "description": "خطأ في الخادم"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
         "/api/custody-clearances": {
             "get": {
                 "tags": [
-                    "Assets & Custody Clearance"
+                    "Custody Clearance"
                 ],
                 "summary": "عرض طلبات إخلاء الطرف",
                 "operationId": "939416c4e67b65ae89b84013ec415070",
@@ -4158,7 +5355,7 @@
             },
             "post": {
                 "tags": [
-                    "Assets & Custody Clearance"
+                    "Custody Clearance"
                 ],
                 "summary": "إنشاء طلب إخلاء طرف جديد",
                 "operationId": "6e23a696905b600f38df820bef81ba21",
@@ -4247,7 +5444,7 @@
         "/api/custody-clearances/{id}": {
             "get": {
                 "tags": [
-                    "Assets & Custody Clearance"
+                    "Custody Clearance"
                 ],
                 "summary": "عرض تفاصيل طلب إخلاء طرف",
                 "operationId": "c10b57b22d4888d34b42a8ca294fd700",
@@ -4375,7 +5572,7 @@
         "/api/custody-clearances/{id}/approve-or-reject": {
             "post": {
                 "tags": [
-                    "Assets & Custody Clearance"
+                    "Custody Clearance"
                 ],
                 "summary": "الموافقة أو رفض طلب إخلاء الطرف",
                 "operationId": "6bb0d0b91d3fe38ef076d1c03f7c63b4",
@@ -6006,6 +7203,156 @@
                                             "items": {
                                                 "type": "object"
                                             }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "422": {
+                        "description": "بيانات غير صحيحة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/eligible-approvers": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Get eligible approvers for an employee",
+                "description": "Retrieve potential approvers who have a higher rank (lower hierarchy_level) than the specified employee.",
+                "operationId": "1a209d42f8ea28349f5122f64a57fb2a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Employee ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/EmployeeListResource"
+                                            }
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم استرجاع قائمة المعتمدين المؤهلين بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "422": {
+                        "description": "بيانات غير صحيحة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{id}/approvers": {
+            "post": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Set employee approvers",
+                "description": "Assign approvers to the employee.",
+                "operationId": "1e82c443e8f11ae0574fe718cd2de652",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Employee ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "approval_level01": {
+                                        "type": "integer",
+                                        "example": 10
+                                    },
+                                    "approval_level02": {
+                                        "type": "integer",
+                                        "example": 11
+                                    },
+                                    "approval_level03": {
+                                        "type": "integer",
+                                        "example": 12
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Approvers updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث المعتمدين بنجاح"
                                         }
                                     },
                                     "type": "object"
@@ -15341,18 +16688,22 @@
                                     },
                                     "in_time_beginning": {
                                         "type": "string",
+                                        "format": "time",
                                         "example": "08:30"
                                     },
                                     "in_time_end": {
                                         "type": "string",
+                                        "format": "time",
                                         "example": "10:00"
                                     },
                                     "out_time_beginning": {
                                         "type": "string",
+                                        "format": "time",
                                         "example": "16:30"
                                     },
                                     "out_time_end": {
                                         "type": "string",
+                                        "format": "time",
                                         "example": "18:30"
                                     },
                                     "late_allowance": {
@@ -15361,10 +16712,12 @@
                                     },
                                     "break_start": {
                                         "type": "string",
+                                        "format": "time",
                                         "example": "13:00"
                                     },
                                     "break_end": {
                                         "type": "string",
+                                        "format": "time",
                                         "example": "14:00"
                                     }
                                 },
@@ -27577,6 +28930,13 @@
                 },
                 "type": "object"
             },
+            "EmployeeListResource": {
+                "title": "Employee List Resource",
+                "description": "User resource for list views",
+                "xml": {
+                    "name": "EmployeeListResource"
+                }
+            },
             "InternalTicketReplyResource": {
                 "properties": {
                     "ticket_reply_id": {
@@ -27968,24 +29328,60 @@
             "description": "API for multi-level approval workflow"
         },
         {
+            "name": "Asset Configuration",
+            "description": "إدارة إعدادات العهد"
+        },
+        {
+            "name": "Asset Management",
+            "description": "إدارة العهد"
+        },
+        {
             "name": "Attendance Management",
             "description": "Attendance and timesheet management"
         },
         {
             "name": "Authentication",
-            "description": "User authentication endpoints"
+            "description": "روابط التحقق"
+        },
+        {
+            "name": "Award Configuration",
+            "description": "إدارة إعدادات المكافآت"
+        },
+        {
+            "name": "Award Management",
+            "description": "إدارة المكافآت"
         },
         {
             "name": "Biometric Attendance",
             "description": "تسجيل الحضور والانصراف من أجهزة البصمة"
         },
         {
+            "name": "Branches",
+            "description": "إدارة الفروع"
+        },
+        {
             "name": "Complaint Management",
             "description": "إدارة الشكاوى - Complaints management endpoints"
         },
         {
-            "name": "Assets & Custody Clearance",
-            "description": "إدارة الأصول وإخلاء طرف العهد"
+            "name": "Countries",
+            "description": "إدارة الدول"
+        },
+        {
+            "name": "Custody Clearance",
+            "description": "إدارة إخلاء طرف العهد"
+        },
+        {
+            "name": "Dashboard",
+            "description": "لوحة التحكم"
+        },
+        {
+            "name": "Employee",
+            "description": "إدارة الموظفين"
+        },
+        {
+            "name": "Employee Profile",
+            "description": "إدارة ملف الموظف"
         },
         {
             "name": "Holidays",
@@ -28060,28 +29456,8 @@
             "description": "إدارة النقل والتحويلات - Transfer management endpoints"
         },
         {
-            "name": "Branches",
-            "description": "Branches"
-        },
-        {
-            "name": "Countries",
-            "description": "Countries"
-        },
-        {
-            "name": "Dashboard",
-            "description": "Dashboard"
-        },
-        {
-            "name": "Employee",
-            "description": "Employee"
-        },
-        {
             "name": "Employee Management",
             "description": "Employee Management"
-        },
-        {
-            "name": "Employee Profile",
-            "description": "Employee Profile"
         },
         {
             "name": "Jobs Monitor",

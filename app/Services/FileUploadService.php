@@ -39,19 +39,19 @@ class FileUploadService
             Log::error('FileUploadService::uploadProfileImage failed', [
                 'employee_id' => $employeeId,
                 'error' => $e->getMessage(),
+                'message' => 'فشل في تحديث بيانات هذا الموظف',
                 'trace' => $e->getTraceAsString()
             ]);
-            return null;
+            throw new \Exception(message: 'فشل في تحديث بيانات هذا الموظف', code: 500);
         }
     }
 
     /**
      * Upload document
      */
-    public function uploadDocument(UploadedFile $file, int $employeeId, string $documentType): ?array
+    public function uploadDocument(UploadedFile $file, int $employeeId, string $directory, string $documentType): ?array
     {
         try {
-            $directory = 'documents';
             $filename = $documentType . '_' . $employeeId . '_' . time() . '.' . $file->getClientOriginalExtension();
             
             return $this->uploadFile($file, $directory, $filename);
@@ -59,9 +59,10 @@ class FileUploadService
             Log::error('FileUploadService::uploadDocument failed', [
                 'employee_id' => $employeeId,
                 'document_type' => $documentType,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل تحميل المستند'
             ]);
-            return null;
+            throw new \Exception(message: 'فشل تحميل المستند', code: 500);
         }
     }
 
@@ -90,15 +91,21 @@ class FileUploadService
             if (!is_dir($fullDirectory)) {
                 Log::info('Creating directory', ['directory' => $fullDirectory]);
                 if (!mkdir($fullDirectory, 0755, true)) {
-                    Log::error('Failed to create directory', ['directory' => $fullDirectory]);
-                    return null;
+                    Log::error('Failed to create directory', [
+                        'directory' => $fullDirectory,
+                        'message' => 'فشل في تحديث بيانات هذا الموظف',
+                    ]);
+                    throw new \Exception(message: 'فشل في تحديث بيانات هذا الموظف', code: 500);
                 }
             }
 
             // Check if directory is writable
             if (!is_writable($fullDirectory)) {
-                Log::error('Directory is not writable', ['directory' => $fullDirectory]);
-                return null;
+                Log::error('Directory is not writable', [
+                    'directory' => $fullDirectory,
+                    'message' => 'فشل في تحديث بيانات هذا الموظف',
+                ]);
+                throw new \Exception(message: 'فشل في تحديث بيانات هذا الموظف', code: 500);
             }
 
             // Full file path
@@ -117,7 +124,8 @@ class FileUploadService
                 Log::info('File copied successfully', [
                     'file_path' => $fullPath,
                     'file_url' => $fileUrl,
-                    'file_exists' => file_exists($fullPath)
+                    'file_exists' => file_exists($fullPath),
+                    'message' => 'تم نسخ الملف بنجاح'
                 ]);
                 
                 return [
@@ -130,8 +138,12 @@ class FileUploadService
                 ];
             }
 
-            Log::error('Failed to copy file');
-            return null;
+            Log::error('Failed to copy file', [
+                'directory' => $directory,
+                'filename' => $filename,
+                'message' => 'فشل في تحديث بيانات هذا الموظف',
+            ]);
+            throw new \Exception(message: 'فشل في تحديث بيانات هذا الموظف', code: 500);
         } catch (\Exception $e) {
             Log::error('FileUploadService::uploadFile failed', [
                 'directory' => $directory,
@@ -139,7 +151,7 @@ class FileUploadService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return null;
+            throw new \Exception(message: 'فشل في تحديث بيانات هذا الموظف', code: 500);
         }
     }
 
@@ -158,7 +170,7 @@ class FileUploadService
                 'file_path' => $filePath,
                 'error' => $e->getMessage()
             ]);
-            return false;
+            throw new \Exception(message: 'فشل في تحديث بيانات هذا الموظف', code: 500);
         }
     }
 

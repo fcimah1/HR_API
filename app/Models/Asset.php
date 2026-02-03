@@ -44,8 +44,6 @@ class Asset extends Model
         'company_id' => 'integer',
         'employee_id' => 'integer',
         'is_working' => 'boolean',
-        'purchase_date' => 'date',
-        'warranty_end_date' => 'date',
         'created_at' => 'datetime',
     ];
 

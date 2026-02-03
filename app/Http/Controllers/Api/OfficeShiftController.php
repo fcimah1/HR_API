@@ -46,9 +46,31 @@ class OfficeShiftController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $filters = OfficeShiftFilterDTO::fromArray($request->all());
-        $shifts = $this->officeShiftService->getPaginatedShifts(Auth::user(), $filters);
-        return $this->successResponse($shifts, 'تم جلب نوبات العمل بنجاح');
+        try {
+            $filters = OfficeShiftFilterDTO::fromArray($request->all());
+            $shifts = $this->officeShiftService->getPaginatedShifts(Auth::user(), $filters);
+            if(!$shifts){
+                Log::error('Error getting office shifts:' ,[
+                    'success' => false,
+                    'message' => 'حدث خطأ أثناء جلب نوبات العمل',
+                    'error' => 'حدث خطأ أثناء جلب نوبات العمل',
+                ]);
+                return $this->errorResponse('حدث خطأ أثناء جلب نوبات العمل', 400);
+            }
+            Log::info('Office shifts retrieved successfully:' ,[
+                'success' => true,
+                'message' => 'تم جلب نوبات العمل بنجاح',
+                'data' => $shifts,
+            ]);
+            return $this->successResponse($shifts, 'تم جلب نوبات العمل بنجاح');
+        } catch (\Exception $e) {
+            Log::error('Error getting office shifts:' ,[
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب نوبات العمل',
+                'error' => $e->getMessage(),
+            ]);
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     /**
@@ -67,11 +89,30 @@ class OfficeShiftController extends Controller
      */
     public function show(int $id): JsonResponse
     {
+        try {
         $shift = $this->officeShiftService->getShiftDetails(Auth::user(), $id);
         if (!$shift) {
+            Log::error('Error getting office shift:' ,[
+                'success' => false,
+                'message' => 'نوبة العمل غير موجودة',
+                'error' => 'نوبة العمل غير موجودة',
+            ]);
             return $this->errorResponse('نوبة العمل غير موجودة', 404);
         }
+        Log::info('Office shift details retrieved successfully:' ,[
+            'success' => true,
+            'message' => 'تم جلب تفاصيل نوبة العمل بنجاح',
+            'data' => $shift,
+        ]);
         return $this->successResponse($shift, 'تم جلب تفاصيل نوبة العمل بنجاح');
+        } catch (\Exception $e) {
+            Log::error('Error getting office shift:' ,[
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب تفاصيل نوبة العمل',
+                'error' => $e->getMessage(),
+            ]);
+            return $this->errorResponse($e->getMessage(), 500);
+        }
     }
 
     /**
@@ -113,13 +154,13 @@ class OfficeShiftController extends Controller
      *             @OA\Property(property="sunday_out_time", type="string", example="17:00"),
      *             @OA\Property(property="sunday_lunch_break", type="string", example="13:00"),
      *             @OA\Property(property="sunday_lunch_break_out", type="string", example="14:00"),
-     *             @OA\Property(property="in_time_beginning", type="string", example="08:30"),
-     *             @OA\Property(property="in_time_end", type="string", example="10:00"),
-     *             @OA\Property(property="out_time_beginning", type="string", example="16:30"),
-     *             @OA\Property(property="out_time_end", type="string", example="18:30"),
+     *             @OA\Property(property="in_time_beginning", type="string", format="time", example="08:30"),
+     *             @OA\Property(property="in_time_end", type="string", format="time", example="10:00"),
+     *             @OA\Property(property="out_time_beginning", type="string", format="time", example="16:30"),
+     *             @OA\Property(property="out_time_end", type="string", format="time", example="18:30"),
      *             @OA\Property(property="late_allowance", type="integer", example=15),
-     *             @OA\Property(property="break_start", type="string", example="13:00"),
-     *             @OA\Property(property="break_end", type="string", example="14:00")
+     *             @OA\Property(property="break_start", type="string", format="time", example="13:00"),
+     *             @OA\Property(property="break_end", type="string", format="time", example="14:00")
      *         )
      *     ),
      *     @OA\Response(response=201, description="تم الإضافة بنجاح"),
@@ -135,9 +176,28 @@ class OfficeShiftController extends Controller
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId(Auth::user());
             $dto = CreateOfficeShiftDTO::fromRequest($request->validated(), $effectiveCompanyId);
             $shift = $this->officeShiftService->createShift(Auth::user(), $dto);
+            if(!$shift){
+                Log::error('Error creating office shift:' ,[
+                    'success' => false,
+                    'message' => 'حدث خطأ أثناء إضافة نوبة العمل',
+                    'error' => 'حدث خطأ أثناء إضافة نوبة العمل',
+                ]);
+                return $this->errorResponse('حدث خطأ أثناء إضافة نوبة العمل', 404);
+            }
+            Log::info('Office shift created successfully:' ,[
+                'success' => true,
+                'message' => 'تم إضافة نوبة العمل بنجاح',
+                'data' => $shift,
+            ]);
             return $this->successResponse($shift, 'تم إضافة نوبة العمل بنجاح', 201);
+
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), 400);
+            Log::error('Error creating office shift:' ,[
+                'success' => false,
+                'message' => 'حدث خطأ أثناء إضافة نوبة العمل',
+                'error' => $e->getMessage(),
+            ]);
+            return $this->errorResponse($e->getMessage(), 500);
         }
     }
 
@@ -201,10 +261,28 @@ class OfficeShiftController extends Controller
     {
         try {
             $dto = UpdateOfficeShiftDTO::fromRequest($request->validated(), $id);
-            $this->officeShiftService->updateShift(Auth::user(), $id, $dto);
+            $updatedShift = $this->officeShiftService->updateShift(Auth::user(), $id, $dto);
+            if(!$updatedShift){
+                Log::error('Error updating office shift:' ,[
+                    'success' => false,
+                    'message' => 'حدث خطأ أثناء تحديث نوبة العمل',
+                    'error' => 'حدث خطأ أثناء تحديث نوبة العمل',
+                ]);
+                return $this->errorResponse('حدث خطأ أثناء تحديث نوبة العمل', 404);
+            }
+            Log::info('Office shift updated successfully:' ,[
+                'success' => true,
+                'message' => 'تم تحديث نوبة العمل بنجاح',
+                'data' => $updatedShift,
+            ]);
             return $this->successResponse(null, 'تم تحديث نوبة العمل بنجاح');
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), 400);
+            Log::error('Error updating office shift:' ,[
+                'success' => false,
+                'message' => 'حدث خطأ أثناء تحديث نوبة العمل',
+                'error' => $e->getMessage(),
+            ]);
+            return $this->errorResponse($e->getMessage(), 500);
         }
     }
 
@@ -225,10 +303,28 @@ class OfficeShiftController extends Controller
     public function destroy(int $id): JsonResponse
     {
         try {
-            $this->officeShiftService->deleteShift(Auth::user(), $id);
+            $deletedShift = $this->officeShiftService->deleteShift(Auth::user(), $id);
+            if(!$deletedShift){
+                Log::error('Error deleting office shift:' ,[
+                    'success' => false,
+                    'message' => 'حدث خطأ أثناء حذف نوبة العمل',
+                    'error' => 'حدث خطأ أثناء حذف نوبة العمل',
+                ]);
+                return $this->errorResponse('حدث خطأ أثناء حذف نوبة العمل', 404);
+            }
+            Log::info('Office shift deleted successfully:' ,[
+                'success' => true,
+                'message' => 'تم حذف نوبة العمل بنجاح',
+                'data' => $deletedShift,
+            ]);
             return $this->successResponse(null, 'تم حذف نوبة العمل بنجاح');
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), 400);
+            Log::error('Error deleting office shift:' ,[
+                'success' => false,
+                'message' => 'حدث خطأ أثناء حذف نوبة العمل',
+                'error' => $e->getMessage(),
+            ]);
+            return $this->errorResponse($e->getMessage(), 500);
         }
     }
 }

@@ -6,6 +6,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rule;
+use App\Services\SimplePermissionService;
 
 class StoreOfficeShiftRequest extends FormRequest
 {
@@ -16,16 +18,24 @@ class StoreOfficeShiftRequest extends FormRequest
 
     public function rules(): array
     {
+        $permissionService = app(SimplePermissionService::class);
+        $companyId = $permissionService->getEffectiveCompanyId(Auth::user());
+
         $rules = [
-            'shift_name' => 'required|string|max:255',
+            'shift_name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('ci_office_shifts', 'shift_name')->where('company_id', $companyId),
+            ],
             'hours_per_day' => 'required|integer|min:1|max:24',
             'late_allowance' => 'nullable|integer|min:0',
-            'in_time_beginning' => 'nullable|string',
-            'in_time_end' => 'nullable|string',
-            'out_time_beginning' => 'nullable|string',
-            'out_time_end' => 'nullable|string',
-            'break_start' => 'nullable|string',
-            'break_end' => 'nullable|string',
+            'in_time_beginning' => 'nullable|date_format:H:i',
+            'in_time_end' => 'nullable|date_format:H:i',
+            'out_time_beginning' => 'nullable|date_format:H:i',
+            'out_time_end' => 'nullable|date_format:H:i',
+            'break_start' => 'nullable|date_format:H:i',
+            'break_end' => 'nullable|date_format:H:i',
         ];
 
         $days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -43,6 +53,7 @@ class StoreOfficeShiftRequest extends FormRequest
     {
         return [
             'shift_name.required' => 'اسم الوردية مطلوب',
+            'shift_name.unique' => 'اسم الوردية موجود بالفعل لهذه الشركة',
             'hours_per_day.required' => 'عدد ساعات العمل مطلوب',
             'hours_per_day.integer' => 'عدد ساعات العمل يجب أن يكون رقماً صحيحاً',
             'late_allowance.integer' => 'عدد ساعات السماح بالتاخير يجب أن يكون رقماً صحيحاً',
