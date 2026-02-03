@@ -273,6 +273,15 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::delete('/{id}', [\App\Http\Controllers\Api\AwardController::class, 'destroy'])->middleware('simple.permission:award4');
     });
 
+    // Promotion Management
+    Route::prefix('promotions')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\PromotionController::class, 'index'])->middleware('simple.permission:promotion1');
+        Route::post('/', [\App\Http\Controllers\Api\PromotionController::class, 'store'])->middleware('simple.permission:promotion2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\PromotionController::class, 'show'])->middleware('simple.permission:promotion1');
+        Route::match(['put', 'post'], '/{id}', [\App\Http\Controllers\Api\PromotionController::class, 'update'])->middleware('simple.permission:promotion3');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\PromotionController::class, 'destroy'])->middleware('simple.permission:promotion4');
+    });
+
     // Travel Management
     Route::prefix('travels')->group(function () {
         Route::get('/enums', [App\Http\Controllers\Api\TravelController::class, 'getEnums']);

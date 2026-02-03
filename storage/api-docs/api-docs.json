@@ -18165,6 +18165,272 @@
                 ]
             }
         },
+        "/api/promotions": {
+            "get": {
+                "tags": [
+                    "Promotion Management"
+                ],
+                "summary": "عرض قائمة الترقيات",
+                "operationId": "56baf0b0433a6f76c637521ac79c057d",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Promotion Management"
+                ],
+                "summary": "إضافة ترقية جديدة",
+                "operationId": "72d75eb4a0d6e3b20312f608356b5859",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "employee_id",
+                                    "promotion_title",
+                                    "promotion_date",
+                                    "new_designation_id",
+                                    "new_department_id",
+                                    "new_salary"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "type": "integer",
+                                        "example": 767
+                                    },
+                                    "promotion_title": {
+                                        "type": "string",
+                                        "example": "Promotion Title"
+                                    },
+                                    "promotion_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-01-01"
+                                    },
+                                    "new_designation_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "new_department_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "new_salary": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 1000
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Description"
+                                    },
+                                    "notify_send_to": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            767,
+                                            768
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة الترقية بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/promotions/{id}": {
+            "get": {
+                "tags": [
+                    "Promotion Management"
+                ],
+                "summary": "عرض تفاصيل الترقية",
+                "operationId": "f7e40a812cb3dd08a70d407b19feb614",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التفاصيل بنجاح"
+                    },
+                    "404": {
+                        "description": "الترقية غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Promotion Management"
+                ],
+                "summary": "تعديل ترقية",
+                "operationId": "7c2fcdfd3d51b459942ad6f340019160",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "promotion_title": {
+                                        "type": "string"
+                                    },
+                                    "promotion_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "new_designation_id": {
+                                        "type": "integer"
+                                    },
+                                    "new_department_id": {
+                                        "type": "integer"
+                                    },
+                                    "new_salary": {
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "notify_send_to": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "status": {
+                                        "description": "0: Pending, 1: Approved, 2: Rejected",
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تعديل الترقية بنجاح"
+                    },
+                    "404": {
+                        "description": "الترقية غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Promotion Management"
+                ],
+                "summary": "حذف ترقية",
+                "operationId": "a86a476fa987ed93c3131839806edab0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "الترقية غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/reports/attendance/monthly": {
             "get": {
                 "tags": [
@@ -29422,6 +29688,10 @@
         {
             "name": "Overtime Management",
             "description": "Overtime requests management"
+        },
+        {
+            "name": "Promotion Management",
+            "description": "إدارة الترقيات"
         },
         {
             "name": "Reports",
