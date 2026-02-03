@@ -166,9 +166,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Award repository
         $this->app->bind(\App\Repository\Interface\AwardRepositoryInterface::class, \App\Repository\AwardRepository::class);
-        
+
         // Award Configuration repository
         $this->app->bind(\App\Repository\Interface\AwardConfigurationRepositoryInterface::class, \App\Repository\AwardConfigurationRepository::class);
+
+        // Promotion repository
+        $this->app->bind(\App\Repository\Interface\PromotionRepositoryInterface::class, \App\Repository\PromotionRepository::class);
     }
 
     /**
@@ -192,8 +195,8 @@ class AppServiceProvider extends ServiceProvider
         );
 
         Scramble::configure()
-        ->routes(function (Route $route) {
-            return Str::startsWith($route->uri, 'api/');
-        });
+            ->routes(function (Route $route) {
+                return Str::startsWith($route->uri, 'api/');
+            });
     }
 }
