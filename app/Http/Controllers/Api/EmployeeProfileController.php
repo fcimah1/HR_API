@@ -22,7 +22,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
-
+/**
+ * @OA\Tag(
+ *     name="Employee Profile",
+ *     description="إدارة ملف الموظف"
+ * )
+ */
 class EmployeeProfileController extends Controller
 {
     use ApiResponseTrait;
@@ -72,27 +77,20 @@ class EmployeeProfileController extends Controller
             $targetEmployeeId = $user->user_id;
             $success = $this->employeeService->changeEmployeePassword($user, $targetEmployeeId, $request->password);
 
-            if (!$success) {
-                Log::error('EmployeeProfileController::changePassword failed', [
-                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل كلمة المرور',
-                    'user_id' => $user->user_id,
-                    'employee_id' => $targetEmployeeId,
-                ]);
-                return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل كلمة المرور');
-            }
-
             Log::info('EmployeeProfileController::changePassword success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $targetEmployeeId,
+                'message' => 'تم تغيير كلمة المرور بنجاح'
             ]);
-            return $this->successResponse(null, 'تم تغيير كلمة المرور بنجاح');
+            return $this->successResponse($success, 'تم تغيير كلمة المرور بنجاح');
         } catch (\Exception $e) {
             Log::error('EmployeeProfileController::changePassword failed', [
-                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'user_id' => $user->user_id,
                 'employee_id' => $targetEmployeeId,
+                'message' => 'فشل تغيير كلمة المرور'
             ]);
-            return $this->handleException($e, 'EmployeeController::changePassword');
+            return $this->handleException($e, 'EmployeeProfileController::changePassword');
         }
     }
 
@@ -138,27 +136,20 @@ class EmployeeProfileController extends Controller
 
             $result = $this->employeeService->uploadEmployeeProfileImage($user, $targetEmployeeId, $request->file('profile_image'));
 
-            if (!$result) {
-                Log::error('EmployeeProfileController::uploadProfileImage failed', [
-                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لرفع الصورة الشخصية',
-                    'user_id' => $user->user_id,
-                    'employee_id' => $targetEmployeeId,
-                ]);
-                return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لرفع الصورة الشخصية');
-            }
-
             Log::info('EmployeeProfileController::uploadProfileImage success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $targetEmployeeId,
+                'message' => 'تم رفع صورة الملف الشخصي بنجاح'
             ]);
             return $this->successResponse($result, 'تم رفع صورة الملف الشخصي بنجاح');
         } catch (\Exception $e) {
             Log::error('EmployeeProfileController::uploadProfileImage failed', [
-                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'user_id' => $user->user_id,
                 'employee_id' => $targetEmployeeId,
+                'message' => 'فشل رفع صورة الملف الشخصي'
             ]);
-            return $this->handleException($e, 'EmployeeController::uploadProfileImage');
+            return $this->handleException($e, 'EmployeeProfileController::uploadProfileImage');
         }
     }
 
@@ -198,27 +189,20 @@ class EmployeeProfileController extends Controller
 
             $success = $this->employeeService->updateEmployeeProfileInfo($user, $id, $request->only(['username', 'email']));
 
-            if (!$success) {
-                Log::error('EmployeeProfileController::updateProfileInfo failed', [
-                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل معلومات الملف الشخصي',
-                    'user_id' => $user->user_id,
-                    'employee_id' => $id,
-                ]);
-                return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل معلومات الملف الشخصي');
-            }
-
             Log::info('EmployeeProfileController::updateProfileInfo success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'تم تحديث معلومات الملف الشخصي بنجاح'
             ]);
-            return $this->successResponse(null, 'تم تحديث معلومات الملف الشخصي بنجاح');
+            return $this->successResponse($success, 'تم تحديث معلومات الملف الشخصي بنجاح');
         } catch (\Exception $e) {
             Log::error('EmployeeProfileController::updateProfileInfo failed', [
-                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'فشل تحديث معلومات الملف الشخصي'
             ]);
-            return $this->handleException($e, 'EmployeeController::updateProfileInfo');
+            return $this->handleException($e, 'EmployeeProfileController::updateProfileInfo');
         }
     }
 
@@ -258,27 +242,20 @@ class EmployeeProfileController extends Controller
 
             $success = $this->employeeService->updateEmployeeCV($user, $id, $request->only(['bio', 'experience']));
 
-            if (!$success) {
-                Log::error('EmployeeProfileController::updateCV failed', [
-                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل السيرة الذاتية',
-                    'user_id' => $user->user_id,
-                    'employee_id' => $id,
-                ]);
-                return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل السيرة الذاتية');
-            }
-
             Log::info('EmployeeProfileController::updateCV success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'تم تحديث السيرة الذاتية بنجاح'
             ]);
-            return $this->successResponse(null, 'تم تحديث السيرة الذاتية بنجاح');
+            return $this->successResponse($success, 'تم تحديث السيرة الذاتية بنجاح');
         } catch (\Exception $e) {
             Log::error('EmployeeProfileController::updateCV failed', [
-                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'فشل تحديث السيرة الذاتية'
             ]);
-            return $this->handleException($e, 'EmployeeController::updateCV');
+            return $this->handleException($e, 'EmployeeProfileController::updateCV');
         }
     }
 
@@ -318,34 +295,22 @@ class EmployeeProfileController extends Controller
             $user = Auth::user();
             $id = $user->user_id;
 
-            $success = $this->employeeService->updateEmployeeSocialLinks($user, $id, $request->only([
-                'fb_profile',
-                'twitter_profile',
-                'gplus_profile',
-                'linkedin_profile'
-            ]));
-
-            if (!$success) {
-                Log::error('EmployeeProfileController::updateSocialLinks failed', [
-                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لتعديل الروابط الاجتماعية',
-                    'user_id' => $user->user_id,
-                    'employee_id' => $id,
-                ]);
-                return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل الروابط الاجتماعية');
-            }
+            $success = $this->employeeService->updateEmployeeSocialLinks($user, $id, $request->validated());
 
             Log::info('EmployeeProfileController::updateSocialLinks success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'تم تحديث الروابط الاجتماعية بنجاح'
             ]);
-            return $this->successResponse(null, 'تم تحديث الروابط الاجتماعية بنجاح');
+            return $this->successResponse($success, 'تم تحديث الروابط الاجتماعية بنجاح');
         } catch (\Exception $e) {
             Log::error('EmployeeProfileController::updateSocialLinks failed', [
-                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'فشل تحديث الروابط الاجتماعية'
             ]);
-            return $this->handleException($e, 'EmployeeController::updateSocialLinks');
+            return $this->handleException($e, 'EmployeeProfileController::updateSocialLinks');
         }
     }
 
@@ -385,33 +350,22 @@ class EmployeeProfileController extends Controller
             $user = Auth::user();
             $id = $user->user_id;
 
-            $success = $this->employeeService->updateEmployeeBankInfo($user, $id, $request->only([
-                'account_number',
-                'bank_name',
-                'iban',
-                'bank_branch'
-            ]));
+            $success = $this->employeeService->updateEmployeeBankInfo($user, $id, $request->validated());
 
-            if (!$success) {
-                Log::error('EmployeeController::updateBankInfo failed', [
-                    'user_id' => $user->user_id,
-                    'employee_id' => $id,
-                ]);
-                return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لتعديل المعلومات البنكية');
-            }
-
-            Log::info('EmployeeController::updateBankInfo success', [
+            Log::info('EmployeeProfileController::updateBankInfo success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'تم تحديث المعلومات البنكية بنجاح'
             ]);
-            return $this->successResponse(null, 'تم تحديث المعلومات البنكية بنجاح');
+            return $this->successResponse($success, 'تم تحديث المعلومات البنكية بنجاح');
         } catch (\Exception $e) {
-            Log::error('EmployeeController::updateBankInfo failed', [
-                'message' => $e->getMessage(),
+            Log::error('EmployeeProfileController::updateBankInfo failed', [
+                'error' => $e->getMessage(),
                 'user_id' => $user?->user_id,
                 'employee_id' => $id,
+                'message' => 'فشل تحديث المعلومات البنكية'
             ]);
-            return $this->handleException($e, 'EmployeeController::updateBankInfo');
+            return $this->handleException($e, 'EmployeeProfileController::updateBankInfo');
         }
     }
 
@@ -453,36 +407,22 @@ class EmployeeProfileController extends Controller
             $user = Auth::user();
             $id = $user->user_id;
 
-            $success = $this->employeeService->addEmployeeFamilyData($user, $id, $request->only([
-                'relative_full_name',
-                'relative_email',
-                'relative_phone',
-                'relative_place',
-                'relative_address',
-                'relative_relation'
-            ]));
-
-            if (!$success) {
-                Log::error('EmployeeProfileController::addFamilyData failed', [
-                    'message' => 'الموظف غير موجود أو ليس لديك صلاحية لإضافة بيانات العائلة',
-                    'user_id' => $user->user_id,
-                    'employee_id' => $id,
-                ]);
-                return $this->notFoundResponse('الموظف غير موجود أو ليس لديك صلاحية لإضافة بيانات العائلة');
-            }
+            $success = $this->employeeService->addEmployeeFamilyData($user, $id, $request->validated());
 
             Log::info('EmployeeProfileController::addFamilyData success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'تم إضافة بيانات العائلة بنجاح'
             ]);
-            return $this->successResponse(null, 'تم إضافة بيانات العائلة بنجاح');
+            return $this->successResponse($success, 'تم إضافة بيانات العائلة بنجاح');
         } catch (\Exception $e) {
             Log::error('EmployeeProfileController::addFamilyData failed', [
-                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'فشل إضافة بيانات العائلة'
             ]);
-            return $this->handleException($e, 'EmployeeController::addFamilyData');
+            return $this->handleException($e, 'EmployeeProfileController::addFamilyData');
         }
     }
 
@@ -517,27 +457,20 @@ class EmployeeProfileController extends Controller
 
             $success = $this->employeeService->deleteEmployeeFamilyData($user, $id, $contactId);
 
-            if (!$success) {
-                Log::error('EmployeeProfileController::deleteFamilyData failed', [
-                    'message' => 'الموظف أو البيانات غير موجودة أو ليس لديك صلاحية للحذف',
-                    'user_id' => $user->user_id,
-                    'employee_id' => $id,
-                ]);
-                return $this->notFoundResponse('الموظف أو البيانات غير موجودة أو ليس لديك صلاحية للحذف');
-            }
-
             Log::info('EmployeeProfileController::deleteFamilyData success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'تم حذف بيانات العائلة بنجاح'
             ]);
-            return $this->successResponse(null, 'تم حذف بيانات العائلة بنجاح');
+            return $this->successResponse($success, 'تم حذف بيانات العائلة بنجاح');
         } catch (\Exception $e) {
             Log::error('EmployeeProfileController::deleteFamilyData failed', [
-                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'فشل حذف بيانات العائلة'
             ]);
-            return $this->handleException($e, 'EmployeeController::deleteFamilyData');
+            return $this->handleException($e, 'EmployeeProfileController::deleteFamilyData');
         }
     }
 
@@ -585,25 +518,20 @@ class EmployeeProfileController extends Controller
             $id = $user->user_id;
 
             $documents = $this->employeeService->getEmployeeDocuments($user, $id, $request->search);
-            if (!$documents) {
-                Log::error('EmployeeProfileController::getEmployeeDocuments failed', [
-                    'message' => 'الموظف أو البيانات غير موجودة أو ليس لديك صلاحية للحذف',
-                    'user_id' => $user->user_id,
-                    'employee_id' => $id,
-                ]);
-                return $this->notFoundResponse('الموظف أو البيانات غير موجودة أو ليس لديك صلاحية للحذف');
-            }
 
             Log::info('EmployeeProfileController::getEmployeeDocuments success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'تم الحصول على المستندات بنجاح'
             ]);
+
             return $this->successResponse($documents, 'تم جلب المستندات بنجاح');
         } catch (\Exception $e) {
             Log::error('EmployeeProfileController::getEmployeeDocuments failed', [
-                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'فشل جلب المستندات'
             ]);
             return $this->handleException($e, 'EmployeeProfileController::getEmployeeDocuments');
         }
@@ -671,26 +599,18 @@ class EmployeeProfileController extends Controller
 
             $success = $this->employeeService->updateEmployeeBasicInfo($user, $id, $request->validated());
 
-            if (!$success) {
-                Log::error('EmployeeProfileController::updateBasicInfo failed', [
-                    'message' => 'فشل تحديث المعلومات الأساسية',
-                    'trace' => $success,
-                    'user_id' => $user->user_id,
-                    'employee_id' => $id,
-                ]);
-                return $this->errorResponse('فشل تحديث المعلومات الأساسية', 500);
-            }
-
             Log::info('EmployeeProfileController::updateBasicInfo success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'تم تحديث المعلومات الأساسية بنجاح'
             ]);
-            return $this->successResponse(null, 'تم تحديث المعلومات الأساسية بنجاح');
+            return $this->successResponse($success, 'تم تحديث المعلومات الأساسية بنجاح');
         } catch (\Exception $e) {
             Log::error('EmployeeProfileController::updateBasicInfo failed', [
-                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'فشل تحديث المعلومات الأساسية'
             ]);
             return $this->handleException($e, 'EmployeeProfileController::updateBasicInfo');
         }
@@ -727,26 +647,19 @@ class EmployeeProfileController extends Controller
 
             $data = $this->employeeService->getEmployeeContractData($user, $id);
 
-            if(!$data){
-                Log::error('EmployeeProfileController::getContractData failed', [
-                    'message' => 'بيانات العقد غير موجودة',
-                    'user_id' => $user->user_id,
-                    'employee_id' => $id,
-                ]);
-                return $this->errorResponse('بيانات العقد غير موجودة', 404);
-            }
-
             Log::info('EmployeeProfileController::getContractData success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'تم جلب بيانات العقد بنجاح'
             ]);
 
             return $this->successResponse($data, 'تم جلب بيانات العقد بنجاح');
         } catch (\Exception $e) {
             Log::error('EmployeeProfileController::getContractData failed', [
-                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
+                'message' => 'فشل جلب بيانات العقد'
             ]);
             return $this->handleException($e, 'EmployeeProfileController::getContractData');
         }

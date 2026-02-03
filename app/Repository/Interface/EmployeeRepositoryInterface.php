@@ -96,12 +96,53 @@ interface EmployeeRepositoryInterface
     public function getEmployeesForNotify(int $companyId, int $currentUserId, ?int $currentHierarchyLevel = null, ?int $currentDepartmentId = null, ?string $search = null): array;
 
     /**
+     * Get eligible approvers for a hierarchy level
+     * 
+     * @param int $companyId
+     * @param int $targetLevel
+     * @param array $excludeIds
+     * @return Collection
+     */
+    public function getEligibleApprovers(int $companyId, int $targetLevel, array $excludeIds = []): Collection;
+
+    /**
+     * Get employees based on hierarchy level and restrictions
+     * 
+     * @param int $companyId
+     * @param int $hierarchyLevel
+     * @param array $restrictedDepartments
+     * @param array $restrictedBranches
+     * @param int|null $includeSelfId
+     * @return array
+     */
+    public function getEmployeesByHierarchy(int $companyId, int $hierarchyLevel, array $restrictedDepartments = [], array $restrictedBranches = [], ?int $includeSelfId = null): array;
+    /**
      * Get user with hierarchy information (level and department)
      *
      * @param int $userId
      * @return array|null
      */
     public function getUserWithHierarchyInfo(int $userId): ?array;
+
+    /**
+     * Update user details (ci_erp_users_details)
+     * 
+     * @param int $userId
+     * @param array $data
+     * @return bool
+     */
+    public function updateUserDetails(int $userId, array $data): bool;
+
+    /**
+     * Get backup employees (same department, active, staff)
+     * 
+     * @param int $companyId
+     * @param int $departmentId
+     * @param string|null $search
+     * @param int|null $excludeUserId
+     * @return array
+     */
+    public function getBackupEmployees(int $companyId, int $departmentId, ?string $search = null, ?int $excludeUserId = null): array;
 
     /**
      * Get attendance records for an employee

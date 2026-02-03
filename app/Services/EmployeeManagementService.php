@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Pagination\LengthAwarePaginator;
 use App\Models\Attendance;
+use App\Models\ErpConstant;
 use App\Models\Holiday;
 use App\Models\LeaveApplication;
 use App\Models\OfficeShift;
@@ -64,7 +65,8 @@ class EmployeeManagementService
             Log::error('EmployeeManagementService::getEmployeesList failed', [
                 'user_id' => $user->user_id,
                 'filters' => $filters->toArray(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء جلب قائمة الموظفين'
             ]);
 
             // Return empty paginator on error
@@ -86,23 +88,264 @@ class EmployeeManagementService
             $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
 
             if (!$employee) {
-                return null;
+                Log::error('EmployeeManagementService::getEmployeeDetails failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'لا يوجد موظف بهذا الرقم'
+                ]);
+                throw new \Exception(message: 'لا يوجد موظف بهذا الرقم', code: 404);
             }
 
             // Check if user can access this employee
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
-                return null;
+                Log::error('EmployeeManagementService::getEmployeeDetails failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحيه لعرض طلبات هذا الموظف'
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحيه لعرض طلبات هذا الموظف', code: 403);
             }
 
+            Log::info('EmployeeManagementService::getEmployeeDetails', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'تم جلب معلومات الموظف'
+            ]);
             return $employee;
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getEmployeeDetails failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء جلب معلومات الموظف'
+            ]);
+            throw new \Exception(message: 'حدث خطأ أثناء جلب معلومات الموظف', code: 500);
+        }
+    }
+    /**
+     * Get eligible approvers for a specific employee based on hierarchy.
+     * Rule: Approvers must have a lower hierarchy_level (higher rank) than the target employee.
+     * 
+     * @param User $user Current user requesting the data
+     * @param int $targetEmployeeId The employee for whom we are selecting an approver
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getEligibleApprovers(User $user, int $targetEmployeeId)
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // Get target employee with designation details from repository
+            $targetEmployee = $this->employeeRepository->getEmployeeWithDetails($targetEmployeeId, $effectiveCompanyId);
+
+            if (!$targetEmployee) {
+                Log::error('EmployeeManagementService::getEligibleApprovers failed', [
+                    'user_id' => $user->user_id,
+                    'target_employee_id' => $targetEmployeeId,
+                    'message' => 'الموظف المستهدف غير موجود في شركتك أو غير نشط.'
+                ]);
+                throw new \Exception('الموظف المستهدف غير موجود في شركتك أو غير نشط.', 404);
+            }
+
+            // Check if user can access this employee
+            if (!$this->permissionService->canViewEmployeeRequests($user, $targetEmployee)) {
+                // If it's a peer/superior or restricted, provide a clear reason
+                $managerLevel = $this->permissionService->getUserHierarchyLevel($user);
+                $employeeLevel = $this->permissionService->getUserHierarchyLevel($targetEmployee);
+
+                if ($managerLevel !== null && $employeeLevel !== null && $managerLevel >= $employeeLevel) {
+                    Log::error('EmployeeManagementService::getEligibleApprovers failed', [
+                        'user_id' => $user->user_id,
+                        'target_employee_id' => $targetEmployeeId,
+                        'message' => 'ليس لديك صلاحية. يجب أن تكون في مستوى هرمي أعلى من الموظف المستهدف.'
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية. يجب أن تكون في مستوى هرمي أعلى من الموظف المستهدف.', 403);
+                }
+
+                Log::error('EmployeeManagementService::getEligibleApprovers failed', [
+                    'user_id' => $user->user_id,
+                    'target_employee_id' => $targetEmployeeId,
+                    'message' => 'ليس لديك صلاحية للعرض بسبب قيود إدارية على القسم أو الفرع الخاص بهذا الموظف.'
+                ]);
+                throw new \Exception('ليس لديك صلاحية للعرض بسبب قيود إدارية على القسم أو الفرع الخاص بهذا الموظف.', 403);
+            }
+
+            if (!$targetEmployee->user_details || !$targetEmployee->user_details->designation) {
+                throw new \Exception('بيانات الرتبة الوظيفية للموظف المستهدف غير مكتملة.', 422);
+            }
+
+            $excludeIds = [$targetEmployeeId];
+
+            $targetLevel = (int) $targetEmployee->user_details->designation->hierarchy_level;
+
+            // Fetch potential approvers from repository
+            $approvers = $this->employeeRepository->getEligibleApprovers(
+                $effectiveCompanyId,
+                $targetLevel,
+                $excludeIds
+            );
+
+            if ($approvers->isEmpty()) {
+                Log::error('EmployeeManagementService::getEligibleApprovers failed', [
+                    'user_id' => $user->user_id,
+                    'target_employee_id' => $targetEmployeeId,
+                    'message' => 'لا يوجد موظفون برتبة أعلى من الموظف المستهدف حالياً في الشركة.'
+                ]);
+                throw new \Exception('لا يوجد موظفون برتبة أعلى من الموظف المستهدف حالياً في الشركة.', 404);
+            }
+
+            Log::info('EmployeeManagementService::getEligibleApprovers success', [
+                'user_id' => $user->user_id,
+                'target_employee_id' => $targetEmployeeId,
+                'approvers_count' => $approvers->count(),
+                'message' => 'تم استرجاع قائمة المعتمدين المؤهلين بنجاح'
             ]);
 
-            return null;
+            return $approvers;
+        } catch (\Exception $e) {
+            // Re-throw if it's already a logical exception with a message we want to show
+            if (in_array($e->getCode(), [403, 404, 422])) {
+                throw $e;
+            }
+
+            Log::error('EmployeeManagementService::getEligibleApprovers system error', [
+                'user_id' => $user->user_id,
+                'target_employee_id' => $targetEmployeeId,
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ فني أثناء جلب قائمة المعتمدين مؤهلين.'
+            ]);
+
+            throw new \Exception('حدث خطأ فني أثناء جلب قائمة المعتمدين مؤهلين.', 500);
+        }
+    }
+
+    /**
+     * Update employee approvers
+     * 
+     * @param User $user Current user taking action
+     * @param int $targetEmployeeId Target employee ID
+     * @param array $approvers Associative array of approvers (e.g. ['approval_level01' => 10])
+     * @return bool
+     */
+    public function updateEmployeeApprovers(User $user, int $targetEmployeeId, array $approvers): bool
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            // Get target employee with details
+            $targetEmployee = $this->employeeRepository->getEmployeeWithDetails($targetEmployeeId, $effectiveCompanyId);
+
+            if (!$targetEmployee) {
+                Log::error('EmployeeManagementService::updateEmployeeApprovers error', [
+                    'user_id' => $user->user_id,
+                    'target_employee_id' => $targetEmployeeId,
+                    'error' => 'الموظف المستهدف غير موجود في شركتك أو غير نشط.',
+                    'message' => 'الموظف المستهدف غير موجود في شركتك أو غير نشط.'
+                ]);
+                throw new \Exception('الموظف المستهدف غير موجود في شركتك أو غير نشط.', 404);
+            }
+
+            // Check if user can access this employee
+            if (!$this->permissionService->canViewEmployeeRequests($user, $targetEmployee)) {
+                $managerLevel = $this->permissionService->getUserHierarchyLevel($user);
+                $employeeLevel = $this->permissionService->getUserHierarchyLevel($targetEmployee);
+
+                if ($managerLevel !== null && $employeeLevel !== null && $managerLevel >= $employeeLevel) {
+                    Log::error('EmployeeManagementService::updateEmployeeApprovers error', [
+                        'user_id' => $user->user_id,
+                        'target_employee_id' => $targetEmployeeId,
+                        'error' => 'ليس لديك صلاحية لتعديل بيانات هذا الموظف. يجب أن تكون في مستوى أعلى.',
+                        'message' => 'ليس لديك صلاحية لتعديل بيانات هذا الموظف. يجب أن تكون في مستوى أعلى.'
+                    ]);
+                    throw new \Exception('ليس لديك صلاحية لتعديل بيانات هذا الموظف. يجب أن تكون في مستوى أعلى.', 403);
+                }
+
+                Log::error('EmployeeManagementService::updateEmployeeApprovers error', [
+                    'user_id' => $user->user_id,
+                    'target_employee_id' => $targetEmployeeId,
+                    'error' => 'ليس لديك صلاحية للوصول لهذا الموظف بسبب قيود إدارية.',
+                    'message' => 'ليس لديك صلاحية للوصول لهذا الموظف بسبب قيود إدارية.'
+                ]);
+                throw new \Exception('ليس لديك صلاحية للوصول لهذا الموظف بسبب قيود إدارية.', 403);
+            }
+
+            if (!$targetEmployee->user_details) {
+                Log::error('EmployeeManagementService::updateEmployeeApprovers error', [
+                    'user_id' => $user->user_id,
+                    'target_employee_id' => $targetEmployeeId,
+                    'error' => 'بيانات تفاصيل الموظف غير مكتملة في النظام.',
+                    'message' => 'بيانات تفاصيل الموظف غير مكتملة في النظام.'
+                ]);
+                throw new \Exception('بيانات تفاصيل الموظف غير مكتملة في النظام.', 422);
+            }
+
+            // Verify approvers eligibility
+            $targetLevel = (int) ($targetEmployee->user_details->designation->hierarchy_level ?? 5);
+
+            $updateData = [];
+            foreach (['approval_level01', 'approval_level02', 'approval_level03'] as $levelKey) {
+                if (array_key_exists($levelKey, $approvers)) {
+                    $approverId = $approvers[$levelKey];
+
+                    if ($approverId) {
+                        $approver = User::with('user_details.designation')->find($approverId);
+                        if (!$approver || $approver->company_id != $effectiveCompanyId) {
+                            throw new \Exception("المعتمد المختار في {$levelKey} غير موجود أو يتبع شركة أخرى.", 422);
+                        }
+
+                        $approverLevel = $approver->getHierarchyLevel();
+                        if ($approverLevel === null || $approverLevel >= $targetLevel) {
+                            throw new \Exception("المعتمد في {$levelKey} يجب أن يكون في مستوى هرمي أعلى من الموظف المستهدف.", 422);
+                        }
+                    }
+
+                    $updateData[$levelKey] = $approverId;
+                }
+            }
+
+            if (empty($updateData)) {
+                Log::error('EmployeeManagementService::updateEmployeeApprovers error', [
+                    'user_id' => $user->user_id,
+                    'target_employee_id' => $targetEmployeeId,
+                    'error' => 'لا توجد بيانات صالحة للتحديث',
+                    'message' => 'لا توجد بيانات صالحة للتحديث'
+                ]);
+                throw new \Exception('لا توجد بيانات صالحة للتحديث.', 422);
+            }
+
+            Log::info('EmployeeManagementService::updateEmployeeApprovers success', [
+                'user_id' => $user->user_id,
+                'target_employee_id' => $targetEmployeeId,
+                'update_data' => $updateData,
+                'message' => 'تم تحديث بيانات المعتمدين بنجاح'
+            ]);
+
+            // Update using repository
+            $success = $this->employeeRepository->updateUserDetails($targetEmployeeId, $updateData);
+
+            if (!$success) {
+                Log::error('EmployeeManagementService::updateEmployeeApprovers error', [
+                    'user_id' => $user->user_id,
+                    'target_employee_id' => $targetEmployeeId,
+                    'message' => 'فشل تحديث بيانات المعتمدين في قاعدة البيانات.'
+                ]);
+                throw new \Exception('فشل تحديث بيانات المعتمدين في قاعدة البيانات.', 500);
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            if (in_array($e->getCode(), [403, 404, 422])) {
+                throw $e;
+            }
+
+            Log::error('EmployeeManagementService::updateEmployeeApprovers error', [
+                'user_id' => $user->user_id,
+                'target_employee_id' => $targetEmployeeId,
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ فني أثناء تحديث المعتمدين'
+            ]);
+
+            throw new \Exception('حدث خطأ فني أثناء تحديث المعتمدين: ' . $e->getMessage(), 500);
         }
     }
 
@@ -166,7 +409,7 @@ class EmployeeManagementService
                 'user_id' => $user->user_id,
                 'data' => $data->toArray(),
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'message' => 'حدث خطأ أثناء إنشاء الموظف'
             ]);
 
             return null;
@@ -187,6 +430,11 @@ class EmployeeManagementService
             $employee = User::with('user_details')->find($employeeId);
 
             if (!$employee) {
+                Log::error('EmployeeManagementService::updateEmployee failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'لا يوجد موظف بهذا الرقم'
+                ]);
                 return null;
             }
 
@@ -224,7 +472,8 @@ class EmployeeManagementService
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
                 'data' => $data->toArray(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء تحديث الموظف'
             ]);
 
             return null;
@@ -244,6 +493,11 @@ class EmployeeManagementService
             $employee = User::find($employeeId);
 
             if (!$employee) {
+                Log::error('EmployeeManagementService::deactivateEmployee failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'لا يوجد موظف بهذا الرقم'
+                ]);
                 return false;
             }
 
@@ -257,7 +511,8 @@ class EmployeeManagementService
             Log::error('EmployeeManagementService::deactivateEmployee failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء إلغاء نشاط الموظف'
             ]);
 
             return false;
@@ -310,7 +565,8 @@ class EmployeeManagementService
                 'user_id' => $user->user_id,
                 'query' => $query,
                 'options' => $options,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء البحث عن الموظفين'
             ]);
 
             return [
@@ -369,7 +625,8 @@ class EmployeeManagementService
             Log::error('EmployeeManagementService::getEmployeesWithAdvancedFilters failed', [
                 'user_id' => $user->user_id,
                 'filters' => $filters,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء جلب قائمة الموظفين'
             ]);
 
             return [
@@ -1580,7 +1837,7 @@ class EmployeeManagementService
                 'trace' => $e->getTraceAsString()
             ]);
 
-            throw new \Exception(message: 'فشل في الحصول على حضور الموظف');
+            throw new \Exception(message: 'فشل في الحصول على حضور الموظف', code: 500);
         }
     }
 
@@ -1604,9 +1861,10 @@ class EmployeeManagementService
                 Log::warning('Employee not found for password change', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'effective_company_id' => $effectiveCompanyId
+                    'effective_company_id' => $effectiveCompanyId,
+                    'message' => 'فشل في تعديل كلمة المرور'
                 ]);
-                throw new \Exception(message: 'فشل في تعديل كلمة المرور');
+                throw new \Exception(message: 'فشل في تعديل كلمة المرور', code: 404);
             }
 
             // Allow users to change their own password, or check permissions for others
@@ -1617,9 +1875,10 @@ class EmployeeManagementService
                 Log::warning('Permission denied for password change', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'is_self' => $user->user_id === $employeeId
+                    'is_self' => $user->user_id === $employeeId,
+                    'message' => 'فشل في تعديل كلمة المرور'
                 ]);
-                throw new \Exception(message: 'فشل في تعديل كلمة المرور');
+                throw new \Exception(message: 'فشل في تعديل كلمة المرور', code: 403);
             }
 
             // Hash password and update using repository
@@ -1633,9 +1892,10 @@ class EmployeeManagementService
             Log::error('EmployeeManagementService::changeEmployeePassword failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل في تعديل كلمة المرور'
             ]);
-            throw new \Exception(message: 'فشل في تعديل كلمة المرور');
+            throw new \Exception(message: 'فشل في تعديل كلمة المرور', code: 500);
         }
     }
 
@@ -1661,7 +1921,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'effective_company_id' => $effectiveCompanyId
                 ]);
-                throw new \Exception(message: 'فشل في تعديل الصورة الشخصية');
+                throw new \Exception(message: 'فشل في تعديل الصورة الشخصية', code: 404);
             }
 
             Log::info('Employee found', [
@@ -1675,9 +1935,10 @@ class EmployeeManagementService
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
                     'user_type' => $user->user_type,
-                    'employee_company_id' => $employee->company_id ?? 'N/A'
+                    'employee_company_id' => $employee->company_id ?? 'N/A',
+                    'message' => 'ليس لديك الصلاحية لتعديل صورة هذا الموظف'
                 ]);
-                throw new \Exception(message: 'فشل في تعديل الصورة الشخصية');
+                throw new \Exception(message: 'ليس لديك الصلاحية لتعديل صورة هذا الموظف', code: 403);
             }
 
             Log::info(message: 'Permission check passed, proceeding with file upload');
@@ -1688,9 +1949,10 @@ class EmployeeManagementService
                 Log::error('File upload failed', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'File upload failed'
+                    'error' => 'File upload failed',
+                    'message' => 'فشل في تعديل الصورة الشخصية'
                 ]);
-                throw new \Exception(message: 'فشل في تعديل الصورة الشخصية');
+                throw new \Exception(message: 'فشل في تعديل الصورة الشخصية', code: 500);
             }
 
             // Update employee profile image using repository
@@ -1699,11 +1961,12 @@ class EmployeeManagementService
                 Log::error('Database update failed, deleting uploaded file', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Database update failed'
+                    'error' => 'Database update failed',
+                    'message' => 'فشل في تعديل صورة هذا الموظف'
                 ]);
                 // Delete uploaded file if database update failed
                 $this->fileUploadService->deleteFile($uploadResult['file_path']);
-                throw new \Exception(message: 'فشل في تعديل الصورة الشخصية');
+                throw new \Exception(message: 'فشل في تعديل صورة هذا الموظف', code: 500);
             }
 
             Log::info('Profile image updated successfully');
@@ -1716,10 +1979,10 @@ class EmployeeManagementService
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'message' => 'فشل في تعديل صورة هذا الموظف'
             ]);
 
-            throw new \Exception(message: 'فشل في تعديل الصورة الشخصية');
+            throw new \Exception(message: 'فشل في تعديل صورة هذا الموظف', code: 500);
         }
     }
 
@@ -1736,9 +1999,10 @@ class EmployeeManagementService
                 Log::warning('Employee not found', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Employee not found'
+                    'error' => 'Employee not found',
+                    'message' => 'فشل في إضافة الوثيقة'
                 ]);
-                throw new \Exception(message: 'فشل في إضافة الوثيقة');
+                throw new \Exception(message: 'فشل في إضافة الوثيقة', code: 404);
             }
 
             // Check if user can modify this employee
@@ -1746,21 +2010,23 @@ class EmployeeManagementService
                 Log::warning('Permission denied for document upload', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Permission denied'
+                    'error' => 'Permission denied',
+                    'message' => 'ليس لديك الصلاحية لإضافة الوثيقة لهذا الموظف'
                 ]);
-                throw new \Exception(message: 'فشل في إضافة الوثيقة');
+                throw new \Exception(message: 'ليس لديك الصلاحية لإضافة الوثيقة لهذا الموظف', code: 403);
             }
 
             // Upload document using FileUploadService
             $documentFile = $documentData['document_file'];
-            $uploadResult = $this->fileUploadService->uploadDocument($documentFile, $employeeId, $documentData['document_type']);
+            $uploadResult = $this->fileUploadService->uploadDocument($documentFile, $employeeId, 'documents', $documentData['document_type']);
             if (!$uploadResult) {
                 Log::warning('Failed to upload document', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Failed to upload document'
+                    'error' => 'Failed to upload document',
+                    'message' => 'فشل في إضافة الوثيقة'
                 ]);
-                throw new \Exception(message: 'فشل في إضافة الوثيقة');
+                throw new \Exception(message: 'فشل في إضافة الوثيقة', code: 500);
             }
 
             // Insert document record using repository
@@ -1778,10 +2044,11 @@ class EmployeeManagementService
                 Log::warning('Failed to insert document record', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Failed to insert document record'
+                    'error' => 'Failed to insert document record',
+                    'message' => 'فشل في إضافة الوثيقة'
                 ]);
                 $this->fileUploadService->deleteFile($uploadResult['file_path']);
-                throw new \Exception(message: 'فشل في إضافة الوثيقة');
+                throw new \Exception(message: 'فشل في إضافة الوثيقة', code: 500);
             }
 
             return [
@@ -1792,10 +2059,11 @@ class EmployeeManagementService
             Log::error('EmployeeManagementService::uploadEmployeeDocument failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل في إضافة الوثيقة'
             ]);
 
-            throw new \Exception(message: 'فشل في إضافة الوثيقة');
+            throw new \Exception(message: 'فشل في إضافة الوثيقة', code: 500);
         }
     }
 
@@ -1812,9 +2080,10 @@ class EmployeeManagementService
                 Log::warning('Employee not found', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Employee not found'
+                    'error' => 'Employee not found',
+                    'message' => 'فشل في تعديل البيانات الشخصية'
                 ]);
-                throw new \Exception(message: 'فشل في تعديل البيانات الشخصية');
+                throw new \Exception(message: 'فشل في تعديل البيانات الشخصية', code: 404);
             }
 
             // Check if user can modify this employee
@@ -1822,9 +2091,10 @@ class EmployeeManagementService
                 Log::warning('Permission denied for profile update', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Permission denied'
+                    'error' => 'Permission denied',
+                    'message' => 'فشل في تعديل البيانات الشخصية'
                 ]);
-                throw new \Exception(message: 'فشل في تعديل البيانات الشخصية');
+                throw new \Exception(message: 'فشل في تعديل البيانات الشخصية', code: 403);
             }
 
             // Update profile info using repository
@@ -1833,10 +2103,11 @@ class EmployeeManagementService
             Log::error('EmployeeManagementService::updateEmployeeProfileInfo failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل في تعديل البيانات الشخصية'
             ]);
 
-            throw new \Exception(message: 'فشل في تعديل البيانات الشخصية');
+            throw new \Exception(message: 'فشل في تعديل البيانات الشخصية', code: 500);
         }
     }
 
@@ -1853,9 +2124,10 @@ class EmployeeManagementService
                 Log::warning('Employee not found', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Employee not found'
+                    'error' => 'Employee not found',
+                    'message' => 'فشل في تعديل السيرة الذاتية و الخبرة'
                 ]);
-                return false;
+                throw new \Exception(message: 'فشل في تعديل السيرة الذاتية و الخبرة', code: 404);
             }
 
             // Check if user can modify this employee
@@ -1863,9 +2135,10 @@ class EmployeeManagementService
                 Log::warning('Permission denied for CV update', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Permission denied'
+                    'error' => 'Permission denied',
+                    'message' => 'ليس لديك الصلاحية لتعديل السيرة الذاتية و الخبرة لهذا الموظف'
                 ]);
-                throw new \Exception(message: 'فشل في تعديل السيرة الذاتية و الخبرة');
+                throw new \Exception(message: 'ليس لديك الصلاحية لتعديل السيرة الذاتية و الخبرة لهذا الموظف', code: 403);
             }
 
             // Convert Arabic experience label to enum value if provided
@@ -1883,9 +2156,11 @@ class EmployeeManagementService
                 } else {
                     Log::warning('Invalid experience value provided', [
                         'provided_value' => $cvData['experience'],
-                        'employee_id' => $employeeId
+                        'employee_id' => $employeeId,
+                        'error' => 'Invalid experience value',
+                        'message' => 'فشل في تعديل السيرة الذاتية و الخبرة'
                     ]);
-                    throw new \Exception(message: 'فشل في تعديل السيرة الذاتية و الخبرة');
+                    throw new \Exception(message: 'فشل في تعديل السيرة الذاتية و الخبرة', code: 400);
                 }
             }
 
@@ -1895,10 +2170,11 @@ class EmployeeManagementService
             Log::error('EmployeeManagementService::updateEmployeeCV failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل في تعديل السيرة الذاتية و الخبرة'
             ]);
 
-            throw new \Exception(message: 'فشل في تعديل السيرة الذاتية و الخبرة');
+            throw new \Exception(message: 'فشل في تعديل السيرة الذاتية و الخبرة', code: 500);
         }
     }
 
@@ -1912,12 +2188,24 @@ class EmployeeManagementService
             $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
 
             if (!$employee) {
-                throw new \Exception(message: 'فشل في تعديل بيانات مواقع التواصل الاجتماعى');
+                Log::warning('Employee not found', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Employee not found',
+                    'message' => 'فشل في تعديل بيانات مواقع التواصل الاجتماعى'
+                ]);
+                throw new \Exception(message: 'فشل في تعديل بيانات مواقع التواصل الاجتماعى', code: 404);
             }
 
             // Check if user can modify this employee
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
-                throw new \Exception(message: 'فشل في تعديل بيانات مواقع التواصل الاجتماعى');
+                Log::warning('Permission denied for social links update', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Permission denied',
+                    'message' => 'فشل في تعديل بيانات مواقع التواصل الاجتماعى'
+                ]);
+                throw new \Exception(message: 'فشل في تعديل بيانات مواقع التواصل الاجتماعى', code: 403);
             }
 
             // Update social links using repository
@@ -1926,10 +2214,11 @@ class EmployeeManagementService
             Log::error('EmployeeManagementService::updateEmployeeSocialLinks failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل في تعديل بيانات مواقع التواصل الاجتماعى'
             ]);
 
-            throw new \Exception(message: 'فشل في تعديل بيانات مواقع التواصل الاجتماعى');
+            throw new \Exception(message: 'فشل في تعديل بيانات مواقع التواصل الاجتماعى', code: 500);
         }
     }
 
@@ -1953,7 +2242,8 @@ class EmployeeManagementService
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
                     'employee_found' => $employee ? true : false,
-                    'employee_company_id' => $employee?->company_id
+                    'employee_company_id' => $employee?->company_id,
+                    'message' => 'بدء عملية البحث عن الموظف'
                 ]);
             }
 
@@ -1963,9 +2253,10 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'effective_company_id' => $effectiveCompanyId,
                     'user_company_id' => $user->company_id,
-                    'error' => 'Employee not found'
+                    'error' => 'Employee not found',
+                    'message' => 'فشل في تعديل البيانات البنكيه'
                 ]);
-                throw new \Exception(message: 'فشل في تعديل البيانات البنكيه');
+                throw new \Exception(message: 'فشل في تعديل البيانات البنكيه', code: 404);
             }
 
             // Check if user can modify this employee
@@ -1974,16 +2265,18 @@ class EmployeeManagementService
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
                     'employee_company_id' => $employee->company_id,
-                    'error' => 'Permission denied'
+                    'error' => 'Permission denied',
+                    'message' => 'فشل في تعديل البيانات البنكيه'
                 ]);
-                throw new \Exception(message: 'فشل في تعديل البيانات البنكيه');
+                throw new \Exception(message: 'فشل في تعديل البيانات البنكيه', code: 403);
             }
 
             Log::info('EmployeeManagementService::updateEmployeeBankInfo proceeding', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
                 'employee_company_id' => $employee->company_id,
-                'bank_data' => $bankData
+                'bank_data' => $bankData,
+                'message' => 'بدء عملية تعديل البيانات البنكيه'
             ]);
 
             // Update bank info using repository
@@ -1992,10 +2285,11 @@ class EmployeeManagementService
             Log::error('EmployeeManagementService::updateEmployeeBankInfo failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل في تعديل البيانات البنكيه'
             ]);
 
-            throw new \Exception('فشل في تعديل البيانات البنكيه');
+            throw new \Exception('فشل في تعديل البيانات البنكيه', code: 500);
         }
     }
 
@@ -2012,9 +2306,10 @@ class EmployeeManagementService
                 Log::error('', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Employee not found'
+                    'error' => 'Employee not found',
+                    'message' => 'فشل في إضافة البيانات العائلية'
                 ]);
-                throw new \Exception(message: 'فشل في إضافة البيانات العائلية');
+                throw new \Exception(message: 'فشل في إضافة البيانات العائلية', code: 404);
             }
 
             // Check if user can modify this employee
@@ -2022,9 +2317,10 @@ class EmployeeManagementService
                 Log::error('', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Employee not found'
+                    'error' => 'Employee not found',
+                    'message' => 'فشل في إضافة البيانات العائلية'
                 ]);
-                throw new \Exception(message: 'فشل في إضافة البيانات العائلية');
+                throw new \Exception(message: 'فشل في إضافة البيانات العائلية', code: 403);
             }
 
             // Update family data using repository
@@ -2033,10 +2329,11 @@ class EmployeeManagementService
             Log::error('EmployeeManagementService::addEmployeeFamilyData failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل في إضافة البيانات العائلية'
             ]);
 
-            throw new \Exception(message: 'فشل في إضافة البيانات العائلية');
+            throw new \Exception(message: 'فشل في إضافة البيانات العائلية', code: 500);
         }
     }
 
@@ -2053,9 +2350,10 @@ class EmployeeManagementService
                 Log::error('', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Employee not found'
+                    'error' => 'Employee not found',
+                    'message' => 'فشل في حذف البيانات العائلية'
                 ]);
-                throw new \Exception(message: 'فشل في حذف البيانات العائلية');
+                throw new \Exception(message: 'فشل في حذف البيانات العائلية', code: 404);
             }
 
             // Check if user can modify this employee
@@ -2063,9 +2361,10 @@ class EmployeeManagementService
                 Log::error('', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'Permission denied'
+                    'error' => 'Permission denied',
+                    'message' => 'ليس لديك صلاحية لحذف هذه البيانات'
                 ]);
-                throw new \Exception(message: 'ليس لديك صلاحية لحذف هذه البيانات');
+                throw new \Exception(message: 'ليس لديك صلاحية لحذف هذه البيانات', code: 403);
             }
 
             // Verify the contact belongs to the employee
@@ -2075,7 +2374,14 @@ class EmployeeManagementService
                 ->first();
 
             if (!$contact) {
-                throw new \Exception(message: 'بيانات العائلة غير موجودة');
+                Log::error('', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'contact_id' => $contactId,
+                    'error' => 'Contact not found',
+                    'message' => 'بيانات العائلة غير موجودة'
+                ]);
+                throw new \Exception(message: 'بيانات العائلة غير موجودة', code: 404);
             }
 
             // Delete family data using repository
@@ -2085,10 +2391,11 @@ class EmployeeManagementService
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
                 'contact_id' => $contactId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل في حذف البيانات العائلية'
             ]);
 
-            throw $e;
+            throw new \Exception(message: 'فشل في حذف البيانات العائلية', code: 500);
         }
     }
 
@@ -2104,18 +2411,20 @@ class EmployeeManagementService
             if (!$employee) {
                 Log::error('EmployeeManagementService::getEmployeeDocuments failed - Employee not found', [
                     'user_id' => $user->user_id,
-                    'employee_id' => $employeeId
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception(message: 'الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
 
             // Check permissions (should be able to view requests of this employee)
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::getEmployeeDocuments failed - Permission denied', [
                     'user_id' => $user->user_id,
-                    'employee_id' => $employeeId
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لعرض مستندات هذا الموظف'
                 ]);
-                throw new \Exception(message: 'ليس لديك صلاحية لعرض مستندات هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لعرض مستندات هذا الموظف', code: 403);
             }
 
             return $this->employeeRepository->getEmployeeDocuments($employeeId, $search);
@@ -2124,9 +2433,10 @@ class EmployeeManagementService
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
                 'search' => $search,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل في عرض مستندات هذا الموظف'
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل في عرض مستندات هذا الموظف', code: 500);
         }
     }
 
@@ -2147,9 +2457,9 @@ class EmployeeManagementService
                     Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
                         'user_id' => $user->user_id,
                         'employee_id' => $employeeId,
-                        'error' => 'الموظف غير موجود أو ليس في شركتك'
+                        'message' => 'الموظف غير موجود أو ليس في شركتك'
                     ]);
-                    throw new \Exception(message: 'الموظف غير موجود أو ليس في شركتك');
+                    throw new \Exception(message: 'الموظف غير موجود أو ليس في شركتك', code: 404);
                 }
             }
 
@@ -2158,9 +2468,9 @@ class EmployeeManagementService
                 Log::error('EmployeeManagementService::getEmployeeDocuments failed', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'ليس لديك صلاحية لتعديل بيانات هذا الموظف'
+                    'message' => 'ليس لديك صلاحية لتعديل بيانات هذا الموظف'
                 ]);
-                throw new \Exception(message: 'ليس لديك صلاحية لتعديل بيانات هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لتعديل بيانات هذا الموظف', code: 403);
             }
 
             // Split data into user table and details table
@@ -2204,9 +2514,10 @@ class EmployeeManagementService
             Log::error('EmployeeManagementService::updateEmployeeBasicInfo failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل في تحديث بيانات هذا الموظف'
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل في تحديث بيانات هذا الموظف', code: 500);
         }
     }
 
@@ -2229,9 +2540,7 @@ class EmployeeManagementService
                 ['value' => 1, 'label_ar' => 'ذكر', 'label_en' => 'Male'],
                 ['value' => 2, 'label_ar' => 'أنثى', 'label_en' => 'Female'],
             ],
-            'religions' => [
-                ['value' => 23, 'label_ar' => 'مسلم', 'label_en' => 'Muslim'],
-            ],
+            'religions' => ErpConstant::getReligions($effectiveCompanyId),
             'salay_type' => [
                 ['value' => 1, 'label_ar' => 'فى الشهر', 'label_en' => 'Month'],
                 ['value' => 2, 'label_ar' => 'فى الساعة', 'label_en' => 'Hour'],
@@ -2263,9 +2572,9 @@ class EmployeeManagementService
                     Log::error('EmployeeManagementService::getEmployeeContractData failed', [
                         'user_id' => $user->user_id,
                         'employee_id' => $employeeId,
-                        'error' => 'الموظف غير موجود أو ليس في شركتك'
+                        'message' => 'الموظف غير موجود أو ليس في شركتك'
                     ]);
-                    throw new \Exception(message: 'الموظف غير موجود أو ليس في شركتك');
+                    throw new \Exception(message: 'الموظف غير موجود أو ليس في شركتك', code: 404);
                 }
             }
 
@@ -2274,9 +2583,9 @@ class EmployeeManagementService
                 Log::error('EmployeeManagementService::getEmployeeContractData failed', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'ليس لديك صلاحية لعرض بيانات عقد هذا الموظف'
+                    'message' => 'ليس لديك صلاحية لعرض بيانات عقد هذا الموظف'
                 ]);
-                throw new \Exception(message: 'ليس لديك صلاحية لعرض بيانات عقد هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لعرض بيانات عقد هذا الموظف', code: 403);
             }
 
             return $this->employeeRepository->getEmployeeContractData($employeeId);
@@ -2284,9 +2593,10 @@ class EmployeeManagementService
             Log::error('EmployeeManagementService::getEmployeeContractData failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل في عرض بيانات عقد هذا الموظف'
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل في عرض بيانات عقد هذا الموظف', code: 500);
         }
     }
     /**
@@ -2308,9 +2618,9 @@ class EmployeeManagementService
                     Log::error('EmployeeManagementService::getEmployeeContractData failed', [
                         'user_id' => $user->user_id,
                         'employee_id' => $employeeId,
-                        'error' => 'الموظف غير موجود أو ليس في شركتك'
+                        'message' => 'الموظف غير موجود أو ليس في شركتك'
                     ]);
-                    throw new \Exception(message: 'الموظف غير موجود أو ليس في شركتك');
+                    throw new \Exception(message: 'الموظف غير موجود أو ليس في شركتك', code: 404);
                 }
             }
 
@@ -2319,33 +2629,34 @@ class EmployeeManagementService
                 Log::error('EmployeeManagementService::updateEmployeeContractData failed', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'ليس لديك صلاحية لتعديل بيانات عقد هذا الموظف'
+                    'message' => 'ليس لديك صلاحية لتعديل بيانات عقد هذا الموظف'
                 ]);
-                throw new \Exception(message: 'ليس لديك صلاحية لتعديل بيانات عقد هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لتعديل بيانات عقد هذا الموظف', code: 403);
             }
             $success = $this->employeeRepository->updateEmployeeContractData($employeeId, $data);
             if (!$success) {
                 Log::error('EmployeeManagementService::updateEmployeeContractData failed', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'فشل تحديث بيانات العقد'
+                    'message' => 'فشل تحديث بيانات العقد'
                 ]);
-                throw new \Exception(message: 'فشل تحديث بيانات العقد');
+                throw new \Exception(message: 'فشل تحديث بيانات العقد', code: 500);
             }
 
             Log::info('EmployeeManagementService::updateEmployeeContractData success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'data' => $data
+                'message' => 'تم تحديث بيانات العقد بنجاح'
             ]);
             return $success;
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::updateEmployeeContractData failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل تحديث بيانات العقد'
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل تحديث بيانات العقد', code: 500);
         }
     }
 
@@ -2360,9 +2671,10 @@ class EmployeeManagementService
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getContractOptions failed', [
                 'user_id' => $user->user_id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل في الحصول على خيارات العقود'
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل في الحصول على خيارات العقود', code: 500);
         }
     }
 
@@ -2375,18 +2687,18 @@ class EmployeeManagementService
                 Log::error('EmployeeManagementService::addAllowance failed', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'الموظف غير موجود'
+                    'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception(message: 'الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
 
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::addAllowance failed', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'ليس لديك صلاحية لإضافة بدل لهذا الموظف'
+                    'message' => 'ليس لديك صلاحية لإضافة بدل لهذا الموظف'
                 ]);
-                throw new \Exception(message: 'ليس لديك صلاحية لإضافة بدل لهذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لإضافة بدل لهذا الموظف', code: 403);
             }
 
             // Check if allowance already exists
@@ -2394,15 +2706,16 @@ class EmployeeManagementService
                 Log::error('EmployeeManagementService::addAllowance failed', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'البدل موجود بالفعل'
+                    'message' => 'البدل موجود بالفعل'
                 ]);
-                throw new \Exception('البدل موجود بالفعل');
+                throw new \Exception(message: 'البدل موجود بالفعل', code: 409);
             }
 
             Log::info('EmployeeManagementService::addAllowance', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'data' => $data
+                'data' => $data,
+                'message' => 'تم إضافة البدل بنجاح'
             ]);
             $data['company_id'] = $effectiveCompanyId;
             return $this->employeeRepository->addAllowance($employeeId, $data);
@@ -2413,7 +2726,7 @@ class EmployeeManagementService
                 'message' => 'فشل إضافة البدل',
                 'error' => $e->getMessage()
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل إضافة البدل', code: 500);
         }
     }
 
@@ -2426,17 +2739,17 @@ class EmployeeManagementService
                 Log::error('EmployeeManagementService::addCommission failed', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'الموظف غير موجود'
+                    'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception(message: 'الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::addCommission failed', [
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
-                    'error' => 'ليس لديك صلاحية لإضافة عمولة لهذا الموظف'
+                    'message' => 'ليس لديك صلاحية لإضافة عمولة لهذا الموظف'
                 ]);
-                throw new \Exception(message: 'ليس لديك صلاحية لإضافة عمولة لهذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لإضافة عمولة لهذا الموظف', code: 403);
             }
 
             // Check if commission already exists
@@ -2446,13 +2759,14 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'العمولة موجودة بالفعل',
                 ]);
-                throw new \Exception('العمولة موجودة بالفعل');
+                throw new \Exception(message: 'العمولة موجودة بالفعل', code: 409);
             }
 
             Log::info('EmployeeManagementService::addCommission', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'data' => $data
+                'data' => $data,
+                'message' => 'تم إضافة العمولة بنجاح'
             ]);
             $data['company_id'] = $effectiveCompanyId;
             return $this->employeeRepository->addCommission($employeeId, $data);
@@ -2463,7 +2777,7 @@ class EmployeeManagementService
                 'message' => 'فشل إضافة العمولة',
                 'error' => $e->getMessage()
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل إضافة العمولة', code: 500);
         }
     }
 
@@ -2478,7 +2792,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الموظف غير موجود',
                 ]);
-                throw new \Exception(message: 'الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::addStatutoryDeduction failed', [
@@ -2486,7 +2800,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لإضافة خصم لهذا الموظف',
                 ]);
-                throw new \Exception(message: 'ليس لديك صلاحية لإضافة خصم لهذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لإضافة خصم لهذا الموظف', code: 403);
             }
 
             // Check if statutory deduction already exists
@@ -2496,13 +2810,14 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الخصم القانوني موجود بالفعل',
                 ]);
-                throw new \Exception('الخصم القانوني موجود بالفعل');
+                throw new \Exception(message: 'الخصم القانوني موجود بالفعل', code: 409);
             }
 
             Log::info('EmployeeManagementService::addStatutoryDeduction', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'data' => $data
+                'data' => $data,
+                'message' => 'تم إضافة الخصم القانوني بنجاح'
             ]);
             $data['company_id'] = $effectiveCompanyId;
             return $this->employeeRepository->addStatutoryDeduction($employeeId, $data);
@@ -2513,7 +2828,7 @@ class EmployeeManagementService
                 'message' => 'فشل إضافة الخصم القانوني',
                 'error' => $e->getMessage()
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل إضافة الخصم القانوني', code: 500);
         }
     }
 
@@ -2528,7 +2843,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception(message: 'الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::addOtherPayment failed', [
@@ -2536,7 +2851,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لإضافة تعويض لهذا الموظف'
                 ]);
-                throw new \Exception(message: 'ليس لديك صلاحية لإضافة تعويض لهذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لإضافة تعويض لهذا الموظف', code: 403);
             }
 
             // Check if other payment already exists
@@ -2546,13 +2861,14 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'التعويض موجود بالفعل'
                 ]);
-                throw new \Exception('التعويض موجود بالفعل');
+                throw new \Exception(message: 'التعويض موجود بالفعل', code: 409);
             }
 
             Log::info('EmployeeManagementService::addOtherPayment', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'data' => $data
+                'data' => $data,
+                'message' => 'تم إضافة التعويض بنجاح'
             ]);
             $data['company_id'] = $effectiveCompanyId;
             return $this->employeeRepository->addOtherPayment($employeeId, $data);
@@ -2563,7 +2879,7 @@ class EmployeeManagementService
                 'message' => 'فشل إضافة التعويض',
                 'error' => $e->getMessage()
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل إضافة التعويض', code: 500);
         }
     }
 
@@ -2580,7 +2896,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception('الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::updateAllowance failed', [
@@ -2588,7 +2904,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لتعديل بدل هذا الموظف'
                 ]);
-                throw new \Exception('ليس لديك صلاحية لتعديل بدل هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لتعديل بدل هذا الموظف', code: 403);
             }
 
             $allowance = $this->employeeRepository->getAllowanceById($id);
@@ -2598,9 +2914,16 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'البدل غير موجود'
                 ]);
-                throw new \Exception('البدل غير موجود');
+                throw new \Exception(message: 'البدل غير موجود', code: 404);
             }
 
+            Log::info('EmployeeManagementService::updateAllowance', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'data' => $data,
+                'message' => 'تم تعديل بدل هذا الموظف بنجاح'
+            ]);
             return $this->employeeRepository->updateAllowance($id, $data);
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::updateAllowance failed', [
@@ -2609,7 +2932,7 @@ class EmployeeManagementService
                 'id' => $id,
                 'error' => $e->getMessage()
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل تعديل بدل هذا الموظف', code: 500);
         }
     }
 
@@ -2624,7 +2947,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception('الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::deleteAllowance failed', [
@@ -2632,7 +2955,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لحذف بدل هذا الموظف'
                 ]);
-                throw new \Exception('ليس لديك صلاحية لحذف بدل هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لحذف بدل هذا الموظف', code: 403);
             }
 
             $allowance = $this->employeeRepository->getAllowanceById($id);
@@ -2642,9 +2965,15 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'البدل غير موجود'
                 ]);
-                throw new \Exception('البدل غير موجود');
+                throw new \Exception(message: 'البدل غير موجود', code: 404);
             }
 
+            Log::info('EmployeeManagementService::deleteAllowance', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'message' => 'تم حذف بدل هذا الموظف بنجاح'
+            ]);
             return $this->employeeRepository->deleteAllowance($id);
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::deleteAllowance failed', [
@@ -2653,7 +2982,7 @@ class EmployeeManagementService
                 'id' => $id,
                 'error' => $e->getMessage()
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل حذف بدل هذا الموظف', code: 500);
         }
     }
 
@@ -2668,7 +2997,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception('الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::updateCommission failed', [
@@ -2676,7 +3005,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لتعديل عمولة هذا الموظف'
                 ]);
-                throw new \Exception('ليس لديك صلاحية لتعديل عمولة هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لتعديل عمولة هذا الموظف', code: 403);
             }
 
             $commission = $this->employeeRepository->getCommissionById($id);
@@ -2686,9 +3015,16 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'العمولة غير موجودة'
                 ]);
-                throw new \Exception('العمولة غير موجودة');
+                throw new \Exception(message: 'العمولة غير موجودة', code: 404);
             }
 
+            Log::info('EmployeeManagementService::updateCommission', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'data' => $data,
+                'message' => 'تم تعديل عمولة هذا الموظف بنجاح'
+            ]);
             return $this->employeeRepository->updateCommission($id, $data);
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::updateCommission failed', [
@@ -2697,7 +3033,7 @@ class EmployeeManagementService
                 'id' => $id,
                 'error' => $e->getMessage()
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل تعديل عمولة هذا الموظف', code: 500);
         }
     }
 
@@ -2712,7 +3048,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception('الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::deleteCommission failed', [
@@ -2720,7 +3056,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لحذف عمولة هذا الموظف'
                 ]);
-                throw new \Exception('ليس لديك صلاحية لحذف عمولة هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لحذف عمولة هذا الموظف', code: 403);
             }
 
             $commission = $this->employeeRepository->getCommissionById($id);
@@ -2730,9 +3066,15 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'العمولة غير موجودة'
                 ]);
-                throw new \Exception('العمولة غير موجودة');
+                throw new \Exception(message: 'العمولة غير موجودة', code: 404);
             }
 
+            Log::info('EmployeeManagementService::deleteCommission', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'message' => 'تم حذف عمولة هذا الموظف بنجاح'
+            ]);
             return $this->employeeRepository->deleteCommission($id);
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::deleteCommission failed', [
@@ -2741,7 +3083,7 @@ class EmployeeManagementService
                 'id' => $id,
                 'error' => $e->getMessage()
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل حذف عمولة هذا الموظف', code: 500);
         }
     }
 
@@ -2756,7 +3098,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception('الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::updateStatutoryDeduction failed', [
@@ -2764,7 +3106,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لتعديل خصم هذا الموظف'
                 ]);
-                throw new \Exception('ليس لديك صلاحية لتعديل خصم هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لتعديل خصم هذا الموظف', code: 403);
             }
 
             $deduction = $this->employeeRepository->getStatutoryDeductionById($id);
@@ -2774,9 +3116,16 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الخصم غير موجود'
                 ]);
-                throw new \Exception('الخصم غير موجود');
+                throw new \Exception(message: 'الخصم غير موجود', code: 404);
             }
 
+            Log::info('EmployeeManagementService::updateStatutoryDeduction', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'data' => $data,
+                'message' => 'تم تعديل خصم هذا الموظف بنجاح'
+            ]);
             return $this->employeeRepository->updateStatutoryDeduction($id, $data);
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::updateStatutoryDeduction failed', [
@@ -2785,7 +3134,7 @@ class EmployeeManagementService
                 'id' => $id,
                 'error' => $e->getMessage()
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل تعديل خصم هذا الموظف', code: 500);
         }
     }
 
@@ -2800,7 +3149,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception('الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::deleteStatutoryDeduction failed', [
@@ -2808,7 +3157,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لحذف خصم هذا الموظف'
                 ]);
-                throw new \Exception('ليس لديك صلاحية لحذف خصم هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لحذف خصم هذا الموظف', code: 403);
             }
 
             $deduction = $this->employeeRepository->getStatutoryDeductionById($id);
@@ -2818,9 +3167,15 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الخصم غير موجود'
                 ]);
-                throw new \Exception('الخصم غير موجود');
+                throw new \Exception(message: 'الخصم غير موجود', code: 404);
             }
 
+            Log::info('EmployeeManagementService::deleteStatutoryDeduction', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'message' => 'تم حذف خصم هذا الموظف بنجاح'
+            ]);
             return $this->employeeRepository->deleteStatutoryDeduction($id);
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::deleteStatutoryDeduction failed', [
@@ -2829,7 +3184,7 @@ class EmployeeManagementService
                 'id' => $id,
                 'error' => $e->getMessage()
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل حذف خصم هذا الموظف', code: 500);
         }
     }
 
@@ -2844,7 +3199,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception('الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::updateOtherPayment failed', [
@@ -2852,7 +3207,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لتعديل دفع هذا الموظف'
                 ]);
-                throw new \Exception('ليس لديك صلاحية لتعديل دفع هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لتعديل دفع هذا الموظف', code: 403);
             }
 
             $payment = $this->employeeRepository->getOtherPaymentById($id);
@@ -2862,9 +3217,16 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'التعويض غير موجود'
                 ]);
-                throw new \Exception('التعويض غير موجود');
+                throw new \Exception(message: 'التعويض غير موجود', code: 404);
             }
 
+            Log::info('EmployeeManagementService::updateOtherPayment', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'data' => $data,
+                'message' => 'تم تعديل دفع هذا الموظف بنجاح'
+            ]);
             return $this->employeeRepository->updateOtherPayment($id, $data);
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::updateOtherPayment failed', [
@@ -2873,7 +3235,7 @@ class EmployeeManagementService
                 'id' => $id,
                 'error' => $e->getMessage()
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل تعديل دفع هذا الموظف', code: 500);
         }
     }
 
@@ -2888,7 +3250,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception('الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
                 Log::error('EmployeeManagementService::deleteOtherPayment failed', [
@@ -2896,7 +3258,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لحذف دفع هذا الموظف'
                 ]);
-                throw new \Exception('ليس لديك صلاحية لحذف دفع هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لحذف دفع هذا الموظف', code: 403);
             }
 
             $payment = $this->employeeRepository->getOtherPaymentById($id);
@@ -2906,9 +3268,15 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'التعويض غير موجود'
                 ]);
-                throw new \Exception('التعويض غير موجود');
+                throw new \Exception(message: 'التعويض غير موجود', code: 404);
             }
 
+            Log::info('EmployeeManagementService::deleteOtherPayment', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'id' => $id,
+                'message' => 'تم حذف دفع هذا الموظف بنجاح'
+            ]);
             return $this->employeeRepository->deleteOtherPayment($id);
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::deleteOtherPayment failed', [
@@ -2917,13 +3285,13 @@ class EmployeeManagementService
                 'id' => $id,
                 'error' => $e->getMessage()
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل حذف دفع هذا الموظف', code: 500);
         }
     }
 
     public function getAllowances(User $user, int $employeeId, ?string $search = null): array
     {
-        try{
+        try {
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
             if (!$employee) {
@@ -2932,7 +3300,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception('الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
 
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
@@ -2941,23 +3309,28 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف'
                 ]);
-                throw new \Exception('ليس لديك صلاحية لعرض بيانات هذا الموظف');
+                throw new \Exception(message: 'ليس لديك صلاحية لعرض بيانات هذا الموظف', code: 403);
             }
 
+            Log::info('EmployeeManagementService::getAllowances', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'تم عرض بيانات هذا الموظف بنجاح'
+            ]);
             return $this->employeeRepository->getAllowances($employeeId, $search);
         } catch (\Exception $e) {
-                Log::error('EmployeeManagementService::getAllowances failed', [
-                    'user_id' => $user->user_id,
-                    'employee_id' => $employeeId,
-                    'error' => $e->getMessage()
-                ]);
-                throw $e;
+            Log::error('EmployeeManagementService::getAllowances failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception(message: 'فشل عرض بيانات هذا الموظف', code: 500);
         }
     }
 
     public function getCommissions(User $user, int $employeeId, ?string $search = null): array
     {
-        try{
+        try {
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
             if (!$employee) {
@@ -2966,7 +3339,7 @@ class EmployeeManagementService
                     'employee_id' => $employeeId,
                     'message' => 'الموظف غير موجود'
                 ]);
-                throw new \Exception('الموظف غير موجود');
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
             }
 
             if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
@@ -2974,86 +3347,104 @@ class EmployeeManagementService
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف'
-                ]);
-                throw new \Exception('ليس لديك صلاحية لعرض بيانات هذا الموظف');
+                ]); 
+                throw new \Exception(message: 'ليس لديك صلاحية لعرض بيانات هذا الموظف', code: 403);
             }
 
+            Log::info('EmployeeManagementService::getCommissions', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'تم عرض بيانات هذا الموظف بنجاح'
+            ]);
             return $this->employeeRepository->getCommissions($employeeId, $search);
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getCommissions failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل عرض بيانات هذا الموظف'
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل عرض بيانات هذا الموظف', code: 500);
         }
     }
 
     public function getStatutoryDeductions(User $user, int $employeeId, ?string $search = null): array
     {
-        try{
-        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-        $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
-        if (!$employee) {
-            Log::error('EmployeeManagementService::getStatutoryDeductions failed', [
-                'user_id' => $user->user_id,
-                'employee_id' => $employeeId,
-                'message' => 'الموظف غير موجود'
-            ]);
-            throw new \Exception('الموظف غير موجود');
-        }
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::getStatutoryDeductions failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
+            }
 
-        if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
-            Log::error('EmployeeManagementService::getStatutoryDeductions failed', [
-                'user_id' => $user->user_id,
-                'employee_id' => $employeeId,
-                'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف'
-            ]);
-            throw new \Exception('ليس لديك صلاحية لعرض بيانات هذا الموظف');
-        }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::getStatutoryDeductions failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف'
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحية لعرض بيانات هذا الموظف', code: 403);
+            }
 
-        return $this->employeeRepository->getStatutoryDeductions($employeeId, $search);
-    } catch (\Exception $e) {
+            Log::info('EmployeeManagementService::getStatutoryDeductions', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'تم عرض بيانات هذا الموظف بنجاح'
+            ]);
+            return $this->employeeRepository->getStatutoryDeductions($employeeId, $search);
+        } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getStatutoryDeductions failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل عرض بيانات هذا الموظف'
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل عرض بيانات هذا الموظف', code: 500);
         }
     }
 
     public function getOtherPayments(User $user, int $employeeId, ?string $search = null): array
     {
-        try{
-        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-        $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
-        if (!$employee) {
-            Log::error('EmployeeManagementService::getOtherPayments failed', [
-                'user_id' => $user->user_id,
-                'employee_id' => $employeeId,
-                'message' => 'الموظف غير موجود'
-            ]);
-            throw new \Exception('الموظف غير موجود');
-        }
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+            if (!$employee) {
+                Log::error('EmployeeManagementService::getOtherPayments failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'الموظف غير موجود'
+                ]);
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
+            }
 
-        if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
-            Log::error('EmployeeManagementService::getOtherPayments failed', [
-                'user_id' => $user->user_id,
-                'employee_id' => $employeeId,
-                'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف'
-            ]);
-            throw new \Exception('ليس لديك صلاحية لعرض بيانات هذا الموظف');
-        }
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::error('EmployeeManagementService::getOtherPayments failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف'
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحية لعرض بيانات هذا الموظف', code: 403);
+            }
 
-        return $this->employeeRepository->getOtherPayments($employeeId, $search);
-    } catch (\Exception $e) {
+            Log::info('EmployeeManagementService::getOtherPayments', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'message' => 'تم عرض بيانات هذا الموظف بنجاح'
+            ]);
+            return $this->employeeRepository->getOtherPayments($employeeId, $search);
+        } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getOtherPayments failed', [
                 'user_id' => $user->user_id,
                 'employee_id' => $employeeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'message' => 'فشل عرض بيانات هذا الموظف'
             ]);
-            throw $e;
+            throw new \Exception(message: 'فشل عرض بيانات هذا الموظف', code: 500);
         }
     }
 
@@ -3065,9 +3456,9 @@ class EmployeeManagementService
      */
     public function getEmployeeCountryStats(User $user): array
     {
-        try{
+        try {
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-            
+
             return $this->employeeRepository->getEmployeeCountByCountry($effectiveCompanyId);
         } catch (\Exception $e) {
             Log::error('EmployeeManagementService::getEmployeeCountryStats failed', [
@@ -3075,7 +3466,7 @@ class EmployeeManagementService
                 'error' => $e->getMessage(),
                 'message' => 'حدث خطأ أثناء جلب إحصائيات الموظفين حسب الدولة'
             ]);
-            throw $e;
+            throw new \Exception(message: 'حدث خطأ أثناء جلب إحصائيات الموظفين حسب الدولة', code: 500);
         }
     }
 }

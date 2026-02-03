@@ -1542,13 +1542,13 @@ class EmployeeRepository implements EmployeeRepositoryInterface
             ->where('payslip_id', 0);
 
         if ($search) {
-                $query->where('pay_title', 'like', "%{$search}%");
+            $query->where('pay_title', 'like', "%{$search}%");
         }
 
         return $query->get()->toArray();
     }
 
-    
+
     public function getEmployeeCountByCountry(int $companyId): array
     {
         $stats = DB::table('ci_erp_users as u')
@@ -1580,5 +1580,131 @@ class EmployeeRepository implements EmployeeRepositoryInterface
         ];
 
         return $result;
+    }
+    /**
+     * Get eligible approvers for a hierarchy level
+     * 
+     * @param int $companyId
+     * @param int $targetLevel
+     * @param array $excludeIds
+     * @return Collection
+     */
+    public function getEligibleApprovers(int $companyId, int $targetLevel, array $excludeIds = []): Collection
+    {
+        return $this->model->where('company_id', $companyId)
+            ->where('is_active', 1)
+            ->when(!empty($excludeIds), function ($q) use ($excludeIds) {
+                $q->whereNotIn('user_id', $excludeIds);
+            })
+            ->whereHas('user_details.designation', function ($q) use ($targetLevel) {
+                $q->where('hierarchy_level', '<', $targetLevel);
+            })
+            ->with(['user_details.designation', 'user_details.department'])
+            ->get();
+    }
+
+    /**
+     * Get employees based on hierarchy level and restrictions
+     */
+    public function getEmployeesByHierarchy(int $companyId, int $hierarchyLevel, array $restrictedDepartments = [], array $restrictedBranches = [], ?int $includeSelfId = null): array
+    {
+        $query = DB::table('ci_erp_users')
+            ->select(
+                'ci_erp_users.user_id',
+                'ci_erp_users.first_name',
+                'ci_erp_users.last_name',
+                'ci_erp_users_details.designation_id',
+                'ci_designations.designation_name as designation_name',
+                'ci_designations.hierarchy_level as hierarchy_level',
+                'ci_erp_users_details.department_id',
+                'ci_departments.department_name as department_name',
+                'ci_branchs.branch_name as branch_name',
+                'ci_office_shifts.shift_name as shift_name'
+            )
+            ->leftJoin('ci_erp_users_details', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
+            ->leftJoin('ci_designations', 'ci_designations.designation_id', '=', 'ci_erp_users_details.designation_id')
+            ->leftJoin('ci_departments', 'ci_departments.department_id', '=', 'ci_erp_users_details.department_id')
+            ->leftJoin('ci_branchs', 'ci_branchs.branch_id', '=', 'ci_erp_users_details.branch_id')
+            ->leftJoin('ci_office_shifts', 'ci_office_shifts.office_shift_id', '=', 'ci_erp_users_details.office_shift_id')
+            ->where('ci_erp_users.company_id', $companyId)
+            ->where('ci_erp_users.user_type', 'staff')
+            ->where('ci_erp_users.is_active', 1);
+
+        // Special case for Level 0 (Super Admin) - no other filters needed
+        if ($hierarchyLevel === 0) {
+            return $query->get()->toArray();
+        }
+
+        $query->where(function ($masterQ) use ($includeSelfId, $hierarchyLevel, $restrictedDepartments, $restrictedBranches) {
+            // Group 1: Matches Hierarchy & Restrictions
+            $masterQ->where(function ($q) use ($hierarchyLevel, $restrictedDepartments, $restrictedBranches) {
+                // Strictly lower rank (numerically higher level)
+                $q->where('ci_designations.hierarchy_level', '>=', $hierarchyLevel);
+
+                // Department & Branch Restrictions
+                if (!empty($restrictedDepartments)) {
+                    $q->whereNotIn('ci_erp_users_details.department_id', $restrictedDepartments);
+                }
+                if (!empty($restrictedBranches)) {
+                    $q->whereNotIn('ci_erp_users_details.branch_id', $restrictedBranches);
+                }
+            });
+
+            // Group 2: Include Self (Explicitly allowed)
+            if ($includeSelfId) {
+                $masterQ->orWhere('ci_erp_users.user_id', $includeSelfId);
+            }
+        });
+
+        return $query->get()->toArray();
+    }
+
+    /**
+     * Update user details
+     */
+    public function updateUserDetails(int $userId, array $data): bool
+    {
+        return UserDetails::where('user_id', $userId)->update($data) > 0;
+    }
+
+    /**
+     * Get backup employees
+     */
+    public function getBackupEmployees(int $companyId, int $departmentId, ?string $search = null, ?int $excludeUserId = null): array
+    {
+        $query = $this->model->where('company_id', $companyId)
+            ->where('user_type', 'staff')
+            ->where('is_active', 1)
+            ->whereHas('user_details', function ($q) use ($departmentId) {
+                $q->where('department_id', $departmentId);
+            });
+
+        if ($excludeUserId) {
+            $query->where('user_id', '!=', $excludeUserId);
+        }
+
+        if ($search) {
+            $searchTerm = "%{$search}%";
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('first_name', 'LIKE', $searchTerm)
+                    ->orWhere('last_name', 'LIKE', $searchTerm)
+                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$searchTerm]);
+            });
+        }
+
+        return $query->with(['user_details.designation', 'user_details.department'])
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'user_id' => $user->user_id,
+                    'full_name' => $user->full_name,
+                    'email' => $user->email,
+                    'department_id' => $user->user_details->department_id ?? null,
+                    'department_name' => $user->user_details->department->department_name ?? 'N/A',
+                    'designation_name' => $user->user_details->designation->designation_name ?? 'N/A',
+                    'hierarchy_level' => $user->user_details->designation->hierarchy_level ?? null,
+                ];
+            })
+            ->toArray();
     }
 }

@@ -10,6 +10,12 @@ use App\Http\Resources\BranchResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @OA\Tag(
+ *     name="Branches",
+ *     description="إدارة الفروع"
+ * )
+ */
 class BranchController extends Controller
 {
     protected $branchService;

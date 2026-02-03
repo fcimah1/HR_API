@@ -9,6 +9,12 @@ use App\DTOs\Country\CountryFilterDTO;
 use App\Http\Resources\CountryResource;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * @OA\Tag(
+ *     name="Countries",
+ *     description="إدارة الدول"
+ * )
+ */
 class CountryController extends Controller
 {
     protected $countryService;

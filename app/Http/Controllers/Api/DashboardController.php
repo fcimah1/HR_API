@@ -8,6 +8,12 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @OA\Tag(
+ *     name="Dashboard",
+ *     description="لوحة التحكم"
+ * )
+ */
 class DashboardController extends Controller
 {
     protected $dashboardService;

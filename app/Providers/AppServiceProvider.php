@@ -58,6 +58,9 @@ use App\Repository\Interface\OfficeShiftRepositoryInterface;
 use App\Repository\OfficeShiftRepository;
 use App\Services\CacheService;
 use App\Services\FileUploadService;
+use Dedoc\Scramble\Scramble;
+use Illuminate\Routing\Route;
+use Illuminate\Support\Str;
 use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
@@ -154,6 +157,18 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(CacheService::class, CacheService::class);
 
         $this->app->bind(FileUploadService::class, FileUploadService::class);
+
+        // Asset Configuration repository
+        $this->app->singleton(\App\Repository\Interface\AssetConfigurationRepositoryInterface::class, \App\Repository\AssetConfigurationRepository::class);
+
+        // Asset repository
+        $this->app->singleton(\App\Repository\Interface\AssetRepositoryInterface::class, \App\Repository\AssetRepository::class);
+
+        // Award repository
+        $this->app->bind(\App\Repository\Interface\AwardRepositoryInterface::class, \App\Repository\AwardRepository::class);
+        
+        // Award Configuration repository
+        $this->app->bind(\App\Repository\Interface\AwardConfigurationRepositoryInterface::class, \App\Repository\AwardConfigurationRepository::class);
     }
 
     /**
@@ -175,5 +190,10 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Queue\Events\JobFailed::class,
             \App\Listeners\JobFailedListener::class
         );
+
+        Scramble::configure()
+        ->routes(function (Route $route) {
+            return Str::startsWith($route->uri, 'api/');
+        });
     }
 }
