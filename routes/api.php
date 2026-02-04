@@ -282,6 +282,23 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::delete('/{id}', [\App\Http\Controllers\Api\PromotionController::class, 'destroy'])->middleware('simple.permission:promotion4');
     });
 
+    // Termination Management
+    Route::prefix('terminations')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\TerminationController::class, 'index'])->middleware('simple.permission:termination1');
+        Route::post('/', [\App\Http\Controllers\Api\TerminationController::class, 'store'])->middleware('simple.permission:termination2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\TerminationController::class, 'show'])->middleware('simple.permission:termination1');
+        Route::match(['put', 'post'], '/{id}', [\App\Http\Controllers\Api\TerminationController::class, 'update'])->middleware('simple.permission:termination3');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\TerminationController::class, 'destroy'])->middleware('simple.permission:termination4');
+    });
+
+    // Residence Renewal Management
+    Route::prefix('residence-renewals')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\ResidenceRenewalController::class, 'index'])->middleware('simple.permission:residence1');
+        Route::post('/', [\App\Http\Controllers\Api\ResidenceRenewalController::class, 'store'])->middleware('simple.permission:residence2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\ResidenceRenewalController::class, 'show'])->middleware('simple.permission:residence1');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\ResidenceRenewalController::class, 'destroy'])->middleware('simple.permission:residence4');
+    });
+
     // Travel Management
     Route::prefix('travels')->group(function () {
         Route::get('/enums', [App\Http\Controllers\Api\TravelController::class, 'getEnums']);

@@ -37,9 +37,15 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 - **Unified Employee Requests:** Centralized view for all types of requests (Leaves, Overtimes, Transfers, etc.) for a specific employee.
 - **Custody Clearance (إخلاء طرف):** Asset tracking and return validation strictly tied to employee assignments.
 - **Transfers:** Internal (Dept to Dept), Branch, and Inter-company transfers with multi-step approvals.
+- **Promotions:** Employee career progression tracking with automatic record updates upon approval.
 - **Resignations:** Formal resignation process with approval workflow.
 - **Travels:** Business travel requests handling.
 - **Complaints & Suggestions:** Feedback channels with privacy controls.
+
+### 📦 Assets & Awards
+
+- **Asset Management:** Cataloging company assets with category and brand configuration.
+- **Award Management:** Recording employee recognitions, cash awards, and gift certificates with multi-level approval.
 
 ### 🔐 Security & Access Control
 
@@ -136,6 +142,9 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 | **Complaints & Suggestions** | `/api/complaints`                      | Apply, Approve/Reject                                                                                 |
 | **Support Tickets**          | `/api/support-tickets`                 | Create, Reply, Close, Reopen (See [docs/SUPPORT_TICKETS.md](docs/SUPPORT_TICKETS.md))                 |
 | **Internal Helpdesk**        | `/api/internal-helpdesk`               | Internal IT/HR Support Tickets (See [docs/INTERNAL_HELPDESK_PLAN.md](docs/INTERNAL_HELPDESK_PLAN.md)) |
+| **Assets**                   | `/api/assets`                          | CRUD for company assets and equipment                                                                 |
+| **Awards**                   | `/api/awards`                          | Manage employee awards with approval cycle                                                            |
+| **Promotions**               | `/api/promotions`                      | Manage employee career movements and salary updates                                                   |
 | **Training**                 | `/api/trainings`                       | Manage Training Sessions (See [docs/TRAINING.md](docs/TRAINING.md))                                   |
 | **Trainers**                 | `/api/trainers`                        | Manage Trainers (See [docs/TRAINING.md](docs/TRAINING.md))                                            |
 | **Training Skills**          | `/api/training-skills`                 | Manage Training Types/Skills (See [docs/TRAINING.md](docs/TRAINING.md))                               |
@@ -184,7 +193,7 @@ Strict validation rules prevent logical errors, such as:
 ---
 
 **Developed by:** FirstSoft Development Team
-Eng: Mohamed Ahmed 
+Eng: Mohamed Ahmed
 Email: mohamed.firstsoft@gmail.com
 Phone No : 01120882362
 
