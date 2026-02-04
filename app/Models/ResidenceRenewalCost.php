@@ -20,6 +20,7 @@ class ResidenceRenewalCost extends Model
     protected $fillable = [
         'company_id',
         'employee_id',
+        'employee_name',
         'profession',
         'work_start_date',
         'previous_residence_expiry_date',

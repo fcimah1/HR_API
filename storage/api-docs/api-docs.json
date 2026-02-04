@@ -18207,7 +18207,10 @@
                         "description": "تم جلب البيانات بنجاح"
                     },
                     "401": {
-                        "description": "غير مصرح"
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -18288,6 +18291,12 @@
                     },
                     "422": {
                         "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -18320,6 +18329,15 @@
                     },
                     "404": {
                         "description": "الترقية غير موجودة"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -18351,34 +18369,45 @@
                             "schema": {
                                 "properties": {
                                     "promotion_title": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "example": "promotion_title"
                                     },
                                     "promotion_date": {
                                         "type": "string",
-                                        "format": "date"
+                                        "format": "date",
+                                        "example": "2026-01-01"
                                     },
                                     "new_designation_id": {
-                                        "type": "integer"
+                                        "type": "integer",
+                                        "example": 1
                                     },
                                     "new_department_id": {
-                                        "type": "integer"
+                                        "type": "integer",
+                                        "example": 1
                                     },
                                     "new_salary": {
                                         "type": "number",
-                                        "format": "float"
+                                        "format": "float",
+                                        "example": 1000
                                     },
                                     "description": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "example": "Description"
                                     },
                                     "notify_send_to": {
                                         "type": "array",
                                         "items": {
                                             "type": "integer"
-                                        }
+                                        },
+                                        "example": [
+                                            767,
+                                            768
+                                        ]
                                     },
                                     "status": {
-                                        "description": "0: Pending, 1: Approved, 2: Rejected",
-                                        "type": "integer"
+                                        "description": "Pending, Approved, Rejected",
+                                        "type": "string",
+                                        "example": "Pending"
                                     }
                                 },
                                 "type": "object"
@@ -18392,6 +18421,15 @@
                     },
                     "404": {
                         "description": "الترقية غير موجودة"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -18422,6 +18460,15 @@
                     },
                     "404": {
                         "description": "الترقية غير موجودة"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -20077,6 +20124,249 @@
                     },
                     "404": {
                         "description": "Not found - غير موجود"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/residence-renewals": {
+            "get": {
+                "tags": [
+                    "Residence Renewal Costs"
+                ],
+                "summary": "عرض قائمة تكاليف تجديد الإقامة",
+                "operationId": "50e48e873dc06f0aadd319ffede708a0",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Residence Renewal Costs"
+                ],
+                "summary": "إضافة عملية تجديد إقامة جديدة وحساب التكاليف",
+                "operationId": "cbb34cfe4a86bedf821645f7d96a24bf",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "employee_id",
+                                    "work_permit_fee",
+                                    "residence_renewal_fees",
+                                    "penalty_amount",
+                                    "current_residence_expiry_date"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "type": "integer",
+                                        "example": 767
+                                    },
+                                    "work_permit_fee": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 2000
+                                    },
+                                    "residence_renewal_fees": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 500
+                                    },
+                                    "penalty_amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 200
+                                    },
+                                    "current_residence_expiry_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-03-14"
+                                    },
+                                    "is_manual_shares": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "employee_share": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 600
+                                    },
+                                    "company_share": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 1200
+                                    },
+                                    "notes": {
+                                        "type": "string",
+                                        "example": "ملاحظات إضافية"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة السجل وحساب التكاليف بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إضافة السجل وحساب التكاليف بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "renewal_cost_id": {
+                                                    "type": "integer",
+                                                    "example": 13
+                                                },
+                                                "total_amount": {
+                                                    "type": "string",
+                                                    "example": "2700.00"
+                                                },
+                                                "employee_share": {
+                                                    "type": "string",
+                                                    "example": "600.00"
+                                                },
+                                                "company_share": {
+                                                    "type": "string",
+                                                    "example": "500.00"
+                                                },
+                                                "grand_total": {
+                                                    "type": "string",
+                                                    "example": "2700.00"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/residence-renewals/{id}": {
+            "get": {
+                "tags": [
+                    "Residence Renewal Costs"
+                ],
+                "summary": "عرض تفاصيل تجديد الإقامة",
+                "operationId": "032b60f242121c23a50a1759fc7acbed",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التفاصيل بنجاح"
+                    },
+                    "404": {
+                        "description": "السجل غير موجود"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Residence Renewal Costs"
+                ],
+                "summary": "حذف سجل تجديد الإقامة",
+                "operationId": "34f9ce26b6459639f33ba0636ee5beed",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "السجل غير موجود"
                     }
                 },
                 "security": [
@@ -22620,6 +22910,274 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/terminations": {
+            "get": {
+                "tags": [
+                    "Termination Management"
+                ],
+                "summary": "عرض قائمة طلبات إنهاء الخدمة",
+                "operationId": "5df1e1b94d9f634a3827a65fffb8a2bc",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Termination Management"
+                ],
+                "summary": "إضافة طلب إنهاء خدمة جديد",
+                "operationId": "f2eefbe9580dbc4a8ac34e3cf09069bb",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "employee_id",
+                                    "notice_date",
+                                    "termination_date",
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "type": "integer",
+                                        "example": 767
+                                    },
+                                    "notice_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-01-01"
+                                    },
+                                    "termination_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-01-18"
+                                    },
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "Reason for termination"
+                                    },
+                                    "document_file": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة الطلب بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/terminations/{id}": {
+            "get": {
+                "tags": [
+                    "Termination Management"
+                ],
+                "summary": "عرض تفاصيل الطلب",
+                "operationId": "b7800dfbd7061de887619b90d1f2ca51",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التفاصيل بنجاح"
+                    },
+                    "404": {
+                        "description": "الطلب غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Termination Management"
+                ],
+                "summary": "تعديل طلب إنهاء خدمة",
+                "operationId": "fab1d37bdc1290d9d21b826de27dae40",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "notice_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-01-01"
+                                    },
+                                    "termination_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-01-18"
+                                    },
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "Updated reason"
+                                    },
+                                    "status": {
+                                        "description": "Pending, Approved, Rejected",
+                                        "type": "string",
+                                        "example": "Pending"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تعديل الطلب بنجاح"
+                    },
+                    "404": {
+                        "description": "الطلب غير موجود"
+                    },
+                    "400": {
+                        "description": "لا يمكن التعديل"
+                    },
+                    "401": {
+                        "description": "غير مصرح"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Termination Management"
+                ],
+                "summary": "حذف طلب إنهاء خدمة",
+                "operationId": "d1e478062bbda9203bac16546c558a04",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "الطلب غير موجود"
+                    },
+                    "400": {
+                        "description": "لا يمكن الحذف"
+                    },
+                    "401": {
+                        "description": "غير مصرح"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -29698,6 +30256,10 @@
             "description": "التقارير - Reports Management"
         },
         {
+            "name": "Residence Renewal Costs",
+            "description": "إدارة تكاليف تجديد الإقامة للموظفين"
+        },
+        {
             "name": "Resignation Management",
             "description": "إدارة الاستقالات - Resignations management endpoints"
         },
@@ -29708,6 +30270,10 @@
         {
             "name": "Support Tickets",
             "description": "تذاكر الدعم الفني - Support Tickets management endpoints"
+        },
+        {
+            "name": "Termination Management",
+            "description": "إدارة إنهاء الخدمة"
         },
         {
             "name": "Trainer Management",

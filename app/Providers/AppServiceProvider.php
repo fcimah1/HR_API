@@ -56,11 +56,15 @@ use App\Repository\Interface\TrainingSkillRepositoryInterface;
 use App\Repository\TrainingSkillRepository;
 use App\Repository\Interface\OfficeShiftRepositoryInterface;
 use App\Repository\OfficeShiftRepository;
+use App\Repository\Interface\ResidenceRenewalRepositoryInterface;
+use App\Repository\ResidenceRenewalRepository;
 use App\Services\CacheService;
 use App\Services\FileUploadService;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Str;
+use App\Repository\Interface\TerminationRepositoryInterface;
+use App\Repository\TerminationRepository;
 use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
@@ -172,6 +176,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Promotion repository
         $this->app->bind(\App\Repository\Interface\PromotionRepositoryInterface::class, \App\Repository\PromotionRepository::class);
+
+        // Termination repository
+        $this->app->bind(TerminationRepositoryInterface::class, TerminationRepository::class);
+
+        // Residence Renewal repository
+        $this->app->bind(ResidenceRenewalRepositoryInterface::class, ResidenceRenewalRepository::class);
     }
 
     /**
