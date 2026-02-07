@@ -36,7 +36,8 @@ enum AttendanceStatusEnum: string
     {
         return array_map(fn($case) => [
             'value' => $case->value,
-            'label' => $case->trans(),
+            'name_en' => $case->value,
+            'name_ar' => $case->trans(),
         ], self::cases());
     }
 }

@@ -1947,13 +1947,13 @@
                 "tags": [
                     "Attendance Management"
                 ],
-                "summary": "Get attendance records",
+                "summary": "جلب سجلات الحضور",
                 "operationId": "57cd91ddd513b3298d731adc13ba7560",
                 "parameters": [
                     {
                         "name": "employee_id",
                         "in": "query",
-                        "description": "Filter by employee ID",
+                        "description": "تصفية حسب رقم الموظف",
                         "schema": {
                             "type": "integer"
                         }
@@ -1961,7 +1961,7 @@
                     {
                         "name": "from_date",
                         "in": "query",
-                        "description": "Filter from date (YYYY-MM-DD)",
+                        "description": "تصفية حسب تاريخ البداية",
                         "schema": {
                             "type": "string",
                             "format": "date"
@@ -1970,7 +1970,7 @@
                     {
                         "name": "to_date",
                         "in": "query",
-                        "description": "Filter to date (YYYY-MM-DD)",
+                        "description": "تصفية حسب تاريخ النهاية",
                         "schema": {
                             "type": "string",
                             "format": "date"
@@ -1979,7 +1979,7 @@
                     {
                         "name": "search",
                         "in": "query",
-                        "description": "Search by employee name or email",
+                        "description": "تصفية حسب اسم الموظف أو البريد الإلكتروني",
                         "schema": {
                             "type": "string"
                         }
@@ -1987,7 +1987,7 @@
                     {
                         "name": "sort_by",
                         "in": "query",
-                        "description": "Sort by column (created_at, status)",
+                        "description": "ترتيب حسب العمود (created_at, status)",
                         "schema": {
                             "type": "string",
                             "enum": [
@@ -1999,7 +1999,7 @@
                     {
                         "name": "sort_direction",
                         "in": "query",
-                        "description": "Sort direction (asc, desc)",
+                        "description": "ترتيب حسب الاتجاه (asc, desc)",
                         "schema": {
                             "type": "string",
                             "enum": [
@@ -2011,7 +2011,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Attendance records retrieved successfully",
+                        "description": "تم جلب سجلات الحضور بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2151,14 +2151,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - يجب تسجيل الدخول",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
                                         }
                                     },
                                     "type": "object"
@@ -2167,7 +2167,7 @@
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "غير مصرح لك بعرض سجلات الحضور",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2187,7 +2187,7 @@
                         }
                     },
                     "422": {
-                        "description": "Validation error",
+                        "description": "خطأ في التحقق من البيانات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2209,7 +2209,7 @@
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "خطأ في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2234,6 +2234,83 @@
                         "bearerAuth": []
                     }
                 ]
+            },
+            "post": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "انشاء سجل حضور يدوي",
+                "operationId": "08e56584b4a6d69e1fe594ef32c733cd",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "employee_id",
+                                    "attendance_date",
+                                    "clock_in",
+                                    "office_shift_id",
+                                    "status",
+                                    "attendance_status"
+                                ],
+                                "properties": {
+                                    "employee_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "start_attendance_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-02-01"
+                                    },
+                                    "end_attendance_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-02-05"
+                                    },
+                                    "clock_in": {
+                                        "type": "string",
+                                        "format": "time",
+                                        "example": "09:00"
+                                    },
+                                    "clock_out": {
+                                        "type": "string",
+                                        "format": "time",
+                                        "example": "17:00"
+                                    },
+                                    "office_shift_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء سجل حضور يدوي بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/attendances/clock-in": {
@@ -2241,7 +2318,7 @@
                 "tags": [
                     "Attendance Management"
                 ],
-                "summary": "Clock in for the day",
+                "summary": "تسجيل الدخول للعمل",
                 "operationId": "bd568b4c1c76669a76f9a3aeb497bdbc",
                 "requestBody": {
                     "required": true,
@@ -2272,7 +2349,7 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Clock in successful",
+                        "description": "تم تسجيل الحضور بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2295,14 +2372,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - يجب تسجيل الدخول",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
                                         }
                                     },
                                     "type": "object"
@@ -2311,7 +2388,7 @@
                         }
                     },
                     "422": {
-                        "description": "Validation error",
+                        "description": "فشل التحقق من البيانات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2334,7 +2411,7 @@
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "خطأ في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2345,7 +2422,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "فشل في تسجيل الحضور"
+                                            "example": "خطأ في الخادم"
                                         }
                                     },
                                     "type": "object"
@@ -2366,7 +2443,7 @@
                 "tags": [
                     "Attendance Management"
                 ],
-                "summary": "Clock out for the day",
+                "summary": "تسجيل الخروج",
                 "operationId": "48ad8bf9a2dda392902a2450c184f384",
                 "requestBody": {
                     "required": true,
@@ -2392,7 +2469,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Clock out successful",
+                        "description": "تم تسجيل الانصراف بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2415,14 +2492,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - يجب تسجيل الدخول",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
                                         }
                                     },
                                     "type": "object"
@@ -2431,7 +2508,7 @@
                         }
                     },
                     "422": {
-                        "description": "Validation error",
+                        "description": "فشل التحقق من البيانات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2454,7 +2531,7 @@
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "خطأ في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2465,7 +2542,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "فشل في تسجيل الانصراف"
+                                            "example": "خطأ في الخادم"
                                         }
                                     },
                                     "type": "object"
@@ -2486,11 +2563,26 @@
                 "tags": [
                     "Attendance Management"
                 ],
-                "summary": "Start lunch break",
+                "summary": "بدء استراحة الغداء",
                 "operationId": "2350b3da1e85a8bb25a5b8fe813c7e49",
                 "responses": {
                     "200": {
-                        "description": "Lunch break started"
+                        "description": "تم بدء   استراحة الغداء"
+                    },
+                    "400": {
+                        "description": "البيانات غير صحيحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+                    },
+                    "422": {
+                        "description": "فشل في التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -2505,11 +2597,26 @@
                 "tags": [
                     "Attendance Management"
                 ],
-                "summary": "End lunch break",
+                "summary": "إنهاء استراحة الغداء",
                 "operationId": "39da4d5e4507e5f9e5e5e4c6f5844523",
                 "responses": {
                     "200": {
-                        "description": "Lunch break ended"
+                        "description": "تم إنهاء استراحة الغداء"
+                    },
+                    "400": {
+                        "description": "البيانات غير صحيحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+                    },
+                    "422": {
+                        "description": "فشل في التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -2519,27 +2626,49 @@
                 ]
             }
         },
-        "/api/attendances/today": {
+        "/api/attendances/day": {
             "get": {
                 "tags": [
                     "Attendance Management"
                 ],
-                "summary": "Get today's attendance status",
-                "operationId": "d1e71fe6ff4e82d6a18e211c0349d854",
+                "summary": "عرض الحضور و الانصراف لموظف معين في تاريخ معين",
+                "operationId": "1dfdb3f7e12db70c66b5c6b4eb0f09c9",
                 "parameters": [
                     {
                         "name": "employee_id",
                         "in": "query",
-                        "description": "Employee ID (optional, requires permission to view others)",
-                        "required": false,
+                        "description": "Employee ID",
+                        "required": true,
                         "schema": {
                             "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "attendance_date",
+                        "in": "query",
+                        "description": "Attendance date",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Today's status retrieved successfully"
+                        "description": "تم استرجاع حالة الحضور بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -2554,7 +2683,7 @@
                 "tags": [
                     "Attendance Management"
                 ],
-                "summary": "Update attendance record (admin only)",
+                "summary": "تعديل سجل حضور",
                 "operationId": "5403d8c6b80f4d3ae3df2bc0a6111f3c",
                 "parameters": [
                     {
@@ -2566,9 +2695,59 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "clock_in": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2023-10-01 09:00:00"
+                                    },
+                                    "clock_out": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2023-10-01 17:00:00"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Approved",
+                                            "Pending",
+                                            "Rejected"
+                                        ],
+                                        "example": "Approved"
+                                    },
+                                    "shift_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
-                        "description": "Attendance updated"
+                        "description": "تم تحديث سجل الحضور بنجاح"
+                    },
+                    "400": {
+                        "description": "البيانات غير صحيحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+                    },
+                    "404": {
+                        "description": "البيانات غير صحيحة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -2581,7 +2760,7 @@
                 "tags": [
                     "Attendance Management"
                 ],
-                "summary": "Delete attendance record (admin only)",
+                "summary": "حذف سجل حضور",
                 "operationId": "ecd5b1f0cc806724682136b1fb032c96",
                 "parameters": [
                     {
@@ -2595,47 +2774,22 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Attendance deleted"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/api/attendances/monthly-report": {
-            "get": {
-                "tags": [
-                    "Attendance Management"
-                ],
-                "summary": "Get monthly attendance report",
-                "operationId": "f2c9333318a121cb51d8a3ea55c23a44",
-                "parameters": [
-                    {
-                        "name": "employee_id",
-                        "in": "query",
-                        "description": "Employee ID (optional, requires permission to view others)",
-                        "required": false,
-                        "schema": {
-                            "type": "integer"
-                        }
+                        "description": "تم حذف سجل الحضور بنجاح"
                     },
-                    {
-                        "name": "month",
-                        "in": "query",
-                        "description": "Month in YYYY-MM format",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "2025-11"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Monthly report retrieved"
+                    "422": {
+                        "description": "فشل في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+                    },
+                    "404": {
+                        "description": "البيانات غير صحيحة"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -2650,7 +2804,7 @@
                 "tags": [
                     "Attendance Management"
                 ],
-                "summary": "Get attendance details for specific user and date",
+                "summary": "جلب تفاصيل سجل حضور",
                 "operationId": "04376e4d707a33f4b3d6af2b42f81254",
                 "parameters": [
                     {
@@ -2675,10 +2829,50 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Attendance details retrieved"
+                        "description": "تم استرجاع تفاصيل الحضور بنجاح"
                     },
-                    "404": {
-                        "description": "Attendance record not found"
+                    "422": {
+                        "description": "فشل في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/attendances/status": {
+            "get": {
+                "tags": [
+                    "Attendance Management"
+                ],
+                "summary": "جلب حالة الحضور",
+                "operationId": "7492ba6663c233c1aac5a53818bd928d",
+                "responses": {
+                    "200": {
+                        "description": "تم استرجاع تفاصيل الحضور بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -20337,6 +20531,15 @@
                     },
                     "404": {
                         "description": "السجل غير موجود"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -20367,6 +20570,18 @@
                     },
                     "404": {
                         "description": "السجل غير موجود"
+                    },
+                    "400": {
+                        "description": "خطأ في الطلب"
+                    },
+                    "422": {
+                        "description": "بيانات غير صالحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -30161,7 +30376,7 @@
         },
         {
             "name": "Attendance Management",
-            "description": "Attendance and timesheet management"
+            "description": "إدارة سجلات الحضور"
         },
         {
             "name": "Authentication",

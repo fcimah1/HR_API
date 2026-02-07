@@ -2,36 +2,18 @@
 
 namespace App\Enums;
 
-enum StringStatusEnum: string
+enum AttendenceStatus: string
 {
-    case PENDING = 'pending';
-    case APPROVED = 'approved';
-    case REJECTED = 'rejected';
-    case SUBMITTED = 'submitted';
+    case PENDING = 'Pending';
+    case APPROVED = 'Approved';
+    case NOT_APPROVED = 'Not Approved';
 
-    /**
-     * Get human-readable label for API responses (English)
-     */
-    public function label(): string
-    {
-        return match ($this) {
-            self::PENDING => 'Pending',
-            self::APPROVED => 'Approved',
-            self::REJECTED => 'Rejected',
-            self::SUBMITTED => 'Submitted',
-        };
-    }
-
-    /**
-     * Get human-readable label for API responses (Arabic)
-     */
     public function labelAr(): string
     {
         return match ($this) {
             self::PENDING => 'قيد الانتظار',
             self::APPROVED => 'مقبول',
-            self::REJECTED => 'مرفوض',
-            self::SUBMITTED => 'تم التقديم',
+            self::NOT_APPROVED => 'غير مقبول',
         };
     }
 
@@ -64,19 +46,6 @@ enum StringStatusEnum: string
             }
         }
         return null;
-    }
-
-    /**
-     * Convert to numerical value for database storage
-     */
-    public function toNumerical(): int
-    {
-        return match ($this) {
-            self::PENDING => 0,
-            self::APPROVED => 1,
-            self::REJECTED => 2,
-            self::SUBMITTED => 0,
-        };
     }
 
     /**

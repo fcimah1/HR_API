@@ -7,14 +7,19 @@ use App\DTOs\Attendance\CreateAttendanceDTO;
 use App\DTOs\Attendance\UpdateAttendanceDTO;
 use App\DTOs\Attendance\AttendanceResponseDTO;
 use App\DTOs\Attendance\GetAttendanceDetailsDTO;
+use App\Enums\AttendanceStatusEnum;
+use App\Enums\AttendenceStatus;
 use App\Enums\PunchTypeEnum;
 use App\Enums\VerifyModeEnum;
 use App\Models\User;
 use App\Repository\Interface\AttendanceRepositoryInterface;
 use App\Repository\Interface\UserRepositoryInterface;
 use App\Services\SimplePermissionService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 
 class AttendanceService
 {
@@ -69,8 +74,12 @@ class AttendanceService
         $updatedFilters = AttendanceFilterDTO::fromRequest($filterData, $effectiveCompanyId);
         $records = $this->attendanceRepository->getPaginatedRecords($updatedFilters);
 
+        $data = collect($records->items())->map(function ($attendance) {
+            return AttendanceResponseDTO::fromModel($attendance, true)->toArray();
+        });
+
         return [
-            'data' => $records->items(),
+            'data' => $data,
             'pagination' => [
                 'current_page' => $records->currentPage(),
                 'last_page' => $records->lastPage(),
@@ -109,6 +118,130 @@ class AttendanceService
             ]);
 
             return AttendanceResponseDTO::fromModel($attendance, true)->toArray();
+        });
+    }
+
+    /**
+     * Create manual attendance record (Admin)
+     */
+    public function createManualAttendance(array $data, int $companyId): array
+    {
+        return DB::transaction(function () use ($data, $companyId) {
+            $employeeId = $data['employee_id'];
+            $startDate = Carbon::parse($data['start_attendance_date']);
+            $endDate = Carbon::parse($data['end_attendance_date']);
+
+            if ($endDate->lt($startDate)) {
+                throw new \Exception('تاريخ النهاية يجب أن يكون بعد تاريخ البداية');
+            }
+
+            $period = CarbonPeriod::create($startDate, $endDate);
+            $createdAttendances = [];
+            $skippedDates = [];
+
+            foreach ($period as $date) {
+                $currentDate = $date->format('Y-m-d');
+
+                // Check if attendance already exists for this date
+                $existingAttendance = $this->attendanceRepository->findTodayAttendance($employeeId, $currentDate);
+                if ($existingAttendance) {
+                    // Skip if attendance already exists for this day
+                    $skippedDates[] = $currentDate;
+                    continue;
+                }
+
+                // Construct DateTime for Clock In/Out (Request has H:i:s)
+                $clockInTime = $data['clock_in'] ?? null;
+                $clockOutTime = $data['clock_out'] ?? null;
+
+                // If clock_in is missing but shift is provided, fetch from shift
+                $shift = null;
+                if (!empty($data['office_shift_id'])) {
+                    $shift = \App\Models\OfficeShift::find($data['office_shift_id']);
+                }
+
+                if (empty($clockInTime) && $shift) {
+                    $shiftTimes = $shift->getShiftTimesForDay($date->format('l'));
+                    $clockInTime = $shiftTimes['in_time'];
+                    $clockOutTime = $shiftTimes['out_time'];
+                }
+
+                // If clockInTime is still empty, it's likely a day off or invalid shift time
+                if (empty($clockInTime)) {
+                    $skippedDates[] = $currentDate . ' (Day Off)';
+                    continue;
+                }
+
+                // Ensure seconds are present in times (some DBs/Logs expect H:i:s)
+                if ($clockInTime && strlen($clockInTime) == 5) {
+                    $clockInTime .= ':00';
+                }
+                if ($clockOutTime && strlen($clockOutTime) == 5) {
+                    $clockOutTime .= ':00';
+                }
+
+                $clockInDateTime = $clockInTime ? $currentDate . ' ' . $clockInTime : null;
+                $clockOutDateTime = $clockOutTime ? $currentDate . ' ' . $clockOutTime : null;
+
+                $totalWork = '00:00';
+                $timeLate = '00:00';
+                $earlyLeaving = '00:00';
+                $overtime = '00:00';
+
+                if ($clockInDateTime && $clockOutDateTime) {
+                    $totalWork = $this->calculateTotalWorkHours(
+                        $clockInDateTime,
+                        $clockOutDateTime
+                    );
+                }
+
+                // Calculate Late, Early Leaving, Overtime if Shift is present, otherwise use timestamps
+                if ($shift) {
+                    if ($clockInDateTime) {
+                        $timeLate = $shift->calculateTimeLate($currentDate, $clockInDateTime);
+                    }
+                    if ($clockOutDateTime) {
+                        $earlyLeaving = $shift->calculateEarlyLeaving($currentDate, $clockOutDateTime);
+                        $overtime = $shift->calculateOvertime($currentDate, $clockOutDateTime);
+                    }
+                } else {
+                    // If no shift, store the actual timestamps
+                    $timeLate = $clockInDateTime ?? '00:00';
+                    $earlyLeaving = $clockOutDateTime ?? '00:00';
+                    $overtime = $clockOutDateTime ?? '00:00';
+                }
+
+                // Prepare data for DTO
+                $dayData = $data;
+                $dayData['attendance_date'] = $currentDate;
+                $dayData['clock_in'] = $clockInDateTime;
+                $dayData['clock_out'] = $clockOutDateTime;
+                $dayData['time_late'] = $timeLate;
+                $dayData['early_leaving'] = $earlyLeaving;
+                $dayData['overtime'] = $overtime;
+                $dayData['total_work'] = $totalWork;
+
+                $dto = CreateAttendanceDTO::fromManualRequest(
+                    $dayData,
+                    $companyId
+                );
+
+                $attendance = $this->attendanceRepository->clockIn($dto);
+
+                Log::info('Manual attendance created', [
+                    'attendance_id' => $attendance->time_attendance_id,
+                    'employee_id' => $employeeId,
+                    'date' => $currentDate,
+                    'created_by' => Auth::id(),
+                ]);
+
+                $createdAttendances[] = AttendanceResponseDTO::fromModel($attendance, true)->toArray();
+            }
+
+            return [
+                'created_attendances' => $createdAttendances,
+                'skipped_dates' => $skippedDates
+            ];
         });
     }
 
@@ -208,9 +341,11 @@ class AttendanceService
     /**
      * Get today's attendance status
      */
-    public function getTodayStatus(User $currentUser, ?int $targetEmployeeId = null): array
+    public function getAttendanceByDay(User $currentUser, array $data): array
     {
         $targetId = $currentUser->user_id;
+        $targetEmployeeId = $data['employee_id'];
+        $attendanceDate = $data['attendance_date'];
 
         if ($targetEmployeeId !== null && $targetEmployeeId !== $currentUser->user_id) {
             // Check permissions
@@ -223,14 +358,12 @@ class AttendanceService
             $targetId = $targetEmployeeId;
         }
 
-        $attendance = $this->attendanceRepository->findTodayAttendance($targetId);
+        $attendance = $this->attendanceRepository->findTodayAttendance($targetId, $attendanceDate);
 
         if (!$attendance) {
             return [
-                'has_clocked_in' => false,
-                'has_clocked_out' => false,
-                'on_lunch_break' => false,
-                'attendance' => null,
+                'success' => false,
+                'message' => 'لا يوجد سجل حضور لهذا اليوم'
             ];
         }
 
@@ -256,6 +389,50 @@ class AttendanceService
                 throw new \Exception('سجل الحضور غير موجود');
             }
 
+            // Recalculate work hours if clock_in or clock_out is changed
+            // Need to handle potential time changes
+            $clockIn = $dto->clockIn ?? $attendance->clock_in;
+            $clockOut = $dto->clockOut ?? $attendance->clock_out;
+
+            // If times are changed, we should recalculate total_work
+            if (($dto->clockIn || $dto->clockOut) && $clockIn && $clockOut) {
+                $totalWork = $this->calculateTotalWorkHours($clockIn, $clockOut);
+
+                // Create a new DTO with updated total_work (and ensuring other fields are preserved)
+                // Since DTO is immutable, we create a new one from array
+                $updateData = $dto->toArray();
+                $updateData['clock_in'] = $clockIn;
+                $updateData['clock_out'] = $clockOut;
+                $updateData['total_work'] = $totalWork;
+                // Preserve other fields if they were set in original DTO
+
+                // We need to pass all fields to fromUpdateRequest?
+                // fromUpdateRequest takes an array and maps keys.
+                // keys in toArray match keys expected by fromUpdateRequest (mostly).
+
+                // updateData has 'clock_in', 'clock_out', 'total_work' etc.
+                // fromUpdateRequest expects 'clock_in', 'clock_out', 'total_work', 'status', 'early_leaving', 'overtime', 'shift_id', 'attendance_status'
+
+                // Let's ensure keys match.
+                // toArray keys: 'clock_in', 'clock_out', 'clock_out_ip_address', 'clock_out_latitude', 'clock_out_longitude', 'total_work', 'status', 'early_leaving', 'overtime', 'office_shift_id', 'attendance_status'
+
+                // fromUpdateRequest expects: 'shift_id' (mapped from 'office_shift_id'?), 'attendance_status'.
+                // fromUpdateRequest maps: 'shift_id' => $data['shift_id'].
+                // toArray outputs: 'office_shift_id'.
+
+                // Mismatch here!
+                // toArray is used for Eloquent update, so it uses DB column names.
+                // fromUpdateRequest is used for Request data, so it uses Request field names.
+
+                // I should reconcile this.
+                // I'll map 'office_shift_id' back to 'shift_id' for DTO creation.
+                if (isset($updateData['office_shift_id'])) {
+                    $updateData['shift_id'] = $updateData['office_shift_id'];
+                }
+
+                $dto = UpdateAttendanceDTO::fromUpdateRequest($updateData);
+            }
+
             $updatedAttendance = $this->attendanceRepository->updateAttendance($attendance, $dto);
 
             return AttendanceResponseDTO::fromModel($updatedAttendance, true)->toArray();
@@ -278,31 +455,6 @@ class AttendanceService
 
             return $this->attendanceRepository->deleteAttendance($id);
         });
-    }
-
-    /**
-     * Get monthly attendance report
-     */
-    /**
-     * Get monthly attendance report
-     */
-    public function getMonthlyReport(User $currentUser, string $month, ?int $targetEmployeeId = null): array
-    {
-        $targetId = $currentUser->user_id;
-
-        if ($targetEmployeeId !== null && $targetEmployeeId !== $currentUser->user_id) {
-            // Check permissions
-            // Company admins or users with 'timesheet' can see anyone (as per user request)
-            $canViewAll = $currentUser->user_type === 'company' || $this->permissionService->checkPermission($currentUser, 'timesheet');
-
-            if (!$canViewAll) {
-                throw new \Exception('ليس لديك صلاحية لعرض تقرير حضور موظف آخر');
-            }
-            $targetId = $targetEmployeeId;
-        }
-
-        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($currentUser);
-        return $this->attendanceRepository->getMonthlyReport($targetId, $month, $effectiveCompanyId);
     }
 
     /**
@@ -424,7 +576,7 @@ class AttendanceService
                     'company_id' => $companyId,
                     'error' => $e->getMessage(),
                 ]);
-                
+
                 // إيقاف العملية بالكامل عند فشل التحقق من العطلات
                 throw new \Exception('فشل التحقق من بيانات العطلات الرسمية. يرجى التواصل مع الدعم الفني.');
             }
@@ -870,5 +1022,18 @@ class AttendanceService
                     }
             }
         });
+    }
+
+    public function getAttendanceStatus(): array
+    {
+        return [
+            'success' => true,
+            'data' => [
+                "status" => AttendenceStatus::toArray(),
+                "attendance_type" => AttendanceStatusEnum::toArray(),
+                "punch_type" => PunchTypeEnum::toArray(),
+                "verify_mode" => VerifyModeEnum::toArray(),
+            ]
+        ];
     }
 }

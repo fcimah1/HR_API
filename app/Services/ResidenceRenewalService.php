@@ -26,7 +26,7 @@ class ResidenceRenewalService
         return $this->renewalRepository->getRenewals($companyId, $filters, $perPage);
     }
 
-    public function createRenewal(CreateResidenceRenewalDTO $dto): ResidenceRenewalCost
+    public function createRenewal(CreateResidenceRenewalDTO $dto): array
     {
         // 1. Fetch Employee Details
         $userDetails = UserDetails::with(['designation', 'user'])
@@ -79,7 +79,8 @@ class ResidenceRenewalService
                 'contract_date_eqama' => $data['current_residence_expiry_date']
             ]);
 
-            return $renewal;
+            // Add the ID to the top of the array for better visibility
+            return array_merge(['renewal_cost_id' => $renewal->renewal_cost_id], $data);
         });
     }
 
@@ -113,7 +114,17 @@ class ResidenceRenewalService
     protected function calculateCosts(array $input): array
     {
         $start = Carbon::parse($input['work_start_date']);
-        $prevExpiry = Carbon::parse($input['previous_expiry_date']);
+        $prevExpiryStr = $input['previous_expiry_date'];
+
+        // If previous expiry is null, use start date to avoid random drift, and set diff to 0
+        if (!$prevExpiryStr) {
+            $prevExpiry = $start->copy();
+            $daysUntilExpiry = 0;
+        } else {
+            $prevExpiry = Carbon::parse($prevExpiryStr);
+            $daysUntilExpiry = $start->diffInDays($prevExpiry);
+        }
+
         $currExpiry = Carbon::parse($input['current_expiry_date']);
 
         $workPermitFee = (float) $input['work_permit_fee'];
@@ -121,7 +132,6 @@ class ResidenceRenewalService
         $penalty = (float) $input['penalty_amount'];
 
         // Calculations
-        $daysUntilExpiry = $start->diffInDays($prevExpiry);
         $renewalPeriodDays = $start->diffInDays($currExpiry);
         $totalPeriodDays = $daysUntilExpiry + $renewalPeriodDays;
 
@@ -136,9 +146,9 @@ class ResidenceRenewalService
 
         return [
             'total_amount' => $workPermitFee + $renewalFees + $penalty,
-            'days_until_expiry' => $daysUntilExpiry,
-            'renewal_period_days' => $renewalPeriodDays,
-            'total_period_days' => $totalPeriodDays,
+            'days_until_expiry' => (int) $daysUntilExpiry,
+            'renewal_period_days' => (int) $renewalPeriodDays,
+            'total_period_days' => (int) $totalPeriodDays,
             'daily_rate' => round($dailyRate, 3),
             'employee_share' => round($employeeShare, 2),
             'company_share' => round($companyShare, 2),
