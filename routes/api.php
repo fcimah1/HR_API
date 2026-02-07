@@ -372,6 +372,16 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/{id}/resolve', [ComplaintController::class, 'resolve'])->middleware('simple.permission:complaint3');
     });
 
+    // Polls Management
+    Route::prefix('polls')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\PollController::class, 'index'])->middleware('simple.permission:poll1');
+        Route::post('/', [\App\Http\Controllers\Api\PollController::class, 'store'])->middleware('simple.permission:poll2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\PollController::class, 'show'])->middleware('simple.permission:poll1');
+        Route::put('/{id}', [\App\Http\Controllers\Api\PollController::class, 'update'])->middleware('simple.permission:poll3');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\PollController::class, 'destroy'])->middleware('simple.permission:poll4');
+        Route::post('/{id}/vote', [\App\Http\Controllers\Api\PollController::class, 'vote'])->middleware('simple.permission:poll1');
+    });
+
     // Resignations Management
     Route::prefix('resignations')->group(function () {
         Route::get('/', [ResignationController::class, 'index'])->middleware('simple.permission:resignation1');

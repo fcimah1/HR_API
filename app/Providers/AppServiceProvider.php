@@ -182,6 +182,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Residence Renewal repository
         $this->app->bind(ResidenceRenewalRepositoryInterface::class, ResidenceRenewalRepository::class);
+
+        // Poll repository
+        $this->app->bind(\App\Repository\Interface\PollRepositoryInterface::class, \App\Repository\PollRepository::class);
     }
 
     /**
