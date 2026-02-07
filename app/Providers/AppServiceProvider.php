@@ -204,9 +204,9 @@ class AppServiceProvider extends ServiceProvider
             \App\Listeners\JobFailedListener::class
         );
 
-        Scramble::configure()
-            ->routes(function (Route $route) {
-                return Str::startsWith($route->uri, 'api/');
-            });
+        // Scramble::configure()
+        //     ->routes(function (Route $route) {
+        //         return Str::startsWith($route->uri, 'api/');
+        //     });
     }
 }

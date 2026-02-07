@@ -10,7 +10,9 @@ use App\DTOs\Attendance\GetAttendanceDetailsDTO;
 use App\DTOs\Attendance\UpdateAttendanceDTO;
 use App\Http\Requests\Attendance\ClockInRequest;
 use App\Http\Requests\Attendance\ClockOutRequest;
+use App\Http\Requests\Attendance\GetAttendanceByDayRequest;
 use App\Http\Requests\Attendance\GetAttendanceDetailsRequest;
+use App\Http\Requests\Attendance\StoreAttendanceRequest;
 use App\Http\Requests\Attendance\UpdateAttendanceRequest;
 use App\Services\SimplePermissionService;
 use Illuminate\Http\Request;
@@ -20,7 +22,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * @OA\Tag(
  *     name="Attendance Management",
- *     description="Attendance and timesheet management"
+ *     description="إدارة سجلات الحضور"
  * )
  */
 class AttendanceController extends Controller
@@ -33,48 +35,48 @@ class AttendanceController extends Controller
     /**
      * @OA\Get(
      *     path="/api/attendances",
-     *     summary="Get attendance records",
+     *     summary="جلب سجلات الحضور",
      *     tags={"Attendance Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="employee_id",
      *         in="query",
-     *         description="Filter by employee ID",
+     *         description="تصفية حسب رقم الموظف",
      *         @OA\Schema(type="integer")
      *     ),
      *     @OA\Parameter(
      *         name="from_date",
      *         in="query",
-     *         description="Filter from date (YYYY-MM-DD)",
+     *         description="تصفية حسب تاريخ البداية",
      *         @OA\Schema(type="string", format="date")
      *     ),
      *     @OA\Parameter(
      *         name="to_date",
      *         in="query",
-     *         description="Filter to date (YYYY-MM-DD)",
+     *         description="تصفية حسب تاريخ النهاية",
      *         @OA\Schema(type="string", format="date")
      *     ),
      *     @OA\Parameter(
      *         name="search",
      *         in="query",
-     *         description="Search by employee name or email",
+     *         description="تصفية حسب اسم الموظف أو البريد الإلكتروني",
      *         @OA\Schema(type="string")
      *     ),
      *     @OA\Parameter(
      *         name="sort_by",
      *         in="query",
-     *         description="Sort by column (created_at, status)",
+     *         description="ترتيب حسب العمود (created_at, status)",
      *         @OA\Schema(type="string", enum={"created_at", "status"})
      *     ),
      *     @OA\Parameter(
      *         name="sort_direction",
      *         in="query",
-     *         description="Sort direction (asc, desc)",
+     *         description="ترتيب حسب الاتجاه (asc, desc)",
      *         @OA\Schema(type="string", enum={"asc", "desc"})
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Attendance records retrieved successfully",
+     *         description="تم جلب سجلات الحضور بنجاح",
      *         @OA\JsonContent(
      *             type="object",
      *             @OA\Property(property="success", type="boolean", example=true),
@@ -123,14 +125,14 @@ class AttendanceController extends Controller
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Unauthenticated",
+     *         description="غير مصرح - يجب تسجيل الدخول",
      *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *             @OA\Property(property="message", type="string", example="غير مصرح - يجب تسجيل الدخول")
      *         )
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Forbidden",
+     *         description="غير مصرح لك بعرض سجلات الحضور",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض سجلات الحضور")
@@ -138,7 +140,7 @@ class AttendanceController extends Controller
      *     ),
      *     @OA\Response(
      *         response=422,
-     *         description="Validation error",
+     *         description="خطأ في التحقق من البيانات",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string"),
@@ -147,7 +149,7 @@ class AttendanceController extends Controller
      *     ),
      *     @OA\Response(
      *         response=500,
-     *         description="Server error",
+     *         description="خطأ في الخادم",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")
@@ -182,7 +184,7 @@ class AttendanceController extends Controller
     /**
      * @OA\Post(
      *     path="/api/attendances/clock-in",
-     *     summary="Clock in for the day",
+     *     summary="تسجيل الدخول للعمل",
      *     tags={"Attendance Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
@@ -195,7 +197,7 @@ class AttendanceController extends Controller
      *     ),
      *     @OA\Response(
      *         response=201,
-     *         description="Clock in successful",
+     *         description="تم تسجيل الحضور بنجاح",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="تم تسجيل الحضور بنجاح"),
@@ -204,14 +206,14 @@ class AttendanceController extends Controller
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Unauthenticated",
+     *         description="غير مصرح - يجب تسجيل الدخول",
      *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *             @OA\Property(property="message", type="string", example="غير مصرح - يجب تسجيل الدخول")
      *         )
      *     ),
      *     @OA\Response(
      *         response=422,
-     *         description="Validation error",
+     *         description="فشل التحقق من البيانات",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
@@ -220,10 +222,10 @@ class AttendanceController extends Controller
      *     ),
      *     @OA\Response(
      *         response=500,
-     *         description="Server error",
+     *         description="خطأ في الخادم",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="فشل في تسجيل الحضور")
+     *             @OA\Property(property="message", type="string", example="خطأ في الخادم")
      *         )
      *     )
      * )
@@ -268,7 +270,7 @@ class AttendanceController extends Controller
     /**
      * @OA\Post(
      *     path="/api/attendances/clock-out",
-     *     summary="Clock out for the day",
+     *     summary="تسجيل الخروج",
      *     tags={"Attendance Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
@@ -280,7 +282,7 @@ class AttendanceController extends Controller
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Clock out successful",
+     *         description="تم تسجيل الانصراف بنجاح",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="تم تسجيل الانصراف بنجاح"),
@@ -289,14 +291,14 @@ class AttendanceController extends Controller
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Unauthenticated",
+     *         description="غير مصرح - يجب تسجيل الدخول",
      *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *             @OA\Property(property="message", type="string", example="غير مصرح - يجب تسجيل الدخول")
      *         )
      *     ),
      *     @OA\Response(
      *         response=422,
-     *         description="Validation error",
+     *         description="فشل التحقق من البيانات",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
@@ -305,10 +307,10 @@ class AttendanceController extends Controller
      *     ),
      *     @OA\Response(
      *         response=500,
-     *         description="Server error",
+     *         description="خطأ في الخادم",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="فشل في تسجيل الانصراف")
+     *             @OA\Property(property="message", type="string", example="خطأ في الخادم")
      *         )
      *     )
      * )
@@ -347,12 +349,32 @@ class AttendanceController extends Controller
     /**
      * @OA\Post(
      *     path="/api/attendances/lunch-break-in",
-     *     summary="Start lunch break",
+     *     summary="بدء استراحة الغداء",
      *     tags={"Attendance Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="Lunch break started"
+     *         description="تم بدء   استراحة الغداء"
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="البيانات غير صحيحة"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="غير مصرح - يجب تسجيل الدخول"
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="فشل في التحقق من البيانات"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="خطأ في الخادم"
      *     )
      * )
      */
@@ -383,12 +405,32 @@ class AttendanceController extends Controller
     /**
      * @OA\Post(
      *     path="/api/attendances/lunch-break-out",
-     *     summary="End lunch break",
+     *     summary="إنهاء استراحة الغداء",
      *     tags={"Attendance Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="Lunch break ended"
+     *         description="تم إنهاء استراحة الغداء"
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="البيانات غير صحيحة"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="غير مصرح - يجب تسجيل الدخول"
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="فشل في التحقق من البيانات"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="خطأ في الخادم"
      *     )
      * )
      */
@@ -418,30 +460,52 @@ class AttendanceController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/api/attendances/today",
-     *     summary="Get today's attendance status",
+     *     path="/api/attendances/day",
+     *     summary="عرض الحضور و الانصراف لموظف معين في تاريخ معين",
      *     tags={"Attendance Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="employee_id",
      *         in="query",
-     *         required=false,
-     *         description="Employee ID (optional, requires permission to view others)",
+     *         required=true,
+     *         description="Employee ID",
      *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="attendance_date",
+     *         in="query",
+     *         required=true,
+     *         description="Attendance date",
+     *         @OA\Schema(type="string", format="date")
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Today's status retrieved successfully"
+     *         description="تم استرجاع حالة الحضور بنجاح"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="فشل في التحقق من البيانات"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="غير مصرح - يجب تسجيل الدخول"
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="خطأ في الخادم"
      *     )
      * )
      */
-    public function getTodayStatus(Request $request)
+    public function getAttendanceByDay(GetAttendanceByDayRequest $request)
     {
         try {
             $user = Auth::user();
-            $employeeId = $request->input('employee_id');
 
-            $status = $this->attendanceService->getTodayStatus($user, $employeeId ? (int)$employeeId : null);
+            $status = $this->attendanceService->getAttendanceByDay($user, $request->validated());
 
             return response()->json([
                 'success' => true,
@@ -459,13 +523,76 @@ class AttendanceController extends Controller
         }
     }
 
+    /**
+     * @OA\Post(
+     *     path="/api/attendances",
+     *     summary="انشاء سجل حضور يدوي",
+     *     tags={"Attendance Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"employee_id", "attendance_date", "clock_in", "office_shift_id", "status", "attendance_status"},
+     *             @OA\Property(property="employee_id", type="integer", example=1),
+     *             @OA\Property(property="start_attendance_date", type="string", format="date", example="2026-02-01"),
+     *             @OA\Property(property="end_attendance_date", type="string", format="date", example="2026-02-05"),
+     *             @OA\Property(property="clock_in", type="string", format="time", example="09:00"),
+     *             @OA\Property(property="clock_out", type="string", format="time", example="17:00"),
+     *             @OA\Property(property="office_shift_id", type="integer", example=1),
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="تم إنشاء سجل حضور يدوي بنجاح"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="فشل في التحقق من البيانات"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="غير مصرح - يجب تسجيل الدخول"
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="خطأ في الخادم"
+     *     )
+     * )
+     */
+    public function store(StoreAttendanceRequest $request)
+    {
+        try {
+            $user = Auth::user();
 
-    
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+
+            $attendance = $this->attendanceService->createManualAttendance($request->validated(), $effectiveCompanyId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إضافة سجل الحضور بنجاح',
+                'data' => $attendance
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('AttendanceController::store failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 
     /**
      * @OA\Put(
      *     path="/api/attendances/{id}",
-     *     summary="Update attendance record (admin only)",
+     *     summary="تعديل سجل حضور",
      *     tags={"Attendance Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -474,9 +601,38 @@ class AttendanceController extends Controller
      *         required=true,
      *         @OA\Schema(type="integer")
      *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="clock_in", type="string", format="date-time", example="2023-10-01 09:00:00"),
+     *             @OA\Property(property="clock_out", type="string", format="date-time", example="2023-10-01 17:00:00"),
+     *             @OA\Property(property="status", type="string", enum={"Approved", "Pending", "Rejected"}, example="Approved"),
+     *             @OA\Property(property="shift_id", type="integer", example=1),
+     *         )
+     *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Attendance updated"
+     *         description="تم تحديث سجل الحضور بنجاح"
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="البيانات غير صحيحة"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="غير مصرح - يجب تسجيل الدخول"
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="البيانات غير صحيحة"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="خطأ في الخادم"
      *     )
      * )
      */
@@ -507,7 +663,7 @@ class AttendanceController extends Controller
     /**
      * @OA\Delete(
      *     path="/api/attendances/{id}",
-     *     summary="Delete attendance record (admin only)",
+     *     summary="حذف سجل حضور",
      *     tags={"Attendance Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -518,7 +674,27 @@ class AttendanceController extends Controller
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Attendance deleted"
+     *         description="تم حذف سجل الحضور بنجاح"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="فشل في التحقق من البيانات"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="غير مصرح - يجب تسجيل الدخول"
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="البيانات غير صحيحة"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="خطأ في الخادم"
      *     )
      * )
      */
@@ -533,6 +709,11 @@ class AttendanceController extends Controller
                 'message' => 'تم حذف سجل الحضور بنجاح'
             ]);
         } catch (\Exception $e) {
+            $status = 500;
+            if ($e->getMessage() === 'سجل الحضور غير موجود') {
+                $status = 404;
+            }
+
             Log::error('AttendanceController::destroy failed', [
                 'error' => $e->getMessage(),
                 'user_id' => Auth::id(),
@@ -540,72 +721,14 @@ class AttendanceController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * @OA\Get(
-     *     path="/api/attendances/monthly-report",
-     *     summary="Get monthly attendance report",
-     *     tags={"Attendance Management"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="employee_id",
-     *         in="query",
-     *         required=false,
-     *         description="Employee ID (optional, requires permission to view others)",
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Parameter(
-     *         name="month",
-     *         in="query",
-     *         required=true,
-     *         description="Month in YYYY-MM format",
-     *         @OA\Schema(type="string", example="2025-11")
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Monthly report retrieved"
-     *     )
-     * )
-     */
-    public function getMonthlyReport(Request $request)
-    {
-        try {
-            $user = Auth::user();
-            $employeeId = $request->input('employee_id');
-            $month = $request->input('month');
-
-            if (!$month) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'يجب تحديد الشهر'
-                ], 422);
-            }
-
-            $report = $this->attendanceService->getMonthlyReport($user, $month, $employeeId ? (int)$employeeId : null);
-
-            return response()->json([
-                'success' => true,
-                'data' => $report
-            ]);
-        } catch (\Exception $e) {
-            Log::error('AttendanceController::getMonthlyReport failed', [
-                'error' => $e->getMessage(),
-                'user_id' => Auth::id(),
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 500);
+            ], $status);
         }
     }
 
     /**
      * @OA\Get(
      *     path="/api/attendances/details",
-     *     summary="Get attendance details for specific user and date",
+     *     summary="جلب تفاصيل سجل حضور",
      *     tags={"Attendance Management"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -624,11 +747,23 @@ class AttendanceController extends Controller
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Attendance details retrieved"
+     *         description="تم استرجاع تفاصيل الحضور بنجاح"
      *     ),
      *     @OA\Response(
-     *         response=404,
-     *         description="Attendance record not found"
+     *         response=422,
+     *         description="فشل في التحقق من البيانات"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="غير مصرح - يجب تسجيل الدخول"
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="خطأ في الخادم"
      *     )
      * )
      */
@@ -653,6 +788,60 @@ class AttendanceController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('AttendanceController::getAttendanceDetails failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/attendances/status",
+     *     summary="جلب حالة الحضور",
+     *     tags={"Attendance Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="تم استرجاع تفاصيل الحضور بنجاح"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="غير مصرح - يجب تسجيل الدخول"
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="ليس لديك صلاحية لعرض تقرير حضور موظف آخر"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="خطأ في الخادم"
+     *     )
+     * )
+     */
+    public function getAttendanceStatus()
+    {
+        try {
+            $currentUser = Auth::user();
+
+            $details = $this->attendanceService->getAttendanceStatus($currentUser);
+
+            if (!$details) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'سجل الحضور غير موجود لهذا التاريخ'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $details
+            ]);
+        } catch (\Exception $e) {
+            Log::error('AttendanceController::getAttendanceStatus failed', [
                 'error' => $e->getMessage(),
                 'user_id' => Auth::id(),
             ]);

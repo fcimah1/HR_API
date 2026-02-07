@@ -44,4 +44,34 @@ enum NumericalStatusEnum: int
     {
         return implode(',', array_column(self::cases(), 'value'));
     }
+
+    public static function getValidationValues(): array
+    {
+        $values = array_column(self::cases(), 'value');
+        $names = array_column(self::cases(), 'name');
+        // Add capitalized names (e.g. APPROVED) and title case (e.g. Approved)
+        foreach ($names as $name) {
+            $values[] = $name;
+            $values[] = ucfirst(strtolower($name));
+        }
+        return $values;
+    }
+
+    public static function getValue(string|int $status): ?int
+    {
+        if (is_numeric($status)) {
+            $value = (int) $status;
+            // Validate if value exists
+            if (in_array($value, array_column(self::cases(), 'value'))) {
+                return $value;
+            }
+        }
+
+        return match (strtoupper($status)) {
+            'PENDING' => self::PENDING->value,
+            'APPROVED' => self::APPROVED->value,
+            'REJECTED' => self::REJECTED->value,
+            default => null,
+        };
+    }
 }

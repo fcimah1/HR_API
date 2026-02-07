@@ -235,11 +235,10 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('/system-logs', [App\Http\Controllers\Api\SystemLogController::class, 'index']);
     });
 
-    // Attendance records listing and filtering
-    Route::get('/attendances', [AttendanceController::class, 'index'])->middleware('simple.permission:attendance');
-
     // Attendance Management
     Route::prefix('attendances')->group(function () {
+        // Attendance records listing and filtering
+        Route::get('/', [AttendanceController::class, 'index'])->middleware('simple.permission:attendance');
         // Clock in/out operations
         Route::post('/clock-in', [AttendanceController::class, 'clockIn'])->middleware('simple.permission:upattendance2');
         Route::post('/clock-out', [AttendanceController::class, 'clockOut'])->middleware('simple.permission:upattendance2');
@@ -249,14 +248,13 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/lunch-break-out', [AttendanceController::class, 'lunchBreakOut'])->middleware('simple.permission:upattendance2');
 
         // Today's status and monthly reports
-        Route::get('/today', [AttendanceController::class, 'getTodayStatus'])->middleware('simple.permission:upattendance2');
-        Route::get('/monthly-report', [AttendanceController::class, 'getMonthlyReport'])->middleware('simple.permission:monthly_time');
-        Route::get('/attendance-etails', [AttendanceController::class, 'getAttendanceDetails'])->middleware('simple.permission:timesheet');
+        Route::get('/details', [AttendanceController::class, 'getAttendanceDetails'])->middleware('simple.permission:timesheet');
 
-        // CRUD operations (admin/manager only)
-        // Route::get('/attendances/{id}', [AttendanceController::class, 'show'])->middleware('simple.permission:upattendance1');
+        Route::get('/day', [AttendanceController::class, 'getAttendanceByDay'])->middleware('simple.permission:upattendance2');
+        Route::post('/', [AttendanceController::class, 'store'])->middleware('simple.permission:upattendance2'); // Create manual attendance
         Route::put('/{id}', [AttendanceController::class, 'update'])->middleware('simple.permission:upattendance3');
         Route::delete('/{id}', [AttendanceController::class, 'destroy'])->middleware('simple.permission:upattendance4');
+        Route::get('/status', [AttendanceController::class, 'getAttendanceStatus'])->middleware('simple.permission:upattendance2');
     });
 
     // Award Management

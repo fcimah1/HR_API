@@ -7,11 +7,16 @@ use App\DTOs\Attendance\AttendanceFilterDTO;
 use App\DTOs\Attendance\CreateAttendanceDTO;
 use App\DTOs\Attendance\UpdateAttendanceDTO;
 use App\Models\Attendance;
+use App\Services\SimplePermissionService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class AttendanceRepository implements AttendanceRepositoryInterface
 {
+    public function __construct(
+        private readonly SimplePermissionService $permissionService
+    ) {}
     /**
      * Get paginated attendance records with filters
      */
@@ -138,7 +143,8 @@ class AttendanceRepository implements AttendanceRepositoryInterface
      */
     public function findAttendance(int $id): ?Attendance
     {
-        return Attendance::with(['employee'])->find($id);
+        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId(Auth::user());
+        return Attendance::with(['employee'])->where('company_id', $effectiveCompanyId)->find($id);
     }
 
     /**
@@ -146,10 +152,12 @@ class AttendanceRepository implements AttendanceRepositoryInterface
      */
     public function findTodayAttendance(string|int $employeeId, ?string $date = null): ?Attendance
     {
+        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId(Auth::user());
         $date = $date ?? now()->format('Y-m-d');
 
         return Attendance::where('employee_id', $employeeId)
             ->where('attendance_date', $date)
+            ->where('company_id', $effectiveCompanyId)
             ->first();
     }
 
@@ -188,7 +196,7 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         $attendance = Attendance::find($id);
 
         if (!$attendance) {
-            return false;
+            throw new \Exception('البيانات غير صحيحة');
         }
 
         Log::info('Attendance deleted', [
@@ -197,53 +205,6 @@ class AttendanceRepository implements AttendanceRepositoryInterface
         ]);
 
         return $attendance->delete();
-    }
-
-    /**
-     * Get monthly attendance report for an employee
-     */
-    public function getMonthlyReport(int $employeeId, string $month, int $companyId): array
-    {
-        // Parse month (format: YYYY-MM)
-        $year = substr($month, 0, 4);
-        $monthNum = substr($month, 5, 2);
-
-        // Get first and last day of the month
-        $firstDay = $year . '-' . $monthNum . '-01';
-        $lastDay = date('Y-m-t', strtotime($firstDay));
-
-        $records = Attendance::where('employee_id', $employeeId)
-            ->where('company_id', $companyId)
-            ->whereBetween('attendance_date', [$firstDay, $lastDay])
-            ->orderBy('attendance_date', 'asc')
-            ->get();
-
-        $totalDaysPresent = 0;
-        $totalWorkHours = 0.0;
-        $totalLateMinutes = 0;
-        $totalEarlyLeaving = 0;
-
-        foreach ($records as $record) {
-            if ($record->attendance_status === 'Present') {
-                $totalDaysPresent++;
-            }
-
-            // Parse total_work (format: HH:MM)
-            if ($record->total_work) {
-                list($hours, $minutes) = explode(':', $record->total_work);
-                $totalWorkHours += (int)$hours + ((int)$minutes / 60);
-            }
-        }
-
-        return [
-            'month' => $month,
-            'employee_id' => $employeeId,
-            'total_days_present' => $totalDaysPresent,
-            'total_work_hours' => round($totalWorkHours, 2),
-            'total_late_minutes' => $totalLateMinutes,
-            'total_early_leaving' => $totalEarlyLeaving,
-            'records' => $records->toArray(),
-        ];
     }
 
     /**

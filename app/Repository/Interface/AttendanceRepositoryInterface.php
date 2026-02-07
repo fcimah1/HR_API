@@ -61,11 +61,6 @@ interface AttendanceRepositoryInterface
     public function deleteAttendance(int $id): bool;
 
     /**
-     * Get monthly attendance report for an employee
-     */
-    public function getMonthlyReport(int $employeeId, string $month, int $companyId): array;
-
-    /**
      * Check if employee has clocked in today
      */
     public function hasClockedInToday(string|int $employeeId, ?string $date = null): bool;
