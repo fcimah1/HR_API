@@ -150,14 +150,14 @@ class OvertimeController extends Controller
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Unauthenticated",
+     *         description="غير مصرح - يجب تسجيل الدخول",
      *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *             @OA\Property(property="message", type="string", example="غير مصرح - يجب تسجيل الدخول")
      *         )
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Unauthorized",
+     *         description="Forbidden - ليس لديك صلاحية",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض طلبات العمل الإضافي")
@@ -165,7 +165,7 @@ class OvertimeController extends Controller
      *     ),
      *     @OA\Response(
      *         response=422,
-     *         description="Validation error",
+     *         description="خطأ في التحقق من البيانات",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string"),
@@ -174,7 +174,7 @@ class OvertimeController extends Controller
      *     ),
      *     @OA\Response(
      *         response=500,
-     *         description="Server error",
+     *         description="خطأ في الخادم",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")

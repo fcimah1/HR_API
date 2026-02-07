@@ -2862,9 +2862,6 @@
                     "200": {
                         "description": "تم استرجاع تفاصيل الحضور بنجاح"
                     },
-                    "422": {
-                        "description": "فشل في التحقق من البيانات"
-                    },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
                     },
@@ -17487,14 +17484,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - يجب تسجيل الدخول",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
                                         }
                                     },
                                     "type": "object"
@@ -17503,7 +17500,7 @@
                         }
                     },
                     "403": {
-                        "description": "Unauthorized",
+                        "description": "Forbidden - ليس لديك صلاحية",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17523,7 +17520,7 @@
                         }
                     },
                     "422": {
-                        "description": "Validation error",
+                        "description": "خطأ في التحقق من البيانات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17545,7 +17542,7 @@
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "خطأ في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -18344,6 +18341,790 @@
                                                 }
                                             },
                                             "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/polls": {
+            "get": {
+                "tags": [
+                    "Polls"
+                ],
+                "summary": "عرض قائمة الاستبيانات",
+                "operationId": "6e193446b08121fa820e77c1a32e6c5d",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث عن الاستبيانات",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "تصفية حسب الحالة (نشط، انتهت، مستقبلية)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "expired",
+                                "upcoming"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد العناصر في الصفحة",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الاستبيانات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب الاستبيانات بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "خطأ في الخادم"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "غير مصرح - ليس لديك صلاحية",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "غير مصرح - ليس لديك صلاحية"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Polls"
+                ],
+                "summary": "إنشاء استبيان جديد",
+                "operationId": "cfe7460dbf9e8b80cc0122d588147993",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "poll_title",
+                                    "poll_start_date",
+                                    "poll_end_date",
+                                    "questions"
+                                ],
+                                "properties": {
+                                    "poll_title": {
+                                        "type": "string",
+                                        "example": "Employee Satisfaction"
+                                    },
+                                    "poll_start_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-01"
+                                    },
+                                    "poll_end_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-31"
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "questions": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "poll_question": {
+                                                    "type": "string",
+                                                    "example": "How satisfied are you?"
+                                                },
+                                                "poll_answer1": {
+                                                    "type": "string",
+                                                    "example": "Very Satisfied"
+                                                },
+                                                "poll_answer2": {
+                                                    "type": "string",
+                                                    "example": "Satisfied"
+                                                },
+                                                "poll_answer3": {
+                                                    "type": "string",
+                                                    "example": "Neutral"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء الاستبيان بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء الاستبيان بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "غير مصرح - ليس لديك صلاحية",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "غير مصرح - ليس لديك صلاحية"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "خطأ في الخادم"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/polls/{id}": {
+            "get": {
+                "tags": [
+                    "Polls"
+                ],
+                "summary": "عرض تفاصيل الاستبيان",
+                "operationId": "5ec6be904e42562dc8f5096f6929daf4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب تفاصيل الاستبيان بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب تفاصيل الاستبيان بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "غير مصرح - ليس لديك صلاحية",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "غير مصرح - ليس لديك صلاحية"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "خطأ في الخادم"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Polls"
+                ],
+                "summary": "تعديل الاستبيان",
+                "operationId": "f35ac82b2953ad17e1bc1dbe015db93f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "poll_title",
+                                    "poll_start_date",
+                                    "poll_end_date",
+                                    "questions"
+                                ],
+                                "properties": {
+                                    "poll_title": {
+                                        "type": "string",
+                                        "example": "Employee Satisfaction Updated"
+                                    },
+                                    "poll_start_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-01"
+                                    },
+                                    "poll_end_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-01-31"
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "questions": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "id": {
+                                                    "description": "ID of existing question, null for new",
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "poll_question": {
+                                                    "type": "string",
+                                                    "example": "How satisfied are you now?"
+                                                },
+                                                "poll_answer1": {
+                                                    "type": "string",
+                                                    "example": "Very Satisfied"
+                                                },
+                                                "poll_answer2": {
+                                                    "type": "string",
+                                                    "example": "Satisfied"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث الاستبيان بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث الاستبيان بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "فشل التحقق"
+                    },
+                    "404": {
+                        "description": "الاستبيان غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "403": {
+                        "description": "غير مصرح - ليس لديك صلاحية"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Polls"
+                ],
+                "summary": "حذف الاستبيان",
+                "operationId": "32558d30dc7a4136c956776450e9e2e6",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف الاستبيان بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف الاستبيان بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الاستبيان غير موجود",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "الاستبيان غير موجود"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "خطأ في الخادم"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "غير مصرح - ليس لديك صلاحية",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "غير مصرح - ليس لديك صلاحية"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/polls/{id}/vote": {
+            "post": {
+                "tags": [
+                    "Polls"
+                ],
+                "summary": "تصويت على الاستبيان",
+                "operationId": "c2b636a472ac718318fd3253c109f4ce",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "votes"
+                                ],
+                                "properties": {
+                                    "votes": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "question_id": {
+                                                    "description": "ID of the question from ci_polls_questions",
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "answer": {
+                                                    "description": "Answer text OR answer index (1-5)",
+                                                    "type": "integer",
+                                                    "example": "1"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التصويت بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم التصويت بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "غير مصرح - ليس لديك صلاحية",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "غير مصرح - ليس لديك صلاحية"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "خطأ في الخادم"
                                         }
                                     },
                                     "type": "object"
@@ -30461,6 +31242,10 @@
         {
             "name": "Overtime Management",
             "description": "Overtime requests management"
+        },
+        {
+            "name": "Polls",
+            "description": "ادارة الاستبيانات"
         },
         {
             "name": "Promotion Management",
