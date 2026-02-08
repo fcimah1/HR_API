@@ -15,8 +15,8 @@ class DesignationResource extends JsonResource
             'hierarchy_level' => $this->hierarchy_level ?? 5,
             'department_id' => $this->department_id,
             'department_name' => $this->department->department_name ?? null,
-            'employees_count' => $this->when($this->relationLoaded('employees'), 
-                fn() => $this->employees->count()),
+            'employees_count' => $this->user_details_count ?? 0,
+            'created_at' => $this->created_at instanceof \Carbon\Carbon ? $this->created_at->toDateTimeString() : $this->created_at,
         ];
     }
 }

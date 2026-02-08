@@ -13,12 +13,12 @@ interface CustodyClearanceRepositoryInterface
     /**
      * الحصول على العهد/الأصول للموظف
      */
-    public function getCustodiesForEmployee(CustodyFilterDTO $filters): array;
+    public function getCustodiesForEmployee(CustodyFilterDTO $filters): mixed;
 
     /**
      * الحصول على قائمة طلبات الإخلاء مع التصفية والترقيم
      */
-    public function getPaginatedClearances(CustodyClearanceFilterDTO $filters, User $user): array;
+    public function getPaginatedClearances(CustodyClearanceFilterDTO $filters, User $user): mixed;
 
     /**
      * الحصول على طلب إخلاء بواسطة المعرف

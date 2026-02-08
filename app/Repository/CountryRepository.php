@@ -8,7 +8,7 @@ use Illuminate\Support\Collection;
 
 class CountryRepository implements CountryRepositoryInterface
 {
-    public function getAllCountries(array $filters = []): Collection
+    public function getAllCountries(array $filters = []): mixed
     {
         $query = Country::query();
 
@@ -30,6 +30,11 @@ class CountryRepository implements CountryRepositoryInterface
 
         if (!empty($filters['country_code'])) {
             $query->where('country_code', $filters['country_code']);
+        }
+
+        if (isset($filters['paginate']) && (bool)$filters['paginate'] === true) {
+            $perPage = $filters['per_page'] ?? 10;
+            return $query->paginate($perPage);
         }
 
         return $query->orderBy('country_id', 'asc')->get();

@@ -65,6 +65,10 @@ use Illuminate\Routing\Route;
 use Illuminate\Support\Str;
 use App\Repository\Interface\TerminationRepositoryInterface;
 use App\Repository\TerminationRepository;
+use App\Repository\Interface\DepartmentRepositoryInterface;
+use App\Repository\DepartmentRepository;
+use App\Repository\Interface\DesignationRepositoryInterface;
+use App\Repository\DesignationRepository;
 use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
@@ -185,6 +189,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Poll repository
         $this->app->bind(\App\Repository\Interface\PollRepositoryInterface::class, \App\Repository\PollRepository::class);
+
+        // Department repository
+        $this->app->bind(DepartmentRepositoryInterface::class, DepartmentRepository::class);
+
+        // Designation repository
+        $this->app->bind(DesignationRepositoryInterface::class, DesignationRepository::class);
     }
 
     /**

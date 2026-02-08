@@ -52,8 +52,32 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
     Route::get('/user/permissions', [AuthController::class, 'permissions']);
     Route::get('/countries', [\App\Http\Controllers\Api\CountryController::class, 'index']);
     Route::get('/countries/{id}', [\App\Http\Controllers\Api\CountryController::class, 'show']);
-    Route::get('/branches', [\App\Http\Controllers\Api\BranchController::class, 'index']);
-    Route::get('/branches/{id}', [\App\Http\Controllers\Api\BranchController::class, 'show']);
+    // Branch Management
+    Route::prefix('branches')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\BranchController::class, 'index'])->middleware('simple.permission:branch1');
+        Route::post('/', [\App\Http\Controllers\Api\BranchController::class, 'store'])->middleware('simple.permission:branch2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\BranchController::class, 'show'])->middleware('simple.permission:branch1');
+        Route::put('/{id}', [\App\Http\Controllers\Api\BranchController::class, 'update'])->middleware('simple.permission:branch3');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\BranchController::class, 'destroy'])->middleware('simple.permission:branch4');
+    });
+
+    // Department Management
+    Route::prefix('departments')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\DepartmentController::class, 'index'])->middleware('simple.permission:department1');
+        Route::post('/', [\App\Http\Controllers\Api\DepartmentController::class, 'store'])->middleware('simple.permission:department2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\DepartmentController::class, 'show'])->middleware('simple.permission:department1');
+        Route::put('/{id}', [\App\Http\Controllers\Api\DepartmentController::class, 'update'])->middleware('simple.permission:department3');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\DepartmentController::class, 'destroy'])->middleware('simple.permission:department4');
+    });
+
+    // Designation Management
+    Route::prefix('designations')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\DesignationController::class, 'index'])->middleware('simple.permission:designation1');
+        Route::post('/', [\App\Http\Controllers\Api\DesignationController::class, 'store'])->middleware('simple.permission:designation2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\DesignationController::class, 'show'])->middleware('simple.permission:designation1');
+        Route::put('/{id}', [\App\Http\Controllers\Api\DesignationController::class, 'update'])->middleware('simple.permission:designation3');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\DesignationController::class, 'destroy'])->middleware('simple.permission:designation4');
+    });
 
     // Dashboard
     Route::prefix('dashboard')->group(function () {
@@ -105,6 +129,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::put('/{id}/update-cv', [EmployeeController::class, 'updateCV']);
         Route::put('/{id}/update-social-links', [EmployeeController::class, 'updateSocialLinks']);
         Route::put('/{id}/update-bank-info', [EmployeeController::class, 'updateBankInfo']);
+        Route::get('/{id}/family-data', [EmployeeController::class, 'getFamilyData']);
         Route::put('/{id}/add-family-data', [EmployeeController::class, 'addFamilyData']);
         Route::delete('/{id}/delete-family-data/{contactId}', [EmployeeController::class, 'deleteFamilyData']);
         Route::put('/{id}/update-basic-info', [EmployeeController::class, 'updateBasicInfo']);
@@ -141,6 +166,7 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::put('/cv', [EmployeeProfileController::class, 'updateCV'])->middleware('simple.permission:hr_personal_info');
         Route::put('/social-links', [EmployeeProfileController::class, 'updateSocialLinks'])->middleware('simple.permission:hr_personal_info');
         Route::put('/bank-info', [EmployeeProfileController::class, 'updateBankInfo'])->middleware('simple.permission:hr_personal_info');
+        Route::get('/family-data', [EmployeeProfileController::class, 'getFamilyData'])->middleware('simple.permission:hr_personal_info');
         Route::put('/family-data', [EmployeeProfileController::class, 'addFamilyData'])->middleware('simple.permission:hr_personal_info');
         Route::delete('/family-data/{contactId}', [EmployeeProfileController::class, 'deleteFamilyData'])->middleware('simple.permission:hr_personal_info');
         Route::get('/documents', [EmployeeProfileController::class, 'getEmployeeDocuments'])->middleware('simple.permission:hr_documents');

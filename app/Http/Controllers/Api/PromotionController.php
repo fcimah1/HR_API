@@ -207,6 +207,7 @@ class PromotionController extends Controller
             Log::info('Promotion updated successfully', [
                 'user_id' => Auth::id(),
                 'promotion_id' => $id,
+                'promotion' => $promotion,
             ]);
             return $this->successResponse($promotion, 'تم تعديل الترقية بنجاح', 200);
         } catch (\Exception $e) {

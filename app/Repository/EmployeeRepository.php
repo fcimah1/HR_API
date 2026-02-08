@@ -853,6 +853,24 @@ class EmployeeRepository implements EmployeeRepositoryInterface
         }
     }
 
+    /**
+     * Get employee family data
+     */
+    public function getEmployeeFamilyData(int $employeeId): \Illuminate\Support\Collection
+    {
+        try {
+            return DB::table('ci_erp_employee_contacts')
+                ->where('user_id', $employeeId)
+                ->get();
+        } catch (\Exception $e) {
+            Log::error('EmployeeRepository::getEmployeeFamilyData failed', [
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception(message: 'فشل في جلب البيانات العائلية');
+        }
+    }
+
     public function addEmployeeFamilyData(int $employeeId, array $familyData): bool
     {
         try {

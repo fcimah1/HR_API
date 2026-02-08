@@ -13,10 +13,10 @@ class DepartmentResource extends JsonResource
             'department_id' => $this->department_id,
             'department_name' => $this->department_name,
             'department_head_id' => $this->department_head,
-            'department_head_name' => $this->departmentHead ? 
+            'department_head_name' => $this->departmentHead ?
                 $this->departmentHead->first_name . ' ' . $this->departmentHead->last_name : null,
-            'employees_count' => $this->when($this->relationLoaded('employees'), 
-                fn() => $this->employees->count()),
+            'employees_count' => $this->user_details_count ?? 0,
+            'created_at' => $this->created_at instanceof \Carbon\Carbon ? $this->created_at->toDateTimeString() : $this->created_at,
         ];
     }
 }

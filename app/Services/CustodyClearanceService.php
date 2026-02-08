@@ -27,7 +27,7 @@ class CustodyClearanceService
     /**
      * الحصول على العهد للموظف أو تابعيه
      */
-    public function getCustodiesForEmployee(User $user, CustodyFilterDTO $filters): array
+    public function getCustodiesForEmployee(User $user, CustodyFilterDTO $filters): mixed
     {
         $userType = strtolower(trim($user->user_type ?? ''));
         $companyId = $user->company_id;
@@ -82,17 +82,21 @@ class CustodyClearanceService
             CustodyFilterDTO::fromRequest($filterData)
         );
 
-        $result['data'] = array_map(function ($asset) {
-            return CustodyResponseDTO::fromModel($asset)->toArray();
-        }, $result['data']);
+        if ($result instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+            return $result->through(function ($asset) {
+                return CustodyResponseDTO::fromModel($asset)->toArray();
+            });
+        }
 
-        return $result;
+        return $result->map(function ($asset) {
+            return CustodyResponseDTO::fromModel($asset)->toArray();
+        });
     }
 
     /**
      * الحصول على قائمة طلبات الإخلاء
      */
-    public function getPaginatedClearances(CustodyClearanceFilterDTO $filters, User $user): array
+    public function getPaginatedClearances(CustodyClearanceFilterDTO $filters, User $user): mixed
     {
         $companyId = $user->company_id;
         $userType = strtolower(trim($user->user_type ?? ''));
@@ -126,11 +130,15 @@ class CustodyClearanceService
             $user
         );
 
-        $result['data'] = array_map(function ($clearance) {
-            return CustodyClearanceResponseDTO::fromModel($clearance)->toArray();
-        }, $result['data']);
+        if ($result instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+            return $result->through(function ($clearance) {
+                return CustodyClearanceResponseDTO::fromModel($clearance)->toArray();
+            });
+        }
 
-        return $result;
+        return $result->map(function ($clearance) {
+            return CustodyClearanceResponseDTO::fromModel($clearance)->toArray();
+        });
     }
 
     /**

@@ -2294,6 +2294,46 @@ class EmployeeManagementService
     }
 
     /**
+     * Get employee family data
+     */
+    public function getEmployeeFamilyData(User $user, int $employeeId): \Illuminate\Support\Collection
+    {
+        try {
+            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
+            $employee = $this->employeeRepository->getEmployeeWithDetails($employeeId, $effectiveCompanyId);
+
+            if (!$employee) {
+                Log::error('EmployeeManagementService::getEmployeeFamilyData failed', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId,
+                    'error' => 'Employee not found',
+                    'message' => 'فشل في جلب البيانات العائلية'
+                ]);
+                throw new \Exception(message: 'الموظف غير موجود', code: 404);
+            }
+
+            // Check if user can view this employee's info
+            if (!$this->permissionService->canViewEmployeeRequests($user, $employee)) {
+                Log::warning('EmployeeManagementService::getEmployeeFamilyData unauthorized access attempt', [
+                    'user_id' => $user->user_id,
+                    'employee_id' => $employeeId
+                ]);
+                throw new \Exception(message: 'ليس لديك صلاحية لعرض هذه البيانات', code: 403);
+            }
+
+            return $this->employeeRepository->getEmployeeFamilyData($employeeId);
+        } catch (\Exception $e) {
+            Log::error('EmployeeManagementService::getEmployeeFamilyData failed', [
+                'user_id' => $user->user_id,
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+
+            throw new \Exception(message: $e->getMessage(), code: $e->getCode() ?: 500);
+        }
+    }
+
+    /**
      * Add employee family data
      */
     public function addEmployeeFamilyData(User $user, int $employeeId, array $familyData): bool
@@ -3347,7 +3387,7 @@ class EmployeeManagementService
                     'user_id' => $user->user_id,
                     'employee_id' => $employeeId,
                     'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف'
-                ]); 
+                ]);
                 throw new \Exception(message: 'ليس لديك صلاحية لعرض بيانات هذا الموظف', code: 403);
             }
 

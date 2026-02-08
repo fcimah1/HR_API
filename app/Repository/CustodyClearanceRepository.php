@@ -17,7 +17,7 @@ class CustodyClearanceRepository implements CustodyClearanceRepositoryInterface
     /**
      * الحصول على العهد/الأصول للموظف
      */
-    public function getCustodiesForEmployee(CustodyFilterDTO $filters): array
+    public function getCustodiesForEmployee(CustodyFilterDTO $filters): mixed
     {
         $query = Asset::with(['employee', 'brand', 'category']);
 
@@ -61,24 +61,18 @@ class CustodyClearanceRepository implements CustodyClearanceRepositoryInterface
         }
 
         // Pagination
-        $paginator = $query->orderBy('name')
-            ->paginate($filters->perPage, ['*'], 'page', $filters->page);
+        if ($filters->paginate) {
+            return $query->orderBy('name')
+                ->paginate($filters->perPage, ['*'], 'page', $filters->page);
+        }
 
-        return [
-            'data' => $paginator->items(),
-            'pagination' => [
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-            ],
-        ];
+        return $query->orderBy('name')->get();
     }
 
     /**
      * الحصول على قائمة طلبات الإخلاء مع التصفية والترقيم
      */
-    public function getPaginatedClearances(CustodyClearanceFilterDTO $filters, User $user): array
+    public function getPaginatedClearances(CustodyClearanceFilterDTO $filters, User $user): mixed
     {
         $query = CustodyClearance::with(['employee', 'approver', 'creator', 'items.asset', 'approvals.staff']);
 
@@ -132,17 +126,11 @@ class CustodyClearanceRepository implements CustodyClearanceRepositoryInterface
         $query->orderBy('created_at', 'desc');
 
         // Pagination
-        $paginator = $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
+        if ($filters->paginate) {
+            return $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
+        }
 
-        return [
-            'data' => $paginator->items(),
-            'pagination' => [
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-            ],
-        ];
+        return $query->get();
     }
 
     /**

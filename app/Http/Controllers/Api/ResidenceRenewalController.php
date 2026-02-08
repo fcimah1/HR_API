@@ -58,10 +58,19 @@ class ResidenceRenewalController extends Controller
             $perPage = (int) $request->input('per_page', 15);
 
             $renewals = $this->renewalService->getRenewals($effectiveCompanyId, $filters, $perPage);
-
+            Log::info('Renewals fetched successfully', [
+                'user_id' => Auth::id(),
+                'company_id' => $effectiveCompanyId,
+                'renewals_count' => $renewals->total(),
+            ]);
             return $this->successResponse($renewals, 'تم جلب البيانات بنجاح', 200);
         } catch (\Exception $e) {
-            Log::error('Error fetching renewals: ' . $e->getMessage());
+            Log::error('Error fetching renewals: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'company_id' => $effectiveCompanyId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return $this->errorResponse('حدث خطأ أثناء جلب البيانات', 500);
         }
     }
@@ -113,11 +122,20 @@ class ResidenceRenewalController extends Controller
             $dto = CreateResidenceRenewalDTO::fromRequest($request->validated(), $effectiveCompanyId, Auth::id());
 
             $renewal = $this->renewalService->createRenewal($dto);
-
+            Log::info('Renewal created successfully', [
+                'user_id' => Auth::id(),
+                'company_id' => $effectiveCompanyId,
+                'renewal_data' => $renewal,
+            ]);
             return $this->successResponse($renewal, 'تم إضافة السجل وحساب التكاليف بنجاح', 201);
         } catch (\Exception $e) {
             $code = $e->getCode() ?: 500;
             $message = $e->getMessage() ?: 'حدث خطأ أثناء إضافة السجل';
+            Log::error('Error creating renewal: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString(),
+                'error' => $e->getMessage(),
+            ]);
 
             if ($code >= 400 && $code < 500) {
                 return $this->errorResponse($message, $code);
@@ -152,12 +170,23 @@ class ResidenceRenewalController extends Controller
             $renewal = $this->renewalService->getRenewal($id, $effectiveCompanyId);
 
             if (!$renewal) {
+                Log::error('Renewal not found', [
+                    'user_id' => Auth::id(),
+                    'company_id' => $effectiveCompanyId,
+                    'renewal_id' => $id,
+                ]);
                 return $this->errorResponse('السجل غير موجود', 404);
             }
 
             return $this->successResponse($renewal, 'تم جلب التفاصيل بنجاح', 200);
         } catch (\Exception $e) {
-            Log::error('Error showing renewal: ' . $e->getMessage());
+            Log::error('Error showing renewal: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'company_id' => $effectiveCompanyId,
+                'renewal_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return $this->errorResponse('حدث خطأ أثناء جلب التفاصيل', 500);
         }
     }
@@ -183,7 +212,11 @@ class ResidenceRenewalController extends Controller
         try {
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId(Auth::user());
             $this->renewalService->deleteRenewal($id, $effectiveCompanyId);
-
+            Log::info('Renewal deleted successfully', [
+                'user_id' => Auth::id(),
+                'company_id' => $effectiveCompanyId,
+                'renewal_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم الحذف بنجاح', 200);
         } catch (\Exception $e) {
             $code = $e->getCode() ?: 500;
@@ -193,7 +226,12 @@ class ResidenceRenewalController extends Controller
                 return $this->errorResponse($message, $code);
             }
 
-            Log::error('Error deleting renewal: ' . $e->getMessage());
+            Log::error('Error deleting renewal: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'renewal_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return $this->errorResponse('حدث خطأ أثناء الحذف', 500);
         }
     }

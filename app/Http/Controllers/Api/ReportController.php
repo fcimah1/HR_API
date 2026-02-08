@@ -139,7 +139,8 @@ class ReportController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to queue attendance monthly report', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             // Show specific error message if it's a validation/logic error
@@ -148,6 +149,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -190,7 +192,9 @@ class ReportController extends Controller
             $this->reportService->generateAttendanceFirstLastReport($user, $filters);
         } catch (\Exception $e) {
             Log::error('Failed to generate attendance first-last report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             // Show specific error message if it's a validation/logic error
@@ -199,6 +203,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -242,7 +247,9 @@ class ReportController extends Controller
             $this->reportService->generateAttendanceTimeRecordsReport($user, $filters);
         } catch (\Exception $e) {
             Log::error('Failed to generate time records report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             // Show specific error message if it's a validation/logic error
@@ -251,6 +258,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -293,7 +301,9 @@ class ReportController extends Controller
             $this->reportService->generateAttendanceDateRangeReport($user, $filters);
         } catch (\Exception $e) {
             Log::error('Failed to generate attendance date range report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             // Show specific error message if it's a validation/logic error
@@ -302,6 +312,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -344,7 +355,9 @@ class ReportController extends Controller
             $this->reportService->generateTimesheetReport($user, $filters);
         } catch (\Exception $e) {
             Log::error('Failed to generate timesheet report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             // Show specific error message if it's a validation/logic error
@@ -353,6 +366,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -401,7 +415,9 @@ class ReportController extends Controller
             ], 404);
         } catch (\Exception $e) {
             Log::error('Failed to generate payroll report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             // Show specific error message if it's a validation/logic error
@@ -410,6 +426,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -447,7 +464,9 @@ class ReportController extends Controller
             $this->reportService->generateLoanReport($user, $companyId, $request->validated());
         } catch (\Exception $e) {
             Log::error('Failed to generate loans report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             // Show specific error message if it's a validation/logic error
@@ -456,6 +475,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -498,13 +518,17 @@ class ReportController extends Controller
             $this->reportService->generateLeaveReport($user, $companyId, $request->validated());
         } catch (\Exception $e) {
             Log::error('Failed to generate leaves report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'فشل في إنشاء التقرير',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -542,13 +566,17 @@ class ReportController extends Controller
             $this->reportService->generateAwardsReport($user, $companyId, $request->validated());
         } catch (\Exception $e) {
             Log::error('Failed to generate awards report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'فشل في إنشاء التقرير',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -592,7 +620,9 @@ class ReportController extends Controller
             $this->reportService->generatePromotionsReport($user, $companyId, $request->validated());
         } catch (\Exception $e) {
             Log::error('Failed to generate promotions report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             // Show specific error message if it's a validation/logic error
@@ -601,6 +631,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -644,7 +675,9 @@ class ReportController extends Controller
             $this->reportService->generateResignationsReport($user, $companyId, $request->validated());
         } catch (\Exception $e) {
             Log::error('Failed to generate resignations report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             // Show specific error message if it's a validation/logic error
@@ -653,6 +686,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -695,7 +729,9 @@ class ReportController extends Controller
             $this->reportService->generateTerminationsReport($user, $companyId, $request->validated());
         } catch (\Exception $e) {
             Log::error('Failed to generate terminations report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             $message = $e instanceof \InvalidArgumentException ? $e->getMessage() : 'فشل في إنشاء التقرير';
@@ -703,6 +739,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -751,7 +788,9 @@ class ReportController extends Controller
             $this->reportService->generateTransfersReport($user, $companyId, $request->validated());
         } catch (\Exception $e) {
             Log::error('Failed to generate transfers report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             $message = $e instanceof \InvalidArgumentException ? $e->getMessage() : 'فشل في إنشاء التقرير';
@@ -759,6 +798,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -798,7 +838,9 @@ class ReportController extends Controller
             $this->reportService->generateResidenceRenewalReport($user, $companyId, $request->validated());
         } catch (\Exception $e) {
             Log::error('Failed to generate residence renewal report', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             $message = $e instanceof \InvalidArgumentException ? $e->getMessage() : 'فشل في إنشاء التقرير';
@@ -806,6 +848,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -851,13 +894,18 @@ class ReportController extends Controller
                 'message' => $e->getMessage()
             ], 422);
         } catch (\Exception $e) {
-            Log::error('Expiring Contracts Report Error: ' . $e->getMessage());
+            Log::error('Expiring Contracts Report Error: ', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+            ]);
 
             $message = $e instanceof \InvalidArgumentException ? $e->getMessage() : 'فشل في إنشاء التقرير';
 
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -900,16 +948,22 @@ class ReportController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
+                'user_id' => Auth::id(),
             ], 422);
         } catch (\Exception $e) {
-            Log::error('Expiring Documents Report Error: ' . $e->getMessage());
+            Log::error('Expiring Documents Report Error: ', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+            ]);
 
             $message = $e instanceof \InvalidArgumentException ? $e->getMessage() : 'فشل في إنشاء التقرير';
 
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -1004,7 +1058,8 @@ class ReportController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to queue employees by branch report', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             $message = $e instanceof \InvalidArgumentException ? $e->getMessage() : 'فشل في إنشاء التقرير';
@@ -1049,7 +1104,8 @@ class ReportController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to generate employees by country report', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             $message = $e instanceof \InvalidArgumentException ? $e->getMessage() : 'فشل في إنشاء التقرير';
@@ -1057,6 +1113,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }
@@ -1189,7 +1246,8 @@ class ReportController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to generate end of service report', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
 
             $message = $e instanceof \InvalidArgumentException ? $e->getMessage() : 'فشل في إنشاء التقرير';
@@ -1197,6 +1255,7 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $message,
+                'user_id' => Auth::id(),
             ], $e instanceof \InvalidArgumentException ? 422 : 500);
         }
     }

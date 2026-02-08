@@ -17,6 +17,8 @@ use Illuminate\Http\JsonResponse;
  */
 class CountryController extends Controller
 {
+    use \App\Traits\ApiResponseTrait;
+
     protected $countryService;
 
     public function __construct(CountryService $countryService)
@@ -59,6 +61,27 @@ class CountryController extends Controller
      *         required=false,
      *         @OA\Schema(type="string")
      *     ),
+     *     @OA\Parameter(
+     *         name="paginate",
+     *         in="query",
+     *         description="تفعيل الترقيم (true/false)",
+     *         required=false,
+     *         @OA\Schema(type="boolean", default=true)
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         description="عدد النتائج في الصفحة",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=10)
+     *     ),
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="رقم الصفحة",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=1)
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="تم استرجاع الدول بنجاح",
@@ -88,10 +111,18 @@ class CountryController extends Controller
         $filters = CountryFilterDTO::fromRequest($request)->toArray();
         $countries = $this->countryService->getCountries($filters);
 
-        return response()->json([
-            'success' => true,
-            'data' => CountryResource::collection($countries)
-        ]);
+        if ($countries instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+            return $this->paginatedResponse(
+                $countries,
+                'تم استرجاع الدول بنجاح',
+                CountryResource::class
+            );
+        }
+
+        return $this->successResponse(
+            CountryResource::collection($countries),
+            'تم استرجاع الدول بنجاح'
+        );
     }
     /**
      * @OA\Get(
@@ -134,15 +165,9 @@ class CountryController extends Controller
         $country = $this->countryService->getCountry($id);
 
         if (!$country) {
-            return response()->json([
-                'success' => false,
-                'message' => 'الدولة غير موجودة'
-            ], 404);
+            return $this->notFoundResponse('الدولة غير موجودة');
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => new CountryResource($country)
-        ]);
+        return $this->successResponse(new CountryResource($country), 'تم استرجاع تفاصيل الدولة بنجاح');
     }
 }

@@ -6,6 +6,6 @@ use Illuminate\Support\Collection;
 
 interface CountryRepositoryInterface
 {
-    public function getAllCountries(array $filters = []): Collection;
+    public function getAllCountries(array $filters = []): mixed;
     public function getCountryById(int $id);
 }

@@ -149,9 +149,14 @@ class SuggestionController extends Controller
                 'message' => 'تم جلب الاقتراحات بنجاح',
                 'data' => SuggestionResource::collection($result['data']),
                 'pagination' => $result['pagination'],
+                'user_id' => $user->user_id,
             ]);
         } catch (\Exception $e) {
-            Log::error('SuggestionController::index - Error', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            Log::error('SuggestionController::index - Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->user_id,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'حدث خطأ أثناء جلب الاقتراحات',
@@ -249,9 +254,15 @@ class SuggestionController extends Controller
                 'success' => true,
                 'message' => 'تم جلب الاقتراح بنجاح',
                 'data' => new SuggestionResource($suggestion),
+                'user_id' => $user->user_id,
             ]);
         } catch (\Exception $e) {
-            Log::error('SuggestionController::show - Error', ['suggestion_id' => $id, 'error' => $e->getMessage()]);
+            Log::error('SuggestionController::show - Error', [
+                'suggestion_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->user_id,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'حدث خطأ أثناء جلب الاقتراح',
@@ -332,7 +343,10 @@ class SuggestionController extends Controller
         try {
             $user = Auth::user();
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-            Log::info('SuggestionController::store - Creating suggestion', ['user_id' => $user->user_id]);
+            Log::info('SuggestionController::store - Creating suggestion', [
+                'user_id' => $user->user_id,
+                'request' => $request->all(),
+            ]);
 
             // Handle file upload
             $attachmentName = null;
@@ -358,13 +372,22 @@ class SuggestionController extends Controller
                 $user->user_id
             );
             $suggestion = $this->suggestionService->createSuggestion($dto);
+            Log::info('SuggestionController::store - Suggestion created successfully', [
+                'suggestion_id' => $suggestion->suggestion_id,
+                'user_id' => $user->user_id,
+                'suggestion' => $suggestion,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم إنشاء الاقتراح بنجاح',
                 'data' => new SuggestionResource($suggestion),
             ], 201);
         } catch (\Exception $e) {
-            Log::error('SuggestionController::store - Error', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            Log::error('SuggestionController::store - Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->user_id,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'فشل في إنشاء الاقتراح',
@@ -427,16 +450,30 @@ class SuggestionController extends Controller
     {
         try {
             $user = Auth::user();
-            Log::info('SuggestionController::update - Updating suggestion', ['suggestion_id' => $id, 'user_id' => $user->user_id]);
+            Log::info('SuggestionController::update - Updating suggestion', [
+                'suggestion_id' => $id,
+                'user_id' => $user->user_id,
+                'request' => $request->all(),
+            ]);
             $dto = UpdateSuggestionDTO::fromRequest($request->validated());
             $suggestion = $this->suggestionService->updateSuggestion($id, $dto, $user);
+            Log::info('SuggestionController::update - Suggestion updated successfully', [
+                'suggestion_id' => $suggestion->suggestion_id,
+                'user_id' => $user->user_id,
+                'suggestion' => $suggestion,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم تحديث الاقتراح بنجاح',
                 'data' => new SuggestionResource($suggestion),
             ]);
         } catch (\Exception $e) {
-            Log::error('SuggestionController::update - Error', ['suggestion_id' => $id, 'error' => $e->getMessage()]);
+            Log::error('SuggestionController::update - Error', [
+                'suggestion_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->user_id,
+            ]);
             $statusCode = str_contains($e->getMessage(), 'غير موجود') ? 404 : (str_contains($e->getMessage(), 'صلاحية') ? 403 : 500);
             return response()->json(['success' => false, 'message' => $e->getMessage()], $statusCode);
         }
@@ -489,11 +526,23 @@ class SuggestionController extends Controller
     {
         try {
             $user = Auth::user();
-            Log::info('SuggestionController::destroy - Deleting suggestion', ['suggestion_id' => $id, 'user_id' => $user->user_id]);
+            Log::info('SuggestionController::destroy - Deleting suggestion', [
+                'suggestion_id' => $id,
+                'user_id' => $user->user_id,
+            ]);
             $this->suggestionService->deleteSuggestion($id, $user);
+            Log::info('SuggestionController::destroy - Suggestion deleted successfully', [
+                'suggestion_id' => $id,
+                'user_id' => $user->user_id,
+            ]);
             return response()->json(['success' => true, 'message' => 'تم حذف الاقتراح بنجاح']);
         } catch (\Exception $e) {
-            Log::error('SuggestionController::destroy - Error', ['suggestion_id' => $id, 'error' => $e->getMessage()]);
+            Log::error('SuggestionController::destroy - Error', [
+                'suggestion_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
+            ]);
             $statusCode = str_contains($e->getMessage(), 'غير موجود') ? 404 : (str_contains($e->getMessage(), 'صلاحية') ? 403 : 500);
             return response()->json(['success' => false, 'message' => $e->getMessage()], $statusCode);
         }
@@ -549,7 +598,11 @@ class SuggestionController extends Controller
         try {
             $user = Auth::user();
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
-            Log::info('SuggestionController::addComment - Adding comment', ['suggestion_id' => $id, 'user_id' => $user->user_id]);
+            Log::info('SuggestionController::addComment - Adding comment', [
+                'suggestion_id' => $id,
+                'user_id' => $user->user_id,
+                'request' => $request->all(),
+            ]);
             $dto = CreateSuggestionCommentDTO::fromRequest(
                 $request->validated(),
                 $effectiveCompanyId,
@@ -557,6 +610,12 @@ class SuggestionController extends Controller
                 $user->user_id
             );
             $comment = $this->suggestionService->addComment($id, $dto, $user);
+            Log::info('SuggestionController::addComment - Comment added successfully', [
+                'comment_id' => $comment->comment_id,
+                'suggestion_id' => $comment->suggestion_id,
+                'user_id' => $user->user_id,
+                'comment' => $comment,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم إضافة التعليق بنجاح',
@@ -569,7 +628,12 @@ class SuggestionController extends Controller
                 ],
             ], 201);
         } catch (\Exception $e) {
-            Log::error('SuggestionController::addComment - Error', ['suggestion_id' => $id, 'error' => $e->getMessage()]);
+            Log::error('SuggestionController::addComment - Error', [
+                'suggestion_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
+            ]);
             $statusCode = str_contains($e->getMessage(), 'غير موجود') ? 404 : 500;
             return response()->json(['success' => false, 'message' => $e->getMessage()], $statusCode);
         }
@@ -625,14 +689,27 @@ class SuggestionController extends Controller
     {
         try {
             $user = Auth::user();
+            Log::info('SuggestionController::getComments - Getting comments', [
+                'suggestion_id' => $id,
+                'user_id' => $user->user_id,
+            ]);
             $comments = $this->suggestionService->getComments($id, $user);
+            Log::info('SuggestionController::getComments - Comments fetched successfully', [
+                'suggestion_id' => $id,
+                'user_id' => $user->user_id,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم جلب التعليقات بنجاح',
                 'data' => $comments,
             ]);
         } catch (\Exception $e) {
-            Log::error('SuggestionController::getComments - Error', ['suggestion_id' => $id, 'error' => $e->getMessage()]);
+            Log::error('SuggestionController::getComments - Error', [
+                'suggestion_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
+            ]);
             $statusCode = str_contains($e->getMessage(), 'غير موجود') ? 404 : 500;
             return response()->json(['success' => false, 'message' => $e->getMessage()], $statusCode);
         }
@@ -680,7 +757,11 @@ class SuggestionController extends Controller
             $user = Auth::user();
 
             $this->suggestionService->deleteComment($suggestionId, $commentId, $user);
-
+            Log::info('SuggestionController::deleteComment - Comment deleted successfully', [
+                'suggestion_id' => $suggestionId,
+                'comment_id' => $commentId,
+                'user_id' => $user->user_id,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم حذف التعليق بنجاح',
@@ -689,7 +770,9 @@ class SuggestionController extends Controller
             Log::error('SuggestionController::deleteComment - Error', [
                 'suggestion_id' => $suggestionId,
                 'comment_id' => $commentId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
             ]);
 
             $statusCode = match (true) {

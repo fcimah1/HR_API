@@ -1867,6 +1867,64 @@ class EmployeeController extends Controller
     }
 
     /**
+     * @OA\Get(
+     *     path="/api/employees/{id}/family-data",
+     *     summary="Get employee family data",
+     *     description="Retrieve family/emergency contact information for a specific employee (Admin/HR)",
+     *     tags={"Employee"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Family data retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب بيانات العائلة بنجاح"),
+     *             @OA\Property(property="data", type="array",
+     *                 @OA\Items(
+     *                     @OA\Property(property="contact_id", type="integer", example=1),
+     *                     @OA\Property(property="contact_full_name", type="string", example="أحمد محمد العلي"),
+     *                     @OA\Property(property="contact_email", type="string", example="relative@email.com"),
+     *                     @OA\Property(property="contact_phone_no", type="string", example="0501234567"),
+     *                     @OA\Property(property="place", type="integer", example=1),
+     *                     @OA\Property(property="contact_address", type="string", example="حي النخيل، شارع الملك فهد"),
+     *                     @OA\Property(property="relation", type="integer", example=1)
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=403, description="ليس لديك صلاحية لعرض هذه البيانات"),
+     *     @OA\Response(response=404, description="الموظف غير موجود"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function getFamilyData(int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            $data = $this->employeeService->getEmployeeFamilyData($user, $id);
+
+            Log::info('EmployeeController::getFamilyData success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'message' => 'تم جلب بيانات العائلة بنجاح'
+            ]);
+
+            return $this->successResponse($data, 'تم جلب بيانات العائلة بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeController::getFamilyData failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'employee_id' => $id,
+                'message' => 'فشل جلب بيانات العائلة'
+            ]);
+            return $this->handleException($e, 'EmployeeController::getFamilyData');
+        }
+    }
+
+    /**
      * @OA\Put(
      *     path="/api/employees/{id}/add-family-data",
      *     summary="Add employee family data",
@@ -2350,7 +2408,7 @@ class EmployeeController extends Controller
             $user = Auth::user();
             $search = $request->query('search');
             $data = $this->employeeService->getCommissions($user, $id, $search);
-           
+
             Log::info('EmployeeController::getCommissions success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $id,
@@ -2390,7 +2448,7 @@ class EmployeeController extends Controller
         try {
             $user = Auth::user();
             $newId = $this->employeeService->addCommission($user, $id, $request->validated());
-            
+
             Log::info('EmployeeController::addCommission success', [
                 'user_id' => $user->user_id,
                 'employee_id' => $id,

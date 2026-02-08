@@ -370,6 +370,61 @@ class EmployeeProfileController extends Controller
     }
 
     /**
+     * @OA\Get(
+     *     path="/api/my-profile/family-data",
+     *     summary="Get employee family data",
+     *     description="Retrieve employee family/emergency contact information",
+     *     tags={"Employee Profile"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Family data retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم جلب بيانات العائلة بنجاح"),
+     *             @OA\Property(property="data", type="array",
+     *                 @OA\Items(
+     *                     @OA\Property(property="contact_id", type="integer", example=1),
+     *                     @OA\Property(property="contact_full_name", type="string", example="أحمد محمد العلي"),
+     *                     @OA\Property(property="contact_email", type="string", example="relative@email.com"),
+     *                     @OA\Property(property="contact_phone_no", type="string", example="0501234567"),
+     *                     @OA\Property(property="place", type="integer", example=1),
+     *                     @OA\Property(property="contact_address", type="string", example="حي النخيل، شارع الملك فهد"),
+     *                     @OA\Property(property="relation", type="integer", example=1)
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=500, description="خطأ في الخادم")
+     * )
+     */
+    public function getFamilyData(): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $id = $user->user_id;
+
+            $data = $this->employeeService->getEmployeeFamilyData($user, $id);
+
+            Log::info('EmployeeProfileController::getFamilyData success', [
+                'user_id' => $user->user_id,
+                'employee_id' => $id,
+                'message' => 'تم جلب بيانات العائلة بنجاح'
+            ]);
+
+            return $this->successResponse($data, 'تم جلب بيانات العائلة بنجاح');
+        } catch (\Exception $e) {
+            Log::error('EmployeeProfileController::getFamilyData failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'message' => 'فشل جلب بيانات العائلة'
+            ]);
+            return $this->handleException($e, 'EmployeeProfileController::getFamilyData');
+        }
+    }
+
+    /**
      * @OA\Put(
      *     path="/api/my-profile/family-data",
      *     summary="Add employee family data",
@@ -664,5 +719,4 @@ class EmployeeProfileController extends Controller
             return $this->handleException($e, 'EmployeeProfileController::getContractData');
         }
     }
-
 }

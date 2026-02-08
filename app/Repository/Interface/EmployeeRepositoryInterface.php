@@ -225,6 +225,11 @@ interface EmployeeRepositoryInterface
     public function updateEmployeeBankInfo(int $employeeId, array $bankData): bool;
 
     /**
+     * Get employee family data
+     */
+    public function getEmployeeFamilyData(int $employeeId): \Illuminate\Support\Collection;
+
+    /**
      * Add employee family data
      */
     public function addEmployeeFamilyData(int $employeeId, array $familyData): bool;

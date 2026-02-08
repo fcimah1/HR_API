@@ -10,6 +10,7 @@ class CustodyFilterDTO
         public readonly ?array $employeeIds = null,
         public readonly ?string $search = null,
         public readonly ?string $status = null, // working/damaged/disposed
+        public readonly bool $paginate = true,
         public readonly int $page = 1,
         public readonly int $perPage = 15,
     ) {}
@@ -22,6 +23,7 @@ class CustodyFilterDTO
             employeeIds: $data['employee_ids'] ?? null,
             search: $data['search'] ?? null,
             status: $data['status'] ?? null,
+            paginate: filter_var($data['paginate'] ?? true, FILTER_VALIDATE_BOOLEAN),
             page: isset($data['page']) ? (int) $data['page'] : 1,
             perPage: isset($data['per_page']) ? (int) $data['per_page'] : 15,
         );
