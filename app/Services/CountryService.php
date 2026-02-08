@@ -14,7 +14,7 @@ class CountryService
         $this->countryRepository = $countryRepository;
     }
 
-    public function getCountries(array $filters = [])
+    public function getCountries(array $filters = []): mixed
     {
         return $this->countryRepository->getAllCountries($filters);
     }

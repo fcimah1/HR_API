@@ -46,18 +46,6 @@ class PollService
         // Check if user voted
         $hasVoted = $this->pollRepository->hasVoted($pollId, $userId);
 
-        // Get raw vote stats
-        // Grouped by question ID
-        // [ 0 => [votes...], 15 => [votes...] ]
-        // OR we can simple query votes again as in the repo or use the method
-        // Re-using the logic from before but adapted to repository if needed.
-        // For now, I will keep the calculation logic here or move intricate stats logic to repo?
-        // The repo `getVoteStats` returns all votes. Let's use that or keep logic here.
-        // Actually, to avoid N+1, I should load votes efficiently. 
-        // Let's stick to the previous logic but using the repository method if it helps, 
-        // or just rely on the relationship loaded in findById if feasible. 
-        // `findById` loads `questions`.
-
         // Calculate stats for Questions
         $questionsWithStats = $poll->questions->map(function ($question) use ($pollId) {
             $stats = $this->calculateStats($pollId, $question->id, $question);

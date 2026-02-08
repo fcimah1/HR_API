@@ -14,6 +14,15 @@ class CountrySearchRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation()
+    {
+        if ($this->has('paginate')) {
+            $this->merge([
+                'paginate' => filter_var($this->paginate, FILTER_VALIDATE_BOOLEAN),
+            ]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -21,6 +30,9 @@ class CountrySearchRequest extends FormRequest
             'country_id' => 'nullable|exists:ci_countries,country_id',
             'country_name' => 'nullable|string|max:100',
             'country_code' => 'nullable|string|max:100',
+            'paginate' => 'nullable|boolean',
+            'per_page' => 'nullable|integer',
+            'page' => 'nullable|integer',
         ];
     }
 
@@ -31,6 +43,9 @@ class CountrySearchRequest extends FormRequest
             'country_id.exists' => 'الدولة غير موجودة',
             'country_name.max' => 'يجب أن لا يتجاوز اسم الدولة 100 حرف',
             'country_code.max' => 'يجب أن لا يتجاوز رمز الدولة 100 حرف',
+            'paginate.boolean' => 'يجب أن يكون paginate نوع boolean',
+            'per_page.integer' => 'يجب أن يكون per_page نوع integer',
+            'page.integer' => 'يجب أن يكون page نوع integer',
         ];
     }
 
@@ -41,6 +56,9 @@ class CountrySearchRequest extends FormRequest
             'country_id' => 'الدولة',
             'country_name' => 'اسم الدولة',
             'country_code' => 'رمز الدولة',
+            'paginate' => 'الصفحة',
+            'per_page' => 'عدد الصفحات',
+            'page' => 'الصفحة',
         ];
     }
 
@@ -50,7 +68,7 @@ class CountrySearchRequest extends FormRequest
     {
         throw new HttpResponseException(response()->json([
             'success' => false,
-            'message' => 'Validation failed',
+            'message' => 'فشل التحقق من البيانات',
             'errors' => $validator->errors(),
         ], 422));
     }

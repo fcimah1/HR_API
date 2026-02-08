@@ -85,6 +85,10 @@ class TrainingController extends Controller
 
             $result = $this->trainingService->getPaginatedTrainings($filters, $user);
 
+            Log::info('TrainingController::index - Trainings retrieved successfully', [
+                'user_id' => Auth::user()->user_id,
+                'trainings' => $result['data'],
+            ]);
             return response()->json([
                 'success' => true,
                 'data' => $result['data'],
@@ -148,6 +152,10 @@ class TrainingController extends Controller
                 ], 404);
             }
 
+            Log::info('TrainingController::show - Training retrieved successfully', [
+                'user_id' => Auth::user()->user_id,
+                'training' => $training,
+            ]);
             return response()->json([
                 'success' => true,
                 'data' => $training
@@ -300,12 +308,19 @@ class TrainingController extends Controller
             $training = $this->trainingService->updateTraining($id, $dto, $companyId);
 
             if (!$training) {
+                Log::info('TrainingController::update - No training found', [
+                    'user_id' => Auth::user()->user_id,
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'التدريب غير موجود'
                 ], 404);
             }
 
+            Log::info('TrainingController::update success', [
+                'user_id' => Auth::user()->user_id,
+                'training' => $training,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم تحديث التدريب بنجاح',
@@ -357,6 +372,9 @@ class TrainingController extends Controller
             // Get training to check its type for restrictions
             $existingTraining = $this->trainingService->getTrainingById($id, $companyId);
             if (!$existingTraining) {
+                Log::info('TrainingController::destroy - No training found', [
+                    'user_id' => Auth::user()->user_id,
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'التدريب غير موجود'
@@ -382,12 +400,19 @@ class TrainingController extends Controller
             $deleted = $this->trainingService->deleteTraining($id, $companyId);
 
             if (!$deleted) {
+                Log::info('TrainingController::destroy - No training found', [
+                    'user_id' => Auth::user()->user_id,
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'التدريب غير موجود'
                 ], 404);
             }
 
+            Log::info('TrainingController::destroy success', [  
+                'user_id' => Auth::user()->user_id,
+                'training_id' => $id,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم حذف التدريب بنجاح'
@@ -451,12 +476,19 @@ class TrainingController extends Controller
             );
 
             if (!$training) {
+                Log::info('TrainingController::updateStatus - No training found', [
+                    'user_id' => Auth::user()->user_id,
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'التدريب غير موجود'
                 ], 404);
             }
 
+            Log::info('TrainingController::updateStatus success', [
+                'user_id' => Auth::user()->user_id,
+                'training' => $training,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم تحديث حالة التدريب بنجاح',
@@ -514,6 +546,11 @@ class TrainingController extends Controller
             $companyId = $this->permissionService->getEffectiveCompanyId($user);
             $note = $this->trainingService->addNote($id, $companyId, $user->user_id, $validated['note']);
 
+            Log::info('TrainingController::addNote success', [
+                'user_id' => Auth::user()->user_id,
+                'training_id' => $id,
+                'note' => $note
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم إضافة الملاحظة بنجاح',
@@ -563,11 +600,21 @@ class TrainingController extends Controller
             $companyId = $this->permissionService->getEffectiveCompanyId($user);
             $notes = $this->trainingService->getNotes($id, $companyId);
 
+            Log::info('TrainingController::getNotes success', [
+                'user_id' => Auth::user()->user_id,
+                'training_id' => $id,
+                'notes' => $notes
+            ]);
             return response()->json([
                 'success' => true,
                 'data' => $notes
             ]);
         } catch (\Exception $e) {
+            Log::error('TrainingController::getNotes failed', [
+                'error' => $e->getMessage(),
+                'training_id' => $id,
+                'user_id' => $user->user_id
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -663,11 +710,19 @@ class TrainingController extends Controller
             $companyId = $this->permissionService->getEffectiveCompanyId($user);
             $stats = $this->trainingService->getStatistics($companyId);
 
+            Log::info('TrainingController::statistics success', [
+                'user_id' => Auth::user()->user_id,
+                'stats' => $stats
+            ]);
             return response()->json([
                 'success' => true,
                 'data' => $stats
             ]);
         } catch (\Exception $e) {
+            Log::error('TrainingController::statistics failed', [
+                'error' => $e->getMessage(),
+                'user_id' => $user->user_id
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()

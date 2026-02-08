@@ -132,6 +132,12 @@ class ResignationController extends Controller
             ]);
             $filters = ResignationFilterDTO::fromRequest($request->validated());
             $result = $this->resignationService->getPaginatedResignations($filters, $user);
+            Log::info('ResignationController::index - Resignations retrieved successfully', [
+                'user_id' => $user->user_id,
+                'user_type' => $user->user_type,
+                'filters' => $filters,
+                'result' => $result,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم جلب طلبات الاستقالة بنجاح',
@@ -139,11 +145,16 @@ class ResignationController extends Controller
                 'pagination' => $result['pagination'],
             ]);
         } catch (\Exception $e) {
-            Log::error('ResignationController::index - Error', ['error' => $e->getMessage()]);
+            Log::error('ResignationController::index - Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->user_id,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'حدث خطأ أثناء جلب طلبات الاستقالة',
                 'error' => $e->getMessage(),
+                'user_id' => $user->user_id,
             ], 500);
         }
     }
@@ -207,18 +218,32 @@ class ResignationController extends Controller
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $resignation = $this->resignationService->getResignationById($id, $effectiveCompanyId, null, $user);
             if (!$resignation) {
+                Log::error('ResignationController::show - Resignation not found', [
+                    'resignation_id' => $id,
+                    'user_id' => $user->user_id,
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'طلب الاستقالة غير موجود أو ليس لديك صلاحية للوصول إليه',
                 ], 404);
             }
+            Log::info('ResignationController::show - Resignation retrieved successfully', [
+                'resignation_id' => $id,
+                'user_id' => $user->user_id,
+                'resignation' => $resignation,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم جلب طلب الاستقالة بنجاح',
                 'data' => new ResignationResource($resignation),
             ]);
         } catch (\Exception $e) {
-            Log::error('ResignationController::show - Error', ['resignation_id' => $id, 'error' => $e->getMessage()]);
+            Log::error('ResignationController::show - Error', [
+                'resignation_id' => $id,
+                'user_id' => $user->user_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'حدث خطأ أثناء جلب طلب الاستقالة',
@@ -312,13 +337,22 @@ class ResignationController extends Controller
                 $user->user_id
             );
             $resignation = $this->resignationService->createResignation($dto);
+            Log::info('ResignationController::store - Resignation created successfully', [
+                'resignation_id' => $resignation->resignation_id,
+                'user_id' => $user->user_id,
+                'resignation' => $resignation,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم إنشاء طلب الاستقالة بنجاح',
                 'data' => new ResignationResource($resignation),
             ], 201);
         } catch (\Exception $e) {
-            Log::error('ResignationController::store - Error', ['error' => $e->getMessage()]);
+            Log::error('ResignationController::store - Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->user_id,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'فشل في إنشاء طلب الاستقالة',
@@ -374,13 +408,23 @@ class ResignationController extends Controller
             ]);
             $dto = UpdateResignationDTO::fromRequest($request->validated());
             $resignation = $this->resignationService->updateResignation($id, $dto, $user);
+            Log::info('ResignationController::update - Resignation updated successfully', [
+                'resignation_id' => $id,
+                'user_id' => $user->user_id,
+                'resignation' => $resignation,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم تحديث طلب الاستقالة بنجاح',
                 'data' => new ResignationResource($resignation),
             ]);
         } catch (\Exception $e) {
-            Log::error('ResignationController::update - Error', ['resignation_id' => $id, 'error' => $e->getMessage()]);
+            Log::error('ResignationController::update - Error', [
+                'resignation_id' => $id,
+                'user_id' => $user->user_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             $statusCode = str_contains($e->getMessage(), 'غير موجود') ? 404 : (str_contains($e->getMessage(), 'صلاحية') ? 403 : 500);
             return response()->json(['success' => false, 'message' => $e->getMessage()], $statusCode);
         }
@@ -422,9 +466,18 @@ class ResignationController extends Controller
             $user = Auth::user();
             Log::info('ResignationController::destroy - Deleting resignation', ['resignation_id' => $id, 'user_id' => $user->user_id]);
             $this->resignationService->deleteResignation($id, $user);
+            Log::info('ResignationController::destroy - Resignation deleted successfully', [
+                'resignation_id' => $id,
+                'user_id' => $user->user_id,
+            ]);
             return response()->json(['success' => true, 'message' => 'تم حذف طلب الاستقالة بنجاح']);
         } catch (\Exception $e) {
-            Log::error('ResignationController::destroy - Error', ['resignation_id' => $id, 'error' => $e->getMessage()]);
+            Log::error('ResignationController::destroy - Error', [
+                'resignation_id' => $id,
+                'user_id' => Auth::user()->user_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             $statusCode = str_contains($e->getMessage(), 'غير موجود') ? 404 : (str_contains($e->getMessage(), 'صلاحية') ? 403 : 500);
             return response()->json(['success' => false, 'message' => $e->getMessage()], $statusCode);
         }
@@ -488,13 +541,23 @@ class ResignationController extends Controller
             $dto = ApproveRejectResignationDTO::fromRequest($request->validated(), $user->user_id);
             $resignation = $this->resignationService->approveOrRejectResignation($id, $dto);
             $actionMessage = $dto->action === 'approve' ? 'تمت الموافقة على طلب الاستقالة' : 'تم رفض طلب الاستقالة';
+            Log::info('ResignationController::approveOrReject - Resignation processed successfully', [
+                'resignation_id' => $id,
+                'user_id' => $user->user_id,
+                'resignation' => $resignation,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => $actionMessage,
                 'data' => new ResignationResource($resignation),
             ]);
         } catch (\Exception $e) {
-            Log::error('ResignationController::approveOrReject - Error', ['resignation_id' => $id, 'error' => $e->getMessage()]);
+            Log::error('ResignationController::approveOrReject - Error', [
+                'resignation_id' => $id,
+                'user_id' => Auth::user()->user_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             $statusCode = str_contains($e->getMessage(), 'غير موجود') ? 404 : (str_contains($e->getMessage(), 'صلاحية') ? 403 : 500);
             return response()->json(['success' => false, 'message' => $e->getMessage()], $statusCode);
         }
@@ -533,8 +596,15 @@ class ResignationController extends Controller
     {
         try {
             $statuses = $this->resignationService->getResignationStatuses();
+            Log::info('ResignationController::getStatuses - Statuses retrieved successfully', [
+                'statuses' => $statuses,
+            ]);
             return response()->json(['success' => true, 'message' => 'تم جلب الحالات بنجاح', 'data' => $statuses]);
         } catch (\Exception $e) {
+            Log::error('ResignationController::getStatuses - Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json(['success' => false, 'message' => 'حدث خطأ أثناء جلب الحالات'], 500);
         }
     }

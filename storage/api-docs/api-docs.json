@@ -4278,6 +4278,36 @@
                         }
                     },
                     {
+                        "name": "paginate",
+                        "in": "query",
+                        "description": "تفعيل الترقيم (true/false)",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد النتائج في الصفحة",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 10
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
                         "name": "branch_id",
                         "in": "query",
                         "description": "البحث برقم الفرع",
@@ -4310,9 +4340,10 @@
                                                         "type": "string",
                                                         "example": "الفرع الرئيسي"
                                                     },
-                                                    "description": {
+                                                    "coordinates": {
+                                                        "description": "الإحداثيات بصيغة (lat, lng) أو WKT (POINT, POLYGON)",
                                                         "type": "string",
-                                                        "example": "وصف الفرع"
+                                                        "example": "POLYGON((31.2357 30.0444, 31.2533 30.0695, 31.2480 30.0691, 31.2357 30.0444))"
                                                     }
                                                 },
                                                 "type": "object"
@@ -4329,6 +4360,76 @@
                     },
                     "422": {
                         "description": "بيانات غير صحيحة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Branches"
+                ],
+                "summary": "إنشاء فرع جديد",
+                "operationId": "582a679c4adf05c5fdb745be9100e5d6",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "branch_name"
+                                ],
+                                "properties": {
+                                    "branch_name": {
+                                        "type": "string",
+                                        "example": "فرع القاهرة"
+                                    },
+                                    "coordinates": {
+                                        "description": "إحداثيات الموقع. تقبل الصيغ التالية: 'lat, lng' (مثل 30.0444, 31.2357) أو صيغة WKT (مثل POINT(31.2357 30.0444) أو POLYGON((...)))",
+                                        "type": "string",
+                                        "example": "POLYGON((31.2357 30.0444, 31.2533 30.0695, 31.2480 30.0691, 31.2357 30.0444))"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء الفرع بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إنشاء الفرع بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "فشل التحقق"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
                     }
                 },
                 "security": [
@@ -4378,9 +4479,10 @@
                                                     "type": "string",
                                                     "example": "الفرع الرئيسي"
                                                 },
-                                                "description": {
+                                                "coordinates": {
+                                                    "description": "الإحداثيات بصيغة (lat, lng) أو WKT (POINT, POLYGON)",
                                                     "type": "string",
-                                                    "example": "وصف الفرع"
+                                                    "example": "POLYGON((31.2357 30.0444, 31.2533 30.0695, 31.2480 30.0691, 31.2357 30.0444))"
                                                 }
                                             },
                                             "type": "object"
@@ -4393,6 +4495,139 @@
                     },
                     "404": {
                         "description": "الفرع غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Branches"
+                ],
+                "summary": "تعديل فرع",
+                "operationId": "3d819756e7258d7cbca194cde3b81188",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "branch_name"
+                                ],
+                                "properties": {
+                                    "branch_name": {
+                                        "type": "string",
+                                        "example": "فرع الجيزة"
+                                    },
+                                    "coordinates": {
+                                        "description": "إحداثيات الموقع. تقبل الصيغ التالية: 'lat, lng' (مثل 30.0444, 31.2357) أو صيغة WKT (مثل POINT(31.2357 30.0444) أو POLYGON((...)))",
+                                        "type": "string",
+                                        "example": "POLYGON((31.2010 30.0009, 31.1970 30.0006, 31.2030 29.9993, 31.2010 30.0009))"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث الفرع بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث الفرع بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الفرع غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Branches"
+                ],
+                "summary": "حذف فرع",
+                "operationId": "2d3c32fd833dbf30de0dbb21c03e942d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف الفرع بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف الفرع بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "الفرع غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -5195,6 +5430,36 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "description": "تفعيل الترقيم (true/false)",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد النتائج في الصفحة",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 10
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
                     }
                 ],
                 "responses": {
@@ -5441,6 +5706,30 @@
                                 "transfer",
                                 "other"
                             ]
+                        }
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 10
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
                         }
                     }
                 ],
@@ -6033,6 +6322,531 @@
                     },
                     "422": {
                         "description": "خطأ في البيانات المدخلة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/departments": {
+            "get": {
+                "tags": [
+                    "Departments"
+                ],
+                "summary": "استرجاع الأقسام",
+                "operationId": "e8478e3a557995e1da564073521762f6",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "البحث بالاسم",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "description": "تفعيل الترقيم (true/false)",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد النتائج في الصفحة",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 10
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم استرجاع الأقسام بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Department"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Departments"
+                ],
+                "summary": "إنشاء قسم جديد",
+                "operationId": "9a3a8ebf7326b72fd181c15603cdd21e",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "department_name"
+                                ],
+                                "properties": {
+                                    "department_name": {
+                                        "type": "string",
+                                        "example": "الموارد البشرية"
+                                    },
+                                    "department_head": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء القسم بنجاح"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/departments/{id}": {
+            "get": {
+                "tags": [
+                    "Departments"
+                ],
+                "summary": "استرجاع تفاصيل القسم",
+                "operationId": "ba8d49f7da851631d9985375effc9b2d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم استرجاع تفاصيل القسم بنجاح"
+                    },
+                    "404": {
+                        "description": "القسم غير موجود"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Departments"
+                ],
+                "summary": "تعديل قسم",
+                "operationId": "883e32516e81142e7441bad60554a993",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "department_name"
+                                ],
+                                "properties": {
+                                    "department_name": {
+                                        "type": "string",
+                                        "example": "الموارد البشرية"
+                                    },
+                                    "department_head": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث القسم بنجاح"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Departments"
+                ],
+                "summary": "حذف قسم",
+                "operationId": "4f695822af3d4a6db6f902305be6d0de",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف القسم بنجاح"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/designations": {
+            "get": {
+                "tags": [
+                    "Designations"
+                ],
+                "summary": "استرجاع المسميات الوظيفية",
+                "operationId": "7dd5b507a5552c07aa02e328555e2542",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "department_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 10
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم استرجاع المسميات الوظيفية بنجاح"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Designations"
+                ],
+                "summary": "إنشاء مسمى وظيفي جديد",
+                "operationId": "613d4fc8d9dc660d95bffcc231c4df4a",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "department_id",
+                                    "designation_name",
+                                    "hierarchy_level"
+                                ],
+                                "properties": {
+                                    "department_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "designation_name": {
+                                        "type": "string",
+                                        "example": "محاسب"
+                                    },
+                                    "hierarchy_level": {
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "وصف المسمى الوظيفي"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء المسمى الوظيفي بنجاح"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/designations/{id}": {
+            "get": {
+                "tags": [
+                    "Designations"
+                ],
+                "summary": "استرجاع تفاصيل المسمى الوظيفي",
+                "operationId": "8ffec0fc298c86051713c1128c03612c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم استرجاع تفاصيل المسمى الوظيفي بنجاح"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Designations"
+                ],
+                "summary": "تعديل مسمى وظيفي",
+                "operationId": "17e5d5a88a5875c009d4d5e6b29b37de",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Designation"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث المسمى الوظيفي بنجاح"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Designations"
+                ],
+                "summary": "حذف مسمى وظيفي",
+                "operationId": "66b9ce59f9a96974ba7b0ef5fa4bf6c0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف المسمى الوظيفي بنجاح"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
                     }
                 },
                 "security": [
@@ -8430,6 +9244,101 @@
                 ]
             }
         },
+        "/api/employees/{id}/family-data": {
+            "get": {
+                "tags": [
+                    "Employee"
+                ],
+                "summary": "Get employee family data",
+                "description": "Retrieve family/emergency contact information for a specific employee (Admin/HR)",
+                "operationId": "83c13de0b05ddca7ee58ce5d813e6691",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Family data retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب بيانات العائلة بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "contact_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "contact_full_name": {
+                                                        "type": "string",
+                                                        "example": "أحمد محمد العلي"
+                                                    },
+                                                    "contact_email": {
+                                                        "type": "string",
+                                                        "example": "relative@email.com"
+                                                    },
+                                                    "contact_phone_no": {
+                                                        "type": "string",
+                                                        "example": "0501234567"
+                                                    },
+                                                    "place": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "contact_address": {
+                                                        "type": "string",
+                                                        "example": "حي النخيل، شارع الملك فهد"
+                                                    },
+                                                    "relation": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "ليس لديك صلاحية لعرض هذه البيانات"
+                    },
+                    "404": {
+                        "description": "الموظف غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/employees/{id}/add-family-data": {
             "put": {
                 "tags": [
@@ -10151,6 +11060,83 @@
             }
         },
         "/api/my-profile/family-data": {
+            "get": {
+                "tags": [
+                    "Employee Profile"
+                ],
+                "summary": "Get employee family data",
+                "description": "Retrieve employee family/emergency contact information",
+                "operationId": "38a0a3ad33ed11665302b67d51f4e3ed",
+                "responses": {
+                    "200": {
+                        "description": "Family data retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب بيانات العائلة بنجاح"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "contact_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "contact_full_name": {
+                                                        "type": "string",
+                                                        "example": "أحمد محمد العلي"
+                                                    },
+                                                    "contact_email": {
+                                                        "type": "string",
+                                                        "example": "relative@email.com"
+                                                    },
+                                                    "contact_phone_no": {
+                                                        "type": "string",
+                                                        "example": "0501234567"
+                                                    },
+                                                    "place": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "contact_address": {
+                                                        "type": "string",
+                                                        "example": "حي النخيل، شارع الملك فهد"
+                                                    },
+                                                    "relation": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
             "put": {
                 "tags": [
                     "Employee Profile"
@@ -29067,6 +30053,72 @@
     },
     "components": {
         "schemas": {
+            "Department": {
+                "title": "Department",
+                "description": "Department model",
+                "properties": {
+                    "department_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "department_name": {
+                        "type": "string",
+                        "example": "الموارد البشرية"
+                    },
+                    "department_head": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "company_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "added_by": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Designation": {
+                "title": "Designation",
+                "description": "Designation model",
+                "properties": {
+                    "designation_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "department_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "company_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "hierarchy_level": {
+                        "type": "integer",
+                        "example": 5
+                    },
+                    "designation_name": {
+                        "type": "string",
+                        "example": "محاسب"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "وصف المسمى الوظيفي"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
             "TrainerResource": {
                 "title": "Trainer Resource",
                 "description": "بيانات المدرب",
@@ -31194,6 +32246,14 @@
         {
             "name": "Dashboard",
             "description": "لوحة التحكم"
+        },
+        {
+            "name": "Departments",
+            "description": "إدارة الأقسام"
+        },
+        {
+            "name": "Designations",
+            "description": "إدارة المسميات الوظيفية"
         },
         {
             "name": "Employee",

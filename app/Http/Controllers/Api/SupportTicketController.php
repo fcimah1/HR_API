@@ -78,12 +78,17 @@ class SupportTicketController extends Controller
             );
 
             $result = $this->ticketService->getPaginatedTickets($filters, $user);
-
+            Log::info('SupportTicketController::index - Tickets fetched successfully', [
+                'filters' => $filters,
+                'user_id' => $user->user_id,
+                'tickets_count' => $result['data']->count(),
+            ]);
             return response()->json($result);
         } catch (\Exception $e) {
             Log::error('Error in SupportTicketController@index', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
             ]);
 
             return response()->json([
@@ -124,14 +129,23 @@ class SupportTicketController extends Controller
             $result = $this->ticketService->getTicketById($id, $user);
 
             if (!$result['success']) {
+                Log::info('SupportTicketController::show - Ticket not found', [
+                    'ticket_id' => $id,
+                    'user_id' => $user->user_id,
+                ]);
                 return response()->json($result, 404);
             }
-
+            Log::info('SupportTicketController::show - Ticket fetched successfully', [
+                'ticket_id' => $id,
+                'user_id' => $user->user_id,
+            ]);
             return response()->json($result);
         } catch (\Exception $e) {
             Log::error('Error in SupportTicketController@show', [
                 'error' => $e->getMessage(),
                 'ticket_id' => $id,
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
             ]);
 
             return response()->json([
@@ -191,12 +205,16 @@ class SupportTicketController extends Controller
             );
 
             $result = $this->ticketService->createTicket($dto);
-
+            Log::info('SupportTicketController::store - Ticket created successfully', [
+                'ticket_id' => $result['data']->ticket_id,
+                'user_id' => $user->user_id,
+            ]);
             return response()->json($result, 201);
         } catch (\Exception $e) {
             Log::error('Error in SupportTicketController@store', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
+                'user_id' => $user->user_id,
             ]);
 
             return response()->json([
@@ -234,14 +252,23 @@ class SupportTicketController extends Controller
             $result = $this->ticketService->updateTicket($id, $dto, $user);
 
             if (!$result['success']) {
+                Log::info('SupportTicketController::update - Ticket not found', [
+                    'ticket_id' => $id,
+                    'user_id' => $user->user_id,
+                ]);
                 return response()->json($result, 403);
             }
-
+            Log::info('SupportTicketController::update - Ticket updated successfully', [
+                'ticket_id' => $id,
+                'user_id' => $user->user_id,
+            ]);
             return response()->json($result);
         } catch (\Exception $e) {
             Log::error('Error in SupportTicketController@update', [
                 'error' => $e->getMessage(),
                 'ticket_id' => $id,
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
             ]);
 
             return response()->json([
@@ -285,14 +312,23 @@ class SupportTicketController extends Controller
             $result = $this->ticketService->closeTicket($id, $dto, $user);
 
             if (!$result['success']) {
+                Log::info('SupportTicketController::close - Ticket not found', [
+                    'ticket_id' => $id,
+                    'user_id' => $user->user_id,
+                ]);
                 return response()->json($result, 403);
             }
-
+            Log::info('SupportTicketController::close - Ticket closed successfully', [
+                'ticket_id' => $id,
+                'user_id' => $user->user_id,
+            ]);
             return response()->json($result);
         } catch (\Exception $e) {
             Log::error('Error in SupportTicketController@close', [
                 'error' => $e->getMessage(),
                 'ticket_id' => $id,
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
             ]);
 
             return response()->json([
@@ -325,14 +361,23 @@ class SupportTicketController extends Controller
             $result = $this->ticketService->reopenTicket($id, $user);
 
             if (!$result['success']) {
+                Log::info('SupportTicketController::reopen - Ticket not found', [
+                    'ticket_id' => $id,
+                    'user_id' => $user->user_id,
+                ]);
                 return response()->json($result, 403);
             }
-
+            Log::info('SupportTicketController::reopen - Ticket reopened successfully', [
+                'ticket_id' => $id,
+                'user_id' => $user->user_id,
+            ]);
             return response()->json($result);
         } catch (\Exception $e) {
             Log::error('Error in SupportTicketController@reopen', [
                 'error' => $e->getMessage(),
                 'ticket_id' => $id,
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
             ]);
 
             return response()->json([
@@ -406,14 +451,23 @@ class SupportTicketController extends Controller
             $result = $this->ticketService->addReply($id, $dto, $user);
 
             if (!$result['success']) {
+                Log::info('SupportTicketController::addReply - Ticket not found', [
+                    'ticket_id' => $id,
+                    'user_id' => $user->user_id,
+                ]);
                 return response()->json($result, 403);
             }
-
+            Log::info('SupportTicketController::addReply - Reply added successfully', [
+                'ticket_id' => $id,
+                'user_id' => $user->user_id,
+            ]);
             return response()->json($result, 201);
         } catch (\Exception $e) {
             Log::error('Error in SupportTicketController@addReply', [
                 'error' => $e->getMessage(),
                 'ticket_id' => $id,
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
             ]);
 
             return response()->json([
@@ -454,14 +508,23 @@ class SupportTicketController extends Controller
             $result = $this->ticketService->getTicketReplies($id, $user);
 
             if (!$result['success']) {
+                Log::info('SupportTicketController::getReplies - Ticket not found', [
+                    'ticket_id' => $id,
+                    'user_id' => $user->user_id,
+                ]);
                 return response()->json($result, 404);
             }
-
+            Log::info('SupportTicketController::getReplies - Replies fetched successfully', [
+                'ticket_id' => $id,
+                'user_id' => $user->user_id,
+            ]);
             return response()->json($result);
         } catch (\Exception $e) {
             Log::error('Error in SupportTicketController@getReplies', [
                 'error' => $e->getMessage(),
                 'ticket_id' => $id,
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
             ]);
 
             return response()->json([
@@ -501,7 +564,9 @@ class SupportTicketController extends Controller
     {
         try {
             $enums = $this->ticketService->getEnums();
-
+            Log::info('SupportTicketController::getEnums - Enums fetched successfully', [
+                'enums' => $enums,
+            ]);
             return response()->json([
                 'success' => true,
                 'data' => $enums,
@@ -509,6 +574,7 @@ class SupportTicketController extends Controller
         } catch (\Exception $e) {
             Log::error('Error in SupportTicketController@getEnums', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -554,14 +620,23 @@ class SupportTicketController extends Controller
             $result = $this->ticketService->deleteTicket($id, $user);
 
             if (!$result['success']) {
+                Log::info('SupportTicketController::destroy - Ticket not found', [
+                    'ticket_id' => $id,
+                    'user_id' => $user->user_id,
+                ]);
                 return response()->json($result, 403);
             }
-
+            Log::info('SupportTicketController::destroy - Ticket deleted successfully', [
+                'ticket_id' => $id,
+                'user_id' => $user->user_id,
+            ]);
             return response()->json($result);
         } catch (\Exception $e) {
             Log::error('Error in SupportTicketController@destroy', [
                 'error' => $e->getMessage(),
                 'ticket_id' => $id,
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
             ]);
 
             return response()->json([

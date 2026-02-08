@@ -61,6 +61,16 @@ class TerminationController extends Controller
 
             $terminations = $this->terminationService->getTerminations($effectiveCompanyId, $filters, $perPage);
 
+            if (!$terminations) {
+                Log::info('TerminationController::index - No terminations found', [
+                    'user_id' => Auth::user()->user_id,
+                ]);
+                return $this->errorResponse('لا توجد بيانات', 404);
+            }
+            Log::info('TerminationController::index - Terminations fetched successfully', [
+                'user_id' => Auth::user()->user_id,
+                'terminations' => $terminations,
+            ]);
             return $this->successResponse($terminations, 'تم جلب البيانات بنجاح', 200);
         } catch (\Exception $e) {
             Log::error('Error fetching terminations: ' . $e->getMessage(), [
@@ -105,11 +115,23 @@ class TerminationController extends Controller
 
             $termination = $this->terminationService->createTermination($dto);
 
+            if (!$termination) {
+                Log::info('TerminationController::store - No termination created', [
+                    'user_id' => Auth::user()->user_id,
+                ]);
+                return $this->errorResponse('لا يمكن إضافة الطلب', 404);
+            }
+            Log::info('TerminationController::store - Termination created successfully', [
+                'user_id' => Auth::user()->user_id,
+                'termination' => $termination,
+            ]);
             return $this->successResponse($termination, 'تم إضافة الطلب بنجاح', 201);
         } catch (\Exception $e) {
             Log::error('Error creating termination: ' . $e->getMessage(), [
                 'user_id' => Auth::id(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
             ]);
             return $this->errorResponse('حدث خطأ أثناء إضافة الطلب', 500);
         }
@@ -135,15 +157,24 @@ class TerminationController extends Controller
             $termination = $this->terminationService->getTermination($id, $effectiveCompanyId);
 
             if (!$termination) {
+                Log::info('TerminationController::show - No termination found', [
+                    'user_id' => Auth::user()->user_id,
+                ]);
                 return $this->errorResponse('الطلب غير موجود', 404);
             }
 
+            Log::info('TerminationController::show - Termination fetched successfully', [
+                'user_id' => Auth::user()->user_id,
+                'termination' => $termination,
+            ]);
             return $this->successResponse($termination, 'تم جلب التفاصيل بنجاح', 200);
         } catch (\Exception $e) {
             Log::error('Error showing termination: ' . $e->getMessage(), [
                 'user_id' => Auth::id(),
                 'termination_id' => $id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
             ]);
             return $this->errorResponse('حدث خطأ أثناء جلب التفاصيل', 500);
         }
@@ -180,6 +211,17 @@ class TerminationController extends Controller
 
             $termination = $this->terminationService->updateTermination($id, $dto, $effectiveCompanyId);
 
+            if (!$termination) {
+                Log::info('TerminationController::update - No termination found', [
+                    'user_id' => Auth::user()->user_id,
+                ]);
+                return $this->errorResponse('الطلب غير موجود', 404);
+            }
+
+            Log::info('TerminationController::update - Termination updated successfully', [
+                'user_id' => Auth::user()->user_id,
+                'termination' => $termination,
+            ]);
             return $this->successResponse($termination, 'تم تعديل الطلب بنجاح', 200);
         } catch (\Exception $e) {
             $code = $e->getCode() ?: 500;
@@ -193,6 +235,7 @@ class TerminationController extends Controller
                 'user_id' => Auth::id(),
                 'termination_id' => $id,
                 'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
             ]);
             return $this->errorResponse('حدث خطأ أثناء تعديل الطلب', 500);
         }
@@ -218,6 +261,10 @@ class TerminationController extends Controller
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId(Auth::user());
             $this->terminationService->deleteTermination($id, $effectiveCompanyId);
 
+            Log::info('TerminationController::destroy - Termination deleted successfully', [
+                'user_id' => Auth::user()->user_id,
+                'termination_id' => $id,
+            ]);
             return $this->successResponse(null, 'تم الحذف بنجاح', 200);
         } catch (\Exception $e) {
             $code = $e->getCode() ?: 500;

@@ -12,6 +12,9 @@ class BranchResource extends JsonResource
         return [
             'branch_id' => $this->branch_id,
             'branch_name' => $this->branch_name,
+            'coordinates' => $this->formatted_coordinates,
+            'employees_count' => $this->user_details_count ?? 0,
+            'created_at' => $this->created_at ? $this->created_at->toDateTimeString() : null,
         ];
     }
 }

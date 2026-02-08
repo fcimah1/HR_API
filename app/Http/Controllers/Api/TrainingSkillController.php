@@ -67,6 +67,9 @@ class TrainingSkillController extends Controller
             $companyId = $this->permissionService->getEffectiveCompanyId($user);
             $skills = $this->trainingSkillService->getAllForCompany($companyId, $user);
 
+            Log::info('TrainingSkillController::index success', [
+                'user_id' => $user->user_id
+            ]);
             return response()->json([
                 'success' => true,
                 'data' => $skills
@@ -184,12 +187,19 @@ class TrainingSkillController extends Controller
             $skill = $this->trainingSkillService->updateTrainingSkill($id, $dto, $companyId, $user);
 
             if (!$skill) {
+                Log::info('TrainingSkillController::update - No training skill found', [
+                    'user_id' => $user->user_id
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'مهارة التدريب غير موجودة أو لا يمكن تعديلها'
                 ], 404);
             }
 
+            Log::info('TrainingSkillController::update success', [
+                'user_id' => $user->user_id,
+                'skill' => $skill
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم تحديث مهارة التدريب بنجاح',
@@ -242,6 +252,9 @@ class TrainingSkillController extends Controller
             $result = $this->trainingSkillService->deleteTrainingSkill($id, $companyId, $user);
 
             if ($result === false) {
+                Log::info('TrainingSkillController::destroy - No training skill found', [
+                    'user_id' => $user->user_id
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'مهارة التدريب غير موجودة أو لا يمكن حذفها'
@@ -249,6 +262,10 @@ class TrainingSkillController extends Controller
             }
 
             if (is_string($result)) {
+                Log::info('TrainingSkillController::destroy - Cannot delete training skill', [
+                    'user_id' => $user->user_id,
+                    'message' => $result
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => $result

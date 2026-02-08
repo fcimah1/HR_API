@@ -114,9 +114,14 @@ class PollController extends Controller
                 'message' => 'تم جلب الاستبيانات بنجاح',
                 'data' => PollResource::collection($result['data']),
                 'pagination' => $result['pagination'],
+                'user_id' => $user->id,
             ]);
         } catch (\Exception $e) {
-            Log::error('PollController::index failed', ['error' => $e->getMessage()]);
+            Log::error('PollController::index failed', [
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء جلب الاستبيانات',
+                'user_id' => $user->id,
+            ]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -190,9 +195,14 @@ class PollController extends Controller
                 'success' => true,
                 'message' => 'تم إنشاء الاستبيان بنجاح',
                 'data' => $poll,
+                'user_id' => $user->id,
             ], 201);
         } catch (\Exception $e) {
-            Log::error('PollController::store failed', ['error' => $e->getMessage()]);
+            Log::error('PollController::store failed', [
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء إنشاء الاستبيان',
+                'user_id' => $user->id,
+            ]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -255,9 +265,15 @@ class PollController extends Controller
                 'success' => true,
                 'message' => 'تم جلب تفاصيل الاستبيان بنجاح',
                 'data' => new PollResource($poll),
+                'user_id' => $user->id,
             ]);
         } catch (\Exception $e) {
-            Log::error('PollController::show failed', ['id' => $id, 'error' => $e->getMessage()]);
+            Log::error('PollController::show failed', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء جلب تفاصيل الاستبيان',
+                'user_id' => $user->id,
+            ]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -329,9 +345,15 @@ class PollController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'تم التصويت بنجاح',
+                'user_id' => $user->id,
             ]);
         } catch (\Exception $e) {
-            Log::error('PollController::vote failed', ['id' => $id, 'error' => $e->getMessage()]);
+            Log::error('PollController::vote failed', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء التصويت',
+                'user_id' => $user->id,
+            ]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
         }
     }
@@ -393,9 +415,15 @@ class PollController extends Controller
                 'success' => true,
                 'message' => 'تم تحديث الاستبيان بنجاح',
                 'data' => new PollResource($poll),
+                'user_id' => $user->id,
             ]);
         } catch (\Exception $e) {
-            Log::error('PollController::update failed', ['id' => $id, 'error' => $e->getMessage()]);
+            Log::error('PollController::update failed', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء تحديث الاستبيان',
+                'user_id' => $user->id,
+            ]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -460,17 +488,20 @@ class PollController extends Controller
             $user = Auth::user();
             $companyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            // Optional: permission check? Usually only admin/company can delete.
-            // Assuming authorized for now or relying on middleware/logic.
-
             $this->pollService->deletePoll($id, $companyId);
 
             return response()->json([
                 'success' => true,
                 'message' => 'تم حذف الاستبيان بنجاح',
+                'user_id' => $user->id,
             ]);
         } catch (\Exception $e) {
-            Log::error('PollController::destroy failed', ['id' => $id, 'error' => $e->getMessage()]);
+            Log::error('PollController::destroy failed', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'message' => 'حدث خطأ أثناء حذف الاستبيان',
+                'user_id' => $user->id,
+            ]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }

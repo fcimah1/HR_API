@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Http\Requests\Branch;
+namespace App\Http\Requests\CustodyClearance;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Contracts\Validation\Validator;
 
-class BranchSearchRequest extends FormRequest
+class CustodyClearanceSearchRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -26,21 +26,12 @@ class BranchSearchRequest extends FormRequest
     {
         return [
             'search' => 'nullable|string|max:100',
-            'branch_id' => 'nullable|exists:ci_branchs,branch_id',
+            'employee_id' => 'nullable|integer',
+            'status' => 'nullable|string|in:pending,approved,rejected',
+            'clearance_type' => 'nullable|string',
             'paginate' => 'nullable|boolean',
             'per_page' => 'nullable|integer',
             'page' => 'nullable|integer',
-        ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'search.max' => 'يجب أن لا يتجاوز البحث 100 حرف',
-            'branch_id.exists' => 'الفرع غير موجود',
-            'paginate.boolean' => 'يجب أن يكون paginate نوع boolean',
-            'per_page.integer' => 'يجب أن يكون per_page نوع integer',
-            'page.integer' => 'يجب أن يكون page نوع integer',
         ];
     }
 

@@ -134,6 +134,10 @@ class TrainerController extends Controller
 
             $result = $this->trainerService->getPaginatedTrainers($filters);
 
+            Log::info('TrainerController::index - Trainers retrieved successfully', [
+                'user_id' => Auth::user()->user_id,
+                'trainers' => $result['data'],
+            ]);
             return response()->json([
                 'success' => true,
                 'data' => $result['data'],
@@ -198,11 +202,21 @@ class TrainerController extends Controller
             $companyId = $this->permissionService->getEffectiveCompanyId($user);
             $trainers = $this->trainerService->getAllForCompany($companyId, $user);
 
+            Log::info('TrainerController::dropdown - Trainers retrieved successfully', [
+                'user_id' => Auth::user()->user_id,
+                'trainers' => $trainers,
+            ]);
             return response()->json([
                 'success' => true,
                 'data' => $trainers
             ]);
         } catch (\Exception $e) {
+            Log::error('Error getting trainers dropdown: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::user()->user_id,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -241,12 +255,19 @@ class TrainerController extends Controller
             $trainer = $this->trainerService->getTrainerById($id, $companyId);
 
             if (!$trainer) {
+                Log::info('TrainerController::show - No trainer found', [
+                    'user_id' => Auth::user()->user_id,
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'المدرب غير موجود'
                 ], 404);
             }
 
+            Log::info('TrainerController::show - Trainer retrieved successfully', [
+                'user_id' => Auth::user()->user_id,
+                'trainer' => $trainer,
+            ]);
             return response()->json([
                 'success' => true,
                 'data' => $trainer
@@ -364,12 +385,19 @@ class TrainerController extends Controller
             $trainer = $this->trainerService->updateTrainer($id, $validated, $companyId, $user);
 
             if (!$trainer) {
+                Log::info('TrainerController::update - No trainer found', [
+                    'user_id' => Auth::user()->user_id,
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'المدرب غير موجود'
                 ], 404);
             }
 
+            Log::info('TrainerController::update - Trainer updated successfully', [
+                'user_id' => Auth::user()->user_id,
+                'trainer' => $trainer,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم تحديث المدرب بنجاح',
@@ -422,12 +450,19 @@ class TrainerController extends Controller
             $deleted = $this->trainerService->deleteTrainer($id, $companyId, $user);
 
             if (!$deleted) {
+                Log::info('TrainerController::destroy - No trainer found', [
+                    'user_id' => Auth::user()->user_id,
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'المدرب غير موجود'
                 ], 404);
             }
 
+            Log::info('TrainerController::destroy - Trainer deleted successfully', [
+                'user_id' => Auth::user()->user_id,
+                'trainer_id' => $id,
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم حذف المدرب بنجاح'
