@@ -750,7 +750,7 @@ class EmployeeController extends Controller
      *             ))
      *         )
      *     ),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2049,7 +2049,7 @@ class EmployeeController extends Controller
      *             @OA\Property(property="message", type="string", example="تم تحديث المعلومات الأساسية بنجاح")
      *         )
      *     ),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف غير موجود"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2153,7 +2153,7 @@ class EmployeeController extends Controller
      *     ),
      *     @OA\Response(response=403, description="ليس لديك صلاحية"),
      *     @OA\Response(response=404, description="الموظف غير موجود"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=500, description="خطأ في الخادم"),
      * )
@@ -2197,7 +2197,7 @@ class EmployeeController extends Controller
      *     ),
      *     @OA\Response(response=403, description="ليس لديك صلاحية"),
      *     @OA\Response(response=404, description="الشركة غير موجودة"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=500, description="خطأ في الخادم"),
      * )
@@ -2235,7 +2235,7 @@ class EmployeeController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="البحث في مسمى البدل"),
      *     @OA\Response(response=200, description="تم جلب البدلات بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2276,7 +2276,7 @@ class EmployeeController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/AddContractComponentRequest")),
      *     @OA\Response(response=200, description="تمت الإضافة بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2318,7 +2318,7 @@ class EmployeeController extends Controller
      *         @OA\Property(property="pay_amount", type="number", example=1000)
      *     )),
      *     @OA\Response(response=200, description="تم التعديل بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2356,7 +2356,7 @@ class EmployeeController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Parameter(name="allowanceId", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(response=200, description="تم الحذف بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2396,7 +2396,7 @@ class EmployeeController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="البحث في مسمى العمولة"),
      *     @OA\Response(response=200, description="تم جلب العمولات بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2437,7 +2437,7 @@ class EmployeeController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/AddContractComponentRequest")),
      *     @OA\Response(response=200, description="تمت الإضافة بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2480,7 +2480,7 @@ class EmployeeController extends Controller
      *         @OA\Property(property="pay_amount", type="number", example=500)
      *     )),
      *     @OA\Response(response=200, description="تم التعديل بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2517,7 +2517,7 @@ class EmployeeController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Parameter(name="commissionId", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(response=200, description="تم الحذف بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2557,7 +2557,7 @@ class EmployeeController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="البحث في مسمى الاستقطاع"),
      *     @OA\Response(response=200, description="تم جلب الاستقطاعات بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2596,7 +2596,7 @@ class EmployeeController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/AddContractComponentRequest")),
      *     @OA\Response(response=200, description="تمت الإضافة بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2637,7 +2637,7 @@ class EmployeeController extends Controller
      *         @OA\Property(property="pay_amount", type="number", example=200)
      *     )),
      *     @OA\Response(response=200, description="تم التعديل بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2675,7 +2675,7 @@ class EmployeeController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Parameter(name="deductionId", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(response=200, description="تم الحذف بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2715,7 +2715,7 @@ class EmployeeController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="البحث في مسمى الدفعة"),
      *     @OA\Response(response=200, description="تم جلب التعويضات الأخرى بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2755,7 +2755,7 @@ class EmployeeController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/AddContractComponentRequest")),
      *     @OA\Response(response=200, description="تمت الإضافة بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2796,7 +2796,7 @@ class EmployeeController extends Controller
      *         @OA\Property(property="pay_amount", type="number", example=300)
      *     )),
      *     @OA\Response(response=200, description="تم التعديل بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2835,7 +2835,7 @@ class EmployeeController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Parameter(name="paymentId", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(response=200, description="تم الحذف بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -2882,7 +2882,7 @@ class EmployeeController extends Controller
      *             @OA\Property(property="data", type="object")
      *         )
      *     ),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")

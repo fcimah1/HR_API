@@ -132,7 +132,7 @@ class UpdateBasicInfoRequest extends FormRequest
     {
         throw new HttpResponseException(response()->json([
             'success' => false,
-            'message' => 'البيانات غير صالحة',
+            'message' => 'ال فشل التحقق من البيانات ',
             'errors' => $validator->errors(),
         ], 422));
     }

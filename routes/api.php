@@ -16,6 +16,10 @@ use App\Http\Controllers\Api\EmployeeProfileController;
 use App\Http\Controllers\Api\ResignationController;
 use App\Http\Controllers\Api\TransferController;
 use App\Http\Controllers\Api\OfficeShiftController;
+use App\Http\Controllers\Api\AnnouncementController;
+use App\Http\Controllers\Api\EndOfServiceController;
+use App\Http\Controllers\Api\MeetingController;
+use App\Http\Controllers\Api\VisitorController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -455,6 +459,43 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::post('/', [App\Http\Controllers\Api\CustodyClearanceController::class, 'store'])->middleware('simple.permission:hr_custody_clearance2');
         Route::get('/{id}', [App\Http\Controllers\Api\CustodyClearanceController::class, 'show'])->middleware('simple.permission:hr_custody_clearance1');
         Route::post('/{id}/approve-or-reject', [App\Http\Controllers\Api\CustodyClearanceController::class, 'approveOrReject'])->middleware('simple.permission:hr_custody_clearance5');
+    });
+
+    // Custom Announcements Management
+    Route::prefix('announcements')->group(function () {
+        Route::get('/', [AnnouncementController::class, 'index'])->middleware('simple.permission:news1');
+        Route::post('/', [AnnouncementController::class, 'store'])->middleware('simple.permission:news2');
+        Route::get('/{id}', [AnnouncementController::class, 'show'])->middleware('simple.permission:news1');
+        Route::put('/{id}', [AnnouncementController::class, 'update'])->middleware('simple.permission:news3');
+        Route::delete('/{id}', [AnnouncementController::class, 'destroy'])->middleware('simple.permission:news4');
+    });
+
+    // Meetings Management
+    Route::prefix('meetings')->group(function () {
+        Route::get('/', [MeetingController::class, 'index'])->middleware('simple.permission:conference1');
+        Route::post('/', [MeetingController::class, 'store'])->middleware('simple.permission:conference2');
+        Route::get('/{id}', [MeetingController::class, 'show'])->middleware('simple.permission:conference1');
+        Route::put('/{id}', [MeetingController::class, 'update'])->middleware('simple.permission:conference3');
+        Route::delete('/{id}', [MeetingController::class, 'destroy'])->middleware('simple.permission:conference4');
+    });
+
+    // Visitors Management
+    Route::prefix('visitors')->group(function () {
+        Route::get('/', [VisitorController::class, 'index'])->middleware('simple.permission:visitor1');
+        Route::post('/', [VisitorController::class, 'store'])->middleware('simple.permission:visitor2');
+        Route::get('/{id}', [VisitorController::class, 'show'])->middleware('simple.permission:visitor1');
+        Route::put('/{id}', [VisitorController::class, 'update'])->middleware('simple.permission:visitor3');
+        Route::delete('/{id}', [VisitorController::class, 'destroy'])->middleware('simple.permission:visitor4');
+    });
+
+    // End of Service Calculator
+    Route::prefix('end-of-service')->group(function () {
+        Route::get('/', [EndOfServiceController::class, 'index'])->middleware('simple.permission:end_of_service1');
+        Route::post('/calculate', [EndOfServiceController::class, 'calculate'])->middleware('simple.permission:end_of_service1');
+        Route::post('/', [EndOfServiceController::class, 'store'])->middleware('simple.permission:end_of_service2');
+        Route::get('/{id}', [EndOfServiceController::class, 'show'])->middleware('simple.permission:end_of_service1');
+        Route::put('/{id}', [EndOfServiceController::class, 'update'])->middleware('simple.permission:end_of_service3');
+        Route::delete('/{id}', [EndOfServiceController::class, 'destroy'])->middleware('simple.permission:end_of_service4');
     });
 
     // Asset Management Configuration (Categories & Brands)

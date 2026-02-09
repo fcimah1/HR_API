@@ -55,7 +55,7 @@ class UpdateContractDataRequest extends FormRequest
      */
     public function rules(): array
     {
-        $companyId = new SimplePermissionService()->getEffectiveCompanyId(Auth::user());
+        $companyId = resolve(SimplePermissionService::class)->getEffectiveCompanyId(Auth::user());
 
 
         return [
@@ -175,7 +175,7 @@ class UpdateContractDataRequest extends FormRequest
         ]);
         throw new HttpResponseException(response()->json([
             'success' => false,
-            'message' => 'بيانات غير صالحة',
+            'message' => ' فشل التحقق من البيانات ',
             'errors' => $formattedErrors
         ], 422));
     }

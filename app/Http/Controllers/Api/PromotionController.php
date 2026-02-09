@@ -99,7 +99,7 @@ class PromotionController extends Controller
      *         )
      *     ),
      *     @OA\Response(response=201, description="تم إضافة الترقية بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
      * )
@@ -139,7 +139,7 @@ class PromotionController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(response=200, description="تم جلب التفاصيل بنجاح"),
      *     @OA\Response(response=404, description="الترقية غير موجودة"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
      * )
@@ -191,7 +191,7 @@ class PromotionController extends Controller
      *     ),
      *     @OA\Response(response=200, description="تم تعديل الترقية بنجاح"),
      *     @OA\Response(response=404, description="الترقية غير موجودة"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
      * )
@@ -237,7 +237,7 @@ class PromotionController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(response=200, description="تم الحذف بنجاح"),
      *     @OA\Response(response=404, description="الترقية غير موجودة"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
      * )

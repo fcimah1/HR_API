@@ -102,7 +102,7 @@ class AssetController extends Controller
      *         )
      *     ),
      *     @OA\Response(response=201, description="تم إضافة العهدة بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
      * )
@@ -190,6 +190,7 @@ class AssetController extends Controller
      *     @OA\Response(response=200, description="تم التحديث بنجاح"),
      *     @OA\Response(response=404, description="العهدة غير موجودة"),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=500, description="خطأ في الخادم")
      * )
      */

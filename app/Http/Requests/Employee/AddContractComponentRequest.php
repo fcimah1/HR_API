@@ -28,7 +28,7 @@ class AddContractComponentRequest extends FormRequest
 
     public function rules(): array
     {
-        $companyId = (new SimplePermissionService())->getEffectiveCompanyId(Auth::user());
+        $companyId = resolve(SimplePermissionService::class)->getEffectiveCompanyId(Auth::user());
 
         return [
             'pay_title' => [
@@ -75,7 +75,7 @@ class AddContractComponentRequest extends FormRequest
     {
         throw new HttpResponseException(response()->json([
             'success' => false,
-            'message' => 'بيانات غير صالحة',
+            'message' => ' فشل التحقق من البيانات ',
             'errors' => $validator->errors()->all()
         ], 422));
     }

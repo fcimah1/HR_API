@@ -38,7 +38,7 @@ class OfficeShiftController extends Controller
      *     @OA\Parameter(name="page", in="query", @OA\Schema(type="integer")),
      *     @OA\Parameter(name="limit", in="query", @OA\Schema(type="integer")),
      *     @OA\Response(response=200, description="تم بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -81,7 +81,7 @@ class OfficeShiftController extends Controller
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(response=200, description="تم بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -164,7 +164,7 @@ class OfficeShiftController extends Controller
      *         )
      *     ),
      *     @OA\Response(response=201, description="تم الإضافة بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -251,7 +251,7 @@ class OfficeShiftController extends Controller
      *         )
      *     ),
      *     @OA\Response(response=200, description="تم التعديل بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -294,7 +294,7 @@ class OfficeShiftController extends Controller
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(response=200, description="تم الحذف بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
