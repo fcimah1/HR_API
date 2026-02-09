@@ -123,35 +123,39 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 
 ## 📚 API Structure
 
-| Module                       | Base Path                              | Key Operations                                                                                        |
-| ---------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| **Employees**                | `/api/employees`                       | List, View, Create, Update, Export, Stats by Country                                                  |
-| **Office Shifts**            | `/api/office-shifts`                   | CRUD for office working schedules                                                                     |
-| **Unified Requests**         | `/api/employees/{id}/requests/unified` | Combined view of all request types                                                                    |
-| **Leaves**                   | `/api/leaves`                          | Apply, Approve/Reject, Balance Check                                                                  |
-| **Hourly Leaves**            | `/api/hourly-leaves`                   | Apply, Approve/Reject, Balance Check                                                                  |
-| **Leave Adjustments**        | `/api/leave-adjustments`               | Apply, Approve/Reject                                                                                 |
-| **Leave Balance**            | `/api/leave-balance`                   | Check Balance                                                                                         |
-| **Overtime**                 | `/api/overtimes`                       | Apply, Approve/Reject                                                                                 |
-| **Advance Salary/Loans**     | `/api/advances`                        | Apply, Approve/Reject                                                                                 |
-| **Attendance**               | `/api/attendances`                     | Clock In/Out, Monthly Report                                                                          |
-| **Custody**                  | `/api/custody-clearances`              | Create Clearance, List Assets                                                                         |
-| **Transfers**                | `/api/transfers`                       | Internal/Branch Transfer Requests                                                                     |
-| **Resignations**             | `/api/resignations`                    | Apply, Approve/Reject                                                                                 |
-| **Travels**                  | `/api/travels`                         | Apply, Approve/Reject                                                                                 |
-| **Complaints & Suggestions** | `/api/complaints`                      | Apply, Approve/Reject                                                                                 |
-| **Support Tickets**          | `/api/support-tickets`                 | Create, Reply, Close, Reopen (See [docs/SUPPORT_TICKETS.md](docs/SUPPORT_TICKETS.md))                 |
-| **Internal Helpdesk**        | `/api/internal-helpdesk`               | Internal IT/HR Support Tickets (See [docs/INTERNAL_HELPDESK_PLAN.md](docs/INTERNAL_HELPDESK_PLAN.md)) |
-| **Assets**                   | `/api/assets`                          | CRUD for company assets and equipment                                                                 |
-| **Awards**                   | `/api/awards`                          | Manage employee awards with approval cycle                                                            |
-| **Promotions**               | `/api/promotions`                      | Manage employee career movements and salary updates                                                   |
-| **Training**                 | `/api/trainings`                       | Manage Training Sessions (See [docs/TRAINING.md](docs/TRAINING.md))                                   |
-| **Trainers**                 | `/api/trainers`                        | Manage Trainers (See [docs/TRAINING.md](docs/TRAINING.md))                                            |
-| **Training Skills**          | `/api/training-skills`                 | Manage Training Types/Skills (See [docs/TRAINING.md](docs/TRAINING.md))                               |
-| **Biometric Attendance**     | `/api/biometric-logs`                  | Sync Logs                                                                                             |
-| **Manual Attendance**        | `/api/attendances`                     | Clock In/Out, Monthly Report                                                                          |
-| **Notifications**            | `/api/notifications`                   | List, Mark as Read                                                                                    |
-| **Approval**                 | `/api/approvals`                       | Pending List, History, Process                                                                        |
+| Module                       | Base Path                              | Key Operations                                                                                              |
+| ---------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------- | --- |
+| **Employees**                | `/api/employees`                       | List, View, Create, Update, Export, Stats by Country, Relatives/Family                                      |
+| **EndOfService**             | `/api/end-of-service`                  | Calculate, Save, List, Approve (See [docs/end_of_service_calculator.md](docs/end_of_service_calculator.md)) |
+| **Office Shifts**            | `/api/office-shifts`                   | CRUD for office working schedules                                                                           |
+| **Unified Requests**         | `/api/employees/{id}/requests/unified` | Combined view of all request types                                                                          |
+| **Leaves**                   | `/api/leaves`                          | Apply, Approve/Reject, Balance Check                                                                        |
+| **Hourly Leaves**            | `/api/hourly-leaves`                   | Apply, Approve/Reject, Balance Check                                                                        |
+| **Leave Adjustments**        | `/api/leave-adjustments`               | Apply, Approve/Reject                                                                                       |
+| **Leave Balance**            | `/api/leave-balance`                   | Check Balance                                                                                               |
+| **Overtime**                 | `/api/overtimes`                       | Apply, Approve/Reject                                                                                       |
+| **Advance Salary/Loans**     | `/api/advances`                        | Apply, Approve/Reject                                                                                       |
+| **Attendance**               | `/api/attendances`                     | Clock In/Out, Monthly Report                                                                                |
+| **Async Reports**            | `/api/async-reports`                   | Generate and track background report tasks                                                                  |
+| **Visitors**                 | `/api/visitors`                        | Manage visitor logs and entries                                                                             |
+| **Custody**                  | `/api/custody-clearances`              | Create Clearance, List Assets                                                                               |
+| **Transfers**                | `/api/transfers`                       | Internal/Branch Transfer Requests                                                                           |
+| **Resignations**             | `/api/resignations`                    | Apply, Approve/Reject                                                                                       |
+| **Announcements**            | `/api/announcements`                   | Create and view company-wide announcements                                                                  |
+| **Travels**                  | `/api/travels`                         | Apply, Approve/Reject                                                                                       |     |
+| **Complaints & Suggestions** | `/api/complaints`                      | Apply, Approve/Reject                                                                                       |
+| **Support Tickets**          | `/api/support-tickets`                 | Create, Reply, Close, Reopen (See [docs/SUPPORT_TICKETS.md](docs/SUPPORT_TICKETS.md))                       |
+| **Internal Helpdesk**        | `/api/internal-helpdesk`               | Internal IT/HR Support Tickets (See [docs/INTERNAL_HELPDESK_PLAN.md](docs/INTERNAL_HELPDESK_PLAN.md))       |
+| **Assets**                   | `/api/assets`                          | CRUD for company assets and equipment                                                                       |
+| **Awards**                   | `/api/awards`                          | Manage employee awards with approval cycle                                                                  |
+| **Promotions**               | `/api/promotions`                      | Manage employee career movements and salary updates                                                         |
+| **Training**                 | `/api/trainings`                       | Manage Training Sessions (See [docs/TRAINING.md](docs/TRAINING.md))                                         |
+| **Trainers**                 | `/api/trainers`                        | Manage Trainers (See [docs/TRAINING.md](docs/TRAINING.md))                                                  |
+| **Training Skills**          | `/api/training-skills`                 | Manage Training Types/Skills (See [docs/TRAINING.md](docs/TRAINING.md))                                     |
+| **Biometric Attendance**     | `/api/biometric-logs`                  | Sync Logs                                                                                                   |
+| **Manual Attendance**        | `/api/attendances`                     | Clock In/Out, Monthly Report                                                                                |
+| **Notifications**            | `/api/notifications`                   | List, Mark as Read                                                                                          |
+| **Approval**                 | `/api/approvals`                       | Pending List, History, Process                                                                              |
 
 _For full endpoint details, please refer to the Swagger UI at `/api/documentation`_
 

@@ -69,6 +69,8 @@ use App\Repository\Interface\DepartmentRepositoryInterface;
 use App\Repository\DepartmentRepository;
 use App\Repository\Interface\DesignationRepositoryInterface;
 use App\Repository\DesignationRepository;
+use App\Repository\Interface\AnnouncementRepositoryInterface;
+use App\Repository\AnnouncementRepository;
 use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
@@ -195,6 +197,18 @@ class AppServiceProvider extends ServiceProvider
 
         // Designation repository
         $this->app->bind(DesignationRepositoryInterface::class, DesignationRepository::class);
+
+        // Announcement repository
+        $this->app->singleton(AnnouncementRepositoryInterface::class, AnnouncementRepository::class);
+
+        // Meeting repository
+        $this->app->singleton(\App\Repository\Interface\MeetingRepositoryInterface::class, \App\Repository\MeetingRepository::class);
+
+        // Visitor repository
+        $this->app->singleton(\App\Repository\Interface\VisitorRepositoryInterface::class, \App\Repository\VisitorRepository::class);
+
+        // End of Service repository
+        $this->app->singleton(\App\Repository\Interface\EndOfServiceRepositoryInterface::class, \App\Repository\EndOfServiceRepository::class);
     }
 
     /**

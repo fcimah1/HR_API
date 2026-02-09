@@ -640,7 +640,7 @@ class EmployeeProfileController extends Controller
      *             @OA\Property(property="message", type="string", example="تم تحديث المعلومات الأساسية بنجاح")
      *         )
      *     ),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=404, description="الموظف غير موجود"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
@@ -690,7 +690,7 @@ class EmployeeProfileController extends Controller
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=500, description="خطأ في الخادم"),
      *     @OA\Response(response=404, description="الموظف غير موجود"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=403, description="ليس لديك صلاحية"),
      * )
      */

@@ -118,7 +118,7 @@ class HourlyLeaveController extends Controller
      *     ),
      *     @OA\Response(
      *         response=422,
-     *         description="بيانات غير صالحة",
+     *         description=" فشل التحقق من البيانات ",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="البيانات المقدمة غير صالحة"),
@@ -457,7 +457,7 @@ class HourlyLeaveController extends Controller
      *     ),
      *     @OA\Response(
      *         response=422,
-     *         description="بيانات غير صالحة",
+     *         description=" فشل التحقق من البيانات ",
      *         @OA\JsonContent(
      *             @OA\Property(property="status", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),
@@ -671,7 +671,7 @@ class HourlyLeaveController extends Controller
      *     ),
      *     @OA\Response(
      *         response=422,
-     *         description="بيانات غير صالحة",
+     *         description=" فشل التحقق من البيانات ",
      *         @OA\JsonContent(
      *             @OA\Property(property="status", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="فشل التحقق من البيانات"),

@@ -114,7 +114,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Requests retrieved successfully",
+                        "description": "تم جلب الطلبات بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -143,14 +143,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - يجب تسجيل الدخول",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
                                         }
                                     },
                                     "type": "object"
@@ -159,7 +159,7 @@
                         }
                     },
                     "403": {
-                        "description": "Forbidden - No permission",
+                        "description": "غير مصرح لك بعرض الطلبات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -179,7 +179,7 @@
                         }
                     },
                     "422": {
-                        "description": "Validation error",
+                        "description": "خطأ في التحقق",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -201,7 +201,7 @@
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "خطأ في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -808,6 +808,233 @@
                 ]
             }
         },
+        "/api/announcements": {
+            "get": {
+                "tags": [
+                    "Announcements"
+                ],
+                "summary": "عرض جميع الإعلانات",
+                "operationId": "018442d06de1537ba02109efdadd7a51",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean",
+                            "default": "true"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": "1"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": "10"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الإعلانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Announcements"
+                ],
+                "summary": "إنشاء إعلان جديد",
+                "operationId": "aafebd32889be036f317a8ec262356ff",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateAnnouncementRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء الإعلان بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/announcements/{id}": {
+            "get": {
+                "tags": [
+                    "Announcements"
+                ],
+                "summary": "عرض إعلان معين",
+                "operationId": "660ee51b5fea9766415012e4d8cddf9d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الإعلان بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Announcements"
+                ],
+                "summary": "تحديث إعلان موجود",
+                "operationId": "fc9e73377f5093b3a925537950ccafd7",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAnnouncementRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث الإعلان بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Announcements"
+                ],
+                "summary": "حذف إعلان",
+                "operationId": "83a5ea4614797a52fe1f4390c5743bd2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف الإعلان بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/approvals/pending": {
             "get": {
                 "tags": [
@@ -1266,11 +1493,11 @@
                     "201": {
                         "description": "تم إضافة الفئة بنجاح"
                     },
-                    "400": {
-                        "description": "خطأ في الطلب"
-                    },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
                     },
                     "500": {
                         "description": "خطأ في الخادم"
@@ -1327,7 +1554,7 @@
                         "description": "الفئة غير موجودة"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -1366,7 +1593,7 @@
                         "description": "الفئة غير موجودة"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -1476,7 +1703,7 @@
                         "description": "خطأ في الطلب"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -1536,7 +1763,7 @@
                         "description": "العلامة التجارية غير موجودة"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -1750,7 +1977,7 @@
                         "description": "تم إضافة العهدة بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -1894,6 +2121,9 @@
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
                     },
                     "500": {
                         "description": "خطأ في الخادم"
@@ -3418,7 +3648,7 @@
                         "description": "خطأ في الطلب"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -3479,7 +3709,7 @@
                         "description": "النوع غير موجود"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -3519,7 +3749,7 @@
                         "description": "النوع غير موجود"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -3665,7 +3895,7 @@
                         "description": "تم إضافة المكافئة بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -3795,7 +4025,7 @@
                         "description": "المكافئة غير موجودة"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -7867,7 +8097,7 @@
                         }
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -9542,7 +9772,7 @@
                         }
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -9642,7 +9872,7 @@
                         "description": "الموظف غير موجود"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -9676,7 +9906,7 @@
                         "description": "الشركة غير موجودة"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -9723,7 +9953,7 @@
                         "description": "تم جلب البدلات بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -9772,7 +10002,7 @@
                         "description": "تمت الإضافة بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -9837,7 +10067,7 @@
                         "description": "تم التعديل بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -9884,7 +10114,7 @@
                         "description": "تم الحذف بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -9934,7 +10164,7 @@
                         "description": "تم جلب العمولات بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -9983,7 +10213,7 @@
                         "description": "تمت الإضافة بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -10048,7 +10278,7 @@
                         "description": "تم التعديل بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -10095,7 +10325,7 @@
                         "description": "تم الحذف بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -10145,7 +10375,7 @@
                         "description": "تم جلب الاستقطاعات بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -10194,7 +10424,7 @@
                         "description": "تمت الإضافة بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -10259,7 +10489,7 @@
                         "description": "تم التعديل بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -10306,7 +10536,7 @@
                         "description": "تم الحذف بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -10356,7 +10586,7 @@
                         "description": "تم جلب التعويضات الأخرى بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -10405,7 +10635,7 @@
                         "description": "تمت الإضافة بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -10470,7 +10700,7 @@
                         "description": "تم التعديل بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -10517,7 +10747,7 @@
                         "description": "تم الحذف بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -10580,7 +10810,7 @@
                         }
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -11476,7 +11706,7 @@
                         }
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -11533,10 +11763,205 @@
                         "description": "الموظف غير موجود"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "403": {
                         "description": "ليس لديك صلاحية"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/end-of-service": {
+            "get": {
+                "tags": [
+                    "End of Service Calculations"
+                ],
+                "summary": "عرض قائمة حسابات نهاية الخدمة",
+                "operationId": "getEndOfServiceList",
+                "parameters": [
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "termination_type",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "resignation",
+                                "termination",
+                                "end_of_contract"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "is_approved",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean",
+                            "default": "true"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": "10"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "End of Service Calculations"
+                ],
+                "summary": "حساب وحفظ مستحقات نهاية الخدمة",
+                "operationId": "storeEndOfService",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CalculateEndOfServiceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم الحساب والحفظ بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/end-of-service/calculate": {
+            "post": {
+                "tags": [
+                    "End of Service Calculations"
+                ],
+                "summary": "حساب مستحقات نهاية الخدمة (معاينة بدون حفظ)",
+                "operationId": "calculateEndOfService",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CalculateEndOfServiceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم الحساب بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/end-of-service/{id}": {
+            "get": {
+                "tags": [
+                    "End of Service Calculations"
+                ],
+                "summary": "عرض تفاصيل حساب نهاية الخدمة",
+                "operationId": "showEndOfService",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التفاصيل بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -12033,7 +12458,7 @@
                         }
                     },
                     "422": {
-                        "description": "بيانات غير صالحة",
+                        "description": " فشل التحقق من البيانات ",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -12534,7 +12959,7 @@
                         }
                     },
                     "422": {
-                        "description": "بيانات غير صالحة",
+                        "description": " فشل التحقق من البيانات ",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -12873,7 +13298,7 @@
                         }
                     },
                     "422": {
-                        "description": "بيانات غير صالحة",
+                        "description": " فشل التحقق من البيانات ",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17339,6 +17764,227 @@
                 ]
             }
         },
+        "/api/meetings": {
+            "get": {
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "عرض قائمة الاجتماعات",
+                "operationId": "3c24c7990cd99df1d72a9791a285be08",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean",
+                            "default": "true"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": "10"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": "1"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الاجتماعات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "إضافة اجتماع جديد",
+                "operationId": "7a4813050eeb38f40d964d9d747b71b5",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateMeetingRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء الاجتماع بنجاح"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/meetings/{id}": {
+            "get": {
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "عرض تفاصيل اجتماع",
+                "operationId": "0df3e9a497623979b4fc7e760aac2a6a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب تفاصيل الاجتماع"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "تحديث اجتماع",
+                "operationId": "b65b9e08912e29d0a19508045b83df8c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateMeetingRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث الاجتماع بنجاح"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "حذف اجتماع",
+                "operationId": "f5948cab2b2e270beb92411624e633d5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف الاجتماع بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/notifications": {
             "get": {
                 "tags": [
@@ -17713,7 +18359,7 @@
                         "description": "تم بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -17908,7 +18554,7 @@
                         "description": "تم الإضافة بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -17949,7 +18595,7 @@
                         "description": "تم بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -18148,7 +18794,7 @@
                         "description": "تم التعديل بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -18187,7 +18833,7 @@
                         "description": "تم الحذف بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -20251,7 +20897,7 @@
                         "description": "تم إضافة الترقية بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -20292,7 +20938,7 @@
                         "description": "الترقية غير موجودة"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -20384,7 +21030,7 @@
                         "description": "الترقية غير موجودة"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -20423,7 +21069,7 @@
                         "description": "الترقية غير موجودة"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -22262,7 +22908,7 @@
                         }
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "500": {
                         "description": "خطأ في الخادم"
@@ -22300,7 +22946,7 @@
                         "description": "السجل غير موجود"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -22342,7 +22988,7 @@
                         "description": "خطأ في الطلب"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح - يجب تسجيل الدخول"
@@ -25006,7 +25652,7 @@
                         "description": "تم إضافة الطلب بنجاح"
                     },
                     "422": {
-                        "description": "بيانات غير صالحة"
+                        "description": " فشل التحقق من البيانات "
                     },
                     "401": {
                         "description": "غير مصرح"
@@ -25118,6 +25764,9 @@
                     },
                     "401": {
                         "description": "غير مصرح"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
                     },
                     "500": {
                         "description": "خطأ في الخادم"
@@ -30049,10 +30698,310 @@
                     }
                 ]
             }
+        },
+        "/api/visitors": {
+            "get": {
+                "tags": [
+                    "Visitors"
+                ],
+                "summary": "عرض قائمة الزوار",
+                "operationId": "1998f6b9b3b081f6305317055a9ded38",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "department_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean",
+                            "default": "true"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": "10"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": "1"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الزوار بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Visitors"
+                ],
+                "summary": "إضافة زائر جديد",
+                "operationId": "cf1f8c0fd7d531fe0966e840a769333b",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateVisitorRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة الزائر بنجاح"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/visitors/{id}": {
+            "get": {
+                "tags": [
+                    "Visitors"
+                ],
+                "summary": "عرض تفاصيل زائر",
+                "operationId": "9ad9149e2f65591169c9201c12ae4a3e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب تفاصيل الزائر"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Visitors"
+                ],
+                "summary": "تحديث سجل زائر",
+                "operationId": "b326451f922571893cf31b9276d83c25",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateVisitorRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث السجل بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Visitors"
+                ],
+                "summary": "حذف سجل زائر",
+                "operationId": "0f05eea751f28cf8ec608b14ffcbe065",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف السجل بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
         "schemas": {
+            "AnnouncementFilterDTO": {
+                "title": "AnnouncementFilterDTO",
+                "description": "معايير تصفية الإعلانات"
+            },
+            "AnnouncementResponseDTO": {
+                "title": "AnnouncementResponseDTO",
+                "description": "تنسيق بيانات الإعلان في الرد",
+                "properties": {
+                    "id": {
+                        "description": "معرف الإعلان",
+                        "type": "integer"
+                    },
+                    "company_id": {
+                        "description": "معرف الشركة",
+                        "type": "integer"
+                    },
+                    "department_id": {
+                        "description": "معرفات الأقسام المستهدفة",
+                        "type": "string"
+                    },
+                    "audience_id": {
+                        "description": "معرفات الموظفين المستهدفين",
+                        "type": "string"
+                    },
+                    "title": {
+                        "description": "عنوان الإعلان",
+                        "type": "string"
+                    },
+                    "start_date": {
+                        "description": "تاريخ البدء",
+                        "type": "string"
+                    },
+                    "end_date": {
+                        "description": "تاريخ الانتهاء",
+                        "type": "string"
+                    },
+                    "published_by": {
+                        "description": "معرف الموظف الذي قام بالنشر",
+                        "type": "integer"
+                    },
+                    "publisher_name": {
+                        "description": "اسم الموظف الذي قام بالنشر",
+                        "type": "string"
+                    },
+                    "summary": {
+                        "description": "الملخص",
+                        "type": "string"
+                    },
+                    "description": {
+                        "description": "الوصف الكامل",
+                        "type": "string"
+                    },
+                    "is_active": {
+                        "description": "حالة النشاط",
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "description": "تاريخ الإنشاء",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "Department": {
                 "title": "Department",
                 "description": "Department model",
@@ -30322,6 +31271,91 @@
                     "is_global": {
                         "type": "boolean",
                         "example": false
+                    }
+                },
+                "type": "object"
+            },
+            "CreateAnnouncementRequest": {
+                "title": "CreateAnnouncementRequest",
+                "description": "طلب إنشاء إعلان جديد",
+                "required": [
+                    "title",
+                    "start_date",
+                    "end_date",
+                    "summary",
+                    "description"
+                ],
+                "properties": {
+                    "title": {
+                        "description": "عنوان الإعلان",
+                        "type": "string",
+                        "example": "اجتماع عام"
+                    },
+                    "start_date": {
+                        "description": "تاريخ البدء",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2024-02-01"
+                    },
+                    "end_date": {
+                        "description": "تاريخ الانتهاء",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2024-02-10"
+                    },
+                    "summary": {
+                        "description": "ملخص الإعلان",
+                        "type": "string",
+                        "example": "ملخص سريع لموضوع الاجتماع"
+                    },
+                    "description": {
+                        "description": "وصف الإعلان بالتفصيل",
+                        "type": "string",
+                        "example": "تفاصيل الاجتماع وجدول الأعمال..."
+                    },
+                    "department_id": {
+                        "description": "معرفات الأقسام (مفصولة بفاصلة أو '0,all')",
+                        "type": "string",
+                        "example": "1,2,3"
+                    },
+                    "audience_id": {
+                        "description": "معرفات الموظفين (مفصولة بفاصلة أو '0,all')",
+                        "type": "string",
+                        "example": "4,5,6"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateAnnouncementRequest": {
+                "title": "UpdateAnnouncementRequest",
+                "description": "طلب تحديث إعلان موجود",
+                "properties": {
+                    "title": {
+                        "description": "عنوان الإعلان",
+                        "type": "string",
+                        "example": "اجتماع عام - محدث"
+                    },
+                    "start_date": {
+                        "description": "تاريخ البدء",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2024-02-01"
+                    },
+                    "end_date": {
+                        "description": "تاريخ الانتهاء",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2024-02-10"
+                    },
+                    "summary": {
+                        "description": "ملخص الإعلان",
+                        "type": "string",
+                        "example": "ملخص محدث"
+                    },
+                    "description": {
+                        "description": "وصف الإعلان بالتفصيل",
+                        "type": "string",
+                        "example": "تفاصيل محدثة..."
                     }
                 },
                 "type": "object"
@@ -30781,6 +31815,55 @@
                 },
                 "type": "object"
             },
+            "CalculateEndOfServiceRequest": {
+                "title": "CalculateEndOfServiceRequest",
+                "description": "طلب حساب مستحقات نهاية الخدمة",
+                "required": [
+                    "employee_id",
+                    "termination_date",
+                    "termination_type"
+                ],
+                "properties": {
+                    "employee_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "termination_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-02-09"
+                    },
+                    "termination_type": {
+                        "type": "string",
+                        "enum": [
+                            "resignation",
+                            "termination",
+                            "end_of_contract"
+                        ],
+                        "example": "resignation"
+                    },
+                    "include_leave": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateEndOfServiceRequest": {
+                "title": "UpdateEndOfServiceRequest",
+                "description": "طلب تحديث حساب نهاية الخدمة",
+                "properties": {
+                    "notes": {
+                        "type": "string",
+                        "example": "ملاحظات إضافية"
+                    },
+                    "is_approved": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
             "CreateInternalTicketRequest": {
                 "required": [
                     "subject",
@@ -31047,6 +32130,80 @@
                     "requires_approval": {
                         "description": "Requires approval",
                         "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "CreateMeetingRequest": {
+                "title": "CreateMeetingRequest",
+                "description": "طلب إنشاء اجتماع جديد",
+                "required": [
+                    "meeting_title",
+                    "meeting_date",
+                    "meeting_time",
+                    "meeting_room"
+                ],
+                "properties": {
+                    "meeting_title": {
+                        "type": "string",
+                        "example": "اجتماع مجلس الإدارة"
+                    },
+                    "meeting_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2023-10-25"
+                    },
+                    "meeting_time": {
+                        "type": "string",
+                        "example": "10:00"
+                    },
+                    "meeting_room": {
+                        "type": "string",
+                        "example": "قاعة الاجتماعات الرئيسية"
+                    },
+                    "employee_id": {
+                        "type": "string",
+                        "example": "1,2,3"
+                    },
+                    "meeting_note": {
+                        "type": "string",
+                        "example": "ملاحظات حول الاجتماع"
+                    },
+                    "meeting_color": {
+                        "type": "string",
+                        "example": "#ff0000"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateMeetingRequest": {
+                "title": "UpdateMeetingRequest",
+                "description": "طلب تحديث اجتماع",
+                "properties": {
+                    "meeting_title": {
+                        "type": "string",
+                        "example": "اجتماع مجلس الإدارة"
+                    },
+                    "meeting_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2023-10-25"
+                    },
+                    "meeting_time": {
+                        "type": "string",
+                        "example": "10:00"
+                    },
+                    "meeting_room": {
+                        "type": "string",
+                        "example": "قاعة الاجتماعات الرئيسية"
+                    },
+                    "meeting_note": {
+                        "type": "string",
+                        "example": "ملاحظات حول الاجتماع"
+                    },
+                    "meeting_color": {
+                        "type": "string",
+                        "example": "#ff0000"
                     }
                 },
                 "type": "object"
@@ -31802,12 +32959,208 @@
                 },
                 "type": "object"
             },
+            "CreateVisitorRequest": {
+                "title": "CreateVisitorRequest",
+                "description": "طلب إضافة زائر جديد",
+                "required": [
+                    "visitor_name",
+                    "department_id",
+                    "visit_date",
+                    "check_in"
+                ],
+                "properties": {
+                    "visitor_name": {
+                        "type": "string",
+                        "example": "أحمد محمد"
+                    },
+                    "department_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "visit_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2023-10-25"
+                    },
+                    "check_in": {
+                        "type": "string",
+                        "example": "09:00"
+                    },
+                    "visit_purpose": {
+                        "type": "string",
+                        "example": "مقابلة عمل"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "example": "0501234567"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "visitor@example.com"
+                    },
+                    "check_out": {
+                        "type": "string",
+                        "example": "11:00"
+                    },
+                    "address": {
+                        "type": "string",
+                        "example": "الرياض"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "ملاحظات إضافية"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateVisitorRequest": {
+                "title": "UpdateVisitorRequest",
+                "description": "طلب تحديث سجل زائر",
+                "properties": {
+                    "visitor_name": {
+                        "type": "string",
+                        "example": "أحمد محمد"
+                    },
+                    "department_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "visit_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2023-10-25"
+                    },
+                    "check_in": {
+                        "type": "string",
+                        "example": "09:00"
+                    },
+                    "visit_purpose": {
+                        "type": "string",
+                        "example": "مقابلة عمل"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "example": "0501234567"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "visitor@example.com"
+                    },
+                    "check_out": {
+                        "type": "string",
+                        "example": "11:00"
+                    },
+                    "address": {
+                        "type": "string",
+                        "example": "الرياض"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "ملاحظات إضافية"
+                    }
+                },
+                "type": "object"
+            },
             "EmployeeListResource": {
                 "title": "Employee List Resource",
                 "description": "User resource for list views",
                 "xml": {
                     "name": "EmployeeListResource"
                 }
+            },
+            "EndOfServiceResource": {
+                "title": "EndOfServiceResource",
+                "description": "Resource for End of Service calculation",
+                "properties": {
+                    "calculation_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "employee_id": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "employee_name": {
+                        "type": "string",
+                        "example": "أحمد محمد"
+                    },
+                    "employee_code": {
+                        "type": "string",
+                        "example": "EMP001"
+                    },
+                    "hire_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2020-01-15"
+                    },
+                    "termination_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-02-09"
+                    },
+                    "termination_type": {
+                        "type": "string",
+                        "example": "resignation"
+                    },
+                    "service_years": {
+                        "type": "integer",
+                        "example": 6
+                    },
+                    "service_months": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "service_days": {
+                        "type": "integer",
+                        "example": 25
+                    },
+                    "basic_salary": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 5000
+                    },
+                    "allowances": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 1500
+                    },
+                    "total_salary": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 6500
+                    },
+                    "gratuity_amount": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 22750
+                    },
+                    "leave_compensation": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 2166.67
+                    },
+                    "total_compensation": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 24916.67
+                    },
+                    "is_approved": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "notes": {
+                        "type": "string",
+                        "example": "ملاحظات"
+                    },
+                    "calculated_at": {
+                        "type": "string",
+                        "format": "datetime",
+                        "example": "2026-02-09 14:00:00"
+                    }
+                },
+                "type": "object"
             },
             "InternalTicketReplyResource": {
                 "properties": {
@@ -32196,6 +33549,10 @@
             "description": "Employee advance salary and loan requests management"
         },
         {
+            "name": "Announcements",
+            "description": "إدارة الإعلانات"
+        },
+        {
             "name": "Approvals",
             "description": "API for multi-level approval workflow"
         },
@@ -32264,6 +33621,10 @@
             "description": "إدارة ملف الموظف"
         },
         {
+            "name": "End of Service Calculations",
+            "description": "إدارة حسابات نهاية الخدمة"
+        },
+        {
             "name": "Holidays",
             "description": "Public holidays management"
         },
@@ -32290,6 +33651,10 @@
         {
             "name": "Loan Management",
             "description": "Loan form initialization, preview, and request management"
+        },
+        {
+            "name": "Meetings",
+            "description": "إدارة الاجتماعات"
         },
         {
             "name": "Notifications",
@@ -32350,6 +33715,10 @@
         {
             "name": "Transfer Management",
             "description": "إدارة النقل والتحويلات - Transfer management endpoints"
+        },
+        {
+            "name": "Visitors",
+            "description": "إدارة الزوار"
         },
         {
             "name": "Employee Management",

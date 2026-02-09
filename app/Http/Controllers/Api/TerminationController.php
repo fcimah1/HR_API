@@ -102,7 +102,7 @@ class TerminationController extends Controller
      *         )
      *     ),
      *     @OA\Response(response=201, description="تم إضافة الطلب بنجاح"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
      * )
@@ -200,6 +200,7 @@ class TerminationController extends Controller
      *     @OA\Response(response=404, description="الطلب غير موجود"),
      *     @OA\Response(response=400, description="لا يمكن التعديل"),
      *     @OA\Response(response=401, description="غير مصرح"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=500, description="خطأ في الخادم")
      * )
      */

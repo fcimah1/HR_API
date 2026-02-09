@@ -57,7 +57,7 @@ class StoreResidenceRenewalRequest extends FormRequest
         throw new HttpResponseException(
             response()->json([
                 'status' => false,
-                'message' => 'البيانات غير صالحة',
+                'message' => 'ال فشل التحقق من البيانات ',
                 'errors' => $validator->errors(),
             ], 422)
         );

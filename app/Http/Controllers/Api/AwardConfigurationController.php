@@ -133,7 +133,7 @@ class AwardConfigurationController extends Controller
      *         )
      *     ),
      *     @OA\Response(response=400, description="خطأ في الطلب"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
      * )
@@ -188,7 +188,7 @@ class AwardConfigurationController extends Controller
      *     ),
      *     @OA\Response(response=200, description="تم التحديث بنجاح"),
      *     @OA\Response(response=404, description="النوع غير موجود"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
      * )
@@ -236,7 +236,7 @@ class AwardConfigurationController extends Controller
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(response=200, description="تم الحذف بنجاح"),
      *     @OA\Response(response=404, description="النوع غير موجود"),
-     *     @OA\Response(response=422, description="بيانات غير صالحة"),
+     *     @OA\Response(response=422, description=" فشل التحقق من البيانات "),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
      *     @OA\Response(response=500, description="خطأ في الخادم")
      * )
