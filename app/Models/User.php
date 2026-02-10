@@ -30,7 +30,6 @@ class User extends Authenticatable
     // get all fields of user roles table
     protected $allowedFields = ['user_id', 'user_role_id', 'user_type', 'company_id', 'first_name', 'last_name', 'email', 'username', 'password', 'company_name', 'trading_name', 'registration_no', 'government_tax', 'company_type_id', 'profile_photo', 'contact_number', 'gender', 'address_1', 'address_2', 'city', 'state', 'zipcode', 'country', 'last_login_date', 'last_logout_date', 'last_login_ip', 'is_logged_in', 'is_active', 'kiosk_code', 'fiscal_date', 'created_at'];
 
-
     /**
      * Send permissions with the user details when logged in
      */

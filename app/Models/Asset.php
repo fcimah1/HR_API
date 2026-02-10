@@ -47,6 +47,11 @@ class Asset extends Model
         'created_at' => 'datetime',
     ];
 
+    protected function getAssetImageAttribute($value)
+    {
+        return $value ? 'asset_image/' . $value : null;
+    }
+
     /**
      * Get the employee who owns the asset.
      */

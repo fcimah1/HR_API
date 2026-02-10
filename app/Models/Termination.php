@@ -31,6 +31,16 @@ class Termination extends Model
         'status',
     ];
 
+    protected function getDocumentFileAttribute($value)
+    {
+        return $value ? 'terminations/' . $value : null;
+    }
+
+    protected function getSignedFileAttribute($value)
+    {
+        return $value ? 'terminations/' . $value : null;
+    }
+
     public function employee()
     {
         return $this->belongsTo(User::class, 'employee_id', 'user_id');

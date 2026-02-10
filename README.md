@@ -126,6 +126,10 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 | Module                       | Base Path                              | Key Operations                                                                                              |
 | ---------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------- | --- |
 | **Employees**                | `/api/employees`                       | List, View, Create, Update, Export, Stats by Country, Relatives/Family                                      |
+| **Branches**                 | `/api/branches`                        | Manage company branches and locations                                                                       |
+| **Departments**              | `/api/departments`                     | Manage organizational departments                                                                           |
+| **Designations**             | `/api/designations`                    | Manage job titles and hierarchy levels                                                                      |
+| **Meetings**                 | `/api/meetings`                        | Schedule and manage meetings                                                                                |
 | **EndOfService**             | `/api/end-of-service`                  | Calculate, Save, List, Approve (See [docs/end_of_service_calculator.md](docs/end_of_service_calculator.md)) |
 | **Office Shifts**            | `/api/office-shifts`                   | CRUD for office working schedules                                                                           |
 | **Unified Requests**         | `/api/employees/{id}/requests/unified` | Combined view of all request types                                                                          |
@@ -144,6 +148,13 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 | **Announcements**            | `/api/announcements`                   | Create and view company-wide announcements                                                                  |
 | **Travels**                  | `/api/travels`                         | Apply, Approve/Reject                                                                                       |     |
 | **Complaints & Suggestions** | `/api/complaints`                      | Apply, Approve/Reject                                                                                       |
+| **Polls**                    | `/api/polls`                           | Create and vote on polls                                                                                    |
+| **Terminations**             | `/api/terminations`                    | Manage employee terminations (involuntary)                                                                  |
+| **Residence Renewals**       | `/api/residence-renewals`              | Track and renew employee residency documents                                                                |
+| **Holidays**                 | `/api/holidays`                        | Manage public holidays and company off-days                                                                 |
+| **System Logs**              | `/api/system-logs`                     | View system activity logs (Admin only)                                                                      |
+| **Jobs Monitor**             | `/api/jobs`                            | Monitor background jobs and failed queues                                                                   |
+| **Reports**                  | `/api/reports`                         | Comprehensive HR, Financial, and Attendance reports                                                         |
 | **Support Tickets**          | `/api/support-tickets`                 | Create, Reply, Close, Reopen (See [docs/SUPPORT_TICKETS.md](docs/SUPPORT_TICKETS.md))                       |
 | **Internal Helpdesk**        | `/api/internal-helpdesk`               | Internal IT/HR Support Tickets (See [docs/INTERNAL_HELPDESK_PLAN.md](docs/INTERNAL_HELPDESK_PLAN.md))       |
 | **Assets**                   | `/api/assets`                          | CRUD for company assets and equipment                                                                       |
@@ -169,13 +180,26 @@ To ensure scalability and maintainability, the project uses a layered architectu
 - **Repository Pattern:** Decoupling database logic from business logic.
 - **Service Layer:** Explicit business logic handling (e.g., `OfficeShiftService`).
 - **Form Requests:** Specialized request classes for robust input validation.
+- **Middleware:** Custom middleware for authentication and authorization.
+- **Events:** Custom events for business logic handling.
+- **Jobs:** Custom jobs for background processing.
+- **Notifications:** Custom notifications for business logic handling.
+- **Observers:** Custom observers for business logic handling.
+- **Resources:** Custom resources for responses formatting.
+- **Scopes:** Custom scopes for database queries.
+- **Services:** Custom services for business logic handling.
+- **Traits:** Custom traits for code reuse.
+- **Validators:** Custom validators for input validation.
+
+
 
 ### The `SimplePermissionService`
 
 The core of our access control. Unlike standard RBAC, this service evaluates **dynamic relationships**:
-
+- Is User Has Permission To Do Something? (`permission`)
 - Is User A numerically superior to User B? (`hierarchy_level`)
 - Is User A restricted from User B's department? (`OperationRestriction`)
+- Is User A restricted from User B's branch? (`OperationRestriction`)
 
 ### The `ApprovalService`
 

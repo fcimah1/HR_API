@@ -20,6 +20,10 @@ use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\EndOfServiceController;
 use App\Http\Controllers\Api\MeetingController;
 use App\Http\Controllers\Api\VisitorController;
+use App\Http\Controllers\Api\FinanceAccountController;
+use App\Http\Controllers\Api\FinanceCategoryController;
+use App\Http\Controllers\Api\FinanceTransactionController;
+use App\Http\Controllers\Api\StaffAccountController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -496,6 +500,70 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('/{id}', [EndOfServiceController::class, 'show'])->middleware('simple.permission:end_of_service1');
         Route::put('/{id}', [EndOfServiceController::class, 'update'])->middleware('simple.permission:end_of_service3');
         Route::delete('/{id}', [EndOfServiceController::class, 'destroy'])->middleware('simple.permission:end_of_service4');
+    });
+
+    // Finance Management - النظام المالي
+    Route::prefix('finance')->group(function () {
+        // Company Accounts - الحسابات المالية للشركة
+        route::prefix('accounts')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\StaffAccountController::class, 'index'])->middleware('simple.permission:accounts1');
+            Route::post('/', [\App\Http\Controllers\Api\StaffAccountController::class, 'store'])->middleware('simple.permission:accounts2');
+            Route::get('/{id}', [\App\Http\Controllers\Api\StaffAccountController::class, 'show'])->middleware('simple.permission:accounts1');
+            Route::put('/{id}', [\App\Http\Controllers\Api\StaffAccountController::class, 'update'])->middleware('simple.permission:accounts3');
+            Route::delete('/{id}', [\App\Http\Controllers\Api\StaffAccountController::class, 'destroy'])->middleware('simple.permission:accounts4');
+            // Route::get('/{id}/statement', [\App\Http\Controllers\Api\StaffAccountController::class, 'statement'])->middleware('simple.permission:accounts1');
+        });
+
+        // Employee Accounts - حسابات الموظفين
+        Route::prefix('employee-accounts')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\StaffAccountController::class, 'bankIndex'])->middleware('simple.permission:accounts1');
+            Route::post('/', [\App\Http\Controllers\Api\StaffAccountController::class, 'bankStore'])->middleware('simple.permission:accounts2');
+            Route::get('/{id}', [\App\Http\Controllers\Api\StaffAccountController::class, 'bankShow'])->middleware('simple.permission:accounts1');
+            Route::put('/{id}', [\App\Http\Controllers\Api\StaffAccountController::class, 'bankUpdate'])->middleware('simple.permission:accounts3');
+            Route::delete('/{id}', [\App\Http\Controllers\Api\StaffAccountController::class, 'bankDelete'])->middleware('simple.permission:accounts4');
+        });
+        // Deposits - الإيداعات
+        Route::prefix('deposits')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'depositIndex'])->middleware('simple.permission:deposit1');
+            Route::post('/', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'storeDeposit'])->middleware('simple.permission:deposit2');
+            Route::get('/{id}', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'showDeposit'])->middleware('simple.permission:deposit1');
+            Route::put('/{id}', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'updateDeposit'])->middleware('simple.permission:deposit3');
+            Route::delete('/{id}', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'destroyDeposit'])->middleware('simple.permission:deposit4');
+        });
+
+        // Expenses - المصروفات
+        Route::prefix('expenses')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'expenseIndex'])->middleware('simple.permission:expense1');
+            Route::post('/', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'storeExpense'])->middleware('simple.permission:expense2');
+            Route::get('/{id}', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'showExpense'])->middleware('simple.permission:expense1');
+            Route::put('/{id}', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'updateExpense'])->middleware('simple.permission:expense3');
+            Route::delete('/{id}', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'destroyExpense'])->middleware('simple.permission:expense4');
+        });
+
+        // Transfers & General Transactions
+        Route::get('/transactions', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'index'])->middleware('simple.permission:transaction1');
+        Route::get('/transactions/{id}', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'show'])->middleware('simple.permission:transaction1');
+        // Route::post('/transfers', [\App\Http\Controllers\Api\FinanceTransactionController::class, 'transfer'])->middleware('simple.permission:finance2');
+
+        // Categories - فئات المصروفات والإيرادات (من ci_erp_constants)
+        Route::prefix('categories')->group(function () {
+            // Expense Categories
+            Route::prefix('expense')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Api\FinanceCategoryController::class, 'expenseTypes'])->middleware('simple.permission:exp_cat1');
+                Route::post('/', [\App\Http\Controllers\Api\FinanceCategoryController::class, 'storeExpense'])->middleware('simple.permission:exp_cat2');
+                Route::put('/{id}', [\App\Http\Controllers\Api\FinanceCategoryController::class, 'updateExpense'])->middleware('simple.permission:exp_cat3');
+                Route::delete('/{id}', [\App\Http\Controllers\Api\FinanceCategoryController::class, 'destroyExpense'])->middleware('simple.permission:exp_cat4');
+            });
+
+            // Income (Deposit) Categories
+            Route::prefix('income')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Api\FinanceCategoryController::class, 'incomeTypes'])->middleware('simple.permission:dep_cat1');
+                Route::post('/', [\App\Http\Controllers\Api\FinanceCategoryController::class, 'storeIncome'])->middleware('simple.permission:dep_cat2');
+                Route::put('/{id}', [\App\Http\Controllers\Api\FinanceCategoryController::class, 'updateIncome'])->middleware('simple.permission:dep_cat3');
+                Route::delete('/{id}', [\App\Http\Controllers\Api\FinanceCategoryController::class, 'destroyIncome'])->middleware('simple.permission:dep_cat4');
+            });
+        });
+        Route::get('/payment-methods', [FinanceCategoryController::class, 'paymentMethods']);
     });
 
     // Asset Management Configuration (Categories & Brands)

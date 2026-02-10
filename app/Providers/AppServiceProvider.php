@@ -209,6 +209,9 @@ class AppServiceProvider extends ServiceProvider
 
         // End of Service repository
         $this->app->singleton(\App\Repository\Interface\EndOfServiceRepositoryInterface::class, \App\Repository\EndOfServiceRepository::class);
+
+        // Finance repository
+        $this->app->singleton(\App\Repository\Interface\FinanceRepositoryInterface::class, \App\Repository\FinanceRepository::class);
     }
 
     /**
