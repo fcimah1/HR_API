@@ -35,6 +35,11 @@ class Award extends Model
         'created_at' => 'datetime',
     ];
 
+    protected function getAwardPhotoAttribute($value)
+    {
+        return $value ? 'awards/' . $value : null;
+    }
+
     /**
      * Get the employee associated with the award.
      */

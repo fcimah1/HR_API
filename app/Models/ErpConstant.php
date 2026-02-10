@@ -11,7 +11,7 @@ class ErpConstant extends Model
 
     protected $table = 'ci_erp_constants';
     protected $primaryKey = 'constants_id';
-    public $timestamps = false;
+    const UPDATED_AT = null;
 
     /**
      * The attributes that are mass assignable.
@@ -47,6 +47,8 @@ class ErpConstant extends Model
     const TYPE_ASSETS_BRAND = 'assets_brand';
     const TYPE_AWARD_TYPE = 'award_type';
     const TYPE_RELIGION = 'religion';
+    const TYPE_EXPENSE_TYPE = 'expense_type';
+    const TYPE_INCOME_TYPE = 'income_type';
 
     /**
      * Scope for filtering by company

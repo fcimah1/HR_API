@@ -11971,6 +11971,882 @@
                 ]
             }
         },
+        "/api/finance/categories/expense": {
+            "get": {
+                "tags": [
+                    "Finance Categories"
+                ],
+                "summary": "عرض فئات المصروفات",
+                "operationId": "getFinanceExpenseCategories",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب فئات المصروفات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Finance Categories"
+                ],
+                "summary": "إنشاء فئة مصروفات جديدة",
+                "operationId": "storeFinanceExpenseCategory",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreCategoryRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء فئة المصروفات بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/categories/expense/{id}": {
+            "put": {
+                "tags": [
+                    "Finance Categories"
+                ],
+                "summary": "تحديث فئة مصروفات",
+                "operationId": "updateFinanceExpenseCategory",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateCategoryRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث فئة المصروفات بنجاح"
+                    },
+                    "404": {
+                        "description": "الفئة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Finance Categories"
+                ],
+                "summary": "حذف فئة مصروفات",
+                "operationId": "deleteFinanceExpenseCategory",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف فئة المصروفات بنجاح"
+                    },
+                    "404": {
+                        "description": "الفئة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/categories/income": {
+            "get": {
+                "tags": [
+                    "Finance Categories"
+                ],
+                "summary": "عرض فئات الإيداعات",
+                "operationId": "getFinanceIncomeCategories",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب فئات الإيداعات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Finance Categories"
+                ],
+                "summary": "إنشاء فئة إيداعات جديدة",
+                "operationId": "storeFinanceIncomeCategory",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreCategoryRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء فئة الإيداعات بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/categories/income/{id}": {
+            "put": {
+                "tags": [
+                    "Finance Categories"
+                ],
+                "summary": "تحديث فئة إيداعات",
+                "operationId": "updateFinanceIncomeCategory",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateCategoryRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث فئة الإيداعات بنجاح"
+                    },
+                    "404": {
+                        "description": "الفئة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Finance Categories"
+                ],
+                "summary": "حذف فئة إيداعات",
+                "operationId": "deleteFinanceIncomeCategory",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف فئة الإيداعات بنجاح"
+                    },
+                    "404": {
+                        "description": "الفئة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/payment-methods": {
+            "get": {
+                "tags": [
+                    "Finance Categories"
+                ],
+                "summary": "عرض طرق الدفع",
+                "operationId": "getFinancePaymentMethods",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب طرق الدفع بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/transactions": {
+            "get": {
+                "tags": [
+                    "Finance Transactions"
+                ],
+                "summary": "عرض جميع المعاملات المالية",
+                "operationId": "getFinanceTransactions",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد السجلات في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث في الوصف أو المرجع",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "account_id",
+                        "in": "query",
+                        "description": "تصفية حسب الحساب",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "transaction_type",
+                        "in": "query",
+                        "description": "نوع المعاملة",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "income",
+                                "expense",
+                                "transfer"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "description": "من تاريخ",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "description": "إلى تاريخ",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "dr_cr",
+                        "in": "query",
+                        "description": "مدين أو دائن",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "dr",
+                                "cr"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب المعاملات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/deposits": {
+            "get": {
+                "tags": [
+                    "Finance Deposits"
+                ],
+                "summary": "عرض سجل الإيداعات",
+                "operationId": "getFinanceDeposits",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث في الوصف أو المرجع",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الإيداعات بنجاح"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Finance Deposits"
+                ],
+                "summary": "تسجيل إيداع (Income / Credit)",
+                "operationId": "storeFinanceDeposit",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreDepositRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم تسجيل الإيداع بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/expenses": {
+            "get": {
+                "tags": [
+                    "Finance Expenses"
+                ],
+                "summary": "عرض سجل المصروفات",
+                "operationId": "getFinanceExpenses",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث في الوصف أو المرجع",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب المصروفات بنجاح"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Finance Expenses"
+                ],
+                "summary": "تسجيل مصروف (Expense / Debit)",
+                "operationId": "storeFinanceExpense",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreExpenseRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم تسجيل المصروف بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/deposits/{id}": {
+            "get": {
+                "tags": [
+                    "Finance Deposits"
+                ],
+                "summary": "عرض تفاصيل إيداع محدد",
+                "operationId": "getFinanceDepositShow",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب تفاصيل الإيداع بنجاح"
+                    },
+                    "404": {
+                        "description": "الإيداع غير موجود أو النوع غير مطابق"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Finance Deposits"
+                ],
+                "summary": "تعديل إيداع",
+                "operationId": "updateFinanceDeposit",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateDepositRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التعديل بنجاح"
+                    },
+                    "404": {
+                        "description": "المعاملة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Finance Deposits"
+                ],
+                "summary": "حذف إيداع",
+                "operationId": "deleteFinanceDeposit",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "المعاملة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/expenses/{id}": {
+            "get": {
+                "tags": [
+                    "Finance Expenses"
+                ],
+                "summary": "عرض تفاصيل مصروف محدد",
+                "operationId": "getFinanceExpenseShow",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب تفاصيل المصروف بنجاح"
+                    },
+                    "404": {
+                        "description": "المصروف غير موجود أو النوع غير مطابق"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Finance Expenses"
+                ],
+                "summary": "تعديل مصروف",
+                "operationId": "updateFinanceExpense",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateExpenseRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التعديل بنجاح"
+                    },
+                    "404": {
+                        "description": "المعاملة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Finance Expenses"
+                ],
+                "summary": "حذف مصروف",
+                "operationId": "deleteFinanceExpense",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "المعاملة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/transactions/{id}": {
+            "get": {
+                "tags": [
+                    "Finance Transactions"
+                ],
+                "summary": "عرض تفاصيل معاملة محدد",
+                "operationId": "getFinanceTransactionShow",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب تفاصيل المعاملة بنجاح"
+                    },
+                    "404": {
+                        "description": "المعاملة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/holidays": {
             "get": {
                 "tags": [
@@ -23744,6 +24620,400 @@
                 ]
             }
         },
+        "/api/finance/accounts": {
+            "get": {
+                "tags": [
+                    "Finance Accounts"
+                ],
+                "summary": "عرض جميع الحسابات المالية للشركة",
+                "operationId": "getFinanceAccounts",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد السجلات في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث في اسم الحساب أو الرقم",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الحسابات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Finance Accounts"
+                ],
+                "summary": "إنشاء حساب مالي جديد",
+                "operationId": "storeFinanceAccount",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreAccountRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء الحساب بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/accounts/{id}": {
+            "get": {
+                "tags": [
+                    "Finance Accounts"
+                ],
+                "summary": "عرض حساب مالي محدد",
+                "operationId": "getFinanceAccount",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الحساب بنجاح"
+                    },
+                    "404": {
+                        "description": "الحساب غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Finance Accounts"
+                ],
+                "summary": "تحديث حساب مالي",
+                "operationId": "updateFinanceAccount",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAccountRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث الحساب بنجاح"
+                    },
+                    "404": {
+                        "description": "الحساب غير موجود"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Finance Accounts"
+                ],
+                "summary": "حذف حساب مالي",
+                "operationId": "deleteFinanceAccount",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف الحساب بنجاح"
+                    },
+                    "404": {
+                        "description": "الحساب غير موجود"
+                    },
+                    "422": {
+                        "description": "لا يمكن حذف حساب يحتوي على معاملات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/employee-accounts": {
+            "get": {
+                "tags": [
+                    "Finance Accounts"
+                ],
+                "summary": "عرض بنوك الموظفين",
+                "operationId": "getEmployeeAccounts",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد السجلات في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث في اسم الحساب",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب بنوك الموظفين بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Finance Accounts"
+                ],
+                "summary": "إضافة بنك جديد",
+                "operationId": "storeEmployeeAccount",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreEmployeeAccountRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة بنك جديد بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل إضافة بنك جديد"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/employee-accounts/{id}": {
+            "get": {
+                "tags": [
+                    "Finance Accounts"
+                ],
+                "summary": "عرض تفاصيل بنك ",
+                "operationId": "getEmployeeBank",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب تفاصيل البنك بنجاح"
+                    },
+                    "404": {
+                        "description": "البنك غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Finance Accounts"
+                ],
+                "summary": "تحديث بنك",
+                "operationId": "updateEmployeeBank",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreEmployeeAccountRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث البنك بنجاح"
+                    },
+                    "404": {
+                        "description": "البنك غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Finance Accounts"
+                ],
+                "summary": "حذف بنك",
+                "operationId": "deleteEmployeeBank",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف البنك بنجاح"
+                    },
+                    "404": {
+                        "description": "البنك غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/suggestions": {
             "get": {
                 "tags": [
@@ -31864,6 +33134,408 @@
                 },
                 "type": "object"
             },
+            "StoreAccountRequest": {
+                "title": "StoreAccountRequest",
+                "description": "طلب إنشاء حساب مالي جديد",
+                "required": [
+                    "account_name"
+                ],
+                "properties": {
+                    "account_name": {
+                        "description": "اسم الحساب",
+                        "type": "string",
+                        "example": "حساب البنك الأهلي"
+                    },
+                    "account_opening_balance": {
+                        "description": "الرصيد الافتتاحي",
+                        "type": "number",
+                        "format": "float",
+                        "example": 10000
+                    },
+                    "account_number": {
+                        "description": "رقم الحساب البنكي",
+                        "type": "string",
+                        "example": "SA1234567890"
+                    },
+                    "branch_code": {
+                        "description": "رمز الفرع",
+                        "type": "string",
+                        "example": "001"
+                    },
+                    "bank_branch": {
+                        "description": "فرع البنك",
+                        "type": "string",
+                        "example": "فرع الرياض"
+                    }
+                },
+                "type": "object"
+            },
+            "StoreCategoryRequest": {
+                "title": "StoreCategoryRequest",
+                "description": "طلب إنشاء فئة مالية جديدة",
+                "required": [
+                    "name",
+                    "type"
+                ],
+                "properties": {
+                    "name": {
+                        "description": "اسم الفئة",
+                        "type": "string",
+                        "example": "رواتب"
+                    }
+                },
+                "type": "object"
+            },
+            "StoreDepositRequest": {
+                "title": "StoreDepositRequest",
+                "description": "طلب تسجيل إيداع جديد",
+                "required": [
+                    "account_id",
+                    "amount"
+                ],
+                "properties": {
+                    "account_id": {
+                        "description": "معرف الحساب المالي",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "amount": {
+                        "description": "مبلغ الإيداع",
+                        "type": "number",
+                        "format": "float",
+                        "example": 5000
+                    },
+                    "transaction_date": {
+                        "description": "تاريخ المعاملة",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-01-15"
+                    },
+                    "entity_category_id": {
+                        "description": "فئة الإيداع",
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "entity_id": {
+                        "description": "معرف الجهة",
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "entity_type": {
+                        "description": "نوع الجهة",
+                        "type": "string",
+                        "example": "client"
+                    },
+                    "payment_method_id": {
+                        "description": "طريقة الدفع",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "reference": {
+                        "description": "رقم المرجع",
+                        "type": "string",
+                        "example": "INV-2026-001"
+                    },
+                    "description": {
+                        "description": "الوصف",
+                        "type": "string",
+                        "example": "إيداع نقدي من العميل"
+                    },
+                    "attachment": {
+                        "description": "المرفق (صورة أو ملف)",
+                        "type": "string",
+                        "format": "binary"
+                    }
+                },
+                "type": "object"
+            },
+            "StoreEmployeeAccountRequest": {
+                "title": "StoreEmployeeAccountRequest",
+                "description": "طلب إنشاء حساب جديد",
+                "required": [
+                    "account_name"
+                ],
+                "properties": {
+                    "account_name": {
+                        "description": "اسم الحساب",
+                        "type": "string",
+                        "example": "بنك الوفا"
+                    }
+                },
+                "type": "object"
+            },
+            "StoreExpenseRequest": {
+                "title": "StoreExpenseRequest",
+                "description": "طلب تسجيل مصروف جديد",
+                "required": [
+                    "account_id",
+                    "amount"
+                ],
+                "properties": {
+                    "account_id": {
+                        "description": "معرف الحساب المالي",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "amount": {
+                        "description": "مبلغ المصروف",
+                        "type": "number",
+                        "format": "float",
+                        "example": 1500
+                    },
+                    "transaction_date": {
+                        "description": "تاريخ المعاملة",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-01-15"
+                    },
+                    "entity_category_id": {
+                        "description": "فئة المصروف",
+                        "type": "integer",
+                        "example": 5
+                    },
+                    "employee_id": {
+                        "description": "معرف الموظف",
+                        "type": "integer",
+                        "example": 767
+                    },
+                    "entity_type": {
+                        "description": "نوع الجهة",
+                        "type": "string",
+                        "example": "employee_account"
+                    },
+                    "payment_method_id": {
+                        "description": "طريقة الدفع",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "reference": {
+                        "description": "رقم المرجع",
+                        "type": "string",
+                        "example": "EXP-2026-001"
+                    },
+                    "description": {
+                        "description": "الوصف",
+                        "type": "string",
+                        "example": "شراء لوازم مكتبية"
+                    },
+                    "attachment": {
+                        "description": "المرفق (صورة أو ملف)",
+                        "type": "string",
+                        "format": "binary"
+                    }
+                },
+                "type": "object"
+            },
+            "StoreTransferRequest": {
+                "title": "StoreTransferRequest",
+                "description": "طلب تحويل بين حسابين",
+                "required": [
+                    "account_id",
+                    "to_account_id",
+                    "amount"
+                ],
+                "properties": {
+                    "account_id": {
+                        "description": "الحساب المصدر",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "to_account_id": {
+                        "description": "الحساب الهدف",
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "amount": {
+                        "description": "مبلغ التحويل",
+                        "type": "number",
+                        "format": "float",
+                        "example": 3000
+                    },
+                    "transaction_date": {
+                        "description": "تاريخ المعاملة",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-01-15"
+                    },
+                    "payment_method_id": {
+                        "description": "طريقة الدفع",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "reference": {
+                        "description": "رقم المرجع",
+                        "type": "string",
+                        "example": "TRF-2026-001"
+                    },
+                    "description": {
+                        "description": "الوصف",
+                        "type": "string",
+                        "example": "تحويل بين الحسابات"
+                    },
+                    "attachment": {
+                        "description": "المرفق (صورة أو ملف)",
+                        "type": "string",
+                        "format": "binary"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateAccountRequest": {
+                "title": "UpdateAccountRequest",
+                "description": "طلب تحديث حساب مالي",
+                "properties": {
+                    "account_name": {
+                        "description": "اسم الحساب",
+                        "type": "string",
+                        "example": "حساب البنك الأهلي - محدث"
+                    },
+                    "account_number": {
+                        "description": "رقم الحساب البنكي",
+                        "type": "string",
+                        "example": "SA1234567890"
+                    },
+                    "branch_code": {
+                        "description": "رمز الفرع",
+                        "type": "string",
+                        "example": "002"
+                    },
+                    "bank_branch": {
+                        "description": "فرع البنك",
+                        "type": "string",
+                        "example": "فرع جدة"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateCategoryRequest": {
+                "title": "UpdateCategoryRequest",
+                "description": "طلب تحديث فئة مالية",
+                "properties": {
+                    "name": {
+                        "description": "اسم الفئة",
+                        "type": "string",
+                        "example": "رواتب - محدث"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateDepositRequest": {
+                "title": "UpdateDepositRequest",
+                "description": "طلب تحديث إيداع موجود",
+                "required": [
+                    "account_id",
+                    "amount"
+                ],
+                "properties": {
+                    "account_id": {
+                        "description": "معرف الحساب المالي",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "amount": {
+                        "description": "مبلغ الإيداع",
+                        "type": "number",
+                        "format": "float",
+                        "example": 5000
+                    },
+                    "employee_id": {
+                        "description": "معرف الموظف",
+                        "type": "integer",
+                        "example": 767
+                    },
+                    "transaction_date": {
+                        "description": "تاريخ المعاملة",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-01-15"
+                    },
+                    "entity_category_id": {
+                        "description": "فئة الإيداع",
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "payment_method_id": {
+                        "description": "طريقة الدفع",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "reference": {
+                        "description": "رقم المرجع",
+                        "type": "string",
+                        "example": "INV-2026-001-UPD"
+                    },
+                    "description": {
+                        "description": "الوصف",
+                        "type": "string",
+                        "example": "تحديث وصف الإيداع"
+                    },
+                    "attachment": {
+                        "description": "المرفق (صورة أو ملف)",
+                        "type": "string",
+                        "format": "binary"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateExpenseRequest": {
+                "title": "UpdateExpenseRequest",
+                "description": "طلب تحديث مصروف موجود",
+                "required": [
+                    "account_id",
+                    "amount"
+                ],
+                "properties": {
+                    "account_id": {
+                        "description": "معرف الحساب المالي",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "amount": {
+                        "description": "مبلغ المصروف",
+                        "type": "number",
+                        "format": "float",
+                        "example": 1500
+                    },
+                    "transaction_date": {
+                        "description": "تاريخ المعاملة",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-01-15"
+                    },
+                    "entity_category_id": {
+                        "description": "فئة المصروف",
+                        "type": "integer",
+                        "example": 5
+                    },
+                    "employee_id": {
+                        "description": "معرف الموظف",
+                        "type": "integer",
+                        "example": 767
+                    },
+                    "payment_method_id": {
+                        "description": "طريقة الدفع",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "reference": {
+                        "description": "رقم المرجع",
+                        "type": "string",
+                        "example": "EXP-2026-001-UPD"
+                    },
+                    "description": {
+                        "description": "الوصف",
+                        "type": "string",
+                        "example": "تحديث وصف المصروف"
+                    },
+                    "attachment": {
+                        "description": "المرفق (صورة أو ملف)",
+                        "type": "string",
+                        "format": "binary"
+                    }
+                },
+                "type": "object"
+            },
             "CreateInternalTicketRequest": {
                 "required": [
                     "subject",
@@ -33625,6 +35297,22 @@
             "description": "إدارة حسابات نهاية الخدمة"
         },
         {
+            "name": "Finance Categories",
+            "description": "إدارة فئات المصروفات والإيرادات"
+        },
+        {
+            "name": "Finance Transactions",
+            "description": "إدارة المعاملات المالية - عرض وتحويلات"
+        },
+        {
+            "name": "Finance Deposits",
+            "description": "إدارة عمليات الإيداع"
+        },
+        {
+            "name": "Finance Expenses",
+            "description": "إدارة عمليات المصروفات"
+        },
+        {
             "name": "Holidays",
             "description": "Public holidays management"
         },
@@ -33687,6 +35375,10 @@
         {
             "name": "Resignation Management",
             "description": "إدارة الاستقالات - Resignations management endpoints"
+        },
+        {
+            "name": "Finance Accounts",
+            "description": "إدارة الحسابات المالية للشركة وحسابات الموظفين"
         },
         {
             "name": "Suggestion Management",
