@@ -21648,6 +21648,748 @@
                 ]
             }
         },
+        "/api/inventory/product-categories": {
+            "get": {
+                "tags": [
+                    "Inventory (Product Categories)"
+                ],
+                "summary": "عرض فئات المنتجات",
+                "operationId": "getProductCategories",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "البحث بالاسم",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "500": {
+                        "description": "خطأ في جلب بيانات فئات المنتجات"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Inventory (Product Categories)"
+                ],
+                "summary": "إضافة فئة منتج",
+                "operationId": "storeProductCategory",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "category_name"
+                                ],
+                                "properties": {
+                                    "category_name": {
+                                        "description": "اسم الفئة",
+                                        "type": "string",
+                                        "example": "Electronics"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم الإضافة بنجاح"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory/product-categories/{id}": {
+            "get": {
+                "tags": [
+                    "Inventory (Product Categories)"
+                ],
+                "summary": "عرض تفاصيل فئة المنتج",
+                "operationId": "getProductCategoryDetails",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "404": {
+                        "description": "الفئة غير موجودة"
+                    },
+                    "500": {
+                        "description": "خطأ في جلب بيانات فئة المنتج"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Inventory (Product Categories)"
+                ],
+                "summary": "تحديث فئة منتج",
+                "operationId": "updateProductCategory",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "category_name"
+                                ],
+                                "properties": {
+                                    "category_name": {
+                                        "description": "اسم الفئة",
+                                        "type": "string",
+                                        "example": "Electronics"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التحديث بنجاح"
+                    },
+                    "404": {
+                        "description": "الفئة غير موجودة"
+                    },
+                    "500": {
+                        "description": "خطأ في تحديث بيانات فئة المنتج"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Inventory (Product Categories)"
+                ],
+                "summary": "حذف فئة منتج",
+                "operationId": "deleteProductCategory",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "الفئة غير موجودة"
+                    },
+                    "500": {
+                        "description": "خطأ في حذف فئة المنتج"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory/products": {
+            "get": {
+                "tags": [
+                    "Inventory (Products)"
+                ],
+                "summary": "عرض قائمة المنتجات",
+                "operationId": "getProducts",
+                "parameters": [
+                    {
+                        "name": "product_name",
+                        "in": "query",
+                        "description": "البحث باسم المنتج",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "warehouse_id",
+                        "in": "query",
+                        "description": "فلترة بالمخزن",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "description": "فلترة بالفئة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "out_of_stock",
+                        "in": "query",
+                        "description": "المنتجات غير المتوفرة فقط",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "expired",
+                        "in": "query",
+                        "description": "المنتجات منتهية الصلاحية فقط",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "500": {
+                        "description": "خطأ في جلب بيانات المنتجات"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Inventory (Products)"
+                ],
+                "summary": "إضافة منتج جديد",
+                "operationId": "storeProduct",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateProductRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة المنتج بنجاح"
+                    },
+                    "422": {
+                        "description": "بيانات غير صحيحة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في إضافة المنتج"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory/products/{id}": {
+            "get": {
+                "tags": [
+                    "Inventory (Products)"
+                ],
+                "summary": "عرض تفاصيل منتج",
+                "operationId": "getProductDetails",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "404": {
+                        "description": "المنتج غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في جلب بيانات المنتج"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Inventory (Products)"
+                ],
+                "summary": "تحديث منتج",
+                "description": "يستخدم POST مع إضافة _method=PUT لتحديث البيانات بما فيها الصور",
+                "operationId": "updateProduct",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProductRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التحديث بنجاح"
+                    },
+                    "404": {
+                        "description": "المنتج غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في تحديث بيانات المنتج"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Inventory (Products)"
+                ],
+                "summary": "حذف منتج",
+                "operationId": "deleteProduct",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "المنتج غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في حذف المنتج"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory/products/{id}/rating": {
+            "patch": {
+                "tags": [
+                    "Inventory (Products)"
+                ],
+                "summary": "تحديث تقييم المنتج",
+                "operationId": "updateProductRating",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "product_rating",
+                        "in": "query",
+                        "description": "تقييم المنتج من 1 إلى 5",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                1,
+                                2,
+                                3,
+                                4,
+                                5
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم التحديث بنجاح"
+                    },
+                    "404": {
+                        "description": "المنتج غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في تحديث تقييم المنتج"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory/products/out-of-stock": {
+            "get": {
+                "tags": [
+                    "Inventory (Products)"
+                ],
+                "summary": "عرض قائمة المنتجات غير المتوفرة",
+                "operationId": "getOutOfStockProducts",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "500": {
+                        "description": "خطأ في جلب بيانات المنتجات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory/products/expired": {
+            "get": {
+                "tags": [
+                    "Inventory (Products)"
+                ],
+                "summary": "عرض قائمة المنتجات منتهية الصلاحية",
+                "operationId": "getExpiredProducts",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "500": {
+                        "description": "خطأ في جلب بيانات المنتجات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory/products/constants": {
+            "get": {
+                "tags": [
+                    "Inventory (Products)"
+                ],
+                "summary": "جلب ثوابت المنتجات (أنواع الباركود والتقييمات)",
+                "operationId": "getProductConstants",
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم جلب البيانات بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "barcode_types": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "string",
+                                                                "example": "CODE128"
+                                                            },
+                                                            "label": {
+                                                                "type": "string",
+                                                                "example": "CODE128"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "ratings": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "integer",
+                                                                "example": 5
+                                                            },
+                                                            "label": {
+                                                                "type": "string",
+                                                                "example": "ممتاز"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/promotions": {
             "get": {
                 "tags": [
@@ -26096,6 +26838,9 @@
                     },
                     "500": {
                         "description": "خطأ في الخادم"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
                     }
                 },
                 "security": [
@@ -26170,6 +26915,9 @@
                     },
                     "500": {
                         "description": "خطأ في الخادم"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
                     }
                 },
                 "security": [
@@ -26216,6 +26964,9 @@
                     },
                     "500": {
                         "description": "خطأ في الخادم"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
                     }
                 },
                 "security": [
@@ -26252,6 +27003,9 @@
                     },
                     "500": {
                         "description": "خطأ في الخادم"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
                     }
                 },
                 "security": [
@@ -27029,6 +27783,274 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory/tax-types": {
+            "get": {
+                "tags": [
+                    "Inventory (Tax Types)"
+                ],
+                "summary": "عرض أنواع الضرائب",
+                "operationId": "getTaxTypes",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "البحث بالاسم",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "500": {
+                        "description": "خطأ في جلب بيانات أنواع الضرائب"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Inventory (Tax Types)"
+                ],
+                "summary": "إضافة نوع ضريبة",
+                "operationId": "storeTaxType",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "tax_name",
+                                    "tax_rate",
+                                    "tax_type"
+                                ],
+                                "properties": {
+                                    "tax_name": {
+                                        "description": "اسم نوع الضريبة",
+                                        "type": "string",
+                                        "example": "VAT"
+                                    },
+                                    "tax_rate": {
+                                        "description": "معدل الضريبة",
+                                        "type": "string",
+                                        "example": "15"
+                                    },
+                                    "tax_type": {
+                                        "description": "نوع الضريبة",
+                                        "type": "string",
+                                        "enum": [
+                                            "percentage",
+                                            "fixed"
+                                        ],
+                                        "example": "percentage"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم الإضافة بنجاح"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory/tax-types/{id}": {
+            "get": {
+                "tags": [
+                    "Inventory (Tax Types)"
+                ],
+                "summary": "عرض تفاصيل نوع الضريبة",
+                "operationId": "getTaxTypeDetails",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "404": {
+                        "description": "نوع الضريبة غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في جلب بيانات نوع الضريبة"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Inventory (Tax Types)"
+                ],
+                "summary": "تحديث نوع ضريبة",
+                "operationId": "updateTaxType",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "tax_name",
+                                    "tax_rate",
+                                    "tax_type"
+                                ],
+                                "properties": {
+                                    "tax_name": {
+                                        "description": "اسم نوع الضريبة",
+                                        "type": "string",
+                                        "example": "VAT"
+                                    },
+                                    "tax_rate": {
+                                        "description": "معدل الضريبة",
+                                        "type": "string",
+                                        "example": "15"
+                                    },
+                                    "tax_type": {
+                                        "description": "نوع الضريبة",
+                                        "type": "string",
+                                        "enum": [
+                                            "percentage",
+                                            "fixed"
+                                        ],
+                                        "example": "percentage"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التحديث بنجاح"
+                    },
+                    "404": {
+                        "description": "نوع الضريبة غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في تحديث نوع الضريبة"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Inventory (Tax Types)"
+                ],
+                "summary": "حذف نوع ضريبة",
+                "operationId": "deleteTaxType",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "نوع الضريبة غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في حذف نوع الضريبة"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
                     }
                 },
                 "security": [
@@ -32483,6 +33505,9 @@
                     },
                     "500": {
                         "description": "خطأ في الخادم"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
                     }
                 },
                 "security": [
@@ -32557,6 +33582,9 @@
                     },
                     "500": {
                         "description": "خطأ في الخادم"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
                     }
                 },
                 "security": [
@@ -32603,6 +33631,9 @@
                     },
                     "500": {
                         "description": "خطأ في الخادم"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
                     }
                 },
                 "security": [
@@ -32639,6 +33670,9 @@
                     },
                     "500": {
                         "description": "خطأ في الخادم"
+                    },
+                    "422": {
+                        "description": "خطأ في التحقق من البيانات"
                     }
                 },
                 "security": [
@@ -34456,6 +35490,218 @@
                 },
                 "type": "object"
             },
+            "CreateProductRequest": {
+                "required": [
+                    "product_name",
+                    "product_qty",
+                    "warehouse_id",
+                    "category_id",
+                    "purchase_price",
+                    "retail_price",
+                    "reorder_stock",
+                    "expiration_date",
+                    "product_sku"
+                ],
+                "properties": {
+                    "product_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "product_qty": {
+                        "description": "كمية المنتج",
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "reorder_stock": {
+                        "description": "كمية إعادة التخزين",
+                        "type": "integer",
+                        "example": 5
+                    },
+                    "warehouse_id": {
+                        "description": "المخزن",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "category_id": {
+                        "description": "الفئة",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "purchase_price": {
+                        "description": "سعر الشراء",
+                        "type": "number",
+                        "format": "float",
+                        "example": 10.5
+                    },
+                    "retail_price": {
+                        "description": "سعر البيع",
+                        "type": "number",
+                        "format": "float",
+                        "example": 15.5
+                    },
+                    "expiration_date": {
+                        "description": "تاريخ الانتهاء",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2025-12-31"
+                    },
+                    "barcode": {
+                        "description": "باركود",
+                        "type": "string",
+                        "example": "123456789"
+                    },
+                    "barcode_type": {
+                        "description": "نوع الباركود",
+                        "type": "string",
+                        "enum": [
+                            "CODE39",
+                            "CODE93",
+                            "CODE128",
+                            "ISBN",
+                            "CODABAR",
+                            "POSTNET",
+                            "EAN-8",
+                            "EAN-13",
+                            "UPC-A",
+                            "UPC-E"
+                        ],
+                        "example": "CODE128"
+                    },
+                    "product_sku": {
+                        "description": "SKU",
+                        "type": "string",
+                        "example": "SKU123456"
+                    },
+                    "product_serial_number": {
+                        "description": "رقم التسلسلي",
+                        "type": "string",
+                        "example": "SERIAL123456"
+                    },
+                    "product_description": {
+                        "description": "وصف المنتج",
+                        "type": "string",
+                        "example": "Product Description"
+                    },
+                    "product_image": {
+                        "description": "صورة المنتج",
+                        "type": "string",
+                        "format": "binary"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateProductRatingRequest": {
+                "title": "Update Product Rating Request",
+                "description": "طلب تحديث تقييم المنتج",
+                "required": [
+                    "product_rating"
+                ],
+                "properties": {
+                    "product_rating": {
+                        "description": "تقييم المنتج من 1 إلى 5",
+                        "type": "integer",
+                        "enum": [
+                            1,
+                            2,
+                            3,
+                            4,
+                            5
+                        ],
+                        "example": 4
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateProductRequest": {
+                "required": [
+                    "product_name",
+                    "warehouse_id",
+                    "category_id",
+                    "purchase_price",
+                    "retail_price",
+                    "expiration_date",
+                    "product_sku",
+                    "product_image"
+                ],
+                "properties": {
+                    "product_name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "example": "Product Name"
+                    },
+                    "warehouse_id": {
+                        "description": "المخزن",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "category_id": {
+                        "description": "الفئة",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "purchase_price": {
+                        "description": "سعر الشراء",
+                        "type": "number",
+                        "format": "float",
+                        "example": 10.5
+                    },
+                    "retail_price": {
+                        "description": "سعر البيع",
+                        "type": "number",
+                        "format": "float",
+                        "example": 15.5
+                    },
+                    "expiration_date": {
+                        "description": "تاريخ الانتهاء",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2025-12-31"
+                    },
+                    "barcode": {
+                        "description": "باركود",
+                        "type": "string",
+                        "example": "123456789"
+                    },
+                    "barcode_type": {
+                        "description": "نوع الباركود",
+                        "type": "string",
+                        "enum": [
+                            "CODE39",
+                            "CODE93",
+                            "CODE128",
+                            "ISBN",
+                            "CODABAR",
+                            "POSTNET",
+                            "EAN-8",
+                            "EAN-13",
+                            "UPC-A",
+                            "UPC-E"
+                        ],
+                        "example": "CODE128"
+                    },
+                    "product_sku": {
+                        "description": "SKU",
+                        "type": "string",
+                        "example": "SKU123456"
+                    },
+                    "product_serial_number": {
+                        "description": "رقم التسلسلي",
+                        "type": "string",
+                        "example": "SERIAL123456"
+                    },
+                    "product_description": {
+                        "description": "وصف المنتج",
+                        "type": "string",
+                        "example": "Product Description"
+                    },
+                    "product_image": {
+                        "description": "صورة المنتج",
+                        "type": "string",
+                        "format": "binary"
+                    }
+                },
+                "type": "object"
+            },
             "CreateSuggestionRequest": {
                 "required": [
                     "title",
@@ -35613,6 +36859,101 @@
                 },
                 "type": "object"
             },
+            "ProductCategoryResource": {
+                "title": "Product Category Resource",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "category_name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "TaxTypeResource": {
+                "title": "Tax Type Resource",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "tax_name": {
+                        "type": "string"
+                    },
+                    "tax_rate": {
+                        "type": "string"
+                    },
+                    "tax_type": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ProductResource": {
+                "title": "Product Resource",
+                "properties": {
+                    "product_id": {
+                        "type": "integer"
+                    },
+                    "product_name": {
+                        "type": "string"
+                    },
+                    "product_qty": {
+                        "type": "integer"
+                    },
+                    "reorder_stock": {
+                        "type": "integer"
+                    },
+                    "barcode": {
+                        "type": "string"
+                    },
+                    "barcode_type": {
+                        "type": "string"
+                    },
+                    "warehouse_name": {
+                        "type": "string"
+                    },
+                    "category_name": {
+                        "type": "string"
+                    },
+                    "product_sku": {
+                        "type": "string"
+                    },
+                    "product_serial_number": {
+                        "type": "string"
+                    },
+                    "purchase_price": {
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "retail_price": {
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "expiration_date": {
+                        "type": "string"
+                    },
+                    "product_image": {
+                        "type": "string"
+                    },
+                    "product_description": {
+                        "type": "string"
+                    },
+                    "product_rating": {
+                        "type": "integer"
+                    },
+                    "added_by_name": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
             "SupplierResource": {
                 "title": "SupplierResource",
                 "description": "Resource for Supplier",
@@ -36179,6 +37520,14 @@
             "description": "ادارة الاستبيانات"
         },
         {
+            "name": "Inventory (Product Categories)",
+            "description": "إدارة فئات المنتجات"
+        },
+        {
+            "name": "Inventory (Products)",
+            "description": "إدارة منتجات المخزون"
+        },
+        {
             "name": "Promotion Management",
             "description": "إدارة الترقيات"
         },
@@ -36209,6 +37558,10 @@
         {
             "name": "Support Tickets",
             "description": "تذاكر الدعم الفني - Support Tickets management endpoints"
+        },
+        {
+            "name": "Inventory (Tax Types)",
+            "description": "إدارة أنواع الضرائب للمخزون"
         },
         {
             "name": "Termination Management",
