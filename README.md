@@ -47,6 +47,17 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 - **Asset Management:** Cataloging company assets with category and brand configuration.
 - **Award Management:** Recording employee recognitions, cash awards, and gift certificates with multi-level approval.
 
+### 🏭 Inventory Management
+
+- **Warehouses:** Complete warehouse management with hierarchical access control.
+- **Suppliers:** Manage suppliers and vendors information with isolated company data.
+
+### 💰 Finance Management
+
+- **Accounts:** Manage company-staff accounts and employee bank accounts.
+- **Transactions:** track deposits and expenses (Income/Expense) with categorized logging.
+- **Categories:** Configurable income and expense categories.
+
 ### 🔐 Security & Access Control
 
 - **OAuth2 Authentication:** Secure API access using Bearer tokens.
@@ -159,6 +170,14 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 | **Internal Helpdesk**        | `/api/internal-helpdesk`               | Internal IT/HR Support Tickets (See [docs/INTERNAL_HELPDESK_PLAN.md](docs/INTERNAL_HELPDESK_PLAN.md))       |
 | **Assets**                   | `/api/assets`                          | CRUD for company assets and equipment                                                                       |
 | **Awards**                   | `/api/awards`                          | Manage employee awards with approval cycle                                                                  |
+| **Inventory (Warehouses)**   | `/api/inventory/warehouses`            | Manage company warehouses with hierarchical access                                                          |
+| **Inventory (Suppliers)**    | `/api/inventory/suppliers`             | Manage suppliers and vendor information                                                                     |
+| **Finance (Accounts)**       | `/api/finance/accounts`                | Manage staff financial accounts                                                                             |
+| **Finance (Emp. Accounts)**  | `/api/finance/employee-accounts`       | Manage employee bank accounts                                                                               |
+| **Finance (Deposits)**       | `/api/finance/deposits`                | Record and manage income transactions                                                                       |
+| **Finance (Expenses)**       | `/api/finance/expenses`                | Record and manage expense transactions                                                                      |
+| **Finance (Transactions)**   | `/api/finance/transactions`            | View all financial transactions                                                                             |
+| **Finance (Categories)**     | `/api/finance/categories`              | Manage income/expense categories                                                                            |
 | **Promotions**               | `/api/promotions`                      | Manage employee career movements and salary updates                                                         |
 | **Training**                 | `/api/trainings`                       | Manage Training Sessions (See [docs/TRAINING.md](docs/TRAINING.md))                                         |
 | **Trainers**                 | `/api/trainers`                        | Manage Trainers (See [docs/TRAINING.md](docs/TRAINING.md))                                                  |
@@ -191,11 +210,10 @@ To ensure scalability and maintainability, the project uses a layered architectu
 - **Traits:** Custom traits for code reuse.
 - **Validators:** Custom validators for input validation.
 
-
-
 ### The `SimplePermissionService`
 
 The core of our access control. Unlike standard RBAC, this service evaluates **dynamic relationships**:
+
 - Is User Has Permission To Do Something? (`permission`)
 - Is User A numerically superior to User B? (`hierarchy_level`)
 - Is User A restricted from User B's department? (`OperationRestriction`)

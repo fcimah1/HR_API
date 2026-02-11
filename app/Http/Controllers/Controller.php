@@ -8,7 +8,7 @@ namespace App\Http\Controllers;
  *     version="1.0.0",
  *     description="API for HR Management System with Employee and Leave Management",
  *     @OA\Contact(
- *         email="admin@hrapi.com"
+ *         email="mohamed.firstsoft@gmail.com"
  *     )
  * )
  * 

@@ -212,6 +212,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Finance repository
         $this->app->singleton(\App\Repository\Interface\FinanceRepositoryInterface::class, \App\Repository\FinanceRepository::class);
+
+        // Warehouse repository
+        $this->app->bind(\App\Repository\Interface\WarehouseRepositoryInterface::class, \App\Repository\WarehouseRepository::class);
+
+        // Supplier repository
+        $this->app->bind(\App\Repository\Interface\SupplierRepositoryInterface::class, \App\Repository\SupplierRepository::class);
     }
 
     /**
