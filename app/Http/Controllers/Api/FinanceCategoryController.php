@@ -169,7 +169,7 @@ class FinanceCategoryController extends Controller
      * )
      */
 
-    
+
     public function incomeTypes(Request $request): JsonResponse
     {
         try {
@@ -196,7 +196,7 @@ class FinanceCategoryController extends Controller
             return $this->handleException($e, 'FinanceCategoryController@incomeTypes');
         }
     }
-   
+
 
     /**
      * @OA\Post(
@@ -234,6 +234,11 @@ class FinanceCategoryController extends Controller
 
             return $this->successResponse($category, 'تم إنشاء الفئة بنجاح', 201);
         } catch (\Exception $e) {
+            Log::error("Finance " . ucfirst($type) . " Category Creation Failed", [
+                'company_id' => $companyId,
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()->user_id
+            ]);
             return $this->handleException($e, 'FinanceCategoryController@store' . ucfirst($type));
         }
     }
@@ -266,6 +271,11 @@ class FinanceCategoryController extends Controller
                 ->first();
 
             if (!$category) {
+                Log::warning("Finance " . ucfirst($dbType) . " Category Update Not Found", [
+                    'category_id' => $id,
+                    'company_id' => $companyId,
+                    'user_id' => $request->user()->user_id
+                ]);
                 return $this->notFoundResponse('الفئة غير موجودة');
             }
 
@@ -273,8 +283,20 @@ class FinanceCategoryController extends Controller
                 'category_name' => $request->validated('name', $category->category_name),
             ]);
 
+            Log::info("Finance " . ucfirst($dbType) . " Category Updated", [
+                'category_id' => $id,
+                'name' => $updated->category_name,
+                'company_id' => $companyId,
+                'user_id' => $request->user()->user_id
+            ]);
+
             return $this->successResponse($updated, 'تم تحديث الفئة بنجاح');
         } catch (\Exception $e) {
+            Log::error("Finance " . ucfirst($dbType) . " Category Update Failed", [
+                'category_id' => $id,
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()->user_id
+            ]);
             return $this->handleException($e, 'FinanceCategoryController@update');
         }
     }
@@ -307,13 +329,29 @@ class FinanceCategoryController extends Controller
                 ->first();
 
             if (!$category) {
+                Log::warning("Finance " . ucfirst($dbType) . " Category Delete Not Found", [
+                    'category_id' => $id,
+                    'company_id' => $companyId,
+                    'user_id' => $request->user()->user_id
+                ]);
                 return $this->notFoundResponse('الفئة غير موجودة');
             }
 
             $this->financeService->deleteCategory($category);
 
+            Log::info("Finance " . ucfirst($dbType) . " Category Deleted", [
+                'category_id' => $id,
+                'company_id' => $companyId,
+                'user_id' => $request->user()->user_id
+            ]);
+
             return $this->successResponse(null, 'تم حذف الفئة بنجاح');
         } catch (\Exception $e) {
+            Log::error("Finance " . ucfirst($dbType) . " Category Delete Failed", [
+                'category_id' => $id,
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()->user_id
+            ]);
             return $this->handleException($e, 'FinanceCategoryController@destroy');
         }
     }
@@ -340,10 +378,19 @@ class FinanceCategoryController extends Controller
             $page = (int) $request->query('page', 1);
             $methods = $this->financeService->getPaymentMethods($perPage, $search, $page);
 
+            Log::info("Payment Methods Fetched", [
+                'user_id' => $request->user()->user_id,
+                'message' => 'تم جلب طرق الدفع بنجاح'
+            ]);
+
             return $this->paginatedResponse($methods, 'تم جلب طرق الدفع بنجاح');
         } catch (\Exception $e) {
+            Log::error("Payment Methods Fetch Failed", [
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()->user_id,
+                'message' => 'فشل جلب طرق الدفع'
+            ]);
             return $this->handleException($e, 'FinanceCategoryController@paymentMethods');
         }
     }
-
 }

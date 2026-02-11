@@ -408,12 +408,12 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
 
     // Polls Management
     Route::prefix('polls')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Api\PollController::class, 'index'])->middleware('simple.permission:poll1');
-        Route::post('/', [\App\Http\Controllers\Api\PollController::class, 'store'])->middleware('simple.permission:poll2');
-        Route::get('/{id}', [\App\Http\Controllers\Api\PollController::class, 'show'])->middleware('simple.permission:poll1');
-        Route::put('/{id}', [\App\Http\Controllers\Api\PollController::class, 'update'])->middleware('simple.permission:poll3');
-        Route::delete('/{id}', [\App\Http\Controllers\Api\PollController::class, 'destroy'])->middleware('simple.permission:poll4');
-        Route::post('/{id}/vote', [\App\Http\Controllers\Api\PollController::class, 'vote'])->middleware('simple.permission:poll1');
+        Route::get('/', [\App\Http\Controllers\Api\PollController::class, 'index'])->middleware('simple.permission:polls1');
+        Route::post('/', [\App\Http\Controllers\Api\PollController::class, 'store'])->middleware('simple.permission:polls2');
+        Route::get('/{id}', [\App\Http\Controllers\Api\PollController::class, 'show'])->middleware('simple.permission:polls1');
+        Route::put('/{id}', [\App\Http\Controllers\Api\PollController::class, 'update'])->middleware('simple.permission:polls3');
+        Route::delete('/{id}', [\App\Http\Controllers\Api\PollController::class, 'destroy'])->middleware('simple.permission:polls4');
+        Route::post('/{id}/vote', [\App\Http\Controllers\Api\PollController::class, 'vote'])->middleware('simple.permission:polls1');
     });
 
     // Resignations Management
@@ -586,6 +586,27 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('/{id}', [App\Http\Controllers\Api\AssetController::class, 'show'])->middleware('simple.permission:asset1');
         Route::put('/{id}', [App\Http\Controllers\Api\AssetController::class, 'update'])->middleware('simple.permission:asset3');
         Route::delete('/{id}', [App\Http\Controllers\Api\AssetController::class, 'destroy'])->middleware('simple.permission:asset4');
+    });
+
+    // Inventory Management - إدارة المخازن والموردين
+    Route::prefix('inventory')->group(function () {
+        // Warehouses - المخازن
+        Route::prefix('warehouses')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\WarehouseController::class, 'index'])->middleware('simple.permission:warehouse1');
+            Route::post('/', [\App\Http\Controllers\Api\WarehouseController::class, 'store'])->middleware('simple.permission:warehouse2');
+            Route::get('/{id}', [\App\Http\Controllers\Api\WarehouseController::class, 'show'])->middleware('simple.permission:warehouse1');
+            Route::put('/{id}', [\App\Http\Controllers\Api\WarehouseController::class, 'update'])->middleware('simple.permission:warehouse3');
+            Route::delete('/{id}', [\App\Http\Controllers\Api\WarehouseController::class, 'destroy'])->middleware('simple.permission:warehouse4');
+        });
+
+        // Suppliers - الموردين
+        Route::prefix('suppliers')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\SupplierController::class, 'index'])->middleware('simple.permission:supplier1');
+            Route::post('/', [\App\Http\Controllers\Api\SupplierController::class, 'store'])->middleware('simple.permission:supplier2');
+            Route::get('/{id}', [\App\Http\Controllers\Api\SupplierController::class, 'show'])->middleware('simple.permission:supplier1');
+            Route::put('/{id}', [\App\Http\Controllers\Api\SupplierController::class, 'update'])->middleware('simple.permission:supplier3');
+            Route::delete('/{id}', [\App\Http\Controllers\Api\SupplierController::class, 'destroy'])->middleware('simple.permission:supplier4');
+        });
     });
 
     // Jobs Monitor (للشركات فقط)

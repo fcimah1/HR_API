@@ -94,7 +94,7 @@ class AuthController extends Controller
         }
 
         // Delete old tokens
-        $user->tokens()->delete();
+        $user->tokens()->where('expires_at', '<', now())->delete();
         $tokenResult = $user->createToken('HR-API-Token');
         $token = $tokenResult->accessToken;
         $tokenResult->token->expires_at = now()->addMinutes(15);

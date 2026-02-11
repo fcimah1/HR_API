@@ -4,7 +4,7 @@
         "title": "HR Management API",
         "description": "API for HR Management System with Employee and Leave Management",
         "contact": {
-            "email": "admin@hrapi.com"
+            "email": "mohamed.firstsoft@gmail.com"
         },
         "version": "1.0.0"
     },
@@ -26040,6 +26040,227 @@
                 ]
             }
         },
+        "/api/inventory/suppliers": {
+            "get": {
+                "tags": [
+                    "Inventory (Suppliers)"
+                ],
+                "summary": "عرض قائمة الموردين",
+                "operationId": "getSuppliersList",
+                "parameters": [
+                    {
+                        "name": "supplier_name",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "city",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean",
+                            "default": "true"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 10
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Inventory (Suppliers)"
+                ],
+                "summary": "إضافة مورد جديد",
+                "operationId": "storeSupplier",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateSupplierRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة المورد بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory/suppliers/{id}": {
+            "get": {
+                "tags": [
+                    "Inventory (Suppliers)"
+                ],
+                "summary": "عرض تفاصيل المورد",
+                "operationId": "showSupplier",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التفاصيل بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Inventory (Suppliers)"
+                ],
+                "summary": "تحديث بيانات المورد",
+                "operationId": "updateSupplier",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateSupplierRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التحديث بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Inventory (Suppliers)"
+                ],
+                "summary": "حذف مورد",
+                "operationId": "deleteSupplier",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/support-tickets": {
             "get": {
                 "tags": [
@@ -32205,6 +32426,227 @@
                     }
                 ]
             }
+        },
+        "/api/inventory/warehouses": {
+            "get": {
+                "tags": [
+                    "Inventory (Warehouses)"
+                ],
+                "summary": "عرض قائمة المستودعات",
+                "operationId": "getWarehousesList",
+                "parameters": [
+                    {
+                        "name": "warehouse_name",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "city",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean",
+                            "default": "true"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 10
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Inventory (Warehouses)"
+                ],
+                "summary": "إضافة مستودع جديد",
+                "operationId": "storeWarehouse",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateWarehouseRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة المستودع بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory/warehouses/{id}": {
+            "get": {
+                "tags": [
+                    "Inventory (Warehouses)"
+                ],
+                "summary": "عرض تفاصيل المستودع",
+                "operationId": "showWarehouse",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التفاصيل بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Inventory (Warehouses)"
+                ],
+                "summary": "تحديث بيانات المستودع",
+                "operationId": "updateWarehouse",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateWarehouseRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم التحديث بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Inventory (Warehouses)"
+                ],
+                "summary": "حذف مستودع",
+                "operationId": "deleteWarehouse",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم الحذف بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -34039,6 +34481,138 @@
                 },
                 "type": "object"
             },
+            "CreateSupplierRequest": {
+                "title": "Create Supplier Request",
+                "required": [
+                    "supplier_name",
+                    "country"
+                ],
+                "properties": {
+                    "supplier_name": {
+                        "description": "اسم المورد",
+                        "type": "string",
+                        "example": "شركة توريدات الخليج"
+                    },
+                    "registration_no": {
+                        "description": "رقم السجل التجاري",
+                        "type": "string",
+                        "example": "CR12345678"
+                    },
+                    "email": {
+                        "description": "البريد الالكتروني",
+                        "type": "string",
+                        "format": "email",
+                        "example": "info@gulf-supplies.com"
+                    },
+                    "contact_number": {
+                        "description": "رقم الاتصال",
+                        "type": "string",
+                        "example": "0556543210"
+                    },
+                    "website_url": {
+                        "description": "رابط الموقع",
+                        "type": "string",
+                        "example": "https://gulf-supplies.com"
+                    },
+                    "address_1": {
+                        "description": "العنوان 1",
+                        "type": "string",
+                        "example": "المنطقة الصناعية"
+                    },
+                    "address_2": {
+                        "description": "العنوان 2",
+                        "type": "string",
+                        "example": "بلوك 14"
+                    },
+                    "city": {
+                        "description": "المدينة",
+                        "type": "string",
+                        "example": "جدة"
+                    },
+                    "state": {
+                        "description": "الدولة/المنطقة",
+                        "type": "string",
+                        "example": "مكة المكرمة"
+                    },
+                    "zipcode": {
+                        "description": "الرمز البريدي",
+                        "type": "string",
+                        "example": "54321"
+                    },
+                    "country": {
+                        "description": "معرف الدولة",
+                        "type": "integer",
+                        "example": 1
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateSupplierRequest": {
+                "title": "Update Supplier Request",
+                "required": [
+                    "supplier_name",
+                    "country"
+                ],
+                "properties": {
+                    "supplier_name": {
+                        "description": "اسم المورد",
+                        "type": "string",
+                        "example": "شركة توريدات الخليج - تحديث"
+                    },
+                    "registration_no": {
+                        "description": "رقم السجل التجاري",
+                        "type": "string",
+                        "example": "CR12345678"
+                    },
+                    "email": {
+                        "description": "البريد الالكتروني",
+                        "type": "string",
+                        "format": "email",
+                        "example": "info@gulf-supplies.com"
+                    },
+                    "contact_number": {
+                        "description": "رقم الاتصال",
+                        "type": "string",
+                        "example": "0556543210"
+                    },
+                    "website_url": {
+                        "description": "رابط الموقع",
+                        "type": "string",
+                        "example": "https://gulf-supplies.com"
+                    },
+                    "address_1": {
+                        "description": "العنوان 1",
+                        "type": "string",
+                        "example": "المنطقة الصناعية"
+                    },
+                    "address_2": {
+                        "description": "العنوان 2",
+                        "type": "string",
+                        "example": "بلوك 14"
+                    },
+                    "city": {
+                        "description": "المدينة",
+                        "type": "string",
+                        "example": "جدة"
+                    },
+                    "state": {
+                        "description": "الدولة/المنطقة",
+                        "type": "string",
+                        "example": "مكة المكرمة"
+                    },
+                    "zipcode": {
+                        "description": "الرمز البريدي",
+                        "type": "string",
+                        "example": "54321"
+                    },
+                    "country": {
+                        "description": "معرف الدولة",
+                        "type": "integer",
+                        "example": 1
+                    }
+                },
+                "type": "object"
+            },
             "CreateTicketRequest": {
                 "required": [
                     "subject",
@@ -34735,6 +35309,126 @@
                 },
                 "type": "object"
             },
+            "CreateWarehouseRequest": {
+                "title": "Create Warehouse Request",
+                "required": [
+                    "warehouse_name",
+                    "country"
+                ],
+                "properties": {
+                    "warehouse_name": {
+                        "description": "اسم المستودع",
+                        "type": "string",
+                        "example": "مستودع الرياض الرئيسى"
+                    },
+                    "contact_number": {
+                        "description": "رقم الاتصال",
+                        "type": "string",
+                        "example": "0501234567"
+                    },
+                    "pickup_location": {
+                        "description": "معرف موقع الاستلام",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "address_1": {
+                        "description": "العنوان 1",
+                        "type": "string",
+                        "example": "شارع الملك فهد"
+                    },
+                    "address_2": {
+                        "description": "العنوان 2",
+                        "type": "string",
+                        "example": "حى العليا"
+                    },
+                    "city": {
+                        "description": "المدينة",
+                        "type": "string",
+                        "example": "الرياض"
+                    },
+                    "state": {
+                        "description": "المنطقة/الدولة",
+                        "type": "string",
+                        "example": "الرياض"
+                    },
+                    "zipcode": {
+                        "description": "الرمز البريدى",
+                        "type": "string",
+                        "example": "12345"
+                    },
+                    "country": {
+                        "description": "معرف الدولة",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "status": {
+                        "description": "الحالة (0: غير نشط, 1: نشط)",
+                        "type": "integer",
+                        "example": 1
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateWarehouseRequest": {
+                "title": "Update Warehouse Request",
+                "required": [
+                    "warehouse_name",
+                    "country"
+                ],
+                "properties": {
+                    "warehouse_name": {
+                        "description": "اسم المستودع",
+                        "type": "string",
+                        "example": "مستودع الرياض الرئيسى - تحديث"
+                    },
+                    "contact_number": {
+                        "description": "رقم الاتصال",
+                        "type": "string",
+                        "example": "0501234567"
+                    },
+                    "pickup_location": {
+                        "description": "معرف موقع الاستلام",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "address_1": {
+                        "description": "العنوان 1",
+                        "type": "string",
+                        "example": "شارع الملك فهد"
+                    },
+                    "address_2": {
+                        "description": "العنوان 2",
+                        "type": "string",
+                        "example": "حى العليا"
+                    },
+                    "city": {
+                        "description": "المدينة",
+                        "type": "string",
+                        "example": "الرياض"
+                    },
+                    "state": {
+                        "description": "المنطقة/الدولة",
+                        "type": "string",
+                        "example": "الرياض"
+                    },
+                    "zipcode": {
+                        "description": "الرمز البريدى",
+                        "type": "string",
+                        "example": "12345"
+                    },
+                    "country": {
+                        "description": "معرف الدولة",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "status": {
+                        "description": "الحالة (0: غير نشط, 1: نشط)",
+                        "type": "integer",
+                        "example": 1
+                    }
+                },
+                "type": "object"
+            },
             "EmployeeListResource": {
                 "title": "Employee List Resource",
                 "description": "User resource for list views",
@@ -34915,6 +35609,70 @@
                     },
                     "created_at": {
                         "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "SupplierResource": {
+                "title": "SupplierResource",
+                "description": "Resource for Supplier",
+                "properties": {
+                    "supplier_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "supplier_name": {
+                        "type": "string",
+                        "example": "شركة توريدات الخليج"
+                    },
+                    "registration_no": {
+                        "type": "string",
+                        "example": "CR12345678"
+                    },
+                    "email": {
+                        "type": "string",
+                        "example": "info@gulf-supplies.com"
+                    },
+                    "contact_number": {
+                        "type": "string",
+                        "example": "0556543210"
+                    },
+                    "website_url": {
+                        "type": "string",
+                        "example": "https://gulf-supplies.com"
+                    },
+                    "address_1": {
+                        "type": "string",
+                        "example": "المنطقة الصناعية"
+                    },
+                    "address_2": {
+                        "type": "string",
+                        "example": "بلوك 14"
+                    },
+                    "city": {
+                        "type": "string",
+                        "example": "جدة"
+                    },
+                    "state": {
+                        "type": "string",
+                        "example": "مكة المكرمة"
+                    },
+                    "zipcode": {
+                        "type": "string",
+                        "example": "54321"
+                    },
+                    "country_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "added_by_name": {
+                        "type": "string",
+                        "example": "أحمد محمد"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "datetime",
+                        "example": "2026-02-11 10:00:00"
                     }
                 },
                 "type": "object"
@@ -35136,6 +35894,66 @@
                     "updated_at": {
                         "type": "string",
                         "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "WarehouseResource": {
+                "title": "WarehouseResource",
+                "description": "Resource for Warehouse",
+                "properties": {
+                    "warehouse_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "warehouse_name": {
+                        "type": "string",
+                        "example": "مستودع الرياض الرئيسى"
+                    },
+                    "contact_number": {
+                        "type": "string",
+                        "example": "0501234567"
+                    },
+                    "pickup_location": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "address_1": {
+                        "type": "string",
+                        "example": "شارع الملك فهد"
+                    },
+                    "address_2": {
+                        "type": "string",
+                        "example": "حى العليا"
+                    },
+                    "city": {
+                        "type": "string",
+                        "example": "الرياض"
+                    },
+                    "state": {
+                        "type": "string",
+                        "example": "الرياض"
+                    },
+                    "zipcode": {
+                        "type": "string",
+                        "example": "12345"
+                    },
+                    "country_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "status": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "added_by_name": {
+                        "type": "string",
+                        "example": "أحمد محمد"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "datetime",
+                        "example": "2026-02-11 10:00:00"
                     }
                 },
                 "type": "object"
@@ -35385,6 +36203,10 @@
             "description": "إدارة الاقتراحات - Suggestions management endpoints"
         },
         {
+            "name": "Inventory (Suppliers)",
+            "description": "إدارة الموردين"
+        },
+        {
             "name": "Support Tickets",
             "description": "تذاكر الدعم الفني - Support Tickets management endpoints"
         },
@@ -35411,6 +36233,10 @@
         {
             "name": "Visitors",
             "description": "إدارة الزوار"
+        },
+        {
+            "name": "Inventory (Warehouses)",
+            "description": "إدارة المستودعات"
         },
         {
             "name": "Employee Management",

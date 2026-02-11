@@ -187,11 +187,29 @@ class FinanceTransactionController extends Controller
             $transaction = $this->financeService->getTransactionById($id, $companyId);
 
             if (!$transaction || ($expectedType && $transaction->transaction_type !== $expectedType)) {
+                Log::warning("Finance Transaction Not Found", [
+                    'transaction_id' => $id,
+                    'expected_type' => $expectedType,
+                    'company_id' => $companyId,
+                    'user_id' => $request->user()->user_id
+                ]);
                 return $this->notFoundResponse('المعاملة غير موجودة');
             }
 
+            Log::info("Finance Transaction Found", [
+                'transaction_id' => $id,
+                'type' => $transaction->transaction_type,
+                'company_id' => $companyId,
+                'user_id' => $request->user()->user_id
+            ]);
+
             return $this->successResponse($transaction, 'تم جلب المعاملة بنجاح');
         } catch (\Exception $e) {
+            Log::error("Finance Transaction Show Failed", [
+                'transaction_id' => $id,
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()->user_id
+            ]);
             return $this->handleException($e, 'FinanceTransactionController@show');
         }
     }
@@ -491,8 +509,20 @@ class FinanceTransactionController extends Controller
             $dto = \App\DTOs\Finance\UpdateTransactionDTO::fromRequest($id, $request, $companyId, $staffId);
             $result = $this->financeService->updateTransaction($dto, $companyId);
 
+            Log::info("Finance Transaction Updated", [
+                'transaction_id' => $id,
+                'company_id' => $companyId,
+                'staff_id' => $staffId,
+                'user_id' => $request->user()->user_id
+            ]);
+
             return $this->successResponse($result, 'تم تعديل المعاملة بنجاح');
         } catch (\Exception $e) {
+            Log::error("Finance Transaction Update Failed", [
+                'transaction_id' => $id,
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()->user_id
+            ]);
             return $this->handleException($e, 'FinanceTransactionController@update');
         }
     }
@@ -504,11 +534,27 @@ class FinanceTransactionController extends Controller
             $result = $this->financeService->deleteTransaction($id, $companyId);
 
             if (!$result) {
+                Log::warning("Finance Transaction Delete Not Found", [
+                    'transaction_id' => $id,
+                    'company_id' => $companyId,
+                    'user_id' => $request->user()->user_id
+                ]);
                 return $this->errorResponse('المعاملة غير موجودة', 404);
             }
 
+            Log::info("Finance Transaction Deleted", [
+                'transaction_id' => $id,
+                'company_id' => $companyId,
+                'user_id' => $request->user()->user_id
+            ]);
+
             return $this->successResponse(null, 'تم حذف المعاملة بنجاح');
         } catch (\Exception $e) {
+            Log::error("Finance Transaction Delete Failed", [
+                'transaction_id' => $id,
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()->user_id
+            ]);
             return $this->handleException($e, 'FinanceTransactionController@destroy');
         }
     }
