@@ -12,6 +12,7 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 - **Hierarchical Visibility:** Access to employee data is strictly governed by `hierarchy_level` (Levels 1-5).
 - **Subordinates Management:** Automatic subordinate detection based on hierarchy.
 - **Duty/Backup Employees:** Logic for handling temporary assignments.
+- **Family & Relatives:** Tracking employee family members and emergency contacts.
 
 ### 🕒 Attendance & Time Tracking
 
@@ -47,10 +48,23 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 - **Asset Management:** Cataloging company assets with category and brand configuration.
 - **Award Management:** Recording employee recognitions, cash awards, and gift certificates with multi-level approval.
 
+### 🎓 Training Management
+
+- **Sessions:** Manage training sessions, schedules, and attendance.
+- **Trainers:** Catalog internal and external trainers.
+- **Skills:** Define training categories and skill requirements.
+
 ### 🏭 Inventory Management
 
 - **Warehouses:** Complete warehouse management with hierarchical access control.
 - **Suppliers:** Manage suppliers and vendors information with isolated company data.
+- **Products:** Comprehensive product catalog with barcode and rating management.
+- **Category & Taxes:** Granular product categorization and tax type configurations.
+
+### 📊 Dashboard & Monitoring
+
+- **Stats & Activity:** Real-time dashboard statistics and activity feeds.
+- **Jobs Monitor:** Visibility into background processing and queue health.
 
 ### 💰 Finance Management
 
@@ -140,6 +154,7 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 | **Branches**                 | `/api/branches`                        | Manage company branches and locations                                                                       |
 | **Departments**              | `/api/departments`                     | Manage organizational departments                                                                           |
 | **Designations**             | `/api/designations`                    | Manage job titles and hierarchy levels                                                                      |
+| **Dashboard**                | `/api/dashboard`                       | Real-time statistics and activity logs                                                                      |
 | **Meetings**                 | `/api/meetings`                        | Schedule and manage meetings                                                                                |
 | **EndOfService**             | `/api/end-of-service`                  | Calculate, Save, List, Approve (See [docs/end_of_service_calculator.md](docs/end_of_service_calculator.md)) |
 | **Office Shifts**            | `/api/office-shifts`                   | CRUD for office working schedules                                                                           |
@@ -153,6 +168,7 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 | **Attendance**               | `/api/attendances`                     | Clock In/Out, Monthly Report                                                                                |
 | **Async Reports**            | `/api/async-reports`                   | Generate and track background report tasks                                                                  |
 | **Visitors**                 | `/api/visitors`                        | Manage visitor logs and entries                                                                             |
+| **Residence Renewals**       | `/api/residence-renewals`              | Track and renew employee residency documents                                                                |
 | **Custody**                  | `/api/custody-clearances`              | Create Clearance, List Assets                                                                               |
 | **Transfers**                | `/api/transfers`                       | Internal/Branch Transfer Requests                                                                           |
 | **Resignations**             | `/api/resignations`                    | Apply, Approve/Reject                                                                                       |
@@ -169,9 +185,15 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 | **Support Tickets**          | `/api/support-tickets`                 | Create, Reply, Close, Reopen (See [docs/SUPPORT_TICKETS.md](docs/SUPPORT_TICKETS.md))                       |
 | **Internal Helpdesk**        | `/api/internal-helpdesk`               | Internal IT/HR Support Tickets (See [docs/INTERNAL_HELPDESK_PLAN.md](docs/INTERNAL_HELPDESK_PLAN.md))       |
 | **Assets**                   | `/api/assets`                          | CRUD for company assets and equipment                                                                       |
+| **Asset Categories**         | `/api/assets/categories`               | Manage asset categories (IT, Furniture, etc.)                                                               |
+| **Asset Brands**             | `/api/assets/brands`                   | Manage asset brands and manufacturers                                                                       |
 | **Awards**                   | `/api/awards`                          | Manage employee awards with approval cycle                                                                  |
+| **Award Types**              | `/api/awards/types`                    | Configure award types and recognition categories                                                            |
 | **Inventory (Warehouses)**   | `/api/inventory/warehouses`            | Manage company warehouses with hierarchical access                                                          |
 | **Inventory (Suppliers)**    | `/api/inventory/suppliers`             | Manage suppliers and vendor information                                                                     |
+| **Inventory (Products)**     | `/api/inventory/products`              | Manage product catalog, barcodes, and ratings                                                               |
+| **Inventory (Categories)**   | `/api/inventory/product-categories`    | Manage product categorization                                                                               |
+| **Inventory (Tax Types)**    | `/api/inventory/tax-types`             | Manage tax configurations for products                                                                      |
 | **Finance (Accounts)**       | `/api/finance/accounts`                | Manage staff financial accounts                                                                             |
 | **Finance (Emp. Accounts)**  | `/api/finance/employee-accounts`       | Manage employee bank accounts                                                                               |
 | **Finance (Deposits)**       | `/api/finance/deposits`                | Record and manage income transactions                                                                       |

@@ -47,7 +47,8 @@ class WarehouseController extends Controller
      *     @OA\Parameter(name="page", in="query", @OA\Schema(type="integer", default=1)),
      *     @OA\Response(response=200, description="تم جلب البيانات بنجاح"),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
-     *     @OA\Response(response=500, description="خطأ في الخادم")
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في التحقق من البيانات")
      * )
      */
     public function index(WarehouseSearchRequest $request): JsonResponse
@@ -128,7 +129,8 @@ class WarehouseController extends Controller
      *     @OA\Response(response=200, description="تم جلب التفاصيل بنجاح"),
      *     @OA\Response(response=404, description="غير موجود"),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
-     *     @OA\Response(response=500, description="خطأ في الخادم")
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في التحقق من البيانات")
      * )
      */
     public function show(int $id): JsonResponse
@@ -173,7 +175,8 @@ class WarehouseController extends Controller
      *     @OA\Response(response=200, description="تم التحديث بنجاح"),
      *     @OA\Response(response=404, description="غير موجود"),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
-     *     @OA\Response(response=500, description="خطأ في الخادم")
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في التحقق من البيانات")
      * )
      */
     public function update(UpdateWarehouseRequest $request, int $id): JsonResponse
@@ -219,7 +222,8 @@ class WarehouseController extends Controller
      *     @OA\Response(response=200, description="تم الحذف بنجاح"),
      *     @OA\Response(response=404, description="غير موجود"),
      *     @OA\Response(response=401, description="غير مصرح - يجب تسجيل الدخول"),
-     *     @OA\Response(response=500, description="خطأ في الخادم")
+     *     @OA\Response(response=500, description="خطأ في الخادم"),
+     *     @OA\Response(response=422, description="خطأ في التحقق من البيانات")
      * )
      */
     public function destroy(int $id): JsonResponse

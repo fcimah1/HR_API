@@ -607,6 +607,37 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
             Route::put('/{id}', [\App\Http\Controllers\Api\SupplierController::class, 'update'])->middleware('simple.permission:supplier3');
             Route::delete('/{id}', [\App\Http\Controllers\Api\SupplierController::class, 'destroy'])->middleware('simple.permission:supplier4');
         });
+
+        // Products - المنتجات
+        Route::prefix('products')->group(function () {
+            Route::get('/constants', [\App\Http\Controllers\Api\ProductController::class, 'getConstants']);
+            Route::get('/out-of-stock', [\App\Http\Controllers\Api\ProductController::class, 'getOutOfStockProducts'])->middleware('simple.permission:out_of_stock');
+            Route::get('/expired', [\App\Http\Controllers\Api\ProductController::class, 'getExpiredProducts'])->middleware('simple.permission:expired_product');
+            Route::get('/', [\App\Http\Controllers\Api\ProductController::class, 'index'])->middleware('simple.permission:product1');
+            Route::post('/', [\App\Http\Controllers\Api\ProductController::class, 'store'])->middleware('simple.permission:product2');
+            Route::get('/{id}', [\App\Http\Controllers\Api\ProductController::class, 'show'])->middleware('simple.permission:product1');
+            Route::put('/{id}', [\App\Http\Controllers\Api\ProductController::class, 'update'])->middleware('simple.permission:product3');
+            Route::delete('/{id}', [\App\Http\Controllers\Api\ProductController::class, 'destroy'])->middleware('simple.permission:product4');
+            Route::patch('/{id}/rating', [\App\Http\Controllers\Api\ProductController::class, 'updateRating'])->middleware('simple.permission:product3');
+        });
+
+        // Tax Types - أنواع الضرائب
+        Route::prefix('tax-types')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\TaxTypeController::class, 'index'])->middleware('simple.permission:tax_type1');
+            Route::post('/', [\App\Http\Controllers\Api\TaxTypeController::class, 'store'])->middleware('simple.permission:tax_type2');
+            Route::get('/{id}', [\App\Http\Controllers\Api\TaxTypeController::class, 'show'])->middleware('simple.permission:tax_type1');
+            Route::put('/{id}', [\App\Http\Controllers\Api\TaxTypeController::class, 'update'])->middleware('simple.permission:tax_type3');
+            Route::delete('/{id}', [\App\Http\Controllers\Api\TaxTypeController::class, 'destroy'])->middleware('simple.permission:tax_type4');
+        });
+
+        // Product Categories - فئات المنتجات
+        Route::prefix('product-categories')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\ProductCategoryController::class, 'index'])->middleware('simple.permission:product_category1');
+            Route::post('/', [\App\Http\Controllers\Api\ProductCategoryController::class, 'store'])->middleware('simple.permission:product_category2');
+            Route::get('/{id}', [\App\Http\Controllers\Api\ProductCategoryController::class, 'show'])->middleware('simple.permission:product_category1');
+            Route::put('/{id}', [\App\Http\Controllers\Api\ProductCategoryController::class, 'update'])->middleware('simple.permission:product_category3');
+            Route::delete('/{id}', [\App\Http\Controllers\Api\ProductCategoryController::class, 'destroy'])->middleware('simple.permission:product_category4');
+        });
     });
 
     // Jobs Monitor (للشركات فقط)
