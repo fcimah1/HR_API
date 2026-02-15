@@ -72,6 +72,13 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 - **Transactions:** track deposits and expenses (Income/Expense) with categorized logging.
 - **Categories:** Configurable income and expense categories.
 
+### 🤝 Recruitment Management
+
+- **Job Openings:** CRUD for job posts with status and requirements.
+- **Candidate Tracking:** Manage applications, resumes, and status updates (Pending, Interview, Rejected, Hired).
+- **Interview Scheduling:** Automated interview record creation with location and time tracking.
+- **Normalization:** Flexible Arabic/English status handling for recruitment flows.
+
 ### 🔐 Security & Access Control
 
 - **OAuth2 Authentication:** Secure API access using Bearer tokens.
@@ -206,6 +213,9 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 | **Training Skills**          | `/api/training-skills`                 | Manage Training Types/Skills (See [docs/TRAINING.md](docs/TRAINING.md))                                     |
 | **Biometric Attendance**     | `/api/biometric-logs`                  | Sync Logs                                                                                                   |
 | **Manual Attendance**        | `/api/attendances`                     | Clock In/Out, Monthly Report                                                                                |
+| **Recruitment (Jobs)**       | `/api/recruitment/jobs`                | CRUD, List, Apply                                                                                           |
+| **Recruitment (Candidates)** | `/api/recruitment/candidates`          | List, Search, Update Status, Resume Download                                                                |
+| **Recruitment (Interviews)** | `/api/recruitment/interviews`          | List, View, Update Status                                                                                   |
 | **Notifications**            | `/api/notifications`                   | List, Mark as Read                                                                                          |
 | **Approval**                 | `/api/approvals`                       | Pending List, History, Process                                                                              |
 

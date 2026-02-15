@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
-enum JobTypeEnum: string
+enum JobTypeEnum: int
 {
-    case PART_TIME = '0';
-    case PERMANENT = '1';
-    case CONTRACT = '2';
-    case PROBATION = '3';
+    case PART_TIME = 0;
+    case PERMANENT = 1;
+    case CONTRACT = 2;
+    case PROBATION = 3;
 
     public function trans(): string
     {

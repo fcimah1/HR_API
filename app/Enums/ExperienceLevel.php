@@ -18,12 +18,20 @@ enum ExperienceLevel: int
     case MORE_THAN_TEN = 11;
 
     /**
+     * Get the translated label
+     */
+    public function label(): string
+    {
+        return $this->getArabicLabel();
+    }
+
+    /**
      * Get the Arabic label for the experience level
      */
     public function getArabicLabel(): string
     {
-        return match($this) {
-            self::NONE => 'بدون',
+        return match ($this) {
+            self::NONE => 'حديث التخرج',
             self::ONE_YEAR => 'سنة',
             self::TWO_YEARS => 'سنتان',
             self::THREE_YEARS => 'سنوات 3',
@@ -43,8 +51,8 @@ enum ExperienceLevel: int
      */
     public function getEnglishLabel(): string
     {
-        return match($this) {
-            self::NONE => 'No Experience',
+        return match ($this) {
+            self::NONE => 'Recent Graduates',
             self::ONE_YEAR => '1 Year',
             self::TWO_YEARS => '2 Years',
             self::THREE_YEARS => '3 Years',
@@ -110,10 +118,10 @@ enum ExperienceLevel: int
     public function isSeniorLevel(): bool
     {
         return in_array($this, [
-            self::SEVEN_YEARS, 
-            self::EIGHT_YEARS, 
-            self::NINE_YEARS, 
-            self::TEN_YEARS, 
+            self::SEVEN_YEARS,
+            self::EIGHT_YEARS,
+            self::NINE_YEARS,
+            self::TEN_YEARS,
             self::MORE_THAN_TEN
         ]);
     }
