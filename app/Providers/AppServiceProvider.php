@@ -71,6 +71,12 @@ use App\Repository\Interface\DesignationRepositoryInterface;
 use App\Repository\DesignationRepository;
 use App\Repository\Interface\AnnouncementRepositoryInterface;
 use App\Repository\AnnouncementRepository;
+use App\Repository\Interface\Recruitment\JobRepositoryInterface;
+use App\Repository\Recruitment\JobRepository;
+use App\Repository\Interface\Recruitment\CandidateRepositoryInterface;
+use App\Repository\Recruitment\CandidateRepository;
+use App\Repository\Interface\Recruitment\InterviewRepositoryInterface;
+use App\Repository\Recruitment\InterviewRepository;
 use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
@@ -218,6 +224,15 @@ class AppServiceProvider extends ServiceProvider
 
         // Supplier repository
         $this->app->bind(\App\Repository\Interface\SupplierRepositoryInterface::class, \App\Repository\SupplierRepository::class);
+
+        // Recruitment - Jobs
+        $this->app->bind(JobRepositoryInterface::class, JobRepository::class);
+
+        // Recruitment - Candidates
+        $this->app->bind(CandidateRepositoryInterface::class, CandidateRepository::class);
+
+        // Recruitment - Interviews
+        $this->app->bind(InterviewRepositoryInterface::class, InterviewRepository::class);
     }
 
     /**

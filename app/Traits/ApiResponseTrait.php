@@ -130,6 +130,23 @@ trait ApiResponseTrait
     }
 
     /**
+     * Return a resource collection response (paginated or simple)
+     *
+     * @param mixed $collection
+     * @param string $resourceClass
+     * @param string $message
+     * @return JsonResponse
+     */
+    protected function collectionResponse($collection, string $resourceClass, string $message = 'تم بنجاح'): JsonResponse
+    {
+        if ($collection instanceof \Illuminate\Pagination\AbstractPaginator) {
+            return $this->paginatedResponse($collection, $message, $resourceClass);
+        }
+
+        return $this->successResponse($resourceClass::collection($collection), $message);
+    }
+
+    /**
      * Return a paginated response
      *
      * @param mixed $paginatedData

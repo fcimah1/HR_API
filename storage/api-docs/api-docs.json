@@ -22703,6 +22703,927 @@
                 ]
             }
         },
+        "/api/recruitment/candidates": {
+            "get": {
+                "tags": [
+                    "Recruitment - Candidates"
+                ],
+                "summary": "قائمة المرشحين",
+                "operationId": "c178d6d12cd5afac85f584b6f0bdfd3a",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": "1"
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": "10"
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "example": "true"
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "job_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "حالة المرشح (pending, invited_to_interview, rejected) أو (قيد الانتظار, دعوه للمقابله, مرفوض)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "invited_to_interview",
+                                "rejected",
+                                "قيد الانتظار",
+                                "دعوه للمقابله",
+                                "مرفوض"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "حدث خطأ أثناء عرض قائمة المرشحين"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/recruitment/candidates/{id}": {
+            "get": {
+                "tags": [
+                    "Recruitment - Candidates"
+                ],
+                "summary": "تفاصيل المرشح",
+                "operationId": "b3ed7d51df5c9020c5a4b35919b98db8",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تفاصيل المرشح"
+                    },
+                    "404": {
+                        "description": "المرشح غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "حدث خطأ أثناء عرض تفاصيل المرشح"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Recruitment - Candidates"
+                ],
+                "summary": "حذف المرشح",
+                "operationId": "f7a00ae5c2b65cb05ee42b10a3e47ae8",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف المرشح بنجاح"
+                    },
+                    "404": {
+                        "description": "المرشح غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "حدث خطأ أثناء حذف المرشح"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/recruitment/candidates/{id}/status": {
+            "post": {
+                "tags": [
+                    "Recruitment - Candidates"
+                ],
+                "summary": "تحديث حالة المرشح وجدولة مقابلة",
+                "operationId": "184f15f3ad2287c1d8597fd84177313b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "application_status"
+                                ],
+                                "properties": {
+                                    "application_status": {
+                                        "description": "حالة الطلب (invited_to_interview, rejected) أو (دعوه للمقابله, مرفوض)",
+                                        "type": "string",
+                                        "enum": [
+                                            "invited_to_interview",
+                                            "rejected",
+                                            "دعوه للمقابله",
+                                            "مرفوض"
+                                        ],
+                                        "example": "دعوه للمقابله"
+                                    },
+                                    "interview_date": {
+                                        "description": "مطلوب فقط في حالة دعوة للمقابلة",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-03-01"
+                                    },
+                                    "interview_time": {
+                                        "description": "مطلوب فقط في حالة دعوة للمقابلة",
+                                        "type": "string",
+                                        "example": "10:00"
+                                    },
+                                    "interview_place": {
+                                        "description": "مطلوب فقط في حالة دعوة للمقابلة",
+                                        "type": "string",
+                                        "example": "Office"
+                                    },
+                                    "interviewer_id": {
+                                        "description": "مطلوب فقط في حالة دعوة للمقابلة",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "description": {
+                                        "description": "مطلوب فقط في حالة دعوة للمقابلة",
+                                        "type": "string",
+                                        "example": "Interview description"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث الحالة بنجاح"
+                    },
+                    "404": {
+                        "description": "المرشح غير موجود"
+                    },
+                    "422": {
+                        "description": "بيانات غير صحيحة"
+                    },
+                    "500": {
+                        "description": "حدث خطأ أثناء تحديث الحالة"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/recruitment/candidates/{id}/message": {
+            "get": {
+                "tags": [
+                    "Recruitment - Candidates"
+                ],
+                "summary": "عرض رسالة التقديم للمرشح",
+                "operationId": "941ecae965e5ff9bd0b1eda5149bbfd9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "رسالة التقديم"
+                    },
+                    "404": {
+                        "description": "المرشح غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/recruitment/candidates/{id}/download": {
+            "get": {
+                "tags": [
+                    "Recruitment - Candidates"
+                ],
+                "summary": "تحميل السيرة الذاتية",
+                "operationId": "c38c26707100555dbe2c6e00dd043f00",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ملف السيرة الذاتية"
+                    },
+                    "404": {
+                        "description": "المرشح غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/recruitment/interviews": {
+            "get": {
+                "tags": [
+                    "Recruitment - Interviews"
+                ],
+                "summary": "قائمة المقابلات",
+                "operationId": "971ea2d7eefc7689844718779bfd3b94",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": "1"
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": "10"
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "example": "true"
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "حالة المقابلة (not_started, successful, rejected) أو (لم يبدا, مقابله ناجحه, مرفوض)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "not_started",
+                                "successful",
+                                "rejected",
+                                "لم يبدا",
+                                "مقابله ناجحه",
+                                "مرفوض"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "job_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم عرض قائمة المقابلات بنجاح"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/recruitment/interviews/{id}": {
+            "get": {
+                "tags": [
+                    "Recruitment - Interviews"
+                ],
+                "summary": "تفاصيل المقابلة",
+                "operationId": "e84b6162546cd70df4c7676cebc50a7b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم عرض تفاصيل المقابلة بنجاح"
+                    },
+                    "404": {
+                        "description": "المقابلة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/recruitment/interviews/{id}/status": {
+            "post": {
+                "tags": [
+                    "Recruitment - Interviews"
+                ],
+                "summary": "تحديث حالة المقابلة",
+                "operationId": "c6e6003b55d49de6891c32a6d5094e39",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "status",
+                                    "interview_remarks"
+                                ],
+                                "properties": {
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "لم يبدأ",
+                                            "مقابلة ناجحة",
+                                            "مرفوض"
+                                        ],
+                                        "example": "لم يبدأ"
+                                    },
+                                    "interview_remarks": {
+                                        "type": "string",
+                                        "example": "remarks content"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث الحالة بنجاح"
+                    },
+                    "404": {
+                        "description": "المقابلة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/recruitment/jobs": {
+            "get": {
+                "tags": [
+                    "Recruitment - Jobs"
+                ],
+                "summary": "عرض قائمة الوظائف",
+                "operationId": "9520653f599a653751cf85ea5ec683f6",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": "1"
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": "10"
+                    },
+                    {
+                        "name": "paginate",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "example": "true"
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "company_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم عرض قائمة الوظائف بنجاح"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Recruitment - Jobs"
+                ],
+                "summary": "إضافة وظيفة",
+                "operationId": "a11223940b3fc23c774c54051a009cdb",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "job_title",
+                                    "designation_id",
+                                    "job_vacancy",
+                                    "gender",
+                                    "minimum_experience",
+                                    "date_of_closing",
+                                    "status",
+                                    "company_id"
+                                ],
+                                "properties": {
+                                    "job_title": {
+                                        "type": "string",
+                                        "example": "PHP developer"
+                                    },
+                                    "designation_id": {
+                                        "type": "integer",
+                                        "example": "1"
+                                    },
+                                    "job_vacancy": {
+                                        "type": "integer",
+                                        "example": "1"
+                                    },
+                                    "gender": {
+                                        "type": "string",
+                                        "enum": [
+                                            "ذكر",
+                                            "انثى",
+                                            "لا_يوجد"
+                                        ],
+                                        "example": "ذكر"
+                                    },
+                                    "minimum_experience": {
+                                        "type": "integer",
+                                        "enum": [
+                                            "حديث التخرج",
+                                            "سنة",
+                                            "سنتان",
+                                            "3 سنوات",
+                                            "4 سنوات",
+                                            "5 سنوات",
+                                            "6 سنوات",
+                                            "7 سنوات",
+                                            "8 سنوات",
+                                            "9 سنوات",
+                                            "10 سنوات",
+                                            "10+ سنوات"
+                                        ],
+                                        "example": 1
+                                    },
+                                    "date_of_closing": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-02-14"
+                                    },
+                                    "short_description": {
+                                        "type": "string",
+                                        "example": "short_description"
+                                    },
+                                    "long_description": {
+                                        "type": "string",
+                                        "example": "long_description"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "تم النشر",
+                                            "غير منشور"
+                                        ],
+                                        "example": "تم النشر"
+                                    },
+                                    "job_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "دائم",
+                                            "دوام جزئي",
+                                            "عقد",
+                                            "تجريبي"
+                                        ],
+                                        "example": "دائم"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة الوظيفة بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل فى التحقق من البيانات"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/recruitment/jobs/{id}": {
+            "get": {
+                "tags": [
+                    "Recruitment - Jobs"
+                ],
+                "summary": "عرض تفاصيل الوظيفة",
+                "operationId": "6d62a8ec7982ccd78e8fdda25c66cebe",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم عرض تفاصيل الوظيفة بنجاح"
+                    },
+                    "404": {
+                        "description": "الوظيفة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Recruitment - Jobs"
+                ],
+                "summary": "تعديل الوظيفة",
+                "operationId": "527e77eeafa68941ecb776236ef5d236",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "job_title",
+                                    "designation_id",
+                                    "job_vacancy",
+                                    "gender",
+                                    "minimum_experience",
+                                    "date_of_closing",
+                                    "status",
+                                    "company_id"
+                                ],
+                                "properties": {
+                                    "job_title": {
+                                        "type": "string",
+                                        "example": "PHP developer"
+                                    },
+                                    "designation_id": {
+                                        "type": "integer",
+                                        "example": "1"
+                                    },
+                                    "job_vacancy": {
+                                        "type": "integer",
+                                        "example": "1"
+                                    },
+                                    "gender": {
+                                        "type": "string",
+                                        "enum": [
+                                            "ذكر",
+                                            "أنثى",
+                                            "غير محدد"
+                                        ],
+                                        "example": "ذكر"
+                                    },
+                                    "minimum_experience": {
+                                        "type": "string",
+                                        "enum": [
+                                            "حديث التخرج",
+                                            "سنة",
+                                            "سنتان",
+                                            "3 سنوات",
+                                            "4 سنوات",
+                                            "5 سنوات",
+                                            "6 سنوات",
+                                            "7 سنوات",
+                                            "8 سنوات",
+                                            "9 سنوات",
+                                            "10 سنوات",
+                                            "10+ سنوات"
+                                        ],
+                                        "example": "حديث التخرج"
+                                    },
+                                    "date_of_closing": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-02-14"
+                                    },
+                                    "short_description": {
+                                        "type": "string",
+                                        "example": ""
+                                    },
+                                    "long_description": {
+                                        "type": "string",
+                                        "example": ""
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "تم النشر",
+                                            "غير منشور"
+                                        ],
+                                        "example": "تم النشر"
+                                    },
+                                    "job_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "دائم",
+                                            "دوام جزئي",
+                                            "عقد",
+                                            "تجريبي"
+                                        ],
+                                        "example": "دائم"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تعديل الوظيفة بنجاح"
+                    },
+                    "404": {
+                        "description": "الوظيفة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Recruitment - Jobs"
+                ],
+                "summary": "غلق الوظيفة",
+                "operationId": "ec916b4f9a76c65ba2f6e8756f193d2b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم غلق الوظيفة بنجاح"
+                    },
+                    "404": {
+                        "description": "الوظيفة غير موجودة"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/recruitment/jobs/apply": {
+            "post": {
+                "tags": [
+                    "Recruitment - Jobs"
+                ],
+                "summary": "التقديم على وظيفة",
+                "operationId": "dcd1ed19d62583bab65f5de005e2786a",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "job_id",
+                                    "job_resume"
+                                ],
+                                "properties": {
+                                    "job_id": {
+                                        "type": "string",
+                                        "example": "20"
+                                    },
+                                    "message": {
+                                        "type": "string",
+                                        "example": "انا مهتم بهذه الوظيفة"
+                                    },
+                                    "job_resume": {
+                                        "description": "ملف السيرة الذاتية (pdf, doc, jpeg, png)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إرسال طلب التقديم بنجاح"
+                    },
+                    "422": {
+                        "description": "فشل فى التحقق من البيانات"
+                    },
+                    "400": {
+                        "description": "خطأ في طلب التقديم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/recruitment/jobs/constants/enums": {
+            "get": {
+                "tags": [
+                    "Recruitment - Jobs"
+                ],
+                "summary": "استرجاع الثوابت (Enums)",
+                "operationId": "e644f87faac239e7d3e641c27d8f9799",
+                "responses": {
+                    "200": {
+                        "description": "تم استرجاع الثوابت بنجاح"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/reports/attendance/monthly": {
             "get": {
                 "tags": [
@@ -35620,8 +36541,7 @@
                     "purchase_price",
                     "retail_price",
                     "expiration_date",
-                    "product_sku",
-                    "product_image"
+                    "product_sku"
                 ],
                 "properties": {
                     "product_name": {
@@ -37530,6 +38450,18 @@
         {
             "name": "Promotion Management",
             "description": "إدارة الترقيات"
+        },
+        {
+            "name": "Recruitment - Candidates",
+            "description": "أدارة المرشحين"
+        },
+        {
+            "name": "Recruitment - Interviews",
+            "description": "إدارة المقابلات"
+        },
+        {
+            "name": "Recruitment - Jobs",
+            "description": "وظائف التوظيف"
         },
         {
             "name": "Reports",

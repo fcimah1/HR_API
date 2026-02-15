@@ -758,4 +758,37 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('generated/{id}/download', [\App\Http\Controllers\Api\AsyncReportController::class, 'downloadGenerated']);
         Route::delete('generated/{id}', [\App\Http\Controllers\Api\AsyncReportController::class, 'deleteGenerated']);
     });
+
+    // Recruitment Module
+    Route::prefix('recruitment')->group(function () {
+
+        // Jobs
+        Route::prefix('jobs')->group(function () {
+            Route::get('/constants/enums', [\App\Http\Controllers\Api\Recruitment\JobController::class, 'getConstants']);
+            Route::post('/apply', [\App\Http\Controllers\Api\Recruitment\JobController::class, 'apply']);
+
+            Route::get('/', [\App\Http\Controllers\Api\Recruitment\JobController::class, 'index'])->middleware('simple.permission:ats2');
+            Route::post('/', [\App\Http\Controllers\Api\Recruitment\JobController::class, 'store'])->middleware('simple.permission:ats3');
+            Route::get('/{id}', [\App\Http\Controllers\Api\Recruitment\JobController::class, 'show'])->middleware('simple.permission:ats2');
+            Route::put('/{id}', [\App\Http\Controllers\Api\Recruitment\JobController::class, 'update'])->middleware('simple.permission:ats4');
+            Route::delete('/{id}', [\App\Http\Controllers\Api\Recruitment\JobController::class, 'destroy'])->middleware('simple.permission:ats5');
+        });
+
+        // Candidates
+        Route::prefix('candidates')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\Recruitment\CandidateController::class, 'index'])->middleware('simple.permission:candidate');
+            Route::get('/{id}', [\App\Http\Controllers\Api\Recruitment\CandidateController::class, 'show'])->middleware('simple.permission:candidate');
+            Route::delete('/{id}', [\App\Http\Controllers\Api\Recruitment\CandidateController::class, 'destroy'])->middleware('simple.permission:candidate');
+            Route::post('/{id}/status', [\App\Http\Controllers\Api\Recruitment\CandidateController::class, 'updateStatus'])->middleware('simple.permission:candidate');
+            Route::get('/{id}/message', [\App\Http\Controllers\Api\Recruitment\CandidateController::class, 'showMessage'])->middleware('simple.permission:candidate');
+            Route::get('/{id}/download', [\App\Http\Controllers\Api\Recruitment\CandidateController::class, 'downloadResume'])->middleware('simple.permission:candidate');
+        });
+
+        // Interviews
+        Route::prefix('interviews')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\Recruitment\InterviewController::class, 'index'])->middleware('simple.permission:interview');
+            Route::get('/{id}', [\App\Http\Controllers\Api\Recruitment\InterviewController::class, 'show'])->middleware('simple.permission:interview');
+            Route::post('/{id}/status', [\App\Http\Controllers\Api\Recruitment\InterviewController::class, 'updateStatus'])->middleware('simple.permission:interview');
+        });
+    });
 });
