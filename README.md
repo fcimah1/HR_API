@@ -9,9 +9,10 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 ### 👤 Employee Management
 
 - **Complete Profile Management:** Personal, official, and document details.
-- **Hierarchical Visibility:** Access to employee data is strictly governed by `hierarchy_level` (Levels 1-5).
+- **Hierarchical Visibility:** Access to employee data is strictly governed by `hierarchy_level` (Levels 1-5, and Level 0 for Super Admin).
+    - **Downstream Authority:** Employees can view/act for themselves and those with a numerically higher level (Lower rank). Peer and superior viewing is restricted.
 - **Subordinates Management:** Automatic subordinate detection based on hierarchy.
-- **Duty/Backup Employees:** Logic for handling temporary assignments.
+- **Duty/Backup Employees:** Logic for handling temporary assignments (Relievers). relievers MUST belong to the same department as the applicant, regardless of hierarchy.
 - **Family & Relatives:** Tracking employee family members and emergency contacts.
 
 ### 🕒 Attendance & Time Tracking
@@ -23,7 +24,9 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 ### 🏝️ Leave Management
 
 - **Types:** Annual, Sick, Unpaid, etc.
-- **Hourly Leaves:** Short duration leave request tracking.
+- **Hourly Leaves (Short Duration):** Short duration leave request tracking aligned with standard leave policies.
+    - **Policy Integration:** Country-based rules, service years, and tiered sick leave logic applied to hourly requests.
+    - **Dynamic Hours:** Calculation based on individual employee shift hours (User::getWorkHoursPerDay()) instead of hardcoded values.
 - **Adjustments:** Automatic calculation adjustments and balance checks.
 - **Leave Balance:** Real-time checking endpoint.
 

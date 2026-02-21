@@ -80,8 +80,8 @@ class UpdateHourlyLeaveRequest extends FormRequest
             'place.in' => 'يجب أن يكون إجابة مكان الإستئذان نعم أو لا',
         ];
     }
-    
-    
+
+
 
     /**
      * Configure the validator instance.
@@ -89,38 +89,59 @@ class UpdateHourlyLeaveRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            // التحقق من أن الساعات أقل من 8 إذا تم تحديث الأوقات
+            // التحقق من أن الساعات أقل من ساعات شفت الموظف إذا تم تحديث الأوقات
             if ($this->filled(['date', 'clock_in_m', 'clock_out_m'])) {
                 try {
                     $startTime = \Carbon\Carbon::parse($this->date . ' ' . $this->clock_in_m);
-                    $endTime = \Carbon\Carbon::parse($this->date . ' ' . $this->clock_out_m);
+                    $endTime   = \Carbon\Carbon::parse($this->date . ' ' . $this->clock_out_m);
                     $leaveHours = $endTime->diffInHours($startTime);
 
-                    if ($leaveHours >= 8) {
-                        $validator->errors()->add('clock_out_m', 'لا يمكن تسجيل استئذان لـ ' . $leaveHours . ' ساعة. الاستئذان يجب أن يكون أقل من 8 ساعات.');
+                    // جلب ساعات شفت الموظف صاحب الطلب (ليس المستخدم النشط)
+                    $leaveId  = $this->route('id');
+                    $leave    = $leaveId ? \App\Models\LeaveApplication::find($leaveId) : null;
+                    /** @var \App\Models\User|null $employee */
+                    $employee   = $leave
+                        ? \App\Models\User::with('user_details.officeShift')->find($leave->employee_id)
+                        : Auth::user();
+                    $shiftHours = ($employee instanceof \App\Models\User)
+                        ? $employee->getWorkHoursPerDay()
+                        : 8.0;
+
+                    if ($leaveHours >= $shiftHours) {
+                        $validator->errors()->add(
+                            'clock_out_m',
+                            "لا يمكن تسجيل استئذان لـ {$leaveHours} ساعة. الاستئذان يجب أن يكون أقل من {$shiftHours} ساعات."
+                        );
                     }
                 } catch (\Exception $e) {
                     $validator->errors()->add('clock_out_m', 'خطأ في حساب ساعات الإستئذان');
                 }
             }
 
-            // التحقق من عدم وجود استئذان آخر في نفس التاريخ إذا تم تحديث التاريخ
+            // التحقق من عدم وجود استئذان آخر في نفس التاريخ (باستثناء الطلب الحالي)
             if ($this->filled('date')) {
                 $permissionService = app(\App\Services\SimplePermissionService::class);
                 $companyId = $permissionService->getEffectiveCompanyId(Auth::user());
 
-                $hourlyLeaveRepository = app(\App\Repository\Interface\HourlyLeaveRepositoryInterface::class);
-
-                // الحصول على معرف الطلب الحالي من route
                 $currentLeaveId = $this->route('id');
 
-                // التحقق من وجود استئذان آخر في نفس التاريخ (باستثناء الطلب الحالي)
+                // جلب ساعات شفت الموظف صاحب الطلب (ليس المستخدم النشط)
+                $leave    = $currentLeaveId ? \App\Models\LeaveApplication::find($currentLeaveId) : null;
+                /** @var \App\Models\User|null $employee */
+                $employee   = $leave
+                    ? \App\Models\User::with('user_details.officeShift')->find($leave->employee_id)
+                    : Auth::user();
+                $shiftHours = ($employee instanceof \App\Models\User)
+                    ? $employee->getWorkHoursPerDay()
+                    : 8.0;
+
+                // التحقق من وجود استئذان آخر في نفس التاريخ
                 $existingLeave = \App\Models\LeaveApplication::where('company_id', $companyId)
                     ->where('employee_id', Auth::id())
                     ->whereColumn('from_date', 'to_date')
                     ->where('from_date', $this->date)
                     ->where('leave_hours', '>', 0)
-                    ->where('leave_hours', '<', 8)
+                    ->where('leave_hours', '<', $shiftHours) // أقل من ساعات الشفت
                     ->whereIn('status', [1, 2])
                     ->where('leave_id', '!=', $currentLeaveId)
                     ->exists();

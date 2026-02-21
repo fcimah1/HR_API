@@ -19,10 +19,16 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
     {
         $companyId = $filters->companyId;
 
-        // فلتر طلبات الإجازة (leave_hours > 0 & leave_hours < 8)
-        $query = LeaveApplication::where('company_id', $companyId)
-            ->where('leave_hours', '>', 0) // ساعات أكبر من صفر
-            ->where('leave_hours', '<', 8) // ساعات أقل من 8
+        // فلتر طلبات الإجازة بالساعات:
+        // leave_hours > 0  → استئذان وليس إجازة منعدمة
+        // leave_hours < hours_per_day للموظف → استئذان (أقل من يوم كامل)
+        // نستخدم JOIN مع شفت الموظف ونستعمل COALESCE للفول-باك على 8 إذا لم يوجد شفت
+        $query = LeaveApplication::where('ci_leave_applications.company_id', $companyId)
+            ->join('ci_erp_users_details', 'ci_leave_applications.employee_id', '=', 'ci_erp_users_details.user_id')
+            ->leftJoin('ci_office_shifts', 'ci_erp_users_details.office_shift_id', '=', 'ci_office_shifts.office_shift_id')
+            ->select('ci_leave_applications.*') // نختار بيانات الإجازة فقط لتجنب تداخل المعرفات
+            ->where('ci_leave_applications.leave_hours', '>', 0) // ساعات أكبر من صفر
+            ->whereRaw('CAST(ci_leave_applications.leave_hours AS UNSIGNED) < COALESCE(ci_office_shifts.hours_per_day, 8)') // أقل من ساعات الشفت
             ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
 
         // تطبيق فلتر البحث
@@ -116,9 +122,12 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
      */
     public function findHourlyLeaveById(int $id, int $companyId): ?LeaveApplication
     {
-        return LeaveApplication::where('company_id', $companyId)
-            ->where('leave_hours', '>', 0) // ساعات أكبر من صفر
-            ->where('leave_hours', '<', 8) // ساعات أقل من 8
+        return LeaveApplication::where('ci_leave_applications.company_id', $companyId)
+            ->join('ci_erp_users_details', 'ci_leave_applications.employee_id', '=', 'ci_erp_users_details.user_id')
+            ->leftJoin('ci_office_shifts', 'ci_erp_users_details.office_shift_id', '=', 'ci_office_shifts.office_shift_id')
+            ->select('ci_leave_applications.*')
+            ->where('ci_leave_applications.leave_hours', '>', 0)
+            ->whereRaw('CAST(ci_leave_applications.leave_hours AS UNSIGNED) < COALESCE(ci_office_shifts.hours_per_day, 8)')
             ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff'])
             ->find($id);
     }
@@ -128,9 +137,12 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
      */
     public function findHourlyLeaveForEmployee(int $id, int $employeeId): ?LeaveApplication
     {
-        return LeaveApplication::where('employee_id', $employeeId)
-            ->where('leave_hours', '>', 0)
-            ->where('leave_hours', '<', 8)
+        return LeaveApplication::where('ci_leave_applications.employee_id', $employeeId)
+            ->join('ci_erp_users_details', 'ci_leave_applications.employee_id', '=', 'ci_erp_users_details.user_id')
+            ->leftJoin('ci_office_shifts', 'ci_erp_users_details.office_shift_id', '=', 'ci_office_shifts.office_shift_id')
+            ->select('ci_leave_applications.*')
+            ->where('ci_leave_applications.leave_hours', '>', 0)
+            ->whereRaw('CAST(ci_leave_applications.leave_hours AS UNSIGNED) < COALESCE(ci_office_shifts.hours_per_day, 8)')
             ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff'])
             ->find($id);
     }
@@ -205,12 +217,16 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
      */
     public function hasHourlyLeaveOnDate(int $employeeId, string $date, int $companyId): bool
     {
+        // نجلب ساعات شفت الموظف مباشرةً ولا نستخدم رقماً ثابتاً
+        $employee = User::with('user_details.officeShift')->find($employeeId);
+        $shiftHours = $employee ? (float) ($employee->user_details?->first()?->officeShift?->hours_per_day ?? 8) : 8.0;
+
         return LeaveApplication::where('company_id', $companyId)
             ->where('employee_id', $employeeId)
-            ->where('particular_date', $date) // نفس التاريخ المطلوب
-            ->where('leave_hours', '>', 0) // ساعات أكبر من صفر
-            ->where('leave_hours', '<', 8) // ساعات أقل من 8
-            ->whereIn('status', [1, 2, 3]) // pending أو approved أو rejected 
+            ->where('particular_date', $date)
+            ->where('leave_hours', '>', 0)
+            ->where('leave_hours', '<', $shiftHours) // أقل من ساعات شفت الموظف
+            ->whereIn('status', [1, 2, 3]) // pending أو approved أو rejected
             ->exists();
     }
 
