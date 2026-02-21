@@ -13,9 +13,15 @@ class UpdateLeaveAdjustmentDTO
 
     public static function fromRequest(array $data): self
     {
+        $adjustHours = isset($data['adjust_hours']) ? (float)$data['adjust_hours'] : null;
+
+        if ($adjustHours !== null && isset($data['operator']) && $data['operator'] === 'sub') {
+            $adjustHours = -abs($adjustHours);
+        }
+
         return new self(
             leaveTypeId: $data['leave_type_id'] ?? null,
-            adjustHours: $data['adjust_hours'] ?? null,
+            adjustHours: $adjustHours !== null ? (string)$adjustHours : null,
             reasonAdjustment: $data['reason_adjustment'] ?? null,
             adjustmentDate: $data['adjustment_date'] ?? null,
         );

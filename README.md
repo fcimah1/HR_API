@@ -213,9 +213,9 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 | **Training Skills**          | `/api/training-skills`                 | Manage Training Types/Skills (See [docs/TRAINING.md](docs/TRAINING.md))                                     |
 | **Biometric Attendance**     | `/api/biometric-logs`                  | Sync Logs                                                                                                   |
 | **Manual Attendance**        | `/api/attendances`                     | Clock In/Out, Monthly Report                                                                                |
-| **Recruitment (Jobs)**       | `/api/recruitment/jobs`                | CRUD, List, Apply                                                                                           |
-| **Recruitment (Candidates)** | `/api/recruitment/candidates`          | List, Search, Update Status, Resume Download                                                                |
-| **Recruitment (Interviews)** | `/api/recruitment/interviews`          | List, View, Update Status                                                                                   |
+| **Recruitment (Jobs)**       | `/api/recruitment/jobs`                | CRUD, List, Apply (See [docs/RECRUITMENT_MODULE.md](docs/RECRUITMENT_MODULE.md))                            |
+| **Recruitment (Candidates)** | `/api/recruitment/candidates`          | List, Search, Update Status (See [docs/RECRUITMENT_MODULE.md](docs/RECRUITMENT_MODULE.md))                  |
+| **Recruitment (Interviews)** | `/api/recruitment/interviews`          | List, View, Update Status (See [docs/RECRUITMENT_MODULE.md](docs/RECRUITMENT_MODULE.md))                    |
 | **Notifications**            | `/api/notifications`                   | List, Mark as Read                                                                                          |
 | **Approval**                 | `/api/approvals`                       | Pending List, History, Process                                                                              |
 

@@ -33,6 +33,8 @@ class LeaveApplicationResponseDTO
         public readonly string $statusText,
         public readonly string $createdAt,
         public readonly ?array $employee = null,
+        public readonly ?array $leaveType = null,
+        public readonly ?array $dutyEmployee = null,
         public readonly ?array $approvals = null,
     ) {}
 
@@ -41,6 +43,12 @@ class LeaveApplicationResponseDTO
         // Load relationships if not already loaded
         if (!$application->relationLoaded('employee')) {
             $application->load('employee');
+        }
+        if (!$application->relationLoaded('leaveType')) {
+            $application->load('leaveType');
+        }
+        if (!$application->relationLoaded('dutyEmployee')) {
+            $application->load('dutyEmployee');
         }
         if (!$application->relationLoaded('approvals')) {
             $application->load('approvals.staff');
@@ -52,6 +60,19 @@ class LeaveApplicationResponseDTO
             'last_name' => $application->employee->last_name,
             'email' => $application->employee->email,
             'full_name' => $application->employee->full_name,
+        ] : null;
+
+        $leaveType = $application->leaveType ? [
+            'leave_type_id' => $application->leaveType->constants_id,
+            'category_name' => $application->leaveType->category_name,
+        ] : null;
+
+        $dutyEmployee = $application->dutyEmployee ? [
+            'user_id' => $application->dutyEmployee->user_id,
+            'first_name' => $application->dutyEmployee->first_name,
+            'last_name' => $application->dutyEmployee->last_name,
+            'email' => $application->dutyEmployee->email,
+            'full_name' => $application->dutyEmployee->full_name,
         ] : null;
 
         $approvals = $application->approvals->map(function ($approval) {
@@ -78,15 +99,8 @@ class LeaveApplicationResponseDTO
             toDate: $application->to_date,
             leaveMonth: $application->leave_month,
             leaveYear: $application->leave_year,
-            // تحويل قيم Enums إلى نصوص لتتوافق مع نوع البيانات المتوقعة (string)
-            // عرض حالة الخصم كقيمة نصية عربية بدلاً من الرقم
-            isDeducted: $application->is_deducted === 1
-                ? DeductedStatus::DEDUCTED->labelAr()
-                : DeductedStatus::NOT_DEDUCTED->labelAr(),
-            // عرض مكان الإجازة كقيمة نصية عربية بدلاً من الرقم
-            placeType: $application->place === 1
-                ? LeavePlaceEnum::INSIDE->labelAr()
-                : LeavePlaceEnum::OUTSIDE->labelAr(),
+            isDeducted: $application->is_deducted ? DeductedStatus::DEDUCTED->value : DeductedStatus::NOT_DEDUCTED->value,
+            placeType: $application->place ? LeavePlaceEnum::INSIDE->value : LeavePlaceEnum::OUTSIDE->value,
             durationDays: self::calculateDuration($application->from_date, $application->to_date),
             reason: $application->reason,
             dutyEmployeeId: $application->duty_employee_id,
@@ -99,6 +113,8 @@ class LeaveApplicationResponseDTO
             statusText: self::getStatusText($application->status),
             createdAt: $application->created_at,
             employee: $employee,
+            dutyEmployee: $dutyEmployee,
+            leaveType: $leaveType,
             approvals: $approvals,
         );
     }
@@ -145,20 +161,19 @@ class LeaveApplicationResponseDTO
             'from_date' => $this->fromDate,
             'to_date' => $this->toDate,
             'duration_days' => $this->durationDays,
-            'is_deducted' => $this->isDeducted,
-            'place_type' => $this->placeType,
+            'is_deducted' => $this->isDeducted === DeductedStatus::DEDUCTED->value ? DeductedStatus::DEDUCTED->labelAr() : DeductedStatus::NOT_DEDUCTED->labelAr(),
+            'place_type' => $this->placeType === LeavePlaceEnum::INSIDE->value ? LeavePlaceEnum::INSIDE->labelAr() : LeavePlaceEnum::OUTSIDE->labelAr(),
             'reason' => $this->reason,
             'duty_employee_id' => $this->dutyEmployeeId,
             'duty_employee_name' => $this->dutyEmployeeName,
-            'is_half_day' => $this->isHalfDay,
             'leave_hours' => $this->leaveHours,
             'remarks' => $this->remarks,
-            'is_deducted_text' => $this->isDeducted === DeductedStatus::DEDUCTED->value ? DeductedStatus::DEDUCTED->labelAr() : DeductedStatus::NOT_DEDUCTED->labelAr(),
-            'place_text' => $this->placeType === LeavePlaceEnum::INSIDE->value ? LeavePlaceEnum::INSIDE->labelAr() : LeavePlaceEnum::OUTSIDE->labelAr(),
             'status' => $this->status,
             'status_text' => $this->statusText,
             'created_at' => $this->createdAt,
             'employee' => $this->employee,
+            'duty_employee' => $this->dutyEmployee,
+            'leave_type' => $this->leaveType,
             'approvals' => $this->approvals,
         ];
     }

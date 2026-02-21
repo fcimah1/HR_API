@@ -16257,7 +16257,7 @@
                 "tags": [
                     "Leave Management"
                 ],
-                "summary": "Get leave applications",
+                "summary": "عرض طلبات الإجازات",
                 "operationId": "108fd1c88016a0fd948c4c5e6805ca55",
                 "parameters": [
                     {
@@ -16336,7 +16336,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Applications retrieved successfully",
+                        "description": "تم جلب طلبات الإجازات بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -16554,14 +16554,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - يجب تسجيل الدخول",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
                                         }
                                     },
                                     "type": "object"
@@ -16570,7 +16570,7 @@
                         }
                     },
                     "403": {
-                        "description": "Forbidden - No permission",
+                        "description": "غير مصرح لك بعرض طلبات الإجازات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -16590,7 +16590,7 @@
                         }
                     },
                     "422": {
-                        "description": "Validation error",
+                        "description": "فشل التحقق من صحة البيانات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -16612,7 +16612,7 @@
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "فشل في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -16641,7 +16641,7 @@
                 "tags": [
                     "Leave Management"
                 ],
-                "summary": "Create a new leave application",
+                "summary": "إنشاء طلب إجازة جديد",
                 "operationId": "dacdbb5df9d12a9eceec2d178c2f8ec3",
                 "requestBody": {
                     "required": true,
@@ -16652,7 +16652,9 @@
                                     "leave_type_id",
                                     "from_date",
                                     "to_date",
-                                    "reason"
+                                    "reason",
+                                    "duty_employee_id",
+                                    "place"
                                 ],
                                 "properties": {
                                     "employee_id": {
@@ -16687,24 +16689,10 @@
                                         "type": "integer",
                                         "example": 37
                                     },
-                                    "is_half_day": {
-                                        "description": "هل الإجازة نصف يوم؟",
-                                        "type": "boolean",
-                                        "example": false
-                                    },
                                     "remarks": {
                                         "description": "ملاحظات (اختياري)",
                                         "type": "string",
                                         "example": "ملاحظات إضافية"
-                                    },
-                                    "is_deducted": {
-                                        "description": "هل تخصم من الرصيد؟ 0=لا، 1=نعم",
-                                        "type": "integer",
-                                        "enum": [
-                                            "0",
-                                            "1"
-                                        ],
-                                        "example": 1
                                     },
                                     "place": {
                                         "description": "مكان الإجازة: 0=خارج الشركة، 1=داخل الشركة",
@@ -16723,7 +16711,7 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Leave application created successfully",
+                        "description": "تم إنشاء طلب الإجازة بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -16746,14 +16734,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - يجب تسجيل الدخول",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
                                         }
                                     },
                                     "type": "object"
@@ -16762,7 +16750,7 @@
                         }
                     },
                     "403": {
-                        "description": "Forbidden - No permission",
+                        "description": "غير مصرح لك بإنشاء طلبات الإجازات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -16782,7 +16770,7 @@
                         }
                     },
                     "422": {
-                        "description": "Validation error",
+                        "description": "فشل التحقق من البيانات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -16828,7 +16816,7 @@
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "فشل في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -16860,13 +16848,13 @@
                 "tags": [
                     "Leave Management"
                 ],
-                "summary": "Get a specific leave application",
+                "summary": "عرض طلب إجازة معين",
                 "operationId": "d39da257002a19f24c103461def2cd2c",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "Leave application ID",
+                        "description": "معرف طلب الإجازة",
                         "required": true,
                         "schema": {
                             "type": "integer"
@@ -16875,7 +16863,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Leave application retrieved successfully",
+                        "description": "تم جلب تفاصيل طلب الإجازة بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17023,14 +17011,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - يجب تسجيل الدخول",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
                                         }
                                     },
                                     "type": "object"
@@ -17039,7 +17027,7 @@
                         }
                     },
                     "403": {
-                        "description": "Forbidden - No permission",
+                        "description": "غير مصرح لك بعرض تفاصيل طلبات الإجازات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17059,7 +17047,7 @@
                         }
                     },
                     "404": {
-                        "description": "Leave application not found",
+                        "description": "طلب الإجازة غير موجود",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17079,7 +17067,7 @@
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "فشل في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17109,13 +17097,13 @@
                 "tags": [
                     "Leave Management"
                 ],
-                "summary": "Update a leave application",
+                "summary": "تعديل طلب إجازة",
                 "operationId": "cd9fe0964115a647127feb4fc88f250e",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "Leave application ID",
+                        "description": "معرف طلب الإجازة",
                         "required": true,
                         "schema": {
                             "type": "integer"
@@ -17153,7 +17141,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Leave application updated successfully",
+                        "description": "تم تحديث طلب الإجازة بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17176,14 +17164,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - يجب تسجيل الدخول",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح - يجب تسجيل الدخول"
                                         }
                                     },
                                     "type": "object"
@@ -17192,7 +17180,7 @@
                         }
                     },
                     "403": {
-                        "description": "Forbidden - No permission",
+                        "description": "غير مصرح لك بتعديل طلبات الإجازات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17212,7 +17200,7 @@
                         }
                     },
                     "404": {
-                        "description": "Leave application not found",
+                        "description": "طلب الإجازة غير موجود",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17232,7 +17220,7 @@
                         }
                     },
                     "422": {
-                        "description": "Validation error",
+                        "description": "فشل التحقق من البيانات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17255,7 +17243,7 @@
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "فشل في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17287,14 +17275,14 @@
                 "tags": [
                     "Leave Management"
                 ],
-                "summary": "Cancel a leave application (mark as rejected)",
-                "description": "Cancels a leave application by marking it as rejected. The application remains in the database for audit purposes with status 'rejected' and remarks indicating it was cancelled by the employee.",
+                "summary": "إلغاء طلب إجازة (وضع علامة كـ مرفوض)",
+                "description": "يلغي طلب إجازة عن طريق وضع علامة كـ مرفوض. يبقى الطلب في قاعدة البيانات لأغراض التدقيق بالحالة 'مرفوض' مع ملاحظات تشير إلى أنه تم إلغاؤه من قبل الموظف.",
                 "operationId": "450c456171a07ac8bfe08acd3564ddec",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "Leave application ID to cancel",
+                        "description": "معرف طلب الإجازة المراد إلغاؤه",
                         "required": true,
                         "schema": {
                             "type": "integer",
@@ -17304,7 +17292,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Leave application cancelled successfully",
+                        "description": "تم إلغاء طلب الإجازة بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17324,7 +17312,7 @@
                         }
                     },
                     "404": {
-                        "description": "Leave application not found or cannot be cancelled",
+                        "description": "طلب الإجازة غير موجود أو لا يمكن إلغاؤه",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17344,7 +17332,7 @@
                         }
                     },
                     "422": {
-                        "description": "Cannot cancel processed application",
+                        "description": "لا يمكن إلغاء طلب تم الموافقة عليه مسبقاً",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17364,10 +17352,10 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthorized - Invalid or missing token"
+                        "description": "غير مصرح - رمز غير صالح أو مفقود"
                     },
                     "403": {
-                        "description": "Forbidden - No permission to cancel applications",
+                        "description": "غير مصرح لك بإلغاء طلبات الإجازات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17387,7 +17375,7 @@
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "فشل في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17419,7 +17407,7 @@
                 "tags": [
                     "Leave Management"
                 ],
-                "summary": "Approve or Reject leave application (Managers/HR only)",
+                "summary": "الموافقة على أو رفض طلب الإجازة (للمدراء والموارد البشرية فقط)",
                 "description": "الموافقة على أو رفض طلب الإجازة",
                 "operationId": "a61f5398f6aced5d73220a88ad98c7fc",
                 "parameters": [
@@ -17443,6 +17431,32 @@
                                 "reject"
                             ]
                         }
+                    },
+                    {
+                        "name": "is_deducted",
+                        "in": "query",
+                        "description": "هل يتم خصم الإجازة: نعم للخصم و لا لعدم الخصم",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                "نعم",
+                                "لا"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "include_holidays",
+                        "in": "query",
+                        "description": "هل يتم احتساب العطلات الأسبوعية: نعم للخصم و لا لعدم الخصم",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                "نعم",
+                                "لا"
+                            ]
+                        }
                     }
                 ],
                 "requestBody": {
@@ -17464,7 +17478,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Leave application approved or rejected successfully",
+                        "description": "تمت الموافقة على طلب الإجازة أو رفضه بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17508,7 +17522,7 @@
                         }
                     },
                     "403": {
-                        "description": "Forbidden - No permission to approve/reject",
+                        "description": "غير مصرح لك بالموافقة على طلب هذا الموظف",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17528,7 +17542,7 @@
                         }
                     },
                     "404": {
-                        "description": "Not Found - Leave application not found",
+                        "description": "طلب الإجازة غير موجود",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17548,14 +17562,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - رمز غير صالح أو مفقود",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح"
                                         }
                                     },
                                     "type": "object"
@@ -17564,7 +17578,7 @@
                         }
                     },
                     "422": {
-                        "description": "Validation Error",
+                        "description": "خطأ في التحقق",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17575,7 +17589,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "The given data was invalid"
+                                            "example": "البيانات المقدمة غير صالحة"
                                         },
                                         "errors": {
                                             "type": "object"
@@ -17587,7 +17601,7 @@
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "فشل في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17623,8 +17637,8 @@
                 "tags": [
                     "Leave Management"
                 ],
-                "summary": "Check leave balance for an employee",
-                "description": "Check if an employee has sufficient leave balance for the requested dates",
+                "summary": "التحقق من رصيد الإجازات للموظف",
+                "description": "التحقق مما إذا كان الموظف لديه رصيد إجازات كافٍ للتواريخ المطلوبة",
                 "operationId": "e73bc14bc71f1b69d7119f69e7458ea6",
                 "parameters": [
                     {
@@ -17733,11 +17747,11 @@
                 "tags": [
                     "Leave Management"
                 ],
-                "summary": "Get leave statistics (Managers/HR only)",
+                "summary": "احصائيات الإجازات (للمدراء والموارد البشرية فقط)",
                 "operationId": "a5317e9bdcb5843a614ed8a01d389771",
                 "responses": {
                     "200": {
-                        "description": "Leave statistics retrieved successfully",
+                        "description": "تم جلب احصائيات الإجازات بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17760,7 +17774,7 @@
                         }
                     },
                     "403": {
-                        "description": "Forbidden - No permission to view statistics",
+                        "description": "غير مصرح لك بعرض الإحصائيات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17780,14 +17794,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - يجب تسجيل الدخول",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح"
                                         }
                                     },
                                     "type": "object"
@@ -17796,7 +17810,7 @@
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "فشل في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17823,183 +17837,16 @@
                 ]
             }
         },
-        "/api/leaves/monthly-statistics": {
-            "get": {
-                "tags": [
-                    "Leave Management"
-                ],
-                "summary": "Get monthly leave statistics for an employee",
-                "description": "Returns detailed monthly breakdown of leave hours (granted, used, remaining) for each leave type. Supports leave accrual system.",
-                "operationId": "bc8a5435fe44c820f8f5ef9d6df0ed19",
-                "parameters": [
-                    {
-                        "name": "employee_id",
-                        "in": "query",
-                        "description": "معرف الموظف المستهدف (للشركة/المدير لعرض إحصائيات موظف آخر)",
-                        "required": false,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Monthly statistics retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "تم جلب الإحصائيات الشهرية بنجاح"
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "employee_id": {
-                                                    "type": "integer"
-                                                },
-                                                "company_id": {
-                                                    "type": "integer"
-                                                },
-                                                "year": {
-                                                    "type": "integer"
-                                                },
-                                                "leave_types": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "properties": {
-                                                            "leave_type_id": {
-                                                                "type": "integer"
-                                                            },
-                                                            "leave_type_name": {
-                                                                "type": "string"
-                                                            },
-                                                            "assigned_hours": {
-                                                                "type": "number"
-                                                            },
-                                                            "enable_leave_accrual": {
-                                                                "type": "boolean"
-                                                            },
-                                                            "monthly_breakdown": {
-                                                                "properties": {
-                                                                    "1": {
-                                                                        "properties": {
-                                                                            "month_name": {
-                                                                                "type": "string",
-                                                                                "example": "Jan"
-                                                                            },
-                                                                            "granted": {
-                                                                                "type": "number",
-                                                                                "example": 13.33
-                                                                            },
-                                                                            "used": {
-                                                                                "type": "number",
-                                                                                "example": 8
-                                                                            },
-                                                                            "remaining": {
-                                                                                "type": "number",
-                                                                                "example": 5.33
-                                                                            }
-                                                                        },
-                                                                        "type": "object"
-                                                                    }
-                                                                },
-                                                                "type": "object"
-                                                            }
-                                                        },
-                                                        "type": "object"
-                                                    }
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - No permission to view this employee's statistics"
-                    },
-                    "404": {
-                        "description": "Employee not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "الموظف غير موجود"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthenticated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Unauthenticated"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "حدث خطأ أثناء جلب الإحصائيات الشهرية"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
         "/api/leaves/enums": {
             "get": {
                 "tags": [
                     "Leave Management"
                 ],
-                "summary": "Get leave enums as string and numeric values",
+                "summary": "احصل على قيم الإجازات كنص وقيم رقمية",
                 "operationId": "db5f98e070396da09bf8844b6e369d9e",
                 "responses": {
                     "200": {
-                        "description": "Successful operation",
+                        "description": "تم جلب قيم الإجازات بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -18026,14 +17873,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - يجب تسجيل الدخول",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح"
                                         }
                                     },
                                     "type": "object"
@@ -18042,7 +17889,7 @@
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "فشل في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -18069,18 +17916,327 @@
                 ]
             }
         },
+        "/api/leave-policies/country/{countryCode}": {
+            "get": {
+                "tags": [
+                    "Leave Policies"
+                ],
+                "summary": "Get leave policies by country - الحصول على سياسات دولة",
+                "description": "Get leave policies for a specific country",
+                "operationId": "99a0955dc0915de37b06bd977b5f1e45",
+                "parameters": [
+                    {
+                        "name": "countryCode",
+                        "in": "path",
+                        "description": "Country code (SA, EG, KW, QA)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "SA",
+                                "EG",
+                                "KW",
+                                "QA"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "country_code": {
+                                            "type": "string",
+                                            "example": "SA"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "policy_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "country_code": {
+                                                        "type": "string",
+                                                        "example": "SA"
+                                                    },
+                                                    "leave_type": {
+                                                        "type": "string",
+                                                        "example": "sick"
+                                                    },
+                                                    "days_per_year": {
+                                                        "type": "integer",
+                                                        "example": 120
+                                                    },
+                                                    "tier_1_days": {
+                                                        "type": "integer",
+                                                        "example": 30
+                                                    },
+                                                    "tier_1_payment": {
+                                                        "type": "integer",
+                                                        "example": 100
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid country code"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leave-policies/employee/{employeeId}/one-time-check/{leaveType}": {
+            "get": {
+                "tags": [
+                    "Leave Policies"
+                ],
+                "summary": "Check one-time leave usage - التحقق من استخدام إجازة لمرة واحدة",
+                "description": "Check if employee has used a one-time leave",
+                "operationId": "6092f7724e0db593128501717a971025",
+                "parameters": [
+                    {
+                        "name": "employeeId",
+                        "in": "path",
+                        "description": "Employee ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "leaveType",
+                        "in": "path",
+                        "description": "Leave type (e.g., hajj, umrah)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "hajj"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "employee_id": {
+                                                    "type": "integer"
+                                                },
+                                                "leave_type": {
+                                                    "type": "string",
+                                                    "example": "hajj"
+                                                },
+                                                "has_used": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                },
+                                                "can_request": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leave-policies/company": {
+            "get": {
+                "tags": [
+                    "Leave Policies"
+                ],
+                "summary": "Get company policies - عرض سياسات الشركة",
+                "description": "Get company's leave policies",
+                "operationId": "497c99d4ff5dbc766d9120e317601b83",
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "country_code": {
+                                                    "type": "string",
+                                                    "example": "SA"
+                                                },
+                                                "is_custom": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                },
+                                                "policies": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/leave-policies/company/{country_code}": {
+            "post": {
+                "tags": [
+                    "Leave Policies"
+                ],
+                "summary": "Save company policies - حفظ سياسات الشركة",
+                "description": "Save/Update company leave policies",
+                "operationId": "8ad4e3f071365bb5ad77d5b79282329d",
+                "parameters": [
+                    {
+                        "name": "country_code",
+                        "in": "path",
+                        "description": "Country code (SA, EG, KW, QA)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "SA",
+                                "EG",
+                                "KW",
+                                "QA"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تهيئة إعدادات الإجازات بنجاح"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "mapping_count": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "country_code": {
+                                                    "type": "string",
+                                                    "example": "SA"
+                                                },
+                                                "policies": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/leave-types": {
             "get": {
                 "tags": [
                     "Leave Type Management"
                 ],
-                "summary": "Get all leave types with search and pagination",
+                "summary": "جلب جميع أنواع الإجازات مع البحث والترقيم",
                 "operationId": "df58840be7999bb0a9e0b06c5922a215",
                 "parameters": [
                     {
                         "name": "search",
                         "in": "query",
-                        "description": "Search term for leave type name or description",
+                        "description": "مصطلح البحث عن اسم نوع الإجازة أو الوصف",
                         "required": false,
                         "schema": {
                             "type": "string"
@@ -18089,7 +18245,7 @@
                     {
                         "name": "per_page",
                         "in": "query",
-                        "description": "Number of items per page",
+                        "description": "عدد العناصر في كل صفحة",
                         "required": false,
                         "schema": {
                             "type": "integer",
@@ -18099,7 +18255,7 @@
                     {
                         "name": "page",
                         "in": "query",
-                        "description": "Page number",
+                        "description": "رقم الصفحة",
                         "required": false,
                         "schema": {
                             "type": "integer",
@@ -18109,7 +18265,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Leave types retrieved successfully",
+                        "description": "تم جلب أنواع الإجازات بنجاح",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -18132,14 +18288,14 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "غير مصرح - يجب تسجيل الدخول",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "غير مصرح لك"
                                         }
                                     },
                                     "type": "object"
@@ -18148,7 +18304,7 @@
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "غير مصرح لك بعرض أنواع الإجازات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -18168,7 +18324,7 @@
                         }
                     },
                     "422": {
-                        "description": "Validation error",
+                        "description": "فشل التحقق من البيانات",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -18178,7 +18334,8 @@
                                             "example": false
                                         },
                                         "message": {
-                                            "type": "string"
+                                            "type": "string",
+                                            "example": "فشل التحقق من البيانات"
                                         },
                                         "errors": {
                                             "type": "object"
@@ -18190,7 +18347,7 @@
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "حدث خطأ في الخادم",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -18220,7 +18377,7 @@
                 "tags": [
                     "Leave Type Management"
                 ],
-                "summary": "Create a new leave type (HR/Admin only)",
+                "summary": "إنشاء نوع إجازة جديد (HR/Admin only)",
                 "operationId": "93a582e1d3af06c00eb856a12b8a34ae",
                 "requestBody": {
                     "required": true,
@@ -18236,9 +18393,13 @@
                                         "type": "string",
                                         "example": "إجازة دراسية"
                                     },
-                                    "leave_days": {
-                                        "type": "integer",
-                                        "example": 10
+                                    "requires_approval": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "is_paid_leave": {
+                                        "type": "boolean",
+                                        "example": true
                                     }
                                 },
                                 "type": "object"
@@ -18248,7 +18409,19 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Leave type created successfully"
+                        "description": "تم إنشاء نوع الإجازة بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "غير مصرح - لا تمتلك الصلاحيات اللازمة"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "حدث خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -18263,7 +18436,7 @@
                 "tags": [
                     "Leave Type Management"
                 ],
-                "summary": "Get specific leave type details",
+                "summary": "جلب تفاصيل نوع إجازة معين",
                 "operationId": "2554f18205664f37928af16367490557",
                 "parameters": [
                     {
@@ -18277,10 +18450,22 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Leave type details retrieved successfully"
+                        "description": "تم جلب تفاصيل نوع الإجازة بنجاح"
                     },
                     "404": {
-                        "description": "Leave type not found"
+                        "description": "نوع الإجازة غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "غير مصرح - لا تمتلك الصلاحيات اللازمة"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "حدث خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -18293,7 +18478,7 @@
                 "tags": [
                     "Leave Type Management"
                 ],
-                "summary": "Update a leave type",
+                "summary": "تحديث نوع إجازة",
                 "operationId": "b0c0b5b152018cfa233d028a0530dcac",
                 "parameters": [
                     {
@@ -18310,14 +18495,64 @@
                     "content": {
                         "application/json": {
                             "schema": {
+                                "required": [
+                                    "leave_type_name"
+                                ],
                                 "properties": {
                                     "leave_type_name": {
+                                        "description": "اسم نوع الإجازة",
                                         "type": "string",
-                                        "example": "Updated Leave Name"
+                                        "example": "إجازة دراسية"
                                     },
-                                    "leave_days": {
-                                        "type": "integer",
-                                        "example": 15
+                                    "requires_approval": {
+                                        "description": "هل تتطلب الإجازة موافقة؟",
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "is_paid_leave": {
+                                        "description": "هل هي إجازة مدفوعة؟",
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "enable_leave_accrual": {
+                                        "description": "تمكين استحقاق الإجازة",
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "is_carry": {
+                                        "description": "السماح بترحيل رصيد الإجازة",
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "carry_limit": {
+                                        "description": "الحد المتجاوز للترحيل",
+                                        "type": "number",
+                                        "example": 10
+                                    },
+                                    "is_negative_quota": {
+                                        "description": "السماح برصيد الإجازة السالب",
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "negative_limit": {
+                                        "description": "رصيد الإجازة المستحق المسموح به",
+                                        "type": "number",
+                                        "example": 5
+                                    },
+                                    "is_quota": {
+                                        "description": "تفعيل تخصيص النسبة السنوية",
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "quota_assign": {
+                                        "description": "تخصيص عدد أيام الإجازة لكل سنة خدمة (مفتاح=index السنة 0-based، قيمة=عدد الأيام). يدعم حتى 50 سنة.",
+                                        "type": "object",
+                                        "example": {
+                                            "0": 15,
+                                            "1": 18,
+                                            "2": 21,
+                                            "49": 30
+                                        }
                                     }
                                 },
                                 "type": "object"
@@ -18327,7 +18562,19 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Leave type updated successfully"
+                        "description": "تم تحديث نوع الإجازة بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "غير مصرح - لا تمتلك الصلاحيات اللازمة"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "حدث خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -18340,7 +18587,7 @@
                 "tags": [
                     "Leave Type Management"
                 ],
-                "summary": "Delete a leave type",
+                "summary": "حذف نوع إجازة",
                 "operationId": "254d4c93ebe93b444ddecd0f5ad87a2f",
                 "parameters": [
                     {
@@ -18354,7 +18601,19 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Leave type deleted successfully"
+                        "description": "تم حذف نوع الإجازة بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "403": {
+                        "description": "غير مصرح - لا تمتلك الصلاحيات اللازمة"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "حدث خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -36069,6 +36328,14 @@
                     "remarks": {
                         "description": "Remarks for approval",
                         "type": "string"
+                    },
+                    "include_holidays": {
+                        "description": "Include holidays in the leave application",
+                        "type": "boolean"
+                    },
+                    "is_deducted": {
+                        "description": "Is the leave application deducted from the employee's balance",
+                        "type": "boolean"
                     }
                 },
                 "type": "object"
@@ -36140,17 +36407,52 @@
             "CreateLeaveTypeRequest": {
                 "title": "Create Leave Type Request",
                 "required": [
-                    "leave_type_name",
-                    "requires_approval"
+                    "leave_type_name"
                 ],
                 "properties": {
                     "leave_type_name": {
-                        "description": "Leave type name",
+                        "description": "اسم نوع الإجازة",
                         "type": "string"
                     },
                     "requires_approval": {
-                        "description": "Requires approval",
+                        "description": "هل تتطلب موافقة؟",
                         "type": "boolean"
+                    },
+                    "is_paid_leave": {
+                        "description": "هل هي إجازة مدفوعة؟",
+                        "type": "boolean"
+                    },
+                    "enable_leave_accrual": {
+                        "description": "تمكين استحقاق الإجازة",
+                        "type": "boolean"
+                    },
+                    "is_carry": {
+                        "description": "السماح بالترحيل",
+                        "type": "boolean"
+                    },
+                    "carry_limit": {
+                        "description": "الحد الأقصى للترحيل",
+                        "type": "number"
+                    },
+                    "is_negative_quota": {
+                        "description": "السماح برصيد سالب",
+                        "type": "boolean"
+                    },
+                    "negative_limit": {
+                        "description": "الحد الأقصى للرصيد السالب",
+                        "type": "number"
+                    },
+                    "is_quota": {
+                        "description": "تفعيل التخصيص السنوي",
+                        "type": "boolean"
+                    },
+                    "quota_assign": {
+                        "description": "تخصيص الأيام لكل سنة (0-based index، يدعم حتى 50 سنة)",
+                        "type": "object",
+                        "example": [
+                            15,
+                            18
+                        ]
                     }
                 },
                 "type": "object"
@@ -36188,17 +36490,52 @@
             "UpdateLeaveTypeRequest": {
                 "title": "Update Leave Type Request",
                 "required": [
-                    "leave_type_name",
-                    "requires_approval"
+                    "leave_type_name"
                 ],
                 "properties": {
                     "leave_type_name": {
-                        "description": "Leave type name",
+                        "description": "اسم نوع الإجازة",
                         "type": "string"
                     },
                     "requires_approval": {
-                        "description": "Requires approval",
+                        "description": "هل تتطلب موافقة؟",
                         "type": "boolean"
+                    },
+                    "is_paid_leave": {
+                        "description": "هل هي إجازة مدفوعة؟",
+                        "type": "boolean"
+                    },
+                    "enable_leave_accrual": {
+                        "description": "تمكين استحقاق الإجازة",
+                        "type": "boolean"
+                    },
+                    "is_carry": {
+                        "description": "السماح بالترحيل",
+                        "type": "boolean"
+                    },
+                    "carry_limit": {
+                        "description": "الحد الأقصى للترحيل",
+                        "type": "number"
+                    },
+                    "is_negative_quota": {
+                        "description": "السماح برصيد سالب",
+                        "type": "boolean"
+                    },
+                    "negative_limit": {
+                        "description": "الحد الأقصى للرصيد السالب",
+                        "type": "number"
+                    },
+                    "is_quota": {
+                        "description": "تفعيل التخصيص السنوي",
+                        "type": "boolean"
+                    },
+                    "quota_assign": {
+                        "description": "تخصيص الأيام لكل سنة (0-based index، يدعم حتى 50 سنة)",
+                        "type": "object",
+                        "example": {
+                            "1": 18,
+                            "50": 30
+                        }
                     }
                 },
                 "type": "object"
@@ -38410,6 +38747,10 @@
         {
             "name": "Leave Management",
             "description": "Leave applications management"
+        },
+        {
+            "name": "Leave Policies",
+            "description": "Advanced leave policies management - سياسات الإجازات المتقدمة"
         },
         {
             "name": "Leave Type Management",

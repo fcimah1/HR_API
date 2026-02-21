@@ -80,6 +80,7 @@ class UpdateLeaveAdjustmentRequest extends FormRequest
             ],
             'reason_adjustment' => 'sometimes|string|max:1000',
             'adjustment_date' => 'sometimes|date',
+            'operator' => 'nullable|string|in:add,sub',
         ];
     }
 

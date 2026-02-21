@@ -245,8 +245,8 @@ class AppServiceProvider extends ServiceProvider
         // Configure Passport token expiration
         if (class_exists('Laravel\Passport\Passport')) {
             Passport::tokensExpireIn(now()->addMinutes(15));
-            Passport::refreshTokensExpireIn(now()->addMinutes(120));
-            Passport::personalAccessTokensExpireIn(now()->addMinutes(60));
+            Passport::refreshTokensExpireIn(now()->addMinutes(120)); //120 minutes 
+            Passport::personalAccessTokensExpireIn(now()->addMinutes(360));
         }
 
         // تسجيل Listener لفشل الـ Jobs

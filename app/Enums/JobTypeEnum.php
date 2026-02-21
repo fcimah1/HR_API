@@ -6,10 +6,10 @@ namespace App\Enums;
 
 enum JobTypeEnum: int
 {
-    case PART_TIME = 0;
-    case PERMANENT = 1;
-    case CONTRACT = 2;
-    case PROBATION = 3;
+    case PART_TIME = 1;
+    case PERMANENT = 2;
+    case CONTRACT = 3;
+    case PROBATION = 4;
 
     public function trans(): string
     {

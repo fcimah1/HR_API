@@ -128,4 +128,15 @@ interface LeaveRepositoryInterface
      * Get list of approved leave dates for an employee in a specific period
      */
     public function getApprovedLeaveDates(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): string;
+
+    /**
+     * Get cumulative days used by employee for a specific leave type in a year
+     * 
+     * @param int $employeeId
+     * @param int $year
+     * @param string $systemLeaveType System leave type (sick, annual, etc.)
+     * @return float
+     */
+    public function getCumulativeDaysUsed(int $employeeId, int $year, string $systemLeaveType): float;
+
 }

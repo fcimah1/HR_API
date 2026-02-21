@@ -173,6 +173,31 @@ class User extends Authenticatable
     }
 
     /**
+     * Get employee's work hours per day from their office shift
+     * @return float Default is 8.0 hours if no shift assigned
+     */
+    public function getWorkHoursPerDay(): float
+    {
+        // Check if user has details and office shift
+        if (!$this->relationLoaded('user_details')) {
+            $this->load('user_details');
+        }
+
+        if ($this->user_details && $this->user_details->office_shift_id) {
+            // Use CacheService to retrieve the shift
+            $cacheService = app(\App\Services\CacheService::class);
+            $shift = $cacheService->getOfficeShift($this->user_details->office_shift_id);
+
+            if ($shift && $shift->hours_per_day > 0) {
+                return (float) $shift->hours_per_day;
+            }
+        }
+
+        // Default to 8 hours per day
+        return 8.0;
+    }
+
+    /**
      * Get branches for company (when user_type = 'company')
      */
     public function branches(): HasMany

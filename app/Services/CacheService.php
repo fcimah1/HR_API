@@ -230,6 +230,7 @@ class CacheService
         });
     }
 
+
     /**
      * مسح cache الشيفتات
      */
@@ -239,6 +240,16 @@ class CacheService
         Log::debug("Office shifts cache cleared for company {$companyId}");
     }
 
+    /**
+     * مسح cache الشيفتات
+     */
+    public function clearOfficeShiftForEmployeeCache(int $shiftId): void
+    {
+        Cache::forget("office_shift.{$shiftId}");
+        Log::debug("Office shift cache cleared for employee {$shiftId}");
+    }
+
+    
     // ===== User Permissions =====
 
     /**

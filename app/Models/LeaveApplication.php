@@ -38,10 +38,37 @@ class LeaveApplication extends Model
         'is_deducted',
         'place',
         'created_at',
+        'include_holidays',
+        'country_code',
+        'policy_id',
+        'service_years',
+        'tier_order',
+        'payment_percentage',
+        'calculated_days',
+        'documentation_provided',
+        'salary_deduction_applied',
     ];
-    protected $allowedFields = ['leave_id', 'company_id', 'employee_id', 'leave_type_id', 'from_date',
-     'to_date', 'particular_date', 'leave_hours', 'reason', 'leave_month', 'leave_year', 'remarks',
-      'status', 'is_half_day', 'leave_attachment', 'created_at', 'duty_employee_id', 'is_deducted', 'place'];
+    protected $allowedFields = [
+        'leave_id',
+        'company_id',
+        'employee_id',
+        'leave_type_id',
+        'from_date',
+        'to_date',
+        'particular_date',
+        'leave_hours',
+        'reason',
+        'leave_month',
+        'leave_year',
+        'remarks',
+        'status',
+        'is_half_day',
+        'leave_attachment',
+        'created_at',
+        'duty_employee_id',
+        'is_deducted',
+        'place'
+    ];
 
     /**
      * The attributes that should be cast.
@@ -74,7 +101,7 @@ class LeaveApplication extends Model
     public static function leave_types($companyId)
     {
         return ErpConstant::where('type', 'leave_type')
-            ->when($companyId, function($query) use ($companyId) {
+            ->when($companyId, function ($query) use ($companyId) {
                 $query->where('company_id', $companyId);
             })
             ->select(['constants_id', 'company_id', 'type', 'category_name'])
@@ -90,11 +117,12 @@ class LeaveApplication extends Model
     }
 
 
-     // get all leave types names
-    public function allLeaveTypeNameByCompanyId(int $companyId){
-         return \App\Models\ErpConstant::where('type', 'leave_type')
+    // get all leave types names
+    public function allLeaveTypeNameByCompanyId(int $companyId)
+    {
+        return \App\Models\ErpConstant::where('type', 'leave_type')
             ->where('company_id', $companyId)
-            ->pluck('category_name','constants_id')
+            ->pluck('category_name', 'constants_id')
             ->toArray();
     }
 
@@ -161,7 +189,7 @@ class LeaveApplication extends Model
     public function toArray(): array
     {
         $array = parent::toArray();
-        
+
         // Format employee data
         if (isset($this->employee)) {
             $array['employee'] = [
@@ -174,7 +202,7 @@ class LeaveApplication extends Model
                 'position' => $this->employee->user_details?->designation?->name ?? null,
             ];
         }
-        
+
         // Format duty_employee data
         if (isset($this->dutyEmployee)) {
             $array['duty_employee'] = [
@@ -187,7 +215,7 @@ class LeaveApplication extends Model
                 'position' => $this->dutyEmployee->user_details?->designation?->name ?? null,
             ];
         }
-        
+
         // Format leave_type data
         if (isset($this->leaveType)) {
             $array['leave_type'] = [
@@ -195,7 +223,7 @@ class LeaveApplication extends Model
                 'category_name' => $this->leaveType->category_name
             ];
         }
-        
+
         // Format approvals data
         if (isset($this->approvals)) {
             $array['approvals'] = $this->approvals->map(function ($approval) {
@@ -214,7 +242,7 @@ class LeaveApplication extends Model
                 ];
             })->toArray();
         }
-        
+
         return $array;
     }
 }
