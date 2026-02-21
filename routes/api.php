@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\LeaveController;
+use App\Http\Controllers\Api\LeavePolicyController;
 use App\Http\Controllers\Api\HourlyLeaveController;
 use App\Http\Controllers\Api\AdvanceSalaryController;
 use App\Http\Controllers\Api\BiometricAttendanceController;
@@ -228,6 +229,20 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::put('/{id}', [LeaveTypeController::class, 'updateLeaveType']);
         Route::delete('/{id}', [LeaveTypeController::class, 'destroyLeaveType']);
     });
+
+    // Leave Policies - سياسات الإجازات المتقدمة
+    Route::prefix('leave-policies')->group(function () {
+        // Get policies for a country - الحصول على سياسات دولة معينة
+        Route::get('/country/{countryCode}', [LeavePolicyController::class, 'getPoliciesByCountry']);
+
+        // Check one-time leave usage - التحقق من استخدام الإجازة لمرة واحدة
+        Route::get('/employee/{employeeId}/one-time-check/{leaveType}', [LeavePolicyController::class, 'checkOneTimeLeaveUsage']);
+
+        // Company policy management - إدارة سياسات الشركة
+        Route::get('/company', [LeavePolicyController::class, 'getCompanyPolicies']);
+        Route::post('/company/{countryCode}', [LeavePolicyController::class, 'saveCompanyPolicies']);
+    });
+
     // Leave balance check 
 
     // Advance Salary & Loan Management

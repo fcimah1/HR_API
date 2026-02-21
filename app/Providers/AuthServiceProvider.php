@@ -16,7 +16,5 @@ class AuthServiceProvider extends ServiceProvider
         // تحديد مسار مفاتيح OAuth
         Passport::loadKeysFrom(storage_path('oauth'));
 
-        // ملاحظة: إعدادات صلاحية الـ Tokens موجودة في AppServiceProvider
-        // وتستخدم القيم من config/passport.php
     }
 }

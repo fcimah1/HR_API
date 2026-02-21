@@ -25,7 +25,9 @@ class CreateLeaveAdjustmentDTO
             companyId: $companyId,
             employeeId: $employeeId,
             leaveTypeId: (int)$data['leave_type_id'],
-            adjustHours: (float)$data['adjust_hours'],
+            adjustHours: (isset($data['operator']) && $data['operator'] === 'sub')
+                ? -abs((float)$data['adjust_hours'])
+                : abs((float)$data['adjust_hours']),
             reasonAdjustment: $data['reason_adjustment'],
             adjustmentDate: $data['adjustment_date'],
             createdBy: $createdBy

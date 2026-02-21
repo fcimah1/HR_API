@@ -15,7 +15,9 @@ use Illuminate\Support\Facades\Log;
  *     title="Approve Leave Application Request",
  *     required={"action", "remarks"},
  *     @OA\Property(property="action", type="string", description="Action to take (approve/reject)"),
- *     @OA\Property(property="remarks", type="string", description="Remarks for approval")
+ *     @OA\Property(property="remarks", type="string", description="Remarks for approval"),
+ *     @OA\Property(property="include_holidays", type="boolean", description="Include holidays in the leave application"),
+ *     @OA\Property(property="is_deducted", type="boolean", description="Is the leave application deducted from the employee's balance")
  * )
  */
 
@@ -33,7 +35,9 @@ class ApproveLeaveApplicationRequest extends FormRequest
     {
         return [
             'action' => 'required|in:approve,reject',
-            'remarks' => 'nullable|string|max:1000',
+            'remarks' => 'required|string|max:1000',
+            'include_holidays' => 'required|boolean',
+            'is_deducted' => 'required|boolean',
         ];
     }
 
@@ -49,6 +53,10 @@ class ApproveLeaveApplicationRequest extends FormRequest
             'action.in' => 'حقل الإجراء يجب أن يكون approve أو reject',
             'remarks.string' => 'حقل الملاحظات يجب أن يكون نصًا.',
             'remarks.max' => 'حقل الملاحظات يجب ألا يزيد عن 1000 حرف.',
+            'include_holidays.required' => 'حقل إدراج أيام العطل مطلوب',
+            'include_holidays.boolean' => 'حقل إدراج أيام العطل يجب أن يكون boolean.',
+            'is_deducted.required' => 'حقل إدراك إجازة مطلوب',
+            'is_deducted.boolean' => 'حقل إدراك إجازة يجب أن يكون boolean.',
         ];
     }
 
