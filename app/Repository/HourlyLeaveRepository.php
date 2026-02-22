@@ -28,7 +28,7 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
             ->leftJoin('ci_office_shifts', 'ci_erp_users_details.office_shift_id', '=', 'ci_office_shifts.office_shift_id')
             ->select('ci_leave_applications.*') // نختار بيانات الإجازة فقط لتجنب تداخل المعرفات
             ->where('ci_leave_applications.leave_hours', '>', 0) // ساعات أكبر من صفر
-            ->whereRaw('CAST(ci_leave_applications.leave_hours AS UNSIGNED) < COALESCE(ci_office_shifts.hours_per_day, 8)') // أقل من ساعات الشفت
+            ->whereRaw('CAST(ci_leave_applications.leave_hours AS DECIMAL(10,2)) < CASE WHEN (COALESCE(ci_office_shifts.hours_per_day, 0) > 0) THEN ci_office_shifts.hours_per_day ELSE 8 END')
             ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
 
         // تطبيق فلتر البحث
@@ -226,7 +226,11 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
             ->where('particular_date', $date)
             ->where('leave_hours', '>', 0)
             ->where('leave_hours', '<', $shiftHours) // أقل من ساعات شفت الموظف
-            ->whereIn('status', [1, 2, 3]) // pending أو approved أو rejected
+            ->whereIn('status', [
+                LeaveApplication::STATUS_PENDING,
+                LeaveApplication::STATUS_APPROVED,
+                LeaveApplication::STATUS_REJECTED
+            ])
             ->exists();
     }
 

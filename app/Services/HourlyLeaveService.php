@@ -238,7 +238,7 @@ class HourlyLeaveService
             // حساب ساعات الإجازة
             $startTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockInM);
             $endTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockOutM);
-            $leaveHours = $endTime->diffInHours($startTime);
+            $leaveHours = abs($startTime->diffInMinutes($endTime)) / 60;
 
             // جلب ساعات شفت الموظف
             $shiftHours = $user ? $user->getWorkHoursPerDay() : 8.0;
@@ -377,7 +377,7 @@ class HourlyLeaveService
                 reason: $dto->reason,
                 dutyEmployeeId: $dto->dutyEmployeeId,
                 remarks: $dto->remarks,
-                leaveHours: (int)$leaveHours,
+                leaveHours: $leaveHours,
                 status: $dto->status,
                 place: $dto->place,
                 countryCode: $countryCode,
