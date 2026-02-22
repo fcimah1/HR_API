@@ -54,7 +54,7 @@ class UpdateHourlyLeaveDTO
             if ($endTime <= $startTime) {
                 $leaveHours = 0; // أو يمكن إرجاع قيمة سالبة للإشارة للخطأ
             } else {
-                $leaveHours = $startTime->diffInMinutes(date: $endTime) / 60;
+                $leaveHours = abs($startTime->diffInMinutes($endTime)) / 60;
             }
 
             $data['leave_hours'] = $leaveHours;

@@ -13443,15 +13443,6 @@
                                         "type": "string",
                                         "example": "ملاحظات إضافية"
                                     },
-                                    "is_deducted": {
-                                        "description": "هل تخصم من الرصيد؟ 0=لا، 1=نعم",
-                                        "type": "integer",
-                                        "enum": [
-                                            "0",
-                                            "1"
-                                        ],
-                                        "example": 1
-                                    },
                                     "place": {
                                         "description": "مكان الإجازة: 0=خارج الشركة، 1=داخل الشركة",
                                         "type": "integer",
@@ -19975,6 +19966,387 @@
                     },
                     "404": {
                         "description": "الموظف أو البيانات غير موجودة أو ليس لديك صلاحية لجلب الموظفين التابعين"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/official-documents": {
+            "get": {
+                "tags": [
+                    "Official Documents"
+                ],
+                "summary": "عرض مصفوفة المستندات الرسمية",
+                "operationId": "0e8faed58d44bbf9316629abaa9ad498",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث في اسم الموظف، نوع المستند أو رقم المستند",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد السجلات في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب المستندات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/OfficialDocumentResource"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Official Documents"
+                ],
+                "summary": "إضافة مستند رسمي جديد",
+                "operationId": "b3d7ecfa8ff3e6a89b030956a6eb2e4f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "license_name",
+                                    "document_type",
+                                    "license_no",
+                                    "expiry_date",
+                                    "document_file"
+                                ],
+                                "properties": {
+                                    "license_name": {
+                                        "description": "اسم الموظف",
+                                        "type": "string",
+                                        "example": "علي"
+                                    },
+                                    "document_type": {
+                                        "description": "نوع المستند",
+                                        "type": "string",
+                                        "example": "قسيمة"
+                                    },
+                                    "license_no": {
+                                        "description": "رقم المستند",
+                                        "type": "string",
+                                        "example": "1"
+                                    },
+                                    "expiry_date": {
+                                        "description": "تاريخ انتهاء الصلاحية",
+                                        "type": "string",
+                                        "example": "2026-02-28"
+                                    },
+                                    "document_file": {
+                                        "description": "ملف المستند",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة المستند بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إضافة المستند بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/OfficialDocumentResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/official-documents/{id}": {
+            "get": {
+                "tags": [
+                    "Official Documents"
+                ],
+                "summary": "عرض تفاصيل مستند رسمي",
+                "operationId": "b121a0afd22e3c341af4dc8c3e551153",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب تفاصيل المستند بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/OfficialDocumentResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "المستند غير موجود"
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Official Documents"
+                ],
+                "summary": "تحديث بيانات مستند رسمي (استخدم _method=PUT)",
+                "operationId": "e8240130fce813ce8ce1d83dae0b1f5f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "_method",
+                                    "license_name",
+                                    "document_type",
+                                    "license_no",
+                                    "expiry_date",
+                                    "document_file"
+                                ],
+                                "properties": {
+                                    "_method": {
+                                        "description": "Laravel method spoofing",
+                                        "type": "string",
+                                        "example": "PUT"
+                                    },
+                                    "license_name": {
+                                        "description": "اسم الموظف",
+                                        "type": "string",
+                                        "example": "علي"
+                                    },
+                                    "document_type": {
+                                        "description": "نوع المستند",
+                                        "type": "string",
+                                        "example": "قسيمة"
+                                    },
+                                    "license_no": {
+                                        "description": "رقم المستند",
+                                        "type": "string",
+                                        "example": "1"
+                                    },
+                                    "expiry_date": {
+                                        "description": "تاريخ انتهاء الصلاحية",
+                                        "type": "string",
+                                        "example": "2026-02-28"
+                                    },
+                                    "document_file": {
+                                        "description": "ملف المستند الجديد (اختياري)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث المستند بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث المستند بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/OfficialDocumentResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "404": {
+                        "description": "المستند غير موجود"
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Official Documents"
+                ],
+                "summary": "حذف مستند رسمي",
+                "operationId": "b633371f122b39de3852b46f82223984",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف المستند بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف المستند بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "المستند غير موجود"
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
                     },
                     "500": {
                         "description": "خطأ في الخادم"
@@ -26542,6 +26914,379 @@
                 ]
             }
         },
+        "/api/signature-documents": {
+            "get": {
+                "tags": [
+                    "Signature Documents"
+                ],
+                "summary": "عرض مصفوفة ملفات التوقيع الإلكتروني",
+                "operationId": "7e455ebfb94a4aac856a74dfc72d08ba",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث في اسم المستند",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد السجلات في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب ملفات التوقيع بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/SignatureDocumentResource"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Signature Documents"
+                ],
+                "summary": "إضافة ملف توقيع إلكتروني جديد",
+                "operationId": "2b305d2be05186da187028341b326cca",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "document_name",
+                                    "share_with_employees",
+                                    "signature_task",
+                                    "document_file"
+                                ],
+                                "properties": {
+                                    "document_name": {
+                                        "description": "اسم المستند",
+                                        "type": "string",
+                                        "example": "عقد عمل"
+                                    },
+                                    "share_with_employees": {
+                                        "description": "مشاركة مع الموظفين (استخدم '0' للكل أو أرسل المصفوفة staff_ids)",
+                                        "type": "integer",
+                                        "example": "0"
+                                    },
+                                    "staff_ids[]": {
+                                        "description": "مصفوفة أرقام الموظفين المختارة",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "signature_task": {
+                                        "description": "مهمة توقيع (ملف onboarding، ملف offboarding)",
+                                        "type": "string",
+                                        "enum": [
+                                            "ملف onboarding",
+                                            "ملف offboarding"
+                                        ],
+                                        "example": "ملف onboarding"
+                                    },
+                                    "document_file": {
+                                        "description": "ملف المستند",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة ملف التوقيع بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إضافة ملف التوقيع بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/SignatureDocumentResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/signature-documents/{id}": {
+            "get": {
+                "tags": [
+                    "Signature Documents"
+                ],
+                "summary": "عرض تفاصيل ملف توقيع",
+                "operationId": "ab59fba566b6c2405c066e67b7324e9b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب التفاصيل بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/SignatureDocumentResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "المستند غير موجود"
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Signature Documents"
+                ],
+                "summary": "تحديث بيانات ملف توقيع (استخدم _method=PUT)",
+                "operationId": "f20e02bf11b7f780ec1111969d543930",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "_method": {
+                                        "description": "Laravel method spoofing",
+                                        "type": "string",
+                                        "example": "PUT"
+                                    },
+                                    "document_name": {
+                                        "description": "اسم المستند",
+                                        "type": "string",
+                                        "example": "عقد عمل جديد"
+                                    },
+                                    "share_with_employees": {
+                                        "description": "مشاركة مع الموظفين (0=لا، 1=نعم)",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "signature_task": {
+                                        "description": "مهمة توقيع (0=لا، 1=نعم)",
+                                        "type": "integer",
+                                        "example": 0
+                                    },
+                                    "document_file": {
+                                        "description": "ملف المستند الجديد (اختياري)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث ملف التوقيع بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث ملف التوقيع بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/SignatureDocumentResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "404": {
+                        "description": "المستند غير موجود"
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Signature Documents"
+                ],
+                "summary": "حذف ملف توقيع",
+                "operationId": "0cf3f19f9cf5e9ededa9bdc199b9f252",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف ملف التوقيع بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف ملف التوقيع بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "المستند غير موجود"
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/finance/accounts": {
             "get": {
                 "tags": [
@@ -28876,6 +29621,359 @@
                     },
                     "403": {
                         "description": "ليس لديك الصلاحية للوصول إلى هذه البيانات"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/system-documents": {
+            "get": {
+                "tags": [
+                    "General Documents"
+                ],
+                "summary": "عرض قائمة المستندات العامة",
+                "operationId": "2f34b0f9811b0f23fde3165674240a11",
+                "parameters": [
+                    {
+                        "name": "department_id",
+                        "in": "query",
+                        "description": "فلترة حسب القسم",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "بحث في اسم أو نوع المستند",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد السجلات في الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "رقم الصفحة",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب المستندات بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/SystemDocumentResource"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "General Documents"
+                ],
+                "summary": "إضافة مستند جديد",
+                "operationId": "4e497908126545ef587eff48032a680c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "department_id",
+                                    "document_name",
+                                    "document_type",
+                                    "document_file"
+                                ],
+                                "properties": {
+                                    "department_id": {
+                                        "type": "integer",
+                                        "example": "1"
+                                    },
+                                    "document_name": {
+                                        "type": "string",
+                                        "example": "اسم المستند"
+                                    },
+                                    "document_type": {
+                                        "type": "string",
+                                        "example": "نوع المستند"
+                                    },
+                                    "document_file": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة المستند بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم إضافة المستند بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/SystemDocumentResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/system-documents/{id}": {
+            "get": {
+                "tags": [
+                    "General Documents"
+                ],
+                "summary": "عرض تفاصيل مستند",
+                "operationId": "b543f30b63947b00880166be4d60b445",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب تفاصيل المستند بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/SystemDocumentResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "المستند غير موجود"
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "General Documents"
+                ],
+                "summary": "تحديث بيانات مستند",
+                "operationId": "53399e7894c3953b7f9e4eb76729431c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "document_name",
+                                    "document_type"
+                                ],
+                                "properties": {
+                                    "document_name": {
+                                        "type": "string",
+                                        "example": "اسم المستند"
+                                    },
+                                    "document_type": {
+                                        "type": "string",
+                                        "example": "نوع المستند"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث المستند بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم تحديث المستند بنجاح"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/SystemDocumentResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": " فشل التحقق من البيانات "
+                    },
+                    "404": {
+                        "description": "المستند غير موجود"
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "General Documents"
+                ],
+                "summary": "حذف مستند",
+                "operationId": "d285a00478e360cccf9e34ec03a38b4c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف المستند بنجاح",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "تم حذف المستند بنجاح"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "المستند غير موجود"
+                    },
+                    "401": {
+                        "description": " غير مصرح - يجب تسجيل الدخول "
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -38147,6 +39245,49 @@
                 },
                 "type": "object"
             },
+            "OfficialDocumentResource": {
+                "title": "Official Document Resource",
+                "description": "مورد المستندات الرسمية",
+                "properties": {
+                    "document_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "company_id": {
+                        "type": "integer",
+                        "example": 24
+                    },
+                    "license_name": {
+                        "type": "string",
+                        "example": "علي"
+                    },
+                    "document_type": {
+                        "type": "string",
+                        "example": "قسيمة"
+                    },
+                    "license_no": {
+                        "type": "string",
+                        "example": "1"
+                    },
+                    "expiry_date": {
+                        "type": "string",
+                        "example": "2026-02-28"
+                    },
+                    "document_file": {
+                        "type": "string",
+                        "example": "123456.png"
+                    },
+                    "document_url": {
+                        "type": "string",
+                        "example": "http://example.com/uploads/123456.png"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "example": "2026-02-22 12:14:08"
+                    }
+                },
+                "type": "object"
+            },
             "ProductResource": {
                 "title": "Product Resource",
                 "properties": {
@@ -38208,6 +39349,53 @@
                     },
                     "status": {
                         "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "SignatureDocumentResource": {
+                "title": "Signature Document Resource",
+                "description": "مورد ملفات التوقيع الإلكتروني",
+                "properties": {
+                    "document_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "company_id": {
+                        "type": "integer",
+                        "example": 24
+                    },
+                    "folder_id": {
+                        "type": "integer",
+                        "example": 24
+                    },
+                    "share_with_employees": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "document_file": {
+                        "type": "string",
+                        "example": "123456.pdf"
+                    },
+                    "document_name": {
+                        "type": "string",
+                        "example": "عقد عمل"
+                    },
+                    "document_size": {
+                        "type": "string",
+                        "example": "102400"
+                    },
+                    "signature_task": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "document_url": {
+                        "type": "string",
+                        "example": "http://example.com/uploads/signature_documents/123456.pdf"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "example": "2026-02-22 12:47:15"
                     }
                 },
                 "type": "object"
@@ -38379,6 +39567,49 @@
                     "replies_count": {
                         "type": "integer",
                         "example": 5
+                    }
+                },
+                "type": "object"
+            },
+            "SystemDocumentResource": {
+                "title": "System Document Resource",
+                "description": "مورد المستندات العامة",
+                "properties": {
+                    "document_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "company_id": {
+                        "type": "integer",
+                        "example": 24
+                    },
+                    "department_id": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "department_name": {
+                        "type": "string",
+                        "example": "المالية"
+                    },
+                    "document_name": {
+                        "type": "string",
+                        "example": "عقد عمل"
+                    },
+                    "document_type": {
+                        "type": "string",
+                        "example": "pdf"
+                    },
+                    "document_file": {
+                        "type": "string",
+                        "example": "123456.pdf"
+                    },
+                    "document_url": {
+                        "type": "string",
+                        "example": "http://example.com/uploads/123456.pdf"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "example": "2026-02-22 10:00:00"
                     }
                 },
                 "type": "object"
@@ -38774,6 +40005,10 @@
             "description": "إدارة نوبات العمل"
         },
         {
+            "name": "Official Documents",
+            "description": "إدارة المستندات الرسمية والتراخيص"
+        },
+        {
             "name": "Overtime Management",
             "description": "Overtime requests management"
         },
@@ -38818,6 +40053,10 @@
             "description": "إدارة الاستقالات - Resignations management endpoints"
         },
         {
+            "name": "Signature Documents",
+            "description": "إدارة ملفات التوقيع الإلكتروني"
+        },
+        {
             "name": "Finance Accounts",
             "description": "إدارة الحسابات المالية للشركة وحسابات الموظفين"
         },
@@ -38832,6 +40071,10 @@
         {
             "name": "Support Tickets",
             "description": "تذاكر الدعم الفني - Support Tickets management endpoints"
+        },
+        {
+            "name": "General Documents",
+            "description": "إدارة المستندات العامة والملفات"
         },
         {
             "name": "Inventory (Tax Types)",

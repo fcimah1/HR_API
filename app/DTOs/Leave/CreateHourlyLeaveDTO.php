@@ -21,7 +21,7 @@ class CreateHourlyLeaveDTO extends Data
         public readonly ?string $remarks      = null,
         public readonly ?int   $status        = null,
         public readonly ?bool  $isHalfDay     = false,
-        public readonly ?int   $leaveHours    = null,
+        public readonly ?float $leaveHours    = null,
         public readonly ?string $leaveMonth   = null,
         public readonly ?string $leaveYear    = null,
         public readonly ?bool  $isDeducted    = false,
@@ -40,7 +40,7 @@ class CreateHourlyLeaveDTO extends Data
         // Calculate leave hours from time strings
         $startTime = \Carbon\Carbon::parse($data['date'] . ' ' . $data['clock_in_m']);
         $endTime = \Carbon\Carbon::parse($data['date'] . ' ' . $data['clock_out_m']);
-        $leaveHours = $startTime->diffInMinutes(date: $endTime) / 60;
+        $leaveHours = abs($startTime->diffInMinutes($endTime)) / 60;
 
         return new self(
             companyId: $companyId,

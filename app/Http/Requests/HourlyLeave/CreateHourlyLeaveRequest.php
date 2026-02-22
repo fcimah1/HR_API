@@ -64,14 +64,15 @@ class CreateHourlyLeaveRequest extends FormRequest
                 'date',
                 'after_or_equal:today',
                 function ($attribute, $value, $fail) use ($user) {
+                    $employeeId = $this->employee_id ?? $user->user_id;
                     $permissionService = app(\App\Services\SimplePermissionService::class);
                     $companyId = $permissionService->getEffectiveCompanyId($user);
 
                     // التحقق من عدم وجود استئذان آخر في نفس التاريخ
                     $hourlyLeaveRepository = app(\App\Repository\Interface\HourlyLeaveRepositoryInterface::class);
 
-                    if ($hourlyLeaveRepository->hasHourlyLeaveOnDate($user->user_id, $value, $companyId)) {
-                        $fail('يوجد لديك استئذان مسجل بالفعل في هذا التاريخ. لا يمكن تسجيل طلب آخر في نفس اليوم.');
+                    if ($hourlyLeaveRepository->hasHourlyLeaveOnDate((int)$employeeId, $value, $companyId)) {
+                        $fail('يوجد لهذا الموظف استئذان مسجل بالفعل في هذا التاريخ. لا يمكن تسجيل طلب آخر في نفس اليوم.');
                     }
                 }
             ],
@@ -79,8 +80,6 @@ class CreateHourlyLeaveRequest extends FormRequest
             'clock_out_m' => 'required|date_format:h:i A|after:clock_in_m',
             'reason' => 'required|string',
             'remarks' => 'nullable|string|max:1000',
-            'is_half_day' => 'nullable|boolean',
-            'is_deducted' => ['nullable', 'boolean', Rule::in(DeductedStatus::cases())],
             'place' => ['nullable', 'boolean', Rule::in(LeavePlaceEnum::cases())],
         ];
     }
@@ -105,8 +104,6 @@ class CreateHourlyLeaveRequest extends FormRequest
             'reason.required' => 'سبب الإستئذان مطلوب',
             'reason.max' => 'لا يمكن أن يتجاوز سبب الإستئذان 1000 حرف',
             'remarks.max' => 'لا يمكن أن يتجاوز الملاحظات 1000 حرف',
-            'is_half_day.boolean' => 'يجب أن يكون إجابة Half Day نعم أو لا',
-            'is_deducted.boolean' => 'يجب أن يكون إجابة Deducted نعم أو لا',
             'place.boolean' => 'يجب أن يكون إجابة مكان الإستئذان نعم أو لا',
         ];
     }

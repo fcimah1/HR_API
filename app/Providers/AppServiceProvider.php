@@ -78,6 +78,12 @@ use App\Repository\Recruitment\CandidateRepository;
 use App\Repository\Interface\Recruitment\InterviewRepositoryInterface;
 use App\Repository\Recruitment\InterviewRepository;
 use Laravel\Passport\Passport;
+use App\Repository\Interface\SystemDocumentRepositoryInterface;
+use App\Repository\SystemDocumentRepository;
+use App\Repository\Interface\OfficialDocumentRepositoryInterface;
+use App\Repository\OfficialDocumentRepository;
+use App\Repository\Interface\SignatureDocumentRepositoryInterface;
+use App\Repository\SignatureDocumentRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -233,6 +239,15 @@ class AppServiceProvider extends ServiceProvider
 
         // Recruitment - Interviews
         $this->app->bind(InterviewRepositoryInterface::class, InterviewRepository::class);
+
+        // General Documents repository
+        $this->app->singleton(SystemDocumentRepositoryInterface::class, SystemDocumentRepository::class);
+
+        // Official Documents repository
+        $this->app->singleton(OfficialDocumentRepositoryInterface::class, OfficialDocumentRepository::class);
+
+        // Signature Documents repository
+        $this->app->singleton(SignatureDocumentRepositoryInterface::class, SignatureDocumentRepository::class);
     }
 
     /**

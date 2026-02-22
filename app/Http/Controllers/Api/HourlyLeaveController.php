@@ -304,7 +304,6 @@ class HourlyLeaveController extends Controller
      *             @OA\Property(property="clock_out_m", type="string", example="02:00 PM", description="وقت نهاية الإجازة"),
      *             @OA\Property(property="reason", type="string", example="استراحة للراحة والاستجمام", description="سبب الإجازة (10 أحرف على الأقل)"),
      *             @OA\Property(property="remarks", type="string", example="ملاحظات إضافية", description="ملاحظات (اختياري)"),
-     *             @OA\Property(property="is_deducted", type="integer", enum={"0","1"}, example=1, description="هل تخصم من الرصيد؟ 0=لا، 1=نعم"),
      *             @OA\Property(property="place", type="integer", enum={"0","1"}, example=0, description="مكان الإجازة: 0=خارج الشركة، 1=داخل الشركة")
      *         )
      *     ),

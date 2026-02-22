@@ -25,6 +25,9 @@ use App\Http\Controllers\Api\FinanceAccountController;
 use App\Http\Controllers\Api\FinanceCategoryController;
 use App\Http\Controllers\Api\FinanceTransactionController;
 use App\Http\Controllers\Api\StaffAccountController;
+use App\Http\Controllers\Api\SystemDocumentController;
+use App\Http\Controllers\Api\OfficialDocumentController;
+use App\Http\Controllers\Api\SignatureDocumentController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -77,6 +80,15 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
         Route::get('/{id}', [\App\Http\Controllers\Api\DepartmentController::class, 'show'])->middleware('simple.permission:department1');
         Route::put('/{id}', [\App\Http\Controllers\Api\DepartmentController::class, 'update'])->middleware('simple.permission:department3');
         Route::delete('/{id}', [\App\Http\Controllers\Api\DepartmentController::class, 'destroy'])->middleware('simple.permission:department4');
+    });
+
+    // General Documents Management
+    Route::prefix('system-documents')->group(function () {
+        Route::get('/', [SystemDocumentController::class, 'index'])->middleware('simple.permission:system_documents1');
+        Route::post('/', [SystemDocumentController::class, 'store'])->middleware('simple.permission:system_documents2');
+        Route::get('/{id}', [SystemDocumentController::class, 'show'])->middleware('simple.permission:system_documents1');
+        Route::put('/{id}', [SystemDocumentController::class, 'update'])->middleware('simple.permission:system_documents3');
+        Route::delete('/{id}', [SystemDocumentController::class, 'destroy'])->middleware('simple.permission:system_documents4');
     });
 
     // Designation Management
@@ -806,4 +818,10 @@ Route::middleware(['auth:api', 'simple.company'])->group(function () {
             Route::post('/{id}/status', [\App\Http\Controllers\Api\Recruitment\InterviewController::class, 'updateStatus'])->middleware('simple.permission:interview');
         });
     });
+
+    // Official Documents routes
+    Route::apiResource('official-documents', OfficialDocumentController::class);
+
+    // Signature Documents routes
+    Route::apiResource('signature-documents', SignatureDocumentController::class);
 });
