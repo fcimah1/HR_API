@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Models\SystemDocument;
+use App\Models\User;
 use App\DTOs\Document\SystemDocumentFilterDTO;
 use App\Repository\Interface\SystemDocumentRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 
 class SystemDocumentRepository implements SystemDocumentRepositoryInterface
 {
+    public function __construct(
+        private readonly \App\Services\SimplePermissionService $permissionService
+    ) {}
+
     /**
      * Get paginated documents with filters
      */
@@ -18,6 +23,18 @@ class SystemDocumentRepository implements SystemDocumentRepositoryInterface
     {
         $query = SystemDocument::where('company_id', $filters->companyId)
             ->with(['department']);
+
+        // Apply department restrictions
+        if (!$this->permissionService->isCompanyOwner($filters->requester)) {
+            $restrictedDepts = $this->permissionService->getRestrictedValues(
+                $filters->requester->user_id,
+                $filters->companyId,
+                'dept_'
+            );
+            if (!empty($restrictedDepts)) {
+                $query->whereNotIn('department_id', $restrictedDepts);
+            }
+        }
 
         if ($filters->departmentId !== null) {
             $query->where('department_id', $filters->departmentId);
@@ -43,6 +60,28 @@ class SystemDocumentRepository implements SystemDocumentRepositoryInterface
             'from' => $paginator->firstItem(),
             'to' => $paginator->lastItem(),
         ];
+    }
+
+    /**
+     * Check if user has access to a specific document based on department restrictions
+     */
+    public function hasDocumentAccess(SystemDocument $document, User $user): bool
+    {
+        if ($this->permissionService->isCompanyOwner($user)) {
+            return true;
+        }
+
+        $restrictedDepts = $this->permissionService->getRestrictedValues(
+            $user->user_id,
+            $document->company_id,
+            'dept_'
+        );
+
+        if (!empty($restrictedDepts) && in_array($document->department_id, $restrictedDepts)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

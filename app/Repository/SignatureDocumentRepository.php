@@ -16,6 +16,23 @@ class SignatureDocumentRepository implements SignatureDocumentRepositoryInterfac
             ->with(['assignedStaff.employee'])
             ->where('company_id', $filters->companyId);
 
+        // Apply Hierarchical Access Control
+        if ($filters->requester && !app(\App\Services\SimplePermissionService::class)->isCompanyOwner($filters->requester)) {
+            $user = $filters->requester;
+            $subordinates = app(\App\Services\SimplePermissionService::class)->getEmployeesByHierarchy(
+                $user->user_id,
+                $filters->companyId,
+                true // Include self
+            );
+            $subordinateIds = array_column($subordinates, 'user_id');
+
+            $query->where(function ($q) use ($user, $subordinateIds) {
+                $q->whereHas('assignedStaff', function ($subQ) use ($subordinateIds) {
+                    $subQ->whereIn('staff_id', $subordinateIds);
+                });
+            });
+        }
+
         if (!empty($filters->search)) {
             $query->where(function ($q) use ($filters) {
                 $q->where('document_name', 'like', '%' . $filters->search . '%')
@@ -69,5 +86,27 @@ class SignatureDocumentRepository implements SignatureDocumentRepositoryInterfac
             ->with(['assignedStaff.employee'])
             ->where('company_id', $companyId)
             ->first();
+    }
+
+    public function hasDocumentAccess(SignatureDocument $document, \App\Models\User $user): bool
+    {
+        $permissionService = app(\App\Services\SimplePermissionService::class);
+
+        // Company Owner has full access
+        if ($permissionService->isCompanyOwner($user)) {
+            return true;
+        }
+
+        // Check if any assigned staff is a subordinate (or self)
+        $subordinates = $permissionService->getEmployeesByHierarchy(
+            $user->user_id,
+            $document->company_id,
+            true // Include self
+        );
+        $subordinateIds = array_column($subordinates, 'user_id');
+
+        return $document->assignedStaff()
+            ->whereIn('staff_id', $subordinateIds)
+            ->exists();
     }
 }

@@ -84,6 +84,10 @@ use App\Repository\Interface\OfficialDocumentRepositoryInterface;
 use App\Repository\OfficialDocumentRepository;
 use App\Repository\Interface\SignatureDocumentRepositoryInterface;
 use App\Repository\SignatureDocumentRepository;
+use App\Repository\Interface\PayslipRepositoryInterface;
+use App\Repository\PayslipRepository;
+use App\Repository\Interface\ContractOptionRepositoryInterface;
+use App\Repository\ContractOptionRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -248,6 +252,15 @@ class AppServiceProvider extends ServiceProvider
 
         // Signature Documents repository
         $this->app->singleton(SignatureDocumentRepositoryInterface::class, SignatureDocumentRepository::class);
+
+        // Events repository
+        $this->app->singleton(\App\Repository\Interface\EventRepositoryInterface::class, \App\Repository\EventRepository::class);
+
+        // Payroll - Payslips repository
+        $this->app->bind(PayslipRepositoryInterface::class, PayslipRepository::class);
+
+        // Contract Options repository
+        $this->app->bind(ContractOptionRepositoryInterface::class, ContractOptionRepository::class);
     }
 
     /**

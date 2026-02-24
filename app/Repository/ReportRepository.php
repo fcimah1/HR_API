@@ -1024,13 +1024,17 @@ class ReportRepository implements ReportRepositoryInterface
             // حساب قسط السلفة/القرض
             $loanAmount = $this->getLoanInstallmentForMonth($employee->user_id, $paymentDate);
 
-            // حساب خصم الإجازات غير مدفوعة الأجر (Unpaid Leave)
+            // حساب خصم الإجازات
+            // - غير مدفوعة: من جدول الإجازات مباشرة
+            // - المرضية: يتم توليدها تلقائياً داخل ci_payslip_statutory_deductions (PayrollDeductionService)
             $unpaidLeaveData = $this->getUnpaidLeaveDeduction($employee->user_id, $paymentDate, $basicSalary);
-            $unpaidLeaveDeduction = $unpaidLeaveData['deduction'];
+            $unpaidLeaveDeduction = (float) ($unpaidLeaveData['deduction'] ?? 0);
+            $sickLeaveDeduction = $this->getSickLeaveDeductionFromStatutory($employee->user_id, $paymentDate);
+            $maternityLeaveDeduction = 0;
 
             // صافي الراتب
             // Total Deductions should conceptually include statutory + loan + unpaid leave
-            $finalDeductionsTotal = $deductionsTotal + $loanAmount + $unpaidLeaveDeduction;
+            $finalDeductionsTotal = $deductionsTotal + $loanAmount + $unpaidLeaveDeduction + $sickLeaveDeduction + $maternityLeaveDeduction;
             $netSalary = $basicSalary + $allowancesTotal - $finalDeductionsTotal;
 
             // إذا توجد قسيمة محفوظة، استخدام بياناتها
@@ -1046,13 +1050,15 @@ class ReportRepository implements ReportRepositoryInterface
                 // Payslip model likely stores these.
                 $loanAmount = (float)$payslip->loan_amount;
                 $unpaidLeaveDeduction = (float)($payslip->unpaid_leave_deduction ?? 0);
+                $sickLeaveDeduction = $this->getSickLeaveDeductionFromStatutory($employee->user_id, $paymentDate);
+                $maternityLeaveDeduction = 0;
                 $netSalary = (float)$payslip->net_salary;
                 $standingAllowances = $payslip->allowances;
                 $standingDeductions = $payslip->deductions;
 
                 // For Report display consistency:
                 // We want "Total Deductions" column to show the SUM.
-                $finalDeductionsTotal = $deductionsTotal + $loanAmount + $unpaidLeaveDeduction;
+                $finalDeductionsTotal = $deductionsTotal + $loanAmount + $unpaidLeaveDeduction + $sickLeaveDeduction + $maternityLeaveDeduction;
             }
 
             // بناء كائن النتيجة
@@ -1068,6 +1074,8 @@ class ReportRepository implements ReportRepositoryInterface
                 'loan_amount' => $loanAmount,
                 'unpaid_leave_days' => $payslip?->unpaid_leave_days ?? $unpaidLeaveData['days'],
                 'unpaid_leave_deduction' => $unpaidLeaveDeduction,
+                'sick_leave_deduction' => $sickLeaveDeduction,
+                'maternity_leave_deduction' => $maternityLeaveDeduction,
                 'net_salary' => $netSalary,
                 'status' => $payslip?->status ?? 0,
                 'payment_method' => $payslip?->salary_payment_method ?? $details->salary_payment_method,
@@ -1164,6 +1172,14 @@ class ReportRepository implements ReportRepositoryInterface
         }
 
         return ['days' => $totalDays, 'deduction' => $deduction];
+    }
+
+    private function getSickLeaveDeductionFromStatutory(int $userId, string $monthYear): float
+    {
+        return (float) DB::table('ci_payslip_statutory_deductions')
+            ->where('staff_id', $userId)
+            ->where('salary_month', $monthYear)
+            ->sum('pay_amount');
     }
 
     /**

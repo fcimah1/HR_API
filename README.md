@@ -221,8 +221,8 @@ An enterprise-grade Human Resources Management API built with **Laravel**. This 
 | **Recruitment (Interviews)** | `/api/recruitment/interviews`          | List, View, Update Status (See [docs/RECRUITMENT_MODULE.md](docs/RECRUITMENT_MODULE.md))                    |
 | **Notifications**            | `/api/notifications`                   | List, Mark as Read                                                                                          |
 | **Approval**                 | `/api/approvals`                       | Pending List, History, Process                                                                              |
-
-_For full endpoint details, please refer to the Swagger UI at `/api/documentation`_
+| **Payroll (Payslips)**       | `/api/payslips`                        | Payment View, Draft (Create/Cancel), Approve List, Approve/Cancel, Show Payslip                             |
+| **Contract Options**         | `/api/contract-options`                | CRUD for Allowances, Commissions, Statutory Deductions, Other Payments                                      |
 
 ## 🛡️ Architecture Highlights
 

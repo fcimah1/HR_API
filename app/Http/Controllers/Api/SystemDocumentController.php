@@ -59,26 +59,9 @@ class SystemDocumentController extends Controller
             $user = Auth::user();
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            $filters = SystemDocumentFilterDTO::fromRequest($request->validated(), $effectiveCompanyId);
+            $filters = SystemDocumentFilterDTO::fromRequest($request->validated(), $effectiveCompanyId, $user);
             $result = $this->documentService->getPaginatedDocuments($filters);
 
-            if (!$result) {
-                Log::error('SystemDocumentController::index failed', [
-                    'user_id' => $user->id,
-                    'company_id' => $effectiveCompanyId,
-                    'error' => 'فشل جلب المستندات'
-                ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'حدث خطأ أثناء جلب المستندات'
-                ], 500);
-            }
-
-            Log::info('SystemDocumentController::index success', [
-                'user_id' => $user->id,
-                'company_id' => $effectiveCompanyId,
-                'data' => $result['data']
-            ]);
             return SystemDocumentResource::collection($result['data'])->additional([
                 'success' => true,
                 'message' => 'تم جلب المستندات بنجاح',
@@ -146,17 +129,7 @@ class SystemDocumentController extends Controller
             $dto = CreateSystemDocumentDTO::fromRequest($request->validated(), $effectiveCompanyId);
             $document = $this->documentService->createDocument($dto);
 
-            if (!$document) {
-                Log::error('SystemDocumentController::store failed', [
-                    'user_id' => $user->id,
-                    'company_id' => $effectiveCompanyId,
-                    'error' => 'فشل في إضافة المستند'
-                ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'فشل في إضافة المستند'
-                ], 500);
-            }
+
             Log::info('SystemDocumentController::store success', [
                 'user_id' => $user->id,
                 'company_id' => $effectiveCompanyId,
@@ -206,19 +179,7 @@ class SystemDocumentController extends Controller
             $user = Auth::user();
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            $document = $this->documentService->getDocumentById($id, $effectiveCompanyId);
-
-            if (!$document) {
-                Log::error('SystemDocumentController::show failed', [
-                    'user_id' => $user->id,
-                    'company_id' => $effectiveCompanyId,
-                    'error' => 'المستند غير موجود'
-                ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'المستند غير موجود'
-                ], 404);
-            }
+            $document = $this->documentService->getDocumentById($id, $effectiveCompanyId, $user);
 
             Log::info('SystemDocumentController::show success', [
                 'user_id' => $user->id,
@@ -230,15 +191,20 @@ class SystemDocumentController extends Controller
                 'data' => new SystemDocumentResource($document)
             ]);
         } catch (\Exception $e) {
+            $statusCode = in_array((int)$e->getCode(), [403, 404]) ? (int)$e->getCode() : 500;
+
             Log::error('SystemDocumentController::show failed', [
+                'id' => $id,
                 'user_id' => $user->id,
                 'company_id' => $effectiveCompanyId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'code' => $e->getCode()
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء جلب تفاصيل المستند'
-            ], 500);
+                'message' => $e->getMessage()
+            ], $statusCode);
         }
     }
 
@@ -279,19 +245,7 @@ class SystemDocumentController extends Controller
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
             $dto = UpdateSystemDocumentDTO::fromRequest($request->validated());
-            $document = $this->documentService->updateDocument($id, $dto, $effectiveCompanyId);
-
-            if (!$document) {
-                Log::error('SystemDocumentController::update failed', [
-                    'user_id' => $user->id,
-                    'company_id' => $effectiveCompanyId,
-                    'error' => 'المستند غير موجود'
-                ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'المستند غير موجود'
-                ], 404);
-            }
+            $document = $this->documentService->updateDocument($id, $dto, $effectiveCompanyId, $user);
 
             Log::info('SystemDocumentController::update success', [
                 'user_id' => $user->id,
@@ -304,15 +258,19 @@ class SystemDocumentController extends Controller
                 'data' => new SystemDocumentResource($document)
             ]);
         } catch (\Exception $e) {
+            $statusCode = in_array((int)$e->getCode(), [403, 404]) ? (int)$e->getCode() : 500;
+
             Log::error('SystemDocumentController::update failed', [
+                'id' => $id,
                 'user_id' => $user->id,
                 'company_id' => $effectiveCompanyId,
                 'error' => $e->getMessage()
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'فشل في تحديث المستند'
-            ], 500);
+                'message' => $e->getMessage()
+            ], $statusCode);
         }
     }
 
@@ -338,43 +296,34 @@ class SystemDocumentController extends Controller
      */
     public function destroy(int $id)
     {
+        $user = Auth::user();
+        $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
         try {
-            $user = Auth::user();
-            $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            $deleted = $this->documentService->deleteDocument($id, $effectiveCompanyId);
-
-            if (!$deleted) {
-                Log::error('SystemDocumentController::destroy failed', [
-                    'user_id' => $user->id,
-                    'company_id' => $effectiveCompanyId,
-                    'error' => 'المستند غير موجود أو لا تملك صلاحية حذفه'
-                ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'المستند غير موجود أو لا تملك صلاحية حذفه'
-                ], 404);
-            }
+            $this->documentService->deleteDocument($id, $effectiveCompanyId, $user);
 
             Log::info('SystemDocumentController::destroy success', [
                 'user_id' => $user->id,
                 'company_id' => $effectiveCompanyId,
-                'data' => $deleted
             ]);
             return response()->json([
                 'success' => true,
                 'message' => 'تم حذف المستند بنجاح'
             ]);
         } catch (\Exception $e) {
+            $statusCode = in_array((int)$e->getCode(), [403, 404]) ? (int)$e->getCode() : 500;
+
             Log::error('SystemDocumentController::destroy failed', [
+                'id' => $id,
                 'user_id' => $user->id,
                 'company_id' => $effectiveCompanyId,
                 'error' => $e->getMessage()
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء حذف المستند'
-            ], 500);
+                'message' => $e->getMessage()
+            ], $statusCode);
         }
     }
 }

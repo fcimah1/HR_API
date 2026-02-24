@@ -84,28 +84,48 @@ class SignatureDocumentService
         });
     }
 
-    public function updateDocument(int $id, UpdateSignatureDocumentDTO $dto, int $companyId): ?SignatureDocument
+    public function updateDocument(int $id, UpdateSignatureDocumentDTO $dto, int $companyId, ?\App\Models\User $requester = null): ?SignatureDocument
     {
-        try {
-            $data = $dto->toArray();
-
-            return $this->repository->update($id, $data, $companyId);
-        } catch (\Exception $e) {
-            Log::error('SignatureDocumentService::updateDocument failed', [
-                'companyId' => $companyId,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
+        $document = $this->repository->findById($id, $companyId);
+        if (!$document) {
+            throw new \Exception('المستند غير موجود', 404);
         }
+
+        if ($requester && !$this->repository->hasDocumentAccess($document, $requester)) {
+            throw new \Exception('غير مصرح لك بتعديل هذا المستند', 403);
+        }
+
+        $data = $dto->toArray();
+
+        return $this->repository->update($id, $data, $companyId);
     }
 
-    public function deleteDocument(int $id, int $companyId): bool
+    public function deleteDocument(int $id, int $companyId, ?\App\Models\User $requester = null): bool
     {
+        $document = $this->repository->findById($id, $companyId);
+        if (!$document) {
+            throw new \Exception('المستند غير موجود', 404);
+        }
+
+        if ($requester && !$this->repository->hasDocumentAccess($document, $requester)) {
+            throw new \Exception('غير مصرح لك بحذف هذا المستند', 403);
+        }
+
         return $this->repository->delete($id, $companyId);
     }
 
-    public function getDocumentById(int $id, int $companyId): ?SignatureDocument
+    public function getDocumentById(int $id, int $companyId, ?\App\Models\User $requester = null): ?SignatureDocument
     {
-        return $this->repository->findById($id, $companyId);
+        $document = $this->repository->findById($id, $companyId);
+        
+        if (!$document) {
+            throw new \Exception('المستند غير موجود', 404);
+        }
+        
+        if ($document && $requester && !$this->repository->hasDocumentAccess($document, $requester)) {
+            throw new \Exception('غير مصرح لك بعرض هذا المستند', 403);
+        }
+
+        return $document;
     }
 }
