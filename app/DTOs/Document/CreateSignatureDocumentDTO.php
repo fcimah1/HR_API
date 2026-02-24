@@ -22,6 +22,10 @@ class CreateSignatureDocumentDTO extends Data
     public static function fromRequest(array $data, int $companyId): self
     {
         $shareValue = $data['share_with_employees'] ?? '0';
+        // If 0 is sent (from Swagger/Mobile), treat as 'all'
+        if ($shareValue === '0' || $shareValue === 0) {
+            $shareValue = 'all';
+        }
 
         return new self(
             companyId: $companyId,

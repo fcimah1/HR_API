@@ -294,10 +294,10 @@ class ReportService
     {
         // Validate: Must have single employee
         if (!$filters->employeeId) {
-            Log::error([
+            Log::error('ReportService::generateAttendanceTimeRecordsReport', [
                 'user_id' => $user->user_id,
                 'company_id' => $filters->companyId,
-                'message' => 'يجب تحديد موظف واحد لهذا التقرير',
+                'message' => 'يجب تحديد موظف واحد لهذا التقرير'
             ]);
             throw new \InvalidArgumentException('يجب تحديد موظف واحد لهذا التقرير');
         }
@@ -310,7 +310,7 @@ class ReportService
                 'user_id' => $user->user_id,
                 'employee_id' => $filters->employeeId,
                 'company_id' => $filters->companyId,
-                'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف',
+                'message' => 'ليس لديك صلاحية لعرض بيانات هذا الموظف'
             ]);
             throw new \InvalidArgumentException('ليس لديك صلاحية لعرض بيانات هذا الموظف');
         }

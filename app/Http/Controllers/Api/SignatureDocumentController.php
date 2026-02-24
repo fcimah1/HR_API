@@ -61,7 +61,7 @@ class SignatureDocumentController extends Controller
             $user = Auth::user();
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            $filters = SignatureDocumentFilterDTO::fromRequest($request->validated(), $effectiveCompanyId);
+            $filters = SignatureDocumentFilterDTO::fromRequest($request->validated(), $effectiveCompanyId, $user);
             $result = $this->documentService->getPaginatedDocuments($filters);
 
             Log::info('SignatureDocumentController::index success', [
@@ -181,31 +181,27 @@ class SignatureDocumentController extends Controller
             $user = Auth::user();
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            $document = $this->documentService->getDocumentById($id, $effectiveCompanyId);
-
-            if (!$document) {
-                Log::info('SignatureDocumentController::show not found', [
-                    'user_id' => $user->id,
-                    'company_id' => $effectiveCompanyId,
-                    'document_id' => $id
-                ]);
-                return $this->errorResponse('المستند غير موجود', 404);
-            }
+            $document = $this->documentService->getDocumentById($id, $effectiveCompanyId, $user);
 
             Log::info('SignatureDocumentController::show success', [
-                'user_id' => $user->id,
+                'user_id' => $user->user_id,
                 'company_id' => $effectiveCompanyId,
                 'document_id' => $id
             ]);
+
             return $this->successResponse(new SignatureDocumentResource($document));
         } catch (\Exception $e) {
+            $statusCode = in_array((int)$e->getCode(), [403, 404]) ? (int)$e->getCode() : 500;
+
             Log::error('SignatureDocumentController::show failed', [
-                'user_id' => $user->id,
-                'company_id' => $effectiveCompanyId,
+                'user_id' => Auth::id(),
+                'company_id' => isset($effectiveCompanyId) ? $effectiveCompanyId : null,
                 'document_id' => $id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'code' => $e->getCode()
             ]);
-            return $this->errorResponse('حدث خطأ أثناء جلب تفاصيل ملف التوقيع');
+
+            return $this->errorResponse($e->getMessage(), $statusCode);
         }
     }
 
@@ -251,19 +247,10 @@ class SignatureDocumentController extends Controller
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
             $dto = UpdateSignatureDocumentDTO::fromRequest($request->validated());
-            $document = $this->documentService->updateDocument($id, $dto, $effectiveCompanyId);
-
-            if (!$document) {
-                Log::info('SignatureDocumentController::update not found', [
-                    'user_id' => $user->id,
-                    'company_id' => $effectiveCompanyId,
-                    'document_id' => $id
-                ]);
-                return $this->errorResponse('المستند غير موجود', 404);
-            }
+            $document = $this->documentService->updateDocument($id, $dto, $effectiveCompanyId, $user);
 
             Log::info('SignatureDocumentController::update success', [
-                'user_id' => $user->id,
+                'user_id' => $user->user_id,
                 'company_id' => $effectiveCompanyId,
                 'document_id' => $id
             ]);
@@ -273,13 +260,17 @@ class SignatureDocumentController extends Controller
                 'تم تحديث ملف التوقيع بنجاح'
             );
         } catch (\Exception $e) {
+            $statusCode = in_array((int)$e->getCode(), [403, 404]) ? (int)$e->getCode() : 500;
+
             Log::error('SignatureDocumentController::update failed', [
-                'user_id' => $user->id,
-                'company_id' => $effectiveCompanyId,
+                'user_id' => Auth::id(),
+                'company_id' => isset($effectiveCompanyId) ? $effectiveCompanyId : null,
                 'document_id' => $id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'code' => $e->getCode()
             ]);
-            return $this->errorResponse('فشل في تحديث ملف التوقيع: ' . $e->getMessage());
+
+            return $this->errorResponse($e->getMessage(), $statusCode);
         }
     }
 
@@ -309,31 +300,27 @@ class SignatureDocumentController extends Controller
             $user = Auth::user();
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
 
-            $deleted = $this->documentService->deleteDocument($id, $effectiveCompanyId);
-
-            if (!$deleted) {
-                Log::info('SignatureDocumentController::destroy not found', [
-                    'user_id' => $user->id,
-                    'company_id' => $effectiveCompanyId,
-                    'document_id' => $id
-                ]);
-                return $this->errorResponse('المستند غير موجود أو لا تملك صلاحية حذفه', 404);
-            }
+            $this->documentService->deleteDocument($id, $effectiveCompanyId, $user);
 
             Log::info('SignatureDocumentController::destroy success', [
-                'user_id' => $user->id,
+                'user_id' => $user->user_id,
                 'company_id' => $effectiveCompanyId,
                 'document_id' => $id
             ]);
+
             return $this->successResponse(null, 'تم حذف ملف التوقيع بنجاح');
         } catch (\Exception $e) {
+            $statusCode = in_array((int)$e->getCode(), [403, 404]) ? (int)$e->getCode() : 500;
+
             Log::error('SignatureDocumentController::destroy failed', [
-                'user_id' => $user->id,
-                'company_id' => $effectiveCompanyId,
+                'user_id' => Auth::id(),
+                'company_id' => isset($effectiveCompanyId) ? $effectiveCompanyId : null,
                 'document_id' => $id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'code' => $e->getCode()
             ]);
-            return $this->errorResponse('حدث خطأ أثناء حذف ملف التوقيع');
+
+            return $this->errorResponse($e->getMessage(), $statusCode);
         }
     }
 }

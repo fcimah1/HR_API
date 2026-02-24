@@ -5616,6 +5616,1006 @@
                 ]
             }
         },
+        "/api/contract-options/allowances": {
+            "get": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "قائمة البدلات",
+                "operationId": "fe1c3d0bece373e8b12d71dedb81ac4f",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 200
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "إنشاء بدل",
+                "operationId": "0abc4b03720146c6b7f9bf98dfb88000",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "is_fixed",
+                                    "option_title"
+                                ],
+                                "properties": {
+                                    "contract_tax_option": {
+                                        "type": "integer",
+                                        "example": 0,
+                                        "nullable": true
+                                    },
+                                    "is_fixed": {
+                                        "type": "integer",
+                                        "enum": [
+                                            0,
+                                            1
+                                        ],
+                                        "example": 1
+                                    },
+                                    "option_title": {
+                                        "type": "string",
+                                        "example": "بدل سكن"
+                                    },
+                                    "contract_amount": {
+                                        "type": "number",
+                                        "example": 100,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء العنصر بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/contract-options/allowances/{id}": {
+            "get": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "عرض بدل",
+                "operationId": "78757a8b81f5e8c2a7299c62d3b9b509",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "تعديل بدل",
+                "operationId": "a55941a02504612adeb56e0e2e5e87c2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "contract_tax_option": {
+                                        "type": "integer",
+                                        "example": 0,
+                                        "nullable": true
+                                    },
+                                    "is_fixed": {
+                                        "type": "integer",
+                                        "enum": [
+                                            0,
+                                            1
+                                        ],
+                                        "example": 1
+                                    },
+                                    "option_title": {
+                                        "type": "string",
+                                        "example": "بدل سكن"
+                                    },
+                                    "contract_amount": {
+                                        "type": "number",
+                                        "example": 100,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث العنصر بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "حذف بدل",
+                "operationId": "b22a4638b929c602e1587200ac7c802e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف العنصر بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/contract-options/commissions": {
+            "get": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "قائمة العمولات",
+                "operationId": "029bc73f4197008d8d9846e616a35f9c",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 200
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "إنشاء عمولة",
+                "operationId": "a143706df5dca760a648674b758dc3cc",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "is_fixed",
+                                    "option_title"
+                                ],
+                                "properties": {
+                                    "contract_tax_option": {
+                                        "type": "integer",
+                                        "example": 0,
+                                        "nullable": true
+                                    },
+                                    "is_fixed": {
+                                        "type": "integer",
+                                        "enum": [
+                                            0,
+                                            1
+                                        ],
+                                        "example": 1
+                                    },
+                                    "option_title": {
+                                        "type": "string",
+                                        "example": "عمولة"
+                                    },
+                                    "contract_amount": {
+                                        "type": "number",
+                                        "example": 100,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء العنصر بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/contract-options/commissions/{id}": {
+            "get": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "عرض عمولة",
+                "operationId": "ec11862b49e81710b676b07a1c3ad91f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "تعديل عمولة",
+                "operationId": "32dc3ff4e4cd9ce2aca4c99829a06624",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "contract_tax_option": {
+                                        "type": "integer",
+                                        "example": 0,
+                                        "nullable": true
+                                    },
+                                    "is_fixed": {
+                                        "type": "integer",
+                                        "enum": [
+                                            0,
+                                            1
+                                        ],
+                                        "example": 1
+                                    },
+                                    "option_title": {
+                                        "type": "string",
+                                        "example": "عمولة"
+                                    },
+                                    "contract_amount": {
+                                        "type": "number",
+                                        "example": 100,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث العنصر بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "حذف عمولة",
+                "operationId": "326a56f3c6babc1d18fe5b416af4da67",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف العنصر بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/contract-options/statutory": {
+            "get": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "قائمة الاستقطاعات",
+                "operationId": "968261841ba33304c4e489f9705d8e3d",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 200
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "إنشاء استقطاع",
+                "operationId": "d1299afeaf15655fe0eb1c86648625be",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "is_fixed",
+                                    "option_title"
+                                ],
+                                "properties": {
+                                    "contract_tax_option": {
+                                        "type": "integer",
+                                        "example": 0,
+                                        "nullable": true
+                                    },
+                                    "is_fixed": {
+                                        "type": "integer",
+                                        "enum": [
+                                            0,
+                                            1
+                                        ],
+                                        "example": 1
+                                    },
+                                    "option_title": {
+                                        "type": "string",
+                                        "example": "تأمينات"
+                                    },
+                                    "contract_amount": {
+                                        "type": "number",
+                                        "example": 100,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء العنصر بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/contract-options/statutory/{id}": {
+            "get": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "عرض استقطاع",
+                "operationId": "2754df7525ce4c60cf6e4d43a8180391",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "تعديل الاستقطاع",
+                "operationId": "2b969a15ddb884c5b2feddc63d2c801b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "contract_tax_option": {
+                                        "type": "integer",
+                                        "example": 0,
+                                        "nullable": true
+                                    },
+                                    "is_fixed": {
+                                        "type": "integer",
+                                        "enum": [
+                                            0,
+                                            1
+                                        ],
+                                        "example": 1
+                                    },
+                                    "option_title": {
+                                        "type": "string",
+                                        "example": "تأمينات"
+                                    },
+                                    "contract_amount": {
+                                        "type": "number",
+                                        "example": 100,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث العنصر بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "حذف الاستقطاع",
+                "operationId": "3fa458f12c8e03b01614158cb4f6529e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف العنصر بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/contract-options/other-payments": {
+            "get": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "قائمة التعويضات",
+                "operationId": "e8bc883203e9e204f68e348da75c2b98",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 200
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "إنشاء التعويض",
+                "operationId": "e22cad0ab118e2d4463bb9e62430ef50",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "is_fixed",
+                                    "option_title"
+                                ],
+                                "properties": {
+                                    "contract_tax_option": {
+                                        "type": "integer",
+                                        "example": 0,
+                                        "nullable": true
+                                    },
+                                    "is_fixed": {
+                                        "type": "integer",
+                                        "enum": [
+                                            0,
+                                            1
+                                        ],
+                                        "example": 1
+                                    },
+                                    "option_title": {
+                                        "type": "string",
+                                        "example": "حافز"
+                                    },
+                                    "contract_amount": {
+                                        "type": "number",
+                                        "example": 100,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إنشاء العنصر بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/contract-options/other-payments/{id}": {
+            "get": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "عرض التعويض",
+                "operationId": "338143dc7c636bd169f5600233433775",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "تعديل التعويض",
+                "operationId": "98a235afe90c463e4ff22a4dba074ad4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "contract_tax_option": {
+                                        "type": "integer",
+                                        "example": 0,
+                                        "nullable": true
+                                    },
+                                    "is_fixed": {
+                                        "type": "integer",
+                                        "enum": [
+                                            0,
+                                            1
+                                        ],
+                                        "example": 1
+                                    },
+                                    "option_title": {
+                                        "type": "string",
+                                        "example": "حافز"
+                                    },
+                                    "contract_amount": {
+                                        "type": "number",
+                                        "example": 100,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث العنصر بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Contract Options"
+                ],
+                "summary": "حذف التعويض",
+                "operationId": "a7d04c10abc55b1aa39878f8ec27c9be",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف العنصر بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/countries": {
             "get": {
                 "tags": [
@@ -11959,6 +12959,285 @@
                     },
                     "404": {
                         "description": "غير موجود"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/events": {
+            "get": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "عرض قائمة الأحداث مع الفلترة والبحث",
+                "operationId": "e529c81e6aaec82f49950a87ed881f57",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "البحث في العنوان أو الملاحظات",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "عدد العناصر في الصفحة",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب الأحداث بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "إضافة حدث جديد",
+                "operationId": "e958e1c6c275d5f9b7ebcd837903d0ef",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "event_title",
+                                    "event_date",
+                                    "event_time"
+                                ],
+                                "properties": {
+                                    "event_title": {
+                                        "type": "string",
+                                        "example": "ترقية وتكريم"
+                                    },
+                                    "event_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-02-24"
+                                    },
+                                    "event_time": {
+                                        "type": "string",
+                                        "example": "09:00 AM"
+                                    },
+                                    "employee_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            702,
+                                            726
+                                        ]
+                                    },
+                                    "event_note": {
+                                        "type": "string",
+                                        "example": "ملاحظات الحدث"
+                                    },
+                                    "event_color": {
+                                        "type": "string",
+                                        "example": "#7267EF"
+                                    },
+                                    "is_show_calendar": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "تم إضافة الحدث بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/events/{id}": {
+            "get": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "عرض تفاصيل حدث محدد",
+                "operationId": "c0f602d773798994c228d99dbd63b842",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب تفاصيل الحدث"
+                    },
+                    "404": {
+                        "description": "الحدث غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "تحديث بيانات حدث",
+                "operationId": "8b1dd7f57d8fbd2e85af2762950e0b1d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "event_title": {
+                                        "type": "string"
+                                    },
+                                    "event_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "event_time": {
+                                        "type": "string"
+                                    },
+                                    "event_note": {
+                                        "type": "string"
+                                    },
+                                    "event_color": {
+                                        "type": "string"
+                                    },
+                                    "is_show_calendar": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم تحديث الحدث بنجاح"
+                    },
+                    "404": {
+                        "description": "الحدث غير موجود"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "403": {
+                        "description": "غير مصرح لك بتعديل هذا الحدث"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "حذف حدث",
+                "operationId": "deca25daa2d423da0ff6b6677d92545b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم حذف الحدث بنجاح"
+                    },
+                    "404": {
+                        "description": "الحدث غير موجود"
+                    },
+                    "403": {
+                        "description": "غير مصرح لك بحذف هذا الحدث"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يرجى تسجيل الدخول"
                     },
                     "500": {
                         "description": "خطأ في الخادم"
@@ -21486,6 +22765,391 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/payslips/payment-view": {
+            "get": {
+                "tags": [
+                    "Payroll - Payslips"
+                ],
+                "summary": "عرض معلومات المرتبات (شاشة الدفع)",
+                "operationId": "f0320dc74ef444f9528742968f1c4d8f",
+                "parameters": [
+                    {
+                        "name": "payment_date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "2026-02"
+                        }
+                    },
+                    {
+                        "name": "employee_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "payment_method",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "cash"
+                        }
+                    },
+                    {
+                        "name": "job_type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "all"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/payslips/draft": {
+            "post": {
+                "tags": [
+                    "Payroll - Payslips"
+                ],
+                "summary": "إنشاء مسودة الرواتب للشهر المحدد",
+                "operationId": "fae7b1615f2ce37b70436cbb78217403",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "salary_month"
+                                ],
+                                "properties": {
+                                    "salary_month": {
+                                        "type": "string",
+                                        "example": "2026-02"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم إنشاء المسودة بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Payroll - Payslips"
+                ],
+                "summary": "إلغاء مسودة الرواتب (حذف الصفوف المنشأة)",
+                "operationId": "4e29aa40e7523abffd2260185dd73668",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "salary_month"
+                                ],
+                                "properties": {
+                                    "salary_month": {
+                                        "type": "string",
+                                        "example": "2026-02"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم إلغاء المسودة بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/payslips/approve-list": {
+            "get": {
+                "tags": [
+                    "Payroll - Payslips"
+                ],
+                "summary": "قائمة قسائم الرواتب بانتظار الموافقة",
+                "operationId": "c734e4d83809777482128e63640b5e09",
+                "parameters": [
+                    {
+                        "name": "salary_month",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "2026-02"
+                        }
+                    },
+                    {
+                        "name": "staff_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "salary_payment_method",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "CASH"
+                        }
+                    },
+                    {
+                        "name": "branch_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "job_type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/payslips/approve": {
+            "post": {
+                "tags": [
+                    "Payroll - Payslips"
+                ],
+                "summary": "اعتماد الرواتب (تحويل الحالة إلى 1)",
+                "operationId": "3ff80a91b24519642c325fc19f9b3e3c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "salary_month"
+                                ],
+                                "properties": {
+                                    "salary_month": {
+                                        "type": "string",
+                                        "example": "2026-02"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم اعتماد الرواتب بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Payroll - Payslips"
+                ],
+                "summary": "إلغاء اعتماد الرواتب (إرجاع الحالة إلى معلق)",
+                "operationId": "4bfeddebd34ea159b98ff14b6d3c6c33",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "salary_month"
+                                ],
+                                "properties": {
+                                    "salary_month": {
+                                        "type": "string",
+                                        "example": "2026-02"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "تم إلغاء الاعتماد بنجاح"
+                    },
+                    "401": {
+                        "description": "غير مصرح"
+                    },
+                    "422": {
+                        "description": "فشل التحقق من البيانات"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/payslips/{id}": {
+            "get": {
+                "tags": [
+                    "Payroll - Payslips"
+                ],
+                "summary": "عرض قسيمة راتب",
+                "operationId": "c3f7772c478e111db3e351d823638462",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "تم جلب البيانات بنجاح"
+                    },
+                    "404": {
+                        "description": "غير موجود"
+                    },
+                    "401": {
+                        "description": "غير مصرح - يجب تسجيل الدخول"
+                    },
+                    "500": {
+                        "description": "خطأ في الخادم"
                     }
                 },
                 "security": [
@@ -39913,6 +41577,10 @@
             "description": "إدارة الشكاوى - Complaints management endpoints"
         },
         {
+            "name": "Contract Options",
+            "description": "إدارة خيارات العقد (البدلات/العمولات/الخصومات النظامية/المدفوعات الأخرى)"
+        },
+        {
             "name": "Countries",
             "description": "إدارة الدول"
         },
@@ -39943,6 +41611,10 @@
         {
             "name": "End of Service Calculations",
             "description": "إدارة حسابات نهاية الخدمة"
+        },
+        {
+            "name": "Events",
+            "description": "إدارة الأحداث"
         },
         {
             "name": "Finance Categories",
@@ -40011,6 +41683,10 @@
         {
             "name": "Overtime Management",
             "description": "Overtime requests management"
+        },
+        {
+            "name": "Payroll - Payslips",
+            "description": "إدارة الرواتب (قسائم الرواتب)"
         },
         {
             "name": "Polls",

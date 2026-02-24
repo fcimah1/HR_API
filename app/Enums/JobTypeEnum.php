@@ -27,7 +27,19 @@ enum JobTypeEnum: int
             return '-';
         }
 
-        return self::tryFrom((string)$value)?->trans() ?? (string)$value;
+        if (is_string($value)) {
+            if (is_numeric($value)) {
+                $value = (int) $value;
+            } else {
+                return $value;
+            }
+        }
+
+        if (!is_int($value)) {
+            return (string) $value;
+        }
+
+        return self::tryFrom($value)?->trans() ?? (string) $value;
     }
 
     public static function toArray(): array

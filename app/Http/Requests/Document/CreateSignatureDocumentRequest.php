@@ -7,6 +7,7 @@ namespace App\Http\Requests\Document;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Auth;
 
 class CreateSignatureDocumentRequest extends FormRequest
 {
@@ -62,11 +63,42 @@ class CreateSignatureDocumentRequest extends FormRequest
 
     public function rules(): array
     {
+        $permissionService = app(\App\Services\SimplePermissionService::class);
+        $user = Auth::user();
+        $companyId = $permissionService->getEffectiveCompanyId($user);
+
+        $subordinateIds = [];
+        if (!$permissionService->isCompanyOwner($user)) {
+            $subordinates = $permissionService->getEmployeesByHierarchy(
+                $user->user_id,
+                $companyId,
+                true // Include self
+            );
+            $subordinateIds = array_column($subordinates, 'user_id');
+        }
+
         return [
             'document_name' => 'required|string|max:255',
-            'share_with_employees' => 'required|integer', // Can be "all" or comma separated IDs
+            'share_with_employees' => 'required|integer', // 0 for all
             'staff_ids' => 'nullable|array',
-            'staff_ids.*' => 'integer|exists:ci_erp_users,user_id',
+            'staff_ids.*' => [
+                'integer',
+                function ($attribute, $value, $fail) use ($companyId, $subordinateIds, $user, $permissionService) {
+                    $exists = \Illuminate\Support\Facades\DB::table('ci_erp_users')
+                        ->where('user_id', $value)
+                        ->where('company_id', $companyId)
+                        ->exists();
+
+                    if (!$exists) {
+                        $fail('معرف الموظف غير موجود في الشركة.');
+                        return;
+                    }
+
+                    if (!$permissionService->isCompanyOwner($user) && !in_array($value, $subordinateIds)) {
+                        $fail('لا تملك الصلاحية لإضافة هذا الموظف (يجب أن يكون من التابعين لك).');
+                    }
+                },
+            ],
             'signature_task' => ['required', 'integer', 'in:0,1'],
             'document_file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png,gif|max:10240', // 10MB max
         ];

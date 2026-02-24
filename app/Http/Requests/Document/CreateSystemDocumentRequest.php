@@ -23,10 +23,26 @@ class CreateSystemDocumentRequest extends FormRequest
         $permissionService = app(SimplePermissionService::class);
         $companyId = $permissionService->getEffectiveCompanyId(Auth::user());
         return [
-            'department_id' => ['required', 'integer', 
-            Rule::exists('ci_departments', 'department_id')->where(function ($query) use ($companyId) {
-                $query->where('company_id', $companyId);
-            })],
+            'department_id' => [
+                'required',
+                'integer',
+                Rule::exists('ci_departments', 'department_id')->where(function ($query) use ($companyId) {
+                    $query->where('company_id', $companyId);
+                }),
+                function ($attribute, $value, $fail) use ($permissionService, $companyId) {
+                    $user = Auth::user();
+                    if (!$permissionService->isCompanyOwner($user)) {
+                        $restrictedDepts = $permissionService->getRestrictedValues(
+                            $user->user_id,
+                            $companyId,
+                            'dept_'
+                        );
+                        if (in_array((int)$value, $restrictedDepts)) {
+                            $fail('غير مصرح لك بإضافة مستندات لهذا القسم بسبب قيود الصلاحيات');
+                        }
+                    }
+                }
+            ],
             'document_name' => 'required|string|max:255',
             'document_type' => 'required|string|max:255',
             'document_file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240', // 10MB max

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\SystemDocument;
+use App\Models\User;
 use App\DTOs\Document\SystemDocumentFilterDTO;
 use App\DTOs\Document\CreateSystemDocumentDTO;
 use App\DTOs\Document\UpdateSystemDocumentDTO;
@@ -59,13 +60,17 @@ class SystemDocumentService
     }
 
     /**
-     * Update document details (without changing file for now, as per standard requirement)
+     * Update document details
      */
-    public function updateDocument(int $id, UpdateSystemDocumentDTO $dto, int $companyId): ?SystemDocument
+    public function updateDocument(int $id, UpdateSystemDocumentDTO $dto, int $companyId, ?User $requester = null): ?SystemDocument
     {
         $document = $this->documentRepository->getDocumentById($id, $companyId);
         if (!$document) {
-            return null;
+            throw new \Exception('المستند غير موجود', 404);
+        }
+
+        if ($requester && !$this->documentRepository->hasDocumentAccess($document, $requester)) {
+            throw new \Exception('غير مصرح لك بتعديل هذا المستند', 403);
         }
 
         return $this->documentRepository->updateDocument($id, $dto->toArray());
@@ -74,11 +79,15 @@ class SystemDocumentService
     /**
      * Delete document and its file
      */
-    public function deleteDocument(int $id, int $companyId): bool
+    public function deleteDocument(int $id, int $companyId, ?User $requester = null): bool
     {
         $document = $this->documentRepository->getDocumentById($id, $companyId);
         if (!$document) {
-            return false;
+            throw new \Exception('المستند غير موجود', 404);
+        }
+
+        if ($requester && !$this->documentRepository->hasDocumentAccess($document, $requester)) {
+            throw new \Exception('غير مصرح لك بحذف هذا المستند', 403);
         }
 
         // We might want to delete the physical file too, but let's check screenshot if they store just filename
@@ -99,8 +108,17 @@ class SystemDocumentService
     /**
      * Get single document
      */
-    public function getDocumentById(int $id, int $companyId): ?SystemDocument
+    public function getDocumentById(int $id, int $companyId, ?User $requester = null): ?SystemDocument
     {
-        return $this->documentRepository->getDocumentById($id, $companyId);
+        $document = $this->documentRepository->getDocumentById($id, $companyId);
+        if (!$document) {
+            throw new \Exception('المستند غير موجود', 404);
+        }
+        if ($document && $requester) {
+            if (!$this->documentRepository->hasDocumentAccess($document, $requester)) {
+                throw new \Exception('غير مصرح لك بعرض هذا المستند', 403);
+            }
+        }
+        return $document;
     }
 }

@@ -34,7 +34,7 @@ class TrainingSkillService
             );
 
             if (!empty($restrictedTypes)) {
-                $skills = $skills->filter(fn($skill) => !in_array($skill->constants_id, $restrictedTypes))->values();
+                $skills = $skills->filter(fn($skill) => !in_array($skill->id, $restrictedTypes))->values();
             }
         }
 

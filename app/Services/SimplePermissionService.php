@@ -425,7 +425,7 @@ class SimplePermissionService
 
         // 2. الهرمية: الموظف يجب أن يكون في مستوى أدنى (رقم أعلى) أو مساوي
         $query->whereHas('user_details.designation', function ($q) use ($managerLevel) {
-            $q->where('hierarchy_level', '>=', $managerLevel);
+            $q->where('hierarchy_level', '>', $managerLevel);
         });
 
         // 3. القيود (Restrictions)
