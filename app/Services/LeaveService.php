@@ -1592,4 +1592,142 @@ class LeaveService
 
         return (float) $workingDays;
     }
+
+     /**
+     * Get monthly leave statistics for an employee
+     * Returns detailed monthly breakdown for each leave type
+     * 
+     * @param int $employeeId
+     * @param int $companyId
+     * @return array
+     */
+    public function getMonthlyLeaveStatistics(int $employeeId, int $companyId): array
+    {
+        $currentYear = (int) date('Y');
+
+        // Get active leave types for the company
+        $leaveTypesData = $this->leaveTypeRepository->getActiveLeaveTypes($companyId);
+
+        // Handle both array and collection responses
+        $leaveTypes = collect($leaveTypesData['data'] ?? $leaveTypesData)->map(function ($constant) {
+            if (is_array($constant)) {
+                return [
+                    'leave_type_id' => $constant['constants_id'] ?? $constant['leave_type_id'] ?? null,
+                    'leave_type_name' => $constant['category_name'] ?? $constant['leave_type_name'] ?? null,
+                    'leave_type_short_name' => $constant['field_one'] ?? $constant['leave_type_short_name'] ?? null,
+                    'leave_days' => (float) ($constant['field_two'] ?? $constant['leave_days'] ?? 0),
+                    'field_one' => $constant['field_one'] ?? null,
+                ];
+            }
+
+            // Handle object case
+            return [
+                'leave_type_id' => $constant->constants_id ?? $constant->leave_type_id ?? null,
+                'leave_type_name' => $constant->category_name ?? $constant->leave_type_name ?? null,
+                'leave_type_short_name' => $constant->field_one ?? $constant->leave_type_short_name ?? null,
+                'leave_days' => (float) ($constant->field_two ?? $constant->leave_days ?? 0),
+                'field_one' => $constant->field_one ?? null,
+            ];
+        })->filter()->values()->toArray();
+
+        // فلترة أنواع الإجازات المحظورة للموظف
+        $user = User::findOrFail($employeeId);
+        if ($user) {
+            $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
+            if (!empty($restrictedIds)) {
+                $leaveTypes = array_values(array_filter($leaveTypes, function ($type) use ($restrictedIds) {
+                    return !in_array((int)($type['leave_type_id'] ?? 0), $restrictedIds);
+                }));
+            }
+        }
+
+        // Get employee details for assigned_hours
+        $employee =  $user; // Already found above
+        $assignedHours = [];
+
+        if ($employee) {
+            $details = $employee->user_details()->first();
+            if ($details && !empty($details->assigned_hours)) {
+                $assignedHours = @unserialize($details->assigned_hours);
+                if (!is_array($assignedHours)) {
+                    $assignedHours = [];
+
+
+
+
+                }
+            }
+        }
+
+        $result = [];
+
+        foreach ($leaveTypes as $type) {
+            $typeId = (int) ($type['leave_type_id'] ?? 0);
+            if (!$typeId) {
+                continue;
+            }
+
+            // Get assigned hours for this leave type
+            $typeAssignedHours = $assignedHours[$typeId] ?? 0;
+
+            // Check if leave accrual is enabled for this type
+            $fieldOne = $type['field_one'] ?? '';
+            $leaveOptions = @unserialize($fieldOne);
+            $enableLeaveAccrual = false;
+
+            if (is_array($leaveOptions) && isset($leaveOptions['enable_leave_accrual'])) {
+                $enableLeaveAccrual = $leaveOptions['enable_leave_accrual'] == 1;
+            }
+
+            // Get monthly data
+            $monthlyGranted = $this->leaveRepository->getMonthlyGrantedHours($employeeId, $typeId, $companyId);
+            $monthlyUsed = $this->leaveRepository->getMonthlyUsedHours($employeeId, $typeId, $companyId, $currentYear);
+
+            // Calculate monthly remaining
+            $monthlyBreakdown = [];
+            $months = [
+                1 => 'Jan',
+                2 => 'Feb',
+                3 => 'Mar',
+                4 => 'Apr',
+                5 => 'May',
+                6 => 'Jun',
+                7 => 'Jul',
+                8 => 'Aug',
+                9 => 'Sep',
+                10 => 'Oct',
+                11 => 'Nov',
+                12 => 'Dec'
+            ];
+
+            foreach ($months as $monthNum => $monthName) {
+                $granted = $monthlyGranted[$monthNum] ?? 0.0;
+                $used = $monthlyUsed[$monthNum] ?? 0.0;
+                $remaining = $granted - $used;
+
+                $monthlyBreakdown[$monthNum] = [
+                    'month_name' => $monthName,
+                    'granted' => (float) $granted,
+                    'used' => (float) $used,
+                    'remaining' => (float) $remaining,
+                ];
+            }
+
+            $result[] = [
+                'leave_type_id' => $typeId,
+                'leave_type_name' => $type['leave_type_name'] ?? null,
+                'leave_type_short_name' => $type['leave_type_short_name'] ?? null,
+                'assigned_hours' => (float) $typeAssignedHours,
+                'enable_leave_accrual' => $enableLeaveAccrual,
+                'monthly_breakdown' => $monthlyBreakdown,
+            ];
+        }
+
+        return [
+            'employee_id' => $employeeId,
+            'company_id' => $companyId,
+            'year' => $currentYear,
+            'leave_types' => $result,
+        ];
+    }
 }
