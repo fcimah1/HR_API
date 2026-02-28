@@ -27,21 +27,21 @@ class LeaveRepository implements LeaveRepositoryInterface
         $companyId = $filters->companyId;
 
         $query = LeaveApplication::where('ci_leave_applications.company_id', $companyId)
-        // ربط جدول تفاصيل المستخدمين للوصول لرقم الشفت الخاص بكل موظف
-        ->join('ci_erp_users_details', 'ci_leave_applications.employee_id', '=', 'ci_erp_users_details.user_id')
-        // ربط جدول الشفتات للحصول على ساعات العمل اليومية لكل موظف
-        ->leftJoin('ci_office_shifts', 'ci_erp_users_details.office_shift_id', '=', 'ci_office_shifts.office_shift_id')
-        ->select('ci_leave_applications.*') // نختار بيانات الإجازة فقط لتجنب تداخل المعرفات
-                ->where(function ($q) {
-            $q->where(function ($sub) {
-                // الشرط الأساسي: ساعات الإجازة >= ساعات شفت الموظف صاحب الطلب
-                // نستخدم COALESCE(..., 8) لضمان وجود قيمة افتراضية 8 إذا لم يكن للموظف شفت
-                $sub->whereRaw('CAST(ci_leave_applications.leave_hours AS UNSIGNED) >= COALESCE(ci_office_shifts.hours_per_day, 8)')
-                    ->orWhere('ci_leave_applications.calculated_days', '>', 0)
-                    ->orWhere('ci_leave_applications.status', 0);
+            // ربط جدول تفاصيل المستخدمين للوصول لرقم الشفت الخاص بكل موظف
+            ->join('ci_erp_users_details', 'ci_leave_applications.employee_id', '=', 'ci_erp_users_details.user_id')
+            // ربط جدول الشفتات للحصول على ساعات العمل اليومية لكل موظف
+            ->leftJoin('ci_office_shifts', 'ci_erp_users_details.office_shift_id', '=', 'ci_office_shifts.office_shift_id')
+            ->select('ci_leave_applications.*') // نختار بيانات الإجازة فقط لتجنب تداخل المعرفات
+            ->where(function ($q) {
+                $q->where(function ($sub) {
+                    // الشرط الأساسي: ساعات الإجازة >= ساعات شفت الموظف صاحب الطلب
+                    // نستخدم COALESCE(..., 8) لضمان وجود قيمة افتراضية 8 إذا لم يكن للموظف شفت
+                    $sub->whereRaw('CAST(ci_leave_applications.leave_hours AS UNSIGNED) >= COALESCE(ci_office_shifts.hours_per_day, 8)')
+                        ->orWhere('ci_leave_applications.calculated_days', '>', 0)
+                        ->orWhere('ci_leave_applications.status', 0);
                 });
-        })
-        ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
+            })
+            ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
         // تطبيق فلتر البحث
         if ($filters->search !== null && trim($filters->search) !== '') {
             $searchTerm = '%' . $filters->search . '%';
@@ -87,43 +87,43 @@ class LeaveRepository implements LeaveRepositoryInterface
 
         // فلتر معرف الموظف
         if ($filters->employeeId !== null) {
-            $query->where('employee_id', $filters->employeeId);
+            $query->where('ci_leave_applications.employee_id', $filters->employeeId);
         }
 
         // فلتر معرفات الموظفين (للتبعية)
         if ($filters->employeeIds !== null && is_array($filters->employeeIds) && !empty($filters->employeeIds)) {
-            $query->whereIn('employee_id', $filters->employeeIds);
+            $query->whereIn('ci_leave_applications.employee_id', $filters->employeeIds);
         }
 
         // فلتر الحالة
         if ($filters->status !== null) {
-            $query->where('status', $filters->status);
+            $query->where('ci_leave_applications.status', $filters->status);
         }
 
         // فلتر نوع الإجازة
         if ($filters->leaveTypeId !== null) {
-            $query->where('leave_type_id', $filters->leaveTypeId);
+            $query->where('ci_leave_applications.leave_type_id', $filters->leaveTypeId);
         }
 
         // Exclude restricted leave types
         if ($filters->excludedLeaveTypeIds !== null && !empty($filters->excludedLeaveTypeIds)) {
-            $query->whereNotIn('leave_type_id', $filters->excludedLeaveTypeIds);
+            $query->whereNotIn('ci_leave_applications.leave_type_id', $filters->excludedLeaveTypeIds);
         }
 
         // فلتر تاريخ البداية
         if ($filters->fromDate !== null) {
-            $query->where('from_date', '>=', $filters->fromDate);
+            $query->where('ci_leave_applications.from_date', '>=', $filters->fromDate);
         }
 
         // فلتر تاريخ النهاية
         if ($filters->toDate !== null) {
-            $query->where('to_date', '<=', $filters->toDate);
+            $query->where('ci_leave_applications.to_date', '<=', $filters->toDate);
         }
 
         // تطبيق الفرز
         $sortBy = in_array($filters->sortBy, ['created_at', 'from_date', 'to_date', 'status'])
-            ? $filters->sortBy
-            : 'created_at';
+            ? 'ci_leave_applications.' . $filters->sortBy
+            : 'ci_leave_applications.created_at';
 
         $sortDirection = strtolower($filters->sortDirection) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortDirection);

@@ -62,43 +62,43 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
 
         // تطبيق الفلاتر الأخرى
         if ($filters->employeeId !== null) {
-            $query->where('employee_id', $filters->employeeId);
+            $query->where('ci_leave_applications.employee_id', $filters->employeeId);
         }
 
         // فلتر معرفات الموظفين (للتبعية)
         if ($filters->employeeIds !== null && is_array($filters->employeeIds) && !empty($filters->employeeIds)) {
-            $query->whereIn('employee_id', $filters->employeeIds);
+            $query->whereIn('ci_leave_applications.employee_id', $filters->employeeIds);
         }
 
         // فلتر الحالة
         if ($filters->status !== null) {
-            $query->where('status', $filters->status);
+            $query->where('ci_leave_applications.status', $filters->status);
         }
 
         // فلتر نوع الإجازة
         if ($filters->leaveTypeId !== null) {
-            $query->where('leave_type_id', $filters->leaveTypeId);
+            $query->where('ci_leave_applications.leave_type_id', $filters->leaveTypeId);
         }
 
         // Exclude restricted leave types
         if ($filters->excludedLeaveTypeIds !== null && !empty($filters->excludedLeaveTypeIds)) {
-            $query->whereNotIn('leave_type_id', $filters->excludedLeaveTypeIds);
+            $query->whereNotIn('ci_leave_applications.leave_type_id', $filters->excludedLeaveTypeIds);
         }
 
         // فلتر تاريخ البداية
         if ($filters->fromDate !== null) {
-            $query->where('from_date', '>=', $filters->fromDate);
+            $query->where('ci_leave_applications.from_date', '>=', $filters->fromDate);
         }
 
         // فلتر تاريخ النهاية
         if ($filters->toDate !== null) {
-            $query->where('from_date', '<=', $filters->toDate);
+            $query->where('ci_leave_applications.from_date', '<=', $filters->toDate);
         }
 
         // تطبيق الفرز
         $sortBy = in_array($filters->sortBy, ['created_at', 'from_date', 'status'])
-            ? $filters->sortBy
-            : 'created_at';
+            ? 'ci_leave_applications.' . $filters->sortBy
+            : 'ci_leave_applications.created_at';
 
         $sortDirection = strtolower($filters->sortDirection) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortDirection);
