@@ -60,7 +60,6 @@ use App\Repository\Interface\ResidenceRenewalRepositoryInterface;
 use App\Repository\ResidenceRenewalRepository;
 use App\Services\CacheService;
 use App\Services\FileUploadService;
-use Dedoc\Scramble\Scramble;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Str;
 use App\Repository\Interface\TerminationRepositoryInterface;
@@ -283,9 +282,5 @@ class AppServiceProvider extends ServiceProvider
             \App\Listeners\JobFailedListener::class
         );
 
-        // Scramble::configure()
-        //     ->routes(function (Route $route) {
-        //         return Str::startsWith($route->uri, 'api/');
-        //     });
     }
 }

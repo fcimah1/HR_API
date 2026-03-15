@@ -55,7 +55,7 @@ class CreateEmployeeDTO
         public ?string $contact_email = "",
         public ?string $contact_address = "",
         public ?string $employee_idnum = null,
-        public ?int $passport_no = 0,
+        public ?string $passport_no = null,
         public ?string $passport_date = "",
         public ?int $branch_id = null,
         public ?string $biotime_id = null,
@@ -103,7 +103,7 @@ class CreateEmployeeDTO
         public ?string $kiosk_code = null,
         public ?string $date_of_leaving = "",
     ) {}
-// employee_idnum office_shift_id 
+    // employee_idnum office_shift_id 
     public static function fromArray(array $data): self
     {
         $gender = $data['gender'] == 'Male' ? 1 : 2;
@@ -197,8 +197,8 @@ class CreateEmployeeDTO
             'user_id' => $userId,
             'company_id' => $companyId,
             'branch_id' => $this->branch_id,
-            'employee_id' => $this->employee_id, 
-            'employee_idnum' => $this->employee_idnum,
+            'employee_id' => $this->employee_id,
+            'employee_idnum' => (string) $this->employee_idnum,
             'reporting_manager' => $this->reporting_manager,
             'department_id' => $this->department_id,
             'designation_id' => $this->designation_id,
@@ -226,7 +226,7 @@ class CreateEmployeeDTO
             'gplus_profile' => $this->gplus_profile,
             'linkedin_profile' => $this->linkedin_profile,
             'account_title' => $this->account_title,
-            'account_number' => $this->account_number,
+            'account_number' => (string) $this->account_number,
             'default_language' => $this->default_language,
             'contact_full_name' => $this->contact_full_name,
             'contact_phone_no' => $this->contact_phone_no,
@@ -262,7 +262,7 @@ class CreateEmployeeDTO
             'currency_id' => $this->currency_id,
             'contract_option_id' => $this->contract_option_id,
             'biotime_id' => $this->biotime_id,
-            'passport_no' => $this->passport_no,
+            'passport_no' => (string) $this->passport_no,
             'passport_date' => $this->passport_date,
             'date_of_birth' => $this->date_of_birth,
             'ml_pcb_socso' => $this->ml_pcb_socso,
