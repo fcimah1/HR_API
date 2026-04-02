@@ -17,7 +17,11 @@ class CreateAttendanceDTO
         public readonly string $attendanceStatus = 'Present',
         public readonly string $status = 'Approved',
         public readonly int $branchId = 0,
-        public readonly ?string $timeLate = '00:00' // nullable for clock-out without clock-in
+        public readonly ?string $timeLate = '00:00', // nullable for clock-out without clock-in
+        public readonly ?string $clockOut = null, // Added for manual entry
+        public readonly ?string $totalWork = '00:00', // Added for manual entry
+        public readonly ?string $earlyLeaving = '00:00',
+        public readonly ?string $overtime = '00:00'
     ) {}
 
     public static function fromRequest(array $data, int $companyId, int $employeeId, string $ipAddress): self
@@ -41,6 +45,31 @@ class CreateAttendanceDTO
         );
     }
 
+    public static function fromManualRequest(array $data, int $companyId, ?string $totalWork = '00:00'): self
+    {
+        return new self(
+            companyId: $companyId,
+            employeeId: $data['employee_id'],
+            attendanceDate: $data['attendance_date'],
+            clockIn: $data['clock_in'],
+            clockInIpAddress: 'Manual Entry',
+            clockInLatitude: null,
+            clockInLongitude: null,
+            shiftId: $data['office_shift_id'] ?? 0,
+            workFromHome: 0,
+            attendanceStatus: $data['attendance_status'] ?? 'Present',
+            status: isset($data['status'])
+                ? (string) \App\Enums\AttendenceStatus::getValue($data['status'])
+                : (string) \App\Enums\AttendenceStatus::PENDING->value,
+            branchId: 0, // Should be fetched from employee if needed, or default 0
+            timeLate: $data['time_late'] ?? '00:00',
+            clockOut: $data['clock_out'] ?? null,
+            totalWork: $data['total_work'] ?? $totalWork,
+            earlyLeaving: $data['early_leaving'] ?? '00:00',
+            overtime: $data['overtime'] ?? '00:00'
+        );
+    }
+
     public function toArray(): array
     {
         return [
@@ -50,17 +79,17 @@ class CreateAttendanceDTO
             'attendance_date' => $this->attendanceDate,
             'clock_in' => $this->clockIn,
             'clock_in_ip_address' => $this->clockInIpAddress,
-            'clock_out' => '',
-            'clock_out_ip_address' => '',
-            'clock_in_out' => '0',
             'clock_in_latitude' => $this->clockInLatitude ?? '',
             'clock_in_longitude' => $this->clockInLongitude ?? '',
-            'clock_out_latitude' => '',
-            'clock_out_longitude' => '',
+            'clock_out' => $this->clockOut ?? '',
+            'clock_out_ip_address' => $this->clockOut ? 'Manual Entry' : '',
+            'clock_in_out' => $this->clockOut ? '0' : '1', // 0: Clocked Out, 1: Clocked In
+            'clock_out_latitude' => $this->clockOutLatitude ?? '',
+            'clock_out_longitude' => $this->clockOutLongitude ?? '',
             'time_late' => $this->timeLate,
-            'early_leaving' => '00:00',
-            'overtime' => '00:00',
-            'total_work' => '00:00',
+            'early_leaving' => $this->earlyLeaving ?? '00:00',
+            'overtime' => $this->overtime ?? '00:00',
+            'total_work' => $this->totalWork ?? '00:00',
             'total_rest' => '',
             'shift_id' => $this->shiftId,
             'work_from_home' => $this->workFromHome,

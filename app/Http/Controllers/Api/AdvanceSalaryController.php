@@ -22,7 +22,8 @@ class AdvanceSalaryController extends Controller
 {
     public function __construct(
         private readonly AdvanceSalaryService $advanceSalaryService
-    ) {}
+    ) {
+    }
 
     /**
      * @OA\Get(
@@ -80,7 +81,7 @@ class AdvanceSalaryController extends Controller
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Requests retrieved successfully",
+     *         description="تم جلب الطلبات بنجاح",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="تم جلب الطلبات بنجاح"),
@@ -90,14 +91,14 @@ class AdvanceSalaryController extends Controller
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Unauthenticated",
+     *         description="غير مصرح - يجب تسجيل الدخول",
      *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *             @OA\Property(property="message", type="string", example="غير مصرح - يجب تسجيل الدخول")
      *         )
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Forbidden - No permission",
+     *         description="غير مصرح لك بعرض الطلبات",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="غير مصرح لك بعرض الطلبات")
@@ -105,7 +106,7 @@ class AdvanceSalaryController extends Controller
      *     ),
      *     @OA\Response(
      *         response=422,
-     *         description="Validation error",
+     *         description="خطأ في التحقق",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string"),
@@ -114,7 +115,7 @@ class AdvanceSalaryController extends Controller
      *     ),
      *     @OA\Response(
      *         response=500,
-     *         description="Server error",
+     *         description="خطأ في الخادم",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="حدث خطأ في الخادم")
@@ -214,7 +215,7 @@ class AdvanceSalaryController extends Controller
             $effectiveCompanyId = $request->attributes->get('effective_company_id');
 
             $validated = $request->validated();
-            
+
             // Use employee_id from request if provided, otherwise use current user's ID
             $employeeId = $validated['employee_id'] ?? $user->user_id;
 
@@ -225,6 +226,84 @@ class AdvanceSalaryController extends Controller
             );
 
             $advance = $this->advanceSalaryService->createAdvance($dto);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إنشاء الطلب بنجاح',
+                'data' => $advance->toArray()
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل في إنشاء الطلب',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/advances/tier-based",
+     *     summary="Create a new loan/advance request using tier-based system",
+     *     description="Creates a request with auto-calculated amounts based on employee salary and selected tier. All employee info fields are for display/audit purposes.",
+     *     tags={"Advance Salary & Loan Management"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"tier_id", "requested_months", "reason"},
+     *             @OA\Property(property="employee_id", type="integer", example=755, description="Employee ID (defaults to authenticated user)"),
+     *             @OA\Property(property="employee_name", type="string", example="أحمد محمد", description="Employee full name (display)"),
+     *             @OA\Property(property="position", type="string", example="مطور برمجيات", description="Employee position (display)"),
+     *             @OA\Property(property="company", type="string", example="شركة التقنية", description="Company name (display)"),
+     *             @OA\Property(property="department", type="string", example="تقنية المعلومات", description="Department name (display)"),
+     *             @OA\Property(property="division", type="string", example="التطوير", description="Division/Branch name (display)"),
+     *             @OA\Property(property="monthly_salary", type="number", example=10000.00, description="Monthly salary (display)"),
+     *             @OA\Property(property="tier_id", type="integer", example=2, description="Tier ID from /loans/form-init"),
+     *             @OA\Property(property="loan_amount", type="number", example=10000.00, description="Loan amount (display/audit)"),
+     *             @OA\Property(property="requested_months", type="integer", example=3, description="Number of installment months"),
+     *             @OA\Property(property="installment_amount", type="number", example=3333.33, description="Monthly installment (display/audit)"),
+     *             @OA\Property(property="reason", type="string", example="احتياج شخصي عاجل", description="Reason for request"),
+     *             @OA\Property(property="guarantor_id", type="integer", nullable=true, description="Guarantor employee ID (optional)")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Request created successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="تم إنشاء الطلب بنجاح"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error"
+     *     )
+     * )
+     */
+    public function storeTierBased(\App\Http\Requests\AdvanceSalary\CreateTierBasedAdvanceSalaryRequest $request)
+    {
+        $user = Auth::user();
+
+        try {
+            $effectiveCompanyId = $request->attributes->get('effective_company_id');
+            $validated = $request->validated();
+
+            $employeeId = $validated['employee_id'] ?? $user->user_id;
+
+            $advance = $this->advanceSalaryService->createTierBasedAdvance(
+                companyId: $effectiveCompanyId,
+                employeeId: $employeeId,
+                tierId: $validated['tier_id'],
+                requestedMonths: $validated['requested_months'],
+                reason: $validated['reason'],
+                guarantorId: $validated['guarantor_id'] ?? null
+            );
 
             return response()->json([
                 'success' => true,

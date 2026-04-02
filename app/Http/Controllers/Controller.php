@@ -8,10 +8,14 @@ namespace App\Http\Controllers;
  *     version="1.0.0",
  *     description="API for HR Management System with Employee and Leave Management",
  *     @OA\Contact(
- *         email="admin@hrapi.com"
+ *         email="mohamed.firstsoft@gmail.com"
  *     )
  * )
  * 
+ * @OA\Server(
+ *     url="https://api.firstsoft.io",
+ *     description="Production Server"
+ * ),
  * @OA\Server(
  *     url="http://127.0.0.1:8000",
  *     description="Local Development Server"

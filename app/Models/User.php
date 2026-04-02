@@ -30,7 +30,6 @@ class User extends Authenticatable
     // get all fields of user roles table
     protected $allowedFields = ['user_id', 'user_role_id', 'user_type', 'company_id', 'first_name', 'last_name', 'email', 'username', 'password', 'company_name', 'trading_name', 'registration_no', 'government_tax', 'company_type_id', 'profile_photo', 'contact_number', 'gender', 'address_1', 'address_2', 'city', 'state', 'zipcode', 'country', 'last_login_date', 'last_logout_date', 'last_login_ip', 'is_logged_in', 'is_active', 'kiosk_code', 'fiscal_date', 'created_at'];
 
-
     /**
      * Send permissions with the user details when logged in
      */
@@ -60,6 +59,7 @@ class User extends Authenticatable
             'branch_name' => $this->user_details?->branch?->branch_name ?? null,
         ];
     }
+
 
     /**
      * The attributes that are mass assignable.
@@ -97,6 +97,8 @@ class User extends Authenticatable
         'kiosk_code',
         'created_at',
         'fiscal_date',
+        'device_token',
+        'kiosk_code',
     ];
     /**
      * The attributes that should be hidden for serialization.
@@ -153,12 +155,62 @@ class User extends Authenticatable
         return $this->hasOne(UserDetails::class, 'user_id', 'user_id');
     }
 
+    public function getShiftNameAttribute(): ?string
+    {
+        // Check if eager loaded through user_details.officeShift
+        // Need to ensure officeShift relation exists in UserDetails
+        if ($this->relationLoaded('user_details')) {
+            if ($this->user_details->relationLoaded('officeShift')) {
+                return $this->user_details->officeShift->shift_name ?? null;
+            }
+            // Fallback: fetch if ID exists
+            if ($this->user_details && $this->user_details->office_shift_id) {
+                $shift = OfficeShift::find($this->user_details->office_shift_id);
+                return $shift?->shift_name;
+            }
+        }
+        return null; // Or 'وردية العمل الإداري' as default if preferred, but handled in ReportService
+    }
+
+    /**
+     * Get employee's work hours per day from their office shift
+     * @return float Default is 8.0 hours if no shift assigned
+     */
+    public function getWorkHoursPerDay(): float
+    {
+        // Check if user has details and office shift
+        if (!$this->relationLoaded('user_details')) {
+            $this->load('user_details');
+        }
+
+        if ($this->user_details && $this->user_details->office_shift_id) {
+            // Use CacheService to retrieve the shift
+            $cacheService = app(\App\Services\CacheService::class);
+            $shift = $cacheService->getOfficeShift($this->user_details->office_shift_id);
+
+            if ($shift && $shift->hours_per_day > 0) {
+                return (float) $shift->hours_per_day;
+            }
+        }
+
+        // Default to 8 hours per day
+        return 8.0;
+    }
+
     /**
      * Get branches for company (when user_type = 'company')
      */
     public function branches(): HasMany
     {
         return $this->hasMany(Branch::class, 'company_id', 'user_id');
+    }
+
+    /**
+     * Get the company that this user belongs to.
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'company_id', 'user_id');
     }
 
     /**
@@ -220,6 +272,14 @@ class User extends Authenticatable
     public function staffRole(): BelongsTo
     {
         return $this->belongsTo(StaffRole::class, 'user_role_id', 'role_id');
+    }
+
+    /**
+     * Get the attendance records for the user.
+     */
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class, 'employee_id', 'user_id');
     }
 
     /**

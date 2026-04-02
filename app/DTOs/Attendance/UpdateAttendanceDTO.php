@@ -5,6 +5,7 @@ namespace App\DTOs\Attendance;
 class UpdateAttendanceDTO
 {
     public function __construct(
+        public readonly ?string $clockIn = null, // Added
         public readonly ?string $clockOut = null,
         public readonly ?string $clockOutIpAddress = null,
         public readonly ?string $clockOutLatitude = null,
@@ -14,7 +15,9 @@ class UpdateAttendanceDTO
         public readonly ?string $lunchBreakIn = null,
         public readonly ?string $lunchBreakOut = null,
         public readonly ?string $earlyLeaving = null,
-        public readonly ?string $overtime = null
+        public readonly ?string $overtime = null,
+        public readonly ?int $shiftId = null, // Added for shift update
+        public readonly ?string $attendanceStatus = null // Added for attendance status
     ) {}
 
     public static function fromClockOutRequest(array $data, string $ipAddress, string $totalWork, ?string $earlyLeaving = null, ?string $overtime = null): self
@@ -53,20 +56,29 @@ class UpdateAttendanceDTO
     public static function fromUpdateRequest(array $data): self
     {
         return new self(
+            clockIn: $data['clock_in'] ?? null,
             clockOut: $data['clock_out'] ?? null,
             clockOutIpAddress: $data['clock_out_ip_address'] ?? null,
             clockOutLatitude: $data['clock_out_latitude'] ?? null,
             clockOutLongitude: $data['clock_out_longitude'] ?? null,
             totalWork: $data['total_work'] ?? null,
-            status: $data['status'] ?? null,
+            status: isset($data['status']) && ($statusEnum = \App\Enums\AttendenceStatus::getValue($data['status']))
+                ? $statusEnum->value
+                : null,
             earlyLeaving: $data['early_leaving'] ?? null,
-            overtime: $data['overtime'] ?? null
+            overtime: $data['overtime'] ?? null,
+            shiftId: $data['shift_id'] ?? null,
+            attendanceStatus: $data['attendance_status'] ?? null
         );
     }
 
     public function toArray(): array
     {
         $data = [];
+
+        if ($this->clockIn !== null) {
+            $data['clock_in'] = $this->clockIn;
+        }
 
         if ($this->clockOut !== null) {
             $data['clock_out'] = $this->clockOut;
@@ -108,6 +120,14 @@ class UpdateAttendanceDTO
 
         if ($this->overtime !== null) {
             $data['overtime'] = $this->overtime;
+        }
+
+        if ($this->shiftId !== null) {
+            $data['office_shift_id'] = $this->shiftId;
+        }
+
+        if ($this->attendanceStatus !== null) {
+            $data['attendance_status'] = $this->attendanceStatus;
         }
 
         return $data;

@@ -10,8 +10,12 @@ use Illuminate\Support\Facades\DB;
 
 class SimplePermissionService
 {
-    // Cache TTL for permissions (1 hour)
-    private const PERMISSION_CACHE_TTL = 3600;
+    // Cache TTL for permissions (5 minutes)
+    private const PERMISSION_CACHE_TTL = 300;
+
+    public function __construct(
+        private readonly \App\Repository\Interface\EmployeeRepositoryInterface $employeeRepository
+    ) {}
 
     /**
      * التحقق من صلاحية المستخدم
@@ -19,8 +23,8 @@ class SimplePermissionService
     public function checkPermission(User $user, string $permission): bool
     {
         $userType = strtolower(trim($user->user_type ?? ''));
-        // مستخدم الشركة له صلاحيات كاملة ولا يعتمد على جدول الأدوار
-        if ($userType === 'company') {
+        // super_user ومستخدم الشركة لهم صلاحيات كاملة ولا يعتمدون على جدول الأدوار
+        if ($userType === 'super_user' || $userType === 'company') {
             return true;
         }
 
@@ -39,9 +43,11 @@ class SimplePermissionService
      */
     public function checkCompanyAccess(User $user, int $targetCompanyId): bool
     {
-        // إذا كان صاحب الشركة (company_id = 0) يمكنه الوصول لشركته فقط
+        // إذا كان صاحب الشركة (company_id = 0)
         if ($user->company_id == 0) {
-            return $targetCompanyId == $user->user_id;
+            // يمكنه الوصول لموظفي شركته (targetCompanyId == user_id)
+            // أو لبياناته الشخصية (targetCompanyId == 0)
+            return $targetCompanyId == $user->user_id || $targetCompanyId == 0;
         }
 
         // إذا كان موظف، يمكنه الوصول لشركته فقط
@@ -101,18 +107,9 @@ class SimplePermissionService
             return $cachedData['permissions'] ?? [];
         }
 
-        // Cache miss or stale (role mismatch) -> Fetch from DB
-        // Note: We use first() directly. If stricter company check is needed, consider it.
-        // User::getUserPermissions uses strict !== check on company_id.
-        // Here we rely on query where('company_id', $user->company_id).
-        $role = StaffRole::where('role_id', $user->user_role_id)
-            ->where('company_id', $user->company_id)
-            ->first();
-
-        $permissions = [];
-        if ($role) {
-            $permissions = array_filter(explode(',', $role->role_resources ?? ''));
-        }
+        // Cache miss or stale (role mismatch) -> Fetch using User model's method for consistency
+        // This ensures we use the same logic as login response
+        $permissions = $user->getUserPermissions();
 
         // Store result in cache with role_id for future validation
         Cache::put($cacheKey, [
@@ -140,9 +137,21 @@ class SimplePermissionService
         return strtolower(trim($user->user_type ?? '')) === 'company' || ($user->company_id == 0 && $user->user_role_id == 0);
     }
 
+    /**
+     * التحقق إذا كان المستخدم موظف
+     */
+
     public function isEmployee(User $user): bool
     {
         return $user->company_id > 0 && $user->user_role_id > 0;
+    }
+
+    /**
+     * التحقق إذا كان المستخدم Super User (الدعم الفني)
+     */
+    public function isSuperUser(User $user): bool
+    {
+        return strtolower(trim($user->user_type ?? '')) === 'super_user';
     }
 
     /**
@@ -209,9 +218,15 @@ class SimplePermissionService
     /**
      * فلترة البيانات حسب الشركة
      */
-    public function filterByCompany($query, User $user, string $companyColumn = 'company_id')
+    public function filterByCompany($query, User $user, ?string $companyColumn = null)
     {
         $effectiveCompanyId = $this->getEffectiveCompanyId($user);
+
+        if ($companyColumn === null) {
+            $tableName = $query instanceof \Illuminate\Database\Eloquent\Builder ? $query->getModel()->getTable() : null;
+            $companyColumn = $tableName ? "$tableName.company_id" : 'company_id';
+        }
+
         return $query->where($companyColumn, $effectiveCompanyId);
     }
 
@@ -238,9 +253,15 @@ class SimplePermissionService
 
     public function canViewEmployeeRequests(User $manager, User $employee): bool
     {
-        // مدير الشركة يرى الجميع
+        // يمكن للمستخدم دائماً رؤية طلباته الخاصة
+        if ($manager->user_id === $employee->user_id) {
+            return true;
+        }
+
+        // مدير الشركة يرى الجميع في شركته
         if ($this->isCompanyOwner($manager)) {
             // Check if the employee belongs to the company owner's company (which is the owner's user_id)
+            // Or if it's the owner themselves (though handled by self-check above)
             return $employee->company_id == $manager->user_id;
         }
 
@@ -398,11 +419,13 @@ class SimplePermissionService
         }
 
         // 1. الشركة
-        $query->where('company_id', $manager->company_id);
+        $tableName = $query instanceof \Illuminate\Database\Eloquent\Builder ? $query->getModel()->getTable() : null;
+        $companyColumn = $tableName ? "$tableName.company_id" : 'company_id';
+        $query->where($companyColumn, $manager->company_id);
 
         // 2. الهرمية: الموظف يجب أن يكون في مستوى أدنى (رقم أعلى) أو مساوي
         $query->whereHas('user_details.designation', function ($q) use ($managerLevel) {
-            $q->where('hierarchy_level', '>=', $managerLevel);
+            $q->where('hierarchy_level', '>', $managerLevel);
         });
 
         // 3. القيود (Restrictions)
@@ -448,7 +471,6 @@ class SimplePermissionService
                 $q->whereNotIn('branch_id', $restrictedBranches);
             });
         }
-
         return $query;
     }
 
@@ -470,26 +492,13 @@ class SimplePermissionService
         // 1. إذا كان صاحب الشركة (Admin)، يرى الجميع فوراً
         if ($this->isCompanyOwner($user)) {
             // For company owner, their user_id is the company_id for staff
-            return DB::table('ci_erp_users')
-                ->select(
-                    'ci_erp_users.user_id',
-                    'ci_erp_users.first_name',
-                    'ci_erp_users.last_name',
-                    'ci_erp_users_details.designation_id',
-                    'ci_designations.designation_name as designation_name',
-                    'ci_designations.hierarchy_level as hierarchy_level',
-                    'ci_erp_users_details.department_id',
-                    'ci_departments.department_name as department_name',
-
-                )
-                ->leftJoin('ci_erp_users_details', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
-                ->leftJoin('ci_designations', 'ci_designations.designation_id', '=', 'ci_erp_users_details.designation_id')
-                ->leftJoin('ci_departments', 'ci_departments.department_id', '=', 'ci_erp_users_details.department_id')
-                ->where('ci_erp_users.company_id', $user->user_id)
-                ->where('ci_erp_users.user_type', 'staff')
-                ->where('ci_erp_users.is_active', 1)
-                ->get()
-                ->toArray();
+            return $this->employeeRepository->getEmployeesByHierarchy(
+                $user->user_id,
+                0, // Level 0 sees everyone
+                [],
+                [],
+                null // No specific user_id filter, as owner sees all staff
+            );
         }
 
         // 2. تحليل القيود (Restrictions) - الأقسام والفروع المحظورة
@@ -520,79 +529,14 @@ class SimplePermissionService
         // 3. معرفة المستوى الهرمي للمستخدم الحالي
         $currentHierarchyLevel = $this->getUserHierarchyLevel($user) ?? 5; // Default to 5 (lowest)
 
-        // المستوى 0 يرى الجميع
-        if ($currentHierarchyLevel === 0) {
-            return DB::table('ci_erp_users')
-                ->select(
-                    'ci_erp_users.user_id',
-                    'ci_erp_users.first_name',
-                    'ci_erp_users.last_name',
-                    'ci_erp_users_details.designation_id',
-                    'ci_designations.designation_name as designation_name',
-                    'ci_designations.hierarchy_level as hierarchy_level',
-                    'ci_erp_users_details.department_id',
-                    'ci_departments.department_name as department_name'
-                )
-                ->leftJoin('ci_erp_users_details', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
-                ->leftJoin('ci_designations', 'ci_designations.designation_id', '=', 'ci_erp_users_details.designation_id')
-                ->leftJoin('ci_departments', 'ci_departments.department_id', '=', 'ci_erp_users_details.department_id')
-                ->where('ci_erp_users.company_id', $companyId)
-                ->where('ci_erp_users.user_type', 'staff')
-                ->where('ci_erp_users.is_active', 1)
-                ->get()
-                ->toArray();
-        }
-
-        // 4. بناء الاستعلام مع الشروط
-        $baseQuery = DB::table('ci_erp_users')
-            ->select(
-                'ci_erp_users.user_id',
-                'ci_erp_users.first_name',
-                'ci_erp_users.last_name',
-                'ci_erp_users_details.designation_id',
-                'ci_designations.designation_name as designation_name',
-                'ci_designations.hierarchy_level as hierarchy_level',
-                'ci_erp_users_details.department_id',
-                'ci_departments.department_name as department_name'
-            )
-            ->leftJoin('ci_erp_users_details', 'ci_erp_users_details.user_id', '=', 'ci_erp_users.user_id')
-            ->leftJoin('ci_designations', 'ci_designations.designation_id', '=', 'ci_erp_users_details.designation_id')
-            ->leftJoin('ci_departments', 'ci_departments.department_id', '=', 'ci_erp_users_details.department_id')
-            ->where('ci_erp_users.company_id', $companyId)
-            ->where('ci_erp_users.user_type', 'staff')
-            ->where('ci_erp_users.is_active', 1);
-
-        $baseQuery->where(function ($masterQ) use ($userId, $includeSelf, $currentHierarchyLevel, $restrictedDepartments, $restrictedBranches) {
-
-            // Group 1: Matches Hierarchy & Restrictions & Staff Type
-            $masterQ->where(function ($q) use ($currentHierarchyLevel, $restrictedDepartments, $restrictedBranches) {
-                $q->where('ci_erp_users.user_type', 'staff');
-
-                // Hierarchy Level Check (Level 0 sees all, otherwise check level)
-                if ($currentHierarchyLevel > 0) {
-                    $q->where('ci_designations.hierarchy_level', '>=', $currentHierarchyLevel);
-                }
-
-                // Restrictions
-                if (!empty($restrictedDepartments)) {
-                    $q->whereNotIn('ci_erp_users_details.department_id', $restrictedDepartments);
-                }
-                if (!empty($restrictedBranches)) {
-                    $q->whereNotIn('ci_erp_users_details.branch_id', $restrictedBranches);
-                }
-            });
-
-            // Group 2: Include Self (Explicitly allowed regardless of above)
-            if ($includeSelf) {
-                $masterQ->orWhere('ci_erp_users.user_id', $userId);
-            }
-        });
-
-        if (!$includeSelf) {
-            $baseQuery->where('ci_erp_users.user_id', '!=', $userId);
-        }
-
-        return $baseQuery->get()->toArray();
+        // 4. بناء الاستعلام عبر المستودع (Repository)
+        return $this->employeeRepository->getEmployeesByHierarchy(
+            $companyId,
+            $currentHierarchyLevel,
+            $restrictedDepartments,
+            $restrictedBranches,
+            $includeSelf ? $userId : null
+        );
     }
 
     /**
@@ -745,5 +689,64 @@ class SimplePermissionService
         }
 
         return $result;
+    }
+
+    /**
+     * Check if a specific operation string exists in user restrictions
+     * (e.g., 'view_salary', 'report_attendance')
+     * 
+     * @param int $userId
+     * @param int $companyId
+     * @param string $operationKey
+     * @return bool
+     */
+    public function hasOperationRestriction(int $userId, int $companyId, string $operationKey): bool
+    {
+        $restriction = OperationRestriction::where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$restriction || empty($restriction->restricted_operations)) {
+            return false;
+        }
+
+        $operations = $restriction->restricted_operations;
+        if (is_string($operations)) {
+            $operations = explode(',', $operations);
+        }
+
+        return in_array(trim($operationKey), array_map('trim', $operations));
+    }
+
+    /**
+     * Specialized logic for 'Backup Employee' (الموظف المناوب)
+     * Rule: Ignore hierarchy, but must be in the same department as the applicant.
+     * 
+     * @param Builder $query
+     * @param User $applicant The employee for whom the backup is being selected
+     */
+    public function filterBackupEmployees($query, User $applicant)
+    {
+        $applicantDeptId = $this->getUserDepartmentId($applicant);
+
+        if (!$applicantDeptId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        // Must be same company
+        $query->where('company_id', $applicant->company_id);
+
+        // Must be staff
+        $query->where('user_type', 'staff');
+
+        // Must be same department
+        $query->whereHas('user_details', function ($q) use ($applicantDeptId) {
+            $q->where('department_id', $applicantDeptId);
+        });
+
+        // Exclude applicant themselves from being their own backup
+        $query->where('user_id', '!=', $applicant->user_id);
+
+        return $query;
     }
 }

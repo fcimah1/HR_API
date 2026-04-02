@@ -66,11 +66,9 @@ class LeaveTypeService
 
             // تجميع البيانات حسب السنة
             $yearlyBreakdown_days    = [];
-            $yearlyBreakdown_hours = [];
-            foreach ($quotaAssign as $yearIndex => $hours) {
-                if ($hours > 0) {
-                    $yearlyBreakdown_days[] = "السنة " . ($yearIndex + 1) . ": " . ($hours / 8) . " يوم";
-                    $yearlyBreakdown_hours[] = "السنة " . ($yearIndex + 1) . ": " . $hours . " ساعة";
+            foreach ($quotaAssign as $yearIndex => $days) {
+                if ($days > 0) {
+                    $yearlyBreakdown_days[] = "السنة " . ($yearIndex + 1) . ": " . ($days) . " يوم";
                 }
             }
 
@@ -79,8 +77,6 @@ class LeaveTypeService
                 'leave_type_name' => $constant['category_name'],
                 'leave_type_short_name' => $constant['field_one'] ?? '',
                 'yearly_breakdown_days' => $yearlyBreakdown_days,
-                'yearly_breakdown_hours' => $yearlyBreakdown_hours,
-
             ];
         }, $result['data']), fn($item) => $item !== null));
 
@@ -109,18 +105,15 @@ class LeaveTypeService
 
         // تجميع البيانات حسب السنة
         $yearlyBreakdown_days    = [];
-        $yearlyBreakdown_hours = [];
-        foreach ($quotaAssign as $yearIndex => $hours) {
-            if ($hours > 0) {
-                $yearlyBreakdown_days[] = "السنة " . ($yearIndex + 1) . ": " . ($hours / 8) . " يوم";
-                $yearlyBreakdown_hours[] = "السنة " . ($yearIndex + 1) . ": " . $hours . " ساعة";
+        foreach ($quotaAssign as $yearIndex => $days) {
+            if ($days > 0) {
+                $yearlyBreakdown_days[] = "السنة " . ($yearIndex + 1) . ": " . ($days) . " يوم";
             }
         }
         return [
             'leave_type_id' => $leaveType->constants_id,
             'leave_type_name' => $leaveType->category_name,
             'leave_type_short_name' => $leaveType->field_one ?? '',
-            'leave_hours' => $yearlyBreakdown_hours,
             'leave_days' => $yearlyBreakdown_days,
             'company_id' => $leaveType->company_id,
         ];
@@ -176,18 +169,15 @@ class LeaveTypeService
             $quotaAssign = $leaveData['quota_assign'] ?? [];
             // تجميع البيانات حسب السنة
             $yearlyBreakdown_days    = [];
-            $yearlyBreakdown_hours = [];
-            foreach ($quotaAssign as $yearIndex => $hours) {
-                if ($hours > 0) {
-                    $yearlyBreakdown_days[] = "السنة " . ($yearIndex + 1) . ": " . ($hours / 8) . " يوم";
-                    $yearlyBreakdown_hours[] = "السنة " . ($yearIndex + 1) . ": " . $hours . " ساعة";
+            foreach ($quotaAssign as $yearIndex => $days) {
+                if ($days > 0) {
+                    $yearlyBreakdown_days[] = "السنة " . ($yearIndex + 1) . ": " . ($days) . " يوم";
                 }
             }
             return [
                 'leave_type_id' => $leaveType->constants_id,
                 'leave_type_name' => $leaveType->category_name,
                 'leave_type_short_name' => $leaveType->field_one ?? '',
-                'leave_hours' => $yearlyBreakdown_hours,
                 'leave_days' => $yearlyBreakdown_days,
                 'company_id' => $leaveType->company_id,
             ];

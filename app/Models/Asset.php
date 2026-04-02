@@ -44,10 +44,13 @@ class Asset extends Model
         'company_id' => 'integer',
         'employee_id' => 'integer',
         'is_working' => 'boolean',
-        'purchase_date' => 'date',
-        'warranty_end_date' => 'date',
         'created_at' => 'datetime',
     ];
+
+    protected function getAssetImageAttribute($value)
+    {
+        return $value ? 'asset_image/' . $value : null;
+    }
 
     /**
      * Get the employee who owns the asset.

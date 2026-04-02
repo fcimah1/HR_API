@@ -11,7 +11,7 @@ class ErpConstant extends Model
 
     protected $table = 'ci_erp_constants';
     protected $primaryKey = 'constants_id';
-    public $timestamps = false;
+    const UPDATED_AT = null;
 
     /**
      * The attributes that are mass assignable.
@@ -26,7 +26,7 @@ class ErpConstant extends Model
         'created_at',
     ];
 
-    
+
 
     /**
      * The attributes that should be cast.
@@ -43,6 +43,12 @@ class ErpConstant extends Model
     const TYPE_DEPARTMENT = 'department';
     const TYPE_DESIGNATION = 'designation';
     const TYPE_GENERAL = 'general';
+    const TYPE_ASSETS_CATEGORY = 'assets_category';
+    const TYPE_ASSETS_BRAND = 'assets_brand';
+    const TYPE_AWARD_TYPE = 'award_type';
+    const TYPE_RELIGION = 'religion';
+    const TYPE_EXPENSE_TYPE = 'expense_type';
+    const TYPE_INCOME_TYPE = 'income_type';
 
     /**
      * Scope for filtering by company
@@ -149,10 +155,10 @@ class ErpConstant extends Model
      */
     public static function getActiveLeaveTypes(int $companyId): \Illuminate\Database\Eloquent\Collection
     {
-        return self::where(function($query) use ($companyId) {
-                $query->where('company_id', $companyId)
-                      ->orWhere('company_id', 0); // General types
-            })
+        return self::where(function ($query) use ($companyId) {
+            $query->where('company_id', $companyId)
+                ->orWhere('company_id', 0); // General types
+        })
             ->leaveTypes()
             ->where('field_three', '1') // active only
             ->orderBy('category_name')
@@ -178,5 +184,22 @@ class ErpConstant extends Model
             ->where('field_three', '1') // active only
             ->orderBy('category_name')
             ->get();
+    }
+
+    /**
+     * Get religions list
+     */
+    public static function getReligions(int $companyId): array
+    {
+        return self::where('type', self::TYPE_RELIGION)
+            ->where('company_id', $companyId)
+            ->get()
+            ->map(function ($constant) {
+                return [
+                    'id' => $constant->constants_id,
+                    'religion' => $constant->category_name,
+                ];
+            })
+            ->toArray();
     }
 }

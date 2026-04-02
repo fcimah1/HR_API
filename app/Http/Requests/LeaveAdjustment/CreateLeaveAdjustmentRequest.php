@@ -108,6 +108,11 @@ class CreateLeaveAdjustmentRequest extends FormRequest
                 'string',
                 'max:500',
             ],
+            'operator' => [
+                'nullable',
+                'string',
+                'in:add,sub',
+            ],
         ];
     }
 

@@ -12,6 +12,11 @@ class Branch extends Model
     use HasFactory;
 
     /**
+     * Disable automated timestamps as the table lacks updated_at.
+     */
+    public $timestamps = false;
+
+    /**
      * The table associated with the model.
      */
     protected $table = 'ci_branchs';
@@ -38,6 +43,7 @@ class Branch extends Model
     protected $casts = [
         'branch_id' => 'integer',
         'company_id' => 'integer',
+        'created_at' => 'datetime',
     ];
 
     /**
@@ -57,6 +63,14 @@ class Branch extends Model
     }
 
     /**
+     * Get the company that owns the branch.
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'company_id', 'user_id');
+    }
+
+    /**
      * Scope to filter by company.
      */
     public function scopeForCompany($query, $companyId)
@@ -73,30 +87,78 @@ class Branch extends Model
     }
 
     /**
-     * Get latitude from coordinates
-     * Format expected: "lat,lng" or "lat, lng"
+     * Get formatted coordinates safely (avoiding binary data issues)
      */
-    public function getLatitudeAttribute(): ?string
+    public function getFormattedCoordinatesAttribute(): ?string
     {
-        if (empty($this->coordinates)) {
+        // Prioritize coordinates_text (ST_AsText output from Repository)
+        $coords = $this->attributes['coordinates_text'] ?? $this->coordinates;
+
+        if (empty($coords)) {
             return null;
         }
 
-        $parts = explode(',', $this->coordinates);
+        if (is_string($coords)) {
+            // Check if it's binary junk (if ST_AsText failed or wasn't used)
+            // Only return null if it's definitely binary and NOT a WKT string
+            if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x80-\xFF]/', $coords)) {
+                // If ST_AsText was used, coordinates_text should NOT be binary
+                return null;
+            }
+
+            // If it's a simple "lat,lng" string
+            if (preg_match('/^-?\d+\.?\d*,\s*-?\d+\.?\d*$/', $coords)) {
+                return $coords;
+            }
+
+            // Handle WKT POINT(lng lat)
+            if (preg_match('/POINT\(([^ ]+) ([^ ]+)\)/i', $coords, $matches)) {
+                return $matches[2] . ',' . $matches[1];
+            }
+
+            // Handle Degenerate POLYGON((lng lat, lng lat, ...)) back to lat,lng
+            if (preg_match('/POLYGON\(\(([^,]+),([^,]+),([^,]+),([^,]+)\)\)/i', $coords, $matches)) {
+                $p1 = trim($matches[1]);
+                $p2 = trim($matches[2]);
+                if ($p1 === $p2) { // All points are the same
+                    $parts = explode(' ', $p1);
+                    if (count($parts) === 2) {
+                        return $parts[1] . ',' . $parts[0]; // lat,lng
+                    }
+                }
+            }
+
+            return $coords; // Return WKT (POLYGON, etc.) as is
+        }
+
+        return null;
+    }
+
+    /**
+     * Get latitude from coordinates
+     */
+    public function getLatitudeAttribute(): ?string
+    {
+        $coords = $this->formatted_coordinates;
+        if (empty($coords)) {
+            return null;
+        }
+
+        $parts = explode(',', $coords);
         return isset($parts[0]) ? trim($parts[0]) : null;
     }
 
     /**
      * Get longitude from coordinates
-     * Format expected: "lat,lng" or "lat, lng"
      */
     public function getLongitudeAttribute(): ?string
     {
-        if (empty($this->coordinates)) {
+        $coords = $this->formatted_coordinates;
+        if (empty($coords)) {
             return null;
         }
 
-        $parts = explode(',', $this->coordinates);
+        $parts = explode(',', $coords);
         return isset($parts[1]) ? trim($parts[1]) : null;
     }
 }

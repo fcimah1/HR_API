@@ -68,6 +68,7 @@ class NotificationService
         int $companyId,
         int|string $status = NumericalStatusEnum::APPROVED->value,
         ?int $approverId = null,
+        ?int $approvalLevel = null,
         ?int $submitterId = null
     ): int {
         $notifiers = $this->settingRepository->getApprovalNotifiers($companyId, $moduleOption);
@@ -206,6 +207,9 @@ class NotificationService
         // Transform notifications to include policy result for travel
         $transformedData = collect($notifications->items())->map(function ($notification) {
             $data = $notification->toArray();
+
+            // إضافة request_id لتوحيد التسمية مع Push Notification
+            $data['request_id'] = $notification->module_key_id;
 
             // Add travel allowance info for travel notifications
             if ($notification->module_option === 'travel_settings') {

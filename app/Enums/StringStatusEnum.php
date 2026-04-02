@@ -14,7 +14,7 @@ enum StringStatusEnum: string
      */
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PENDING => 'Pending',
             self::APPROVED => 'Approved',
             self::REJECTED => 'Rejected',
@@ -27,7 +27,7 @@ enum StringStatusEnum: string
      */
     public function labelAr(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PENDING => 'قيد الانتظار',
             self::APPROVED => 'مقبول',
             self::REJECTED => 'مرفوض',
@@ -48,5 +48,42 @@ enum StringStatusEnum: string
             ],
             self::cases()
         );
+    }
+
+    /**
+     * Get Enum case from string value or name
+     */
+    public static function getValue(string $status): ?self
+    {
+        foreach (self::cases() as $case) {
+            if (
+                strtolower($case->name) === strtolower($status) ||
+                strtolower($case->value) === strtolower($status)
+            ) {
+                return $case;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Convert to numerical value for database storage
+     */
+    public function toNumerical(): int
+    {
+        return match ($this) {
+            self::PENDING => 0,
+            self::APPROVED => 1,
+            self::REJECTED => 2,
+            self::SUBMITTED => 0,
+        };
+    }
+
+    /**
+     * Get all values as array
+     */
+    public static function values(): array
+    {
+        return array_column(self::cases(), 'value');
     }
 }

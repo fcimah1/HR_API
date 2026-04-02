@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * @OA\Tag(
  *     name="Authentication",
- *     description="User authentication endpoints"
+ *     description="روابط التحقق"
  * )
  */
 class AuthController extends Controller
@@ -94,7 +94,7 @@ class AuthController extends Controller
         }
 
         // Delete old tokens
-        $user->tokens()->delete();
+        $user->tokens()->where('expires_at', '<', now())->delete();
         $tokenResult = $user->createToken('HR-API-Token');
         $token = $tokenResult->accessToken;
         $tokenResult->token->expires_at = now()->addMinutes(15);
@@ -109,13 +109,13 @@ class AuthController extends Controller
 
         // Clean UTF-8 encoding
         $userData = $user->toArray();
-        array_walk_recursive($userData, function(&$value) {
+        array_walk_recursive($userData, function (&$value) {
             if (is_string($value)) {
                 $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
             }
         });
-        
-        array_walk_recursive($permissionData, function(&$value) {
+
+        array_walk_recursive($permissionData, function (&$value) {
             if (is_string($value)) {
                 $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
             }
@@ -134,30 +134,30 @@ class AuthController extends Controller
     }
 
 
-/**
- * @OA\Post(
- *     path="/api/refresh",
- *     summary="Refresh the access token",
- *     tags={"Authentication"},
- *     @OA\RequestBody(
- *         required=true,
- *         @OA\JsonContent(
- *             required={"refresh_token"},
- *             @OA\Property(property="refresh_token", type="string", example="refresh_token_here")
- *         )
- *     ),
- *     @OA\Response(
- *         response=200,
- *         description="Refresh token successful",
- *         @OA\JsonContent(
- *             @OA\Property(property="success", type="boolean", example=true),
- *             @OA\Property(property="access_token", type="string", example="new_access_token_here"),
- *             @OA\Property(property="refresh_token", type="string", example="new_refresh_token_here"),
- *             @OA\Property(property="expires_in", type="integer", example=900)
- *         )
- *     )
- * )
- */
+    /**
+     * @OA\Post(
+     *     path="/api/refresh",
+     *     summary="Refresh the access token",
+     *     tags={"Authentication"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"refresh_token"},
+     *             @OA\Property(property="refresh_token", type="string", example="refresh_token_here")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Refresh token successful",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="access_token", type="string", example="new_access_token_here"),
+     *             @OA\Property(property="refresh_token", type="string", example="new_refresh_token_here"),
+     *             @OA\Property(property="expires_in", type="integer", example=900)
+     *         )
+     *     )
+     * )
+     */
     public function refresh(Request $request)
     {
         $request->validate([
@@ -192,7 +192,7 @@ class AuthController extends Controller
         $accessToken = DB::table('oauth_access_tokens')
             ->where('id', $refreshToken->access_token_id)
             ->first();
-            
+
         if (!$accessToken) {
             return response()->json([
                 'success' => false,
@@ -213,7 +213,7 @@ class AuthController extends Controller
         // إنشاء توكن جديد
         $tokenResult = $user->createToken('HR-API-Token');
         $token = $tokenResult->accessToken;
-        $tokenResult->token->expires_at = now()->addDays(1);
+        $tokenResult->token->expires_at = now()->addMinutes(120);
         $tokenResult->token->save();
 
         // Get user permissions and role data
@@ -238,12 +238,12 @@ class AuthController extends Controller
     private function createRefreshToken($user, $accessTokenId = null)
     {
         $refreshToken = Str::random(80);
-        
+
         // إذا لم يتم تمرير accessTokenId ولم يكن هناك توكن للمستخدم
         if (!$accessTokenId && !$user->token()) {
             throw new \Exception('No access token available for the user');
         }
-        
+
         DB::table('oauth_refresh_tokens')->insert([
             'id' => $refreshToken,
             'access_token_id' => $accessTokenId ?: $user->token()->id,
@@ -251,9 +251,9 @@ class AuthController extends Controller
             'expires_at' => now()->addDays(30)->format('Y-m-d H:i:s')
             // تمت إزالة created_at و updated_at
         ]);
-        
+
         return $refreshToken;
-    }   
+    }
 
     /**
      * @OA\Get(
@@ -381,6 +381,56 @@ class AuthController extends Controller
             'role_id' => $permissionData['role_id'],
             'role_name' => $permissionData['role_name'],
             'role_access' => $permissionData['role_access'],
+        ]);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/user/device-token",
+     *     summary="Update FCM device token",
+     *     tags={"Authentication"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"token"},
+     *             @OA\Property(property="token", type="string", description="FCM device token from mobile app")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Device token updated successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Device token updated")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated"
+     *     )
+     * )
+     */
+    public function updateDeviceToken(Request $request)
+    {
+        $request->validate([
+            'token' => 'required|string|max:500',
+        ]);
+
+        $user = $request->user();
+        $user->device_token = $request->token;
+        $user->save();
+
+        Log::info('Device token updated', [
+            'user_id' => $user->user_id,
+            'token_prefix' => substr($request->token, 0, 10) . '...',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'user' => $user,
+            'device_token' => $request->token,
+            'message' => 'Device token updated',
         ]);
     }
 }

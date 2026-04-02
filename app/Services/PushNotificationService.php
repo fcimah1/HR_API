@@ -2,161 +2,132 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Log;
 use App\Models\User;
 
-/**
- * Push Notification Service using Firebase Cloud Messaging (FCM)
- * 
- * To use this service:
- * 1. Add FCM server key to .env: FCM_SERVER_KEY=your-key
- * 2. Store device tokens in users table or separate table
- * 3. Uncomment the actual HTTP request code
- */
 class PushNotificationService
 {
-    protected string $fcmUrl = 'https://fcm.googleapis.com/fcm/send';
-    protected ?string $serverKey;
+    protected string $projectId = 'hr-system-app-7e407';
+    protected string $credentialsPath;
 
     public function __construct()
     {
-        $this->serverKey = env('FCM_SERVER_KEY');
+        $this->credentialsPath = storage_path('app/firebase_credentials.json');
     }
 
-    /**
-     * Send push notification to user
-     */
-    public function sendToUser(
-        int $userId,
-        string $title,
-        string $body,
-        array $data = []
-    ): bool {
-        try {
-            $user = User::find($userId);
-
-            if (!$user || !$user->device_token) {
-                Log::warning('No device token for user', ['user_id' => $userId]);
-                return false;
-            }
-
-            return $this->send($user->device_token, $title, $body, $data);
-        } catch (\Exception $e) {
-            Log::error('Failed to send push notification', [
-                'user_id' => $userId,
-                'error' => $e->getMessage(),
-            ]);
-            return false;
-        }
-    }
-
-    /**
-     * Send push notification to multiple users
-     */
-    public function sendToUsers(
-        array $userIds,
-        string $title,
-        string $body,
-        array $data = []
-    ): int {
-        $sent = 0;
-
-        foreach ($userIds as $userId) {
-            if ($this->sendToUser($userId, $title, $body, $data)) {
-                $sent++;
-            }
-        }
-
-        return $sent;
-    }
-
-    /**
-     * Send push notification to specific device token
-     */
-    protected function send(
-        string $deviceToken,
-        string $title,
-        string $body,
-        array $data = []
-    ): bool {
-        if (!$this->serverKey) {
-            Log::warning('FCM server key not configured');
+    public function sendToUser(int $userId, string $title, string $body, array $data = []): bool
+    {
+        $user = User::where('user_id', $userId)->first();
+        if (!$user || !$user->device_token) {
             return false;
         }
 
-        $payload = [
-            'to' => $deviceToken,
+        $messagePayload = [
+            'token' => $user->device_token,
             'notification' => [
                 'title' => $title,
                 'body' => $body,
-                'sound' => 'default',
-            ],
-            'data' => $data,
-            'priority' => 'high',
+            ]
         ];
 
-        // TODO: Uncomment when FCM is configured
-        /*
-        $headers = [
-            'Authorization: key=' . $this->serverKey,
-            'Content-Type: application/json',
-        ];
+        // Add data payload if provided
+        if (!empty($data)) {
+            // FCM requires data values to be strings
+            $stringData = array_map(function ($value) {
+                return (string) $value;
+            }, $data);
+            $messagePayload['data'] = $stringData;
+        }
+
+        $payload = ['message' => $messagePayload];
+
+        $accessToken = $this->getSimpleAccessToken();
+        if (!$accessToken) return false;
+
+        $url = "https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send";
 
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $this->fcmUrl);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $accessToken,
+                'Content-Type: application/json'
+            ],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_SSL_VERIFYPEER => false  // 🔥 للـ test
+        ]);
+
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
         return $httpCode === 200;
-        */
-
-        Log::info('Push notification would be sent (FCM not configured)', [
-            'title' => $title,
-            'body' => $body,
-        ]);
-
-        return true; // Simulated success
     }
 
-    /**
-     * Send submission notification
-     */
-    public function sendSubmissionPush(
-        array $recipientIds,
-        string $moduleTitle,
-        string $submitterName
-    ): int {
-        $title = "طلب جديد - {$moduleTitle}";
-        $body = "قام {$submitterName} بإرسال طلب جديد";
+    public function sendSubmissionPush(array $staffIds, string $moduleOption, string $submitterName, string $keyId): void
+    {
+        $title = 'طلب جديد';
+        $body = "قام {$submitterName} بتقديم طلب {$moduleOption} رقم #{$keyId}";
 
-        return $this->sendToUsers($recipientIds, $title, $body, [
-            'type' => 'submission',
-            'module' => $moduleTitle,
-        ]);
+        foreach ($staffIds as $userId) {
+            $this->sendToUser((int)$userId, $title, $body);
+        }
     }
 
-    /**
-     * Send approval notification
-     */
-    public function sendApprovalPush(
-        array $recipientIds,
-        string $moduleTitle,
-        string $status
-    ): int {
-        $statusText = $status === 'approved' ? 'تمت الموافقة' : 'تم الرفض';
-        $title = "{$statusText} - {$moduleTitle}";
-        $body = "تم {$statusText} على طلبك";
+    public function sendApprovalPush(array $staffIds, string $moduleOption, string $status, string $keyId): void
+    {
+        $statusText = $status === 'approved' ? 'الموافقة على' : ($status === 'rejected' ? 'رفض' : 'تحديث حالة');
+        $title = 'تحديث حالة الطلب';
+        $body = "تم {$statusText} طلب {$moduleOption} رقم #{$keyId}";
 
-        return $this->sendToUsers($recipientIds, $title, $body, [
-            'type' => 'approval_result',
-            'module' => $moduleTitle,
-            'status' => $status,
+        foreach ($staffIds as $userId) {
+            $this->sendToUser((int)$userId, $title, $body);
+        }
+    }
+
+    protected function getSimpleAccessToken(): ?string
+    {
+        $credentials = json_decode(file_get_contents($this->credentialsPath), true);
+
+        $ch = curl_init('https://oauth2.googleapis.com/token');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query([
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion' => $this->createJWT($credentials)
+            ]),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30
         ]);
+
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        $data = json_decode($response, true);
+        return $data['access_token'] ?? null;
+    }
+
+    private function createJWT(array $credentials): string
+    {
+        $header = $this->base64UrlEncode(json_encode(['alg' => 'RS256', 'typ' => 'JWT']));
+        $now = time();
+        $claim = $this->base64UrlEncode(json_encode([
+            'iss' => $credentials['client_email'],
+            'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+            'aud' => 'https://oauth2.googleapis.com/token',
+            'exp' => $now + 3600,
+            'iat' => $now
+        ]));
+
+        $jwt = "$header.$claim";
+        openssl_sign($jwt, $signature, $credentials['private_key'], 'sha256WithRSAEncryption');
+        return $jwt . '.' . $this->base64UrlEncode($signature);
+    }
+
+    private function base64UrlEncode(string $data): string
+    {
+        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
     }
 }

@@ -4,11 +4,14 @@ namespace App\Services;
 
 use App\Models\StaffApproval;
 use App\Models\UserDetails;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use App\Services\PushNotificationService;
 
 /**
  * Reusable multi-level approval service for all modules.
  * Handles approval workflow tracking in ci_erp_notifications_approval table.
+ * 🔥 INTEGRATED WITH FCM NOTIFICATIONS
  */
 class ApprovalService
 {
@@ -84,8 +87,8 @@ class ApprovalService
             // Fallback: Check if user has hierarchical permission to approve
             try {
                 $permissionService = app(\App\Services\SimplePermissionService::class);
-                $user = \App\Models\User::find($userId);
-                $employee = \App\Models\User::find($employeeId);
+                $user = User::find($userId);
+                $employee = User::find($employeeId);
 
                 if ($user && $employee && $permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::info('ApprovalService: Hierarchy check passed', [
@@ -130,7 +133,6 @@ class ApprovalService
 
     /**
      * Get detailed info about why user cannot approve.
-     * Returns array with next approver info for better error messages.
      */
     public function getApprovalDenialReason(int $userId, int $requestId, int $employeeId, string $moduleOption): array
     {
@@ -161,7 +163,7 @@ class ApprovalService
         }
 
         $nextApproverId = $approvalChain[$currentLevel];
-        $nextApprover = \App\Models\User::find($nextApproverId);
+        $nextApprover = User::find($nextApproverId);
 
         $nextApproverName = $nextApprover
             ? trim($nextApprover->first_name . ' ' . $nextApprover->last_name)
@@ -203,14 +205,7 @@ class ApprovalService
     }
 
     /**
-     * Record an approval or rejection in the database.
-     * 
-     * @param int $requestId The request ID
-     * @param int $approverId The user ID who is approving/rejecting
-     * @param int $status 1=approved, 2=rejected
-     * @param int $approvalLevel 0=intermediate, 1=final, 2=rejection
-     * @param string $moduleOption Module identifier (e.g., 'overtime_request_settings')
-     * @param int $companyId Company ID
+     * 🔥 Record approval AND send FCM notifications
      */
     public function recordApproval(
         int $requestId,
@@ -218,7 +213,8 @@ class ApprovalService
         int $status,
         int $approvalLevel,
         string $moduleOption,
-        int $companyId
+        int $companyId,
+        int $submitterId  // 🔥 NEW: Pass submitter ID
     ): StaffApproval {
         $data = [
             'company_id' => $companyId,
@@ -231,13 +227,89 @@ class ApprovalService
         ];
 
         Log::info('ApprovalService: Recording approval', $data);
+        $approval = StaffApproval::create($data);
 
-        return StaffApproval::create($data);
+        // 🔥 SEND FCM NOTIFICATIONS
+        $this->sendApprovalNotifications($submitterId, $approverId, $status, $moduleOption, $requestId);
+
+        return $approval;
+    }
+
+    /**
+     * 🔥 Send FCM notifications to submitter + managers
+     */
+    private function sendApprovalNotifications(int $submitterId, int $approverId, int $status, string $moduleOption, int $requestId): void
+    {
+        try {
+            Log::debug('resolveNotifiers: Started', ['submitterId' => $submitterId]);
+            $notifierIds = $this->resolveNotifiers($submitterId);
+            
+            if (empty($notifierIds)) {
+                Log::warning('resolveNotifiers: No notifiers found', ['submitterId' => $submitterId]);
+                return;
+            }
+
+            $fcm = new PushNotificationService();
+            $statusText = $status === 1 ? '✅ تمت الموافقة' : '❌ تم الرفض';
+            $title = "{$statusText} - {$moduleOption}";
+            $body = "رقم الطلب: #{$requestId}";
+
+            foreach ($notifierIds as $userId) {
+                $success = $fcm->sendToUser($userId, $title, $body);
+                Log::info('FCM Result', [
+                    'user_id' => $userId,
+                    'approver_id' => $approverId,
+                    'request_id' => $requestId,
+                    'success' => $success
+                ]);
+            }
+
+            Log::info('FCM: Approval notifications sent', [
+                'request_id' => $requestId,
+                'submitter_id' => $submitterId,
+                'notifier_ids' => $notifierIds,
+                'status' => $statusText
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('FCM: Approval notification failed', [
+                'error' => $e->getMessage(),
+                'submitter_id' => $submitterId,
+                'request_id' => $requestId
+            ]);
+        }
+    }
+
+    /**
+     * 🔥 Resolve notification recipients (self + manager)
+     */
+    protected function resolveNotifiers(int $submitterId): array
+    {
+        $notifiers = [$submitterId]; // Self always gets notified
+        
+        Log::debug('resolveNotifiers: Added self', ['submitterId' => $submitterId]);
+
+        // Add manager
+        $userDetails = UserDetails::where('user_id', $submitterId)->first();
+        if ($userDetails && $userDetails->reporting_manager) {
+            $notifiers[] = $userDetails->reporting_manager;
+            Log::debug('resolveNotifiers: Added manager', [
+                'submitterId' => $submitterId, 
+                'managerId' => $userDetails->reporting_manager
+            ]);
+        } else {
+            Log::debug('resolveNotifiers: No reporting_manager found', [
+                'submitterId' => $submitterId,
+                'hasDetails' => !!$userDetails
+            ]);
+        }
+
+        Log::info('resolveNotifiers: Final resolved IDs', ['resolvedIds' => $notifiers]);
+        return $notifiers;
     }
 
     /**
      * Check if this is the final approval needed.
-     * Returns true if all required approvers have approved.
      */
     public function isFinalApproval(int $requestId, int $employeeId, string $moduleOption): bool
     {

@@ -47,6 +47,13 @@ class Kernel extends ConsoleKernel
         $schedule->command('optimize:clear')
             ->monthly()
             ->description('Clear all cached bootstrap files');
+
+        // ===== تنظيف التقارير القديمة =====
+        // حذف التقارير التي مر عليها أكثر من 7 أيام يومياً
+        $schedule->command('reports:cleanup --days=7')
+            ->daily()
+            ->at('01:00')
+            ->description('Cleanup old generated reports');
     }
 
     /**

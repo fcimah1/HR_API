@@ -19,10 +19,9 @@ use Illuminate\Support\Facades\Log;
 class CacheService
 {
     // Cache TTL بالثواني
-    private const TTL_DAY = 86400;      // 24 ساعة
-    private const TTL_HALF_DAY = 43200; // 12 ساعة
+    private const TTL_DAY = 14400;      // 4 ساعات
+    private const TTL_HALF_DAY = 7200; // 2 ساعة
     private const TTL_HOUR = 3600;      // 1 ساعة
-    private const TTL_WEEK = 604800;    // 7 أيام
 
     // ===== Designations =====
 
@@ -230,6 +229,7 @@ class CacheService
         });
     }
 
+
     /**
      * مسح cache الشيفتات
      */
@@ -239,6 +239,16 @@ class CacheService
         Log::debug("Office shifts cache cleared for company {$companyId}");
     }
 
+    /**
+     * مسح cache الشيفتات
+     */
+    public function clearOfficeShiftForEmployeeCache(int $shiftId): void
+    {
+        Cache::forget("office_shift.{$shiftId}");
+        Log::debug("Office shift cache cleared for employee {$shiftId}");
+    }
+
+    
     // ===== User Permissions =====
 
     /**

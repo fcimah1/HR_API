@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class OfficeShift extends Model
 {
     use HasFactory;
+    public $timestamps = false;
 
     /**
      * The table associated with the model.
@@ -40,7 +41,28 @@ class OfficeShift extends Model
         'saturday_out_time',
         'sunday_in_time',
         'sunday_out_time',
+        'monday_lunch_break',
+        'tuesday_lunch_break',
+        'wednesday_lunch_break',
+        'thursday_lunch_break',
+        'friday_lunch_break',
+        'saturday_lunch_break',
+        'sunday_lunch_break',
+        'monday_lunch_break_out',
+        'tuesday_lunch_break_out',
+        'wednesday_lunch_break_out',
+        'thursday_lunch_break_out',
+        'friday_lunch_break_out',
+        'saturday_lunch_break_out',
+        'sunday_lunch_break_out',
         'hours_per_day',
+        'in_time_beginning',
+        'in_time_end',
+        'late_allowance',
+        'out_time_beginning',
+        'out_time_end',
+        'break_start',
+        'break_end',
         'created_at',
     ];
 
@@ -51,6 +73,7 @@ class OfficeShift extends Model
         'office_shift_id' => 'integer',
         'company_id' => 'integer',
         'hours_per_day' => 'integer',
+        'late_allowance' => 'integer',
         'monday_in_time' => 'string',
         'monday_out_time' => 'string',
         'tuesday_in_time' => 'string',

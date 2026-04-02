@@ -61,7 +61,7 @@ class CanRequestForEmployee implements ValidationRule
                 // استخدام SimplePermissionService للتحقق من الصلاحيات الهرمية والقيود
                 // بدلاً من التحقق من القسم فقط
                 if (!$permissionService->canViewEmployeeRequests($user, $targetEmployee)) {
-                    $fail('ليس لديك الصلاحية. يجب أن تكون في مستوى أعلى.');
+                    $fail('الموظف المحدد ليس لك صلاحية للتعامل مع اى من طلباته');
                     return;
                 }
             }

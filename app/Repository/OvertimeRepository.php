@@ -5,7 +5,6 @@ namespace App\Repository;
 use App\Repository\Interface\OvertimeRepositoryInterface;
 use App\DTOs\Overtime\OvertimeRequestFilterDTO;
 use App\Models\OvertimeRequest;
-use App\Models\StaffApproval;
 use App\Models\User;
 use App\Models\UserDetails;
 use Illuminate\Support\Facades\DB;
@@ -269,16 +268,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
     {
         $request->update(['is_approved' => 1]);
 
-        // إنشاء سجل الموافقة في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $request->company_id,
-            'staff_id' => $approvedBy,
-            'module_option' => 'overtime_settings',
-            'module_key_id' => $request->time_request_id,
-            'status' => 1, // Approved
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Approval recording is handled by ApprovalService to avoid duplicates
 
         $request->refresh();
         $request->load(['employee', 'approvals.staff']);
@@ -298,16 +288,7 @@ class OvertimeRepository implements OvertimeRepositoryInterface
                 : 'رفض: ' . $reason
         ]);
 
-        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $request->company_id,
-            'staff_id' => $rejectedBy,
-            'module_option' => 'overtime_settings',
-            'module_key_id' => $request->time_request_id,
-            'status' => 2, // Rejected
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Rejection recording is handled by ApprovalService to avoid duplicates
 
         $request->refresh();
         $request->load(['employee', 'approvals.staff']);

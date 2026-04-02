@@ -6,9 +6,8 @@ use App\DTOs\Travel\CreateTravelDTO;
 use App\DTOs\Travel\TravelRequestFilterDTO;
 use App\DTOs\Travel\UpdateTravelDTO;
 use App\Models\Travel;
-use App\Models\StaffApproval;
+use App\Models\User;
 use App\Repository\Interface\TravelRepositoryInterface;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 
 class TravelRepository implements TravelRepositoryInterface
@@ -32,7 +31,7 @@ class TravelRepository implements TravelRepositoryInterface
     public function findById(int $id): ?Travel
     {
         return Travel::with(['employee', 'arrangementTypeRelation:constants_id,category_name', 'approvals.staff'])->find($id);
-    }   
+    }
 
     public function findByIdAndCompany(int $id, int $companyId): ?Travel
     {
@@ -201,16 +200,7 @@ class TravelRepository implements TravelRepositoryInterface
         $travel->status = Travel::STATUS_APPROVED;
         $travel->save();
 
-        // إنشاء سجل الموافقة في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $travel->company_id,
-            'staff_id' => $approvedBy,
-            'module_option' => 'travel_settings',
-            'module_key_id' => $travel->travel_id,
-            'status' => Travel::STATUS_APPROVED,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Approval recording is handled by ApprovalService to avoid duplicates
 
         $travel->refresh();
         $travel->load(['employee', 'approvals.staff']);
@@ -224,16 +214,7 @@ class TravelRepository implements TravelRepositoryInterface
         $travel->status = Travel::STATUS_REJECTED;
         $travel->save();
 
-        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $travel->company_id,
-            'staff_id' => $rejectedBy,
-            'module_option' => 'travel_settings',
-            'module_key_id' => $travel->travel_id,
-            'status' => Travel::STATUS_REJECTED,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Rejection recording is handled by ApprovalService to avoid duplicates
 
         $travel->refresh();
         $travel->load(['employee', 'approvals.staff']);

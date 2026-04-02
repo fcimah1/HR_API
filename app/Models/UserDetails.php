@@ -76,6 +76,8 @@ class UserDetails extends Model
         'is_accrual_pause',
         'is_work_from_home',
         'is_eqama',
+        'passport_no',
+        'passport_date',
         'pause_start_date',
         'pause_start_end',
         'created_at',
@@ -96,6 +98,9 @@ class UserDetails extends Model
         'is_accrual_pause' => 'boolean',
         'is_work_from_home' => 'boolean',
         'is_eqama' => 'boolean',
+        'passport_no' => 'string',
+        'employee_idnum' => 'string',
+        'account_number' => 'string',
     ];
 
     /**
@@ -129,6 +134,11 @@ class UserDetails extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class, 'branch_id', 'branch_id');
+    }
+
+    public function currency(): BelongsTo
+    {
+        return $this->belongsTo(Currency::class, 'currency_id', 'currency_id');
     }
 
     /**

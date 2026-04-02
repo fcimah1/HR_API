@@ -2,113 +2,272 @@
 
 namespace App\DTOs\Employee;
 
-class CreateEmployeeDTO extends BaseEmployeeDTO
+use Illuminate\Support\Facades\Auth;
+
+class CreateEmployeeDTO
 {
     public function __construct(
-        public readonly array $userData,
-        public readonly array $detailsData
+        public string $first_name,
+        public string $last_name,
+        public string $email,
+        public string $username,
+        public string $password,
+        public int $department_id,
+        public int $designation_id,
+        public ?string $contact_number = null,
+        public ?int $gender = 1,
+        public ?string $company_name = null,
+        public ?float $basic_salary = null,
+        public ?string $date_of_joining = "",
+        public ?string $date_of_birth = "",
+        public ?int $marital_status = 0,
+        public ?string $blood_group = "A+",
+        public ?string $address_1 = "",
+        public ?string $address_2 = "",
+        public ?string $city = "",
+        public ?string $employee_id = null,
+        public ?string $state = "",
+        public ?string $zipcode = "",
+        public ?int $country = 0,
+        public ?string $bio = "Enter staff bio here..",
+        public ?int $experience = 0,
+        public ?float $hourly_rate = 0,
+        public ?int $salay_type = 1,
+        public ?string $salary_payment_method = null,
+        public ?int $currency_id = 0,
+        public ?string $role_description = "Enter role description here..",
+        public ?int $contract_end = 0,
+        public ?int $religion_id = 0,
+        public ?int $citizenship_id = 0,
+        public ?string $fb_profile = "",
+        public ?string $twitter_profile = "",
+        public ?string $gplus_profile = "",
+        public ?string $linkedin_profile = "",
+        public ?string $account_title = "",
+        public ?string $account_number = "",
+        public ?int $bank_name = 0,
+        public ?string $iban = "",
+        public ?string $swift_code = "",
+        public ?string $bank_branch = "",
+        public ?string $default_language = "en",
+        public ?string $contact_full_name = "",
+        public ?string $contact_phone_no = "",
+        public ?string $contact_email = "",
+        public ?string $contact_address = "",
+        public ?string $employee_idnum = null,
+        public ?string $passport_no = null,
+        public ?string $passport_date = "",
+        public ?int $branch_id = null,
+        public ?string $biotime_id = null,
+        public ?int $office_shift_id = null,
+        public ?int $reporting_manager = null,
+        public string $not_part_of_orgchart = "0",
+        public string $not_part_of_system_reports = "0",
+        public ?int $user_role_id = 1,
+        public ?int $company_id = null,
+        public bool $is_active = true,
+        public int $shift_id = 1,
+        public int $company_type_id = 0,
+        public ?string $leave_categories = "all",
+        public string $profile_photo = '',
+        public ?int $place = null,
+        public ?int $contract_option_id = null,
+        public ?int $ml_tax_category = 0,
+        public ?string $ml_empployee_epf_rate = "0",
+        public ?string $ml_empployer_epf_rate = "0",
+        public ?int $ml_pcb_socso = 0,
+        public ?int $ml_eis_contribution = 0,
+        public ?int $ml_socso_category = 0,
+        public ?int $ml_hrdf = 0,
+        public ?int $ml_tax_citizenship = 0,
+        public ?int $zakat_fund = 0,
+        public ?int $job_type = 1,
+        public ?string $assigned_hours = "",
+        public ?string $leave_options = "",
+        public ?string $approval_levels = null,
+        public ?string $approval_level01 = "0",
+        public ?string $approval_level02 = "0",
+        public ?string $approval_level03 = "0",
+        public ?int $is_accrual_pause = 0,
+        public ?int $is_work_from_home = 0,
+        public ?int $is_eqama = 1,
+        public ?string $pause_start_date = "",
+        public ?string $pause_start_end = "",
+        public ?string $created_at = "",
+        public ?string $contract_release_date_eqama = "",
+        public ?string $contract_date_eqama = null,
+        public ?string $registration_no = "",
+        public ?string $government_tax = "",
+        public ?string $trading_name = "",
+        public ?int $is_logged_in = 0,
+        public ?string $kiosk_code = null,
+        public ?string $date_of_leaving = "",
     ) {}
-
-    public static function fromRequest(array $data): self
+    // employee_idnum office_shift_id 
+    public static function fromArray(array $data): self
     {
-        $instance = new static([], []);
-        
-        $userData = $instance->getBasicUserData($data);
-        $userData['password'] = isset($data['password']) ? bcrypt($data['password']) : null;
-        $userData['company_id'] = (int) $data['company_id'];
-        $userData['company_name'] = $data['company_name'];
-        $userData['is_active'] = 1;
-        $userData['is_logged_in'] = 0;
-        $userData['created_at'] = date('Y-m-d H:i:s');
-
-        // تعيين نوع المستخدم الافتراضي كـ "employee" إذا لم يتم تمريره في الطلب
-        if (empty($userData['user_type'])) {
-            $userData['user_type'] = 'employee';
-        }
-
-        // تعيين صورة افتراضية فارغة إذا لم يتم تمرير profile_photo في الطلب
-        if (!array_key_exists('profile_photo', $userData) || $userData['profile_photo'] === null) {
-            $userData['profile_photo'] = '';
-        }
-
-        // تعيين قيمة افتراضية للجنس إذا لم يتم تمرير gender في الطلب
-        if (!array_key_exists('gender', $userData) || $userData['gender'] === null) {
-            $userData['gender'] = '';
-        }
-        
-        $detailsData = $instance->getEmployeeDetailsData($data);
-        $detailsData['company_id'] = (int) $data['company_id'];
-        $detailsData['leave_categories'] = $detailsData['leave_categories'] ?? 'all';
-        $detailsData['is_work_from_home'] = isset($detailsData['is_work_from_home']) ? ($detailsData['is_work_from_home'] ? 1 : 0) : 0;
-        $detailsData['is_eqama'] = isset($detailsData['is_eqama']) ? ($detailsData['is_eqama'] ? 1 : 0) : 1;
-
-        // تعيين مدير افتراضي 0 إذا لم يتم تمرير reporting_manager في الطلب
-        if (!array_key_exists('reporting_manager', $detailsData) || $detailsData['reporting_manager'] === null) {
-            $detailsData['reporting_manager'] = 0;
-        }
-
-        // تعيين قيمة افتراضية للأجر بالساعة 0 إذا لم يتم تمرير hourly_rate في الطلب
-        if (!array_key_exists('hourly_rate', $detailsData) || $detailsData['hourly_rate'] === null) {
-            $detailsData['hourly_rate'] = 0;
-        }
-
-        // تعيين قيم افتراضية لباقي الحقول الرقمية الشائعة لتفادي أخطاء الأعمدة الإلزامية
-        $numericDefaults = [
-            'department_id',
-            'designation_id',
-            'basic_salary',
-            'marital_status',
-            'experience',
-            'bank_name',
-            'job_type',
-            'branch_id',
-
-            // حقول الضرائب والمساهمات (ml_*)
-            'ml_tax_category',
-            'ml_empployee_epf_rate',
-            'ml_empployer_epf_rate',
-            'ml_eis_contribution',
-            'ml_socso_category',
-            'ml_pcb_socso',
-            'ml_hrdf',
-            'ml_tax_citizenship',
-            'zakat_fund',
-
-            // حقول أخرى رقمية مرتبطة بالراتب/العملة
-            'salary_payment_method',
-            'currency_id',
-            'contract_option_id',
-            'biotime_id',
-        ];
-
-        foreach ($numericDefaults as $field) {
-            if (!array_key_exists($field, $detailsData) || $detailsData[$field] === null) {
-                $detailsData[$field] = 0;
-            }
-        }
-
-        // مزامنة نوع الراتب مع اسم العمود القديم salay_type في قاعدة البيانات
-        if (isset($detailsData['salary_type']) && $detailsData['salary_type'] !== null) {
-            $detailsData['salay_type'] = $detailsData['salary_type'];
-        } elseif (!array_key_exists('salay_type', $detailsData) || $detailsData['salay_type'] === null) {
-            $detailsData['salay_type'] = 0;
-        }
-
-        $detailsData['created_at'] = date('Y-m-d H:i:s');
-
+        $gender = $data['gender'] == 'Male' ? 1 : 2;
+        $companyName = Auth::user()->company_name;
         return new self(
-            userData: $instance->filterNullValues($userData),
-            detailsData: $instance->filterNullValues($detailsData)
+            first_name: $data['first_name'],
+            last_name: $data['last_name'],
+            email: $data['email'],
+            username: $data['username'],
+            password: $data['password'],
+            department_id: (int) $data['department_id'],
+            designation_id: (int) $data['designation_id'],
+            contact_number: $data['contact_number'] ?? "",
+            gender: $gender,
+            currency_id: isset($data['currency_id']) ? (int)$data['currency_id'] : 0,
+            user_role_id: $data['user_role_id'] ?? 1,
+            basic_salary: isset($data['basic_salary']) ? (float) $data['basic_salary'] : 0,
+            employee_id: $data['employee_id'] ?? "",
+            office_shift_id: isset($data['office_shift_id']) ? (int)$data['office_shift_id'] : 0,
+            reporting_manager: isset($data['reporting_manager']) ? (int)$data['reporting_manager'] : 0,
+            company_name: $companyName,
         );
     }
 
-    public function getUserData(): array
+    public function toArray(): array
     {
-        return $this->userData;
+        return [
+            'first_name' => $this->first_name,
+            'last_name' => $this->last_name,
+            'email' => $this->email,
+            'username' => $this->username,
+            'password' => $this->password,
+            'department_id' => $this->department_id,
+            'designation_id' => $this->designation_id,
+            'contact_number' => $this->contact_number,
+            'gender' => $this->gender,
+            'basic_salary' => $this->basic_salary,
+            'currency_id' => $this->currency_id,
+            'reporting_manager' => $this->reporting_manager,
+            'user_role_id' => $this->user_role_id,
+            'office_shift_id' => $this->office_shift_id,
+            'company_name' => $this->company_name,
+        ];
     }
 
-    public function getUserDetailsData(int $userId): array
+    /**
+     * Get data for ci_erp_users table
+     */
+    public function getUserData(): array
     {
-        return array_merge($this->detailsData, ['user_id' => $userId]);
+        return [
+            'user_role_id' => $this->user_role_id ?? 0,
+            'user_type' => 'staff',
+            'company_id' => $this->company_id,
+            'first_name' => $this->first_name,
+            'last_name' => $this->last_name,
+            'email' => $this->email,
+            'username' => $this->username,
+            'password' => $this->password,
+            'company_name' => $this->company_name,
+            'company_type_id' => $this->company_type_id,
+            'contact_number' => $this->contact_number,
+            'gender' => $this->gender,
+            'country' => $this->country,
+            'last_login_date' => '0',
+            'last_logout_date' => '0',
+            'last_login_ip' => '0',
+            'last_logout_ip' => '0',
+            'is_active' => $this->is_active ? 1 : 0,
+            'profile_photo' => $this->profile_photo,
+            'kiosk_code' => $this->kiosk_code,
+            'trading_name' => $this->trading_name,
+            'registration_no' => $this->registration_no,
+            'government_tax' => $this->government_tax,
+            'address_1' => $this->address_1,
+            'address_2' => $this->address_2,
+            'city' => $this->city,
+            'state' => $this->state,
+            'zipcode' => $this->zipcode,
+            'is_logged_in' => $this->is_logged_in,
+            'created_at' => now()->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    /**
+     * Get data for ci_erp_users_details table
+     */
+    public function getUserDetailsData(int $userId, int $companyId): array
+    {
+        return [
+            'user_id' => $userId,
+            'company_id' => $companyId,
+            'branch_id' => $this->branch_id,
+            'employee_id' => $this->employee_id,
+            'employee_idnum' => (string) $this->employee_idnum,
+            'reporting_manager' => $this->reporting_manager,
+            'department_id' => $this->department_id,
+            'designation_id' => $this->designation_id,
+            'office_shift_id' => $this->office_shift_id,
+            'basic_salary' => $this->basic_salary,
+            'currency_id' => $this->currency_id,
+            'hourly_rate' => $this->hourly_rate,
+            'salay_type' => $this->salay_type,
+            'leave_categories' => $this->leave_categories,
+            'role_description' => $this->role_description,
+            'date_of_joining' => now()->format('Y-m-d'),
+            'contract_end' => $this->contract_end,
+            'marital_status' => $this->marital_status,
+            'religion_id' => $this->religion_id,
+            'blood_group' => $this->blood_group,
+            'citizenship_id' => $this->citizenship_id,
+            'bio' => $this->bio,
+            'bank_name' => $this->bank_name,
+            'iban' => $this->iban,
+            'swift_code' => $this->swift_code,
+            'bank_branch' => $this->bank_branch,
+            'experience' => $this->experience,
+            'fb_profile' => $this->fb_profile,
+            'twitter_profile' => $this->twitter_profile,
+            'gplus_profile' => $this->gplus_profile,
+            'linkedin_profile' => $this->linkedin_profile,
+            'account_title' => $this->account_title,
+            'account_number' => (string) $this->account_number,
+            'default_language' => $this->default_language,
+            'contact_full_name' => $this->contact_full_name,
+            'contact_phone_no' => $this->contact_phone_no,
+            'contact_email' => $this->contact_email,
+            'contact_address' => $this->contact_address,
+            'place' => $this->place,
+            'ml_tax_category' => $this->ml_tax_category,
+            'ml_empployee_epf_rate' => $this->ml_empployee_epf_rate,
+            'ml_employer_epf_rate' => $this->ml_empployer_epf_rate,
+            'ml_eis_contribution' => $this->ml_eis_contribution,
+            'ml_socso_category' => $this->ml_socso_category,
+            'ml_hrdf' => $this->ml_hrdf,
+            'ml_tax_citizenship' => $this->ml_tax_citizenship,
+            'zakat_fund' => $this->zakat_fund,
+            'job_type' => $this->job_type,
+            'assigned_hours' => $this->assigned_hours,
+            'leave_options' => $this->leave_options,
+            'approval_levels' => $this->approval_levels,
+            'approval_level01' => $this->approval_level01,
+            'approval_level02' => $this->approval_level02,
+            'approval_level03' => $this->approval_level03,
+            'not_part_of_orgchart' => $this->not_part_of_orgchart,
+            'not_part_of_system_reports' => $this->not_part_of_system_reports,
+            'is_accrual_pause' => $this->is_accrual_pause,
+            'is_work_from_home' => $this->is_work_from_home,
+            'is_eqama' => $this->is_eqama,
+            'pause_start_date' => $this->pause_start_date,
+            'pause_start_end' => $this->pause_start_end,
+            'created_at' => now()->format('Y-m-d H:i:s'),
+            'contract_release_date_eqama' => $this->contract_release_date_eqama,
+            'contract_date_eqama' => $this->contract_date_eqama,
+            'salary_payment_method' => $this->salary_payment_method,
+            'currency_id' => $this->currency_id,
+            'contract_option_id' => $this->contract_option_id,
+            'biotime_id' => $this->biotime_id,
+            'passport_no' => (string) $this->passport_no,
+            'passport_date' => $this->passport_date,
+            'date_of_birth' => $this->date_of_birth,
+            'ml_pcb_socso' => $this->ml_pcb_socso,
+            'ml_tax_category' => $this->ml_tax_category,
+            'date_of_leaving' => $this->date_of_leaving,
+        ];
     }
 }

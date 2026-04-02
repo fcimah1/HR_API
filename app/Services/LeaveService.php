@@ -12,6 +12,7 @@ use App\Enums\LeavePlaceEnum;
 use App\Enums\NumericalStatusEnum;
 use App\Http\Requests\Leave\ApproveLeaveApplicationRequest;
 use App\Models\LeaveApplication;
+use App\Models\ErpConstant;
 use App\Models\User;
 use App\Repository\Interface\LeaveRepositoryInterface;
 use App\Repository\Interface\LeaveTypeRepositoryInterface;
@@ -39,6 +40,9 @@ class LeaveService
         protected UserRepositoryInterface $userRepository,
         protected CacheService $cacheService,
         protected ApprovalService $approvalService,
+        protected LeavePolicyService $leavePolicyService,
+        protected TieredLeaveService $tieredLeaveService,
+        protected PayrollDeductionService $payrollDeductionService,
     ) {}
 
     /**
@@ -53,7 +57,7 @@ class LeaveService
         $filterData = $filters->toArray();
 
         // التحقق من نوع المستخدم (company أو staff فقط)
-        if ($user->user_type == 'company') {
+        if ($this->permissionService->isCompanyOwner($user)) {
             // مدير الشركة: يرى جميع طلبات شركته
             $effectiveCompanyId = $this->permissionService->getEffectiveCompanyId($user);
             $filterData['company_id'] = $effectiveCompanyId;
@@ -66,7 +70,7 @@ class LeaveService
 
                 // Filter subordinates based on restrictions (Department/Branch restrictions from OperationRestriction)
                 $subordinateIds = array_filter($subordinateIds, function ($empId) use ($user) {
-                    $emp = User::find($empId);
+                    $emp = User::findOrFail($empId);
                     if (!$emp) return false;
                     return $this->permissionService->canViewEmployeeRequests($user, $emp);
                 });
@@ -178,13 +182,13 @@ class LeaveService
             // Check for restricted leave types
             // التحقق من قيود نوع الإجازة
             // Check for restricted leave types
-            $user = User::with(['user_details.designation'])->find($dto->employeeId);
+            $user = User::with(['user_details.designation'])->findOrFail($dto->employeeId);
 
             // Check if requester is company owner or superior (can override restrictions)
             $canOverrideRestrictions = false;
 
             if ($dto->createdBy) {
-                $requester = User::find($dto->createdBy);
+                $requester = User::findOrFail($dto->createdBy);
                 if ($requester && $user && $this->permissionService->canOverrideRestriction($requester, $user, 'leave_type_', (int)$dto->leaveTypeId)) {
                     $canOverrideRestrictions = true;
                     Log::info('LeaveService::createApplication - Restriction override allowed', [
@@ -210,12 +214,33 @@ class LeaveService
                 }
             }
 
-            // حساب الساعات المطلوبة للإجازة
-            if (!is_null($dto->leaveHours) && $dto->leaveHours !== '') {
-                $requestedHours = (float) $dto->leaveHours * $dto->getDurationInDays();
+            // حساب المتغيرات المطلوبة للإجازة بناءً على أيام العمل الفعلية والوردية
+            $actualWorkingDays = $this->calculateWorkingDaysInRange(
+                $dto->employeeId,
+                $dto->fromDate,
+                $dto->toDate,
+                false // Default: exclude holidays for initial request
+            );
+            $hoursPerDay = $user->getWorkHoursPerDay();
+
+            // Handle Half Day or Specific Hours
+            if ($dto->isHalfDay) {
+                $requestedHours = $hoursPerDay / 2;
+                $actualWorkingDays = 0.5;
+            } elseif (!is_null($dto->leaveHours) && $dto->leaveHours > 0 && $dto->leaveHours < $hoursPerDay) {
+                // Hourly leave (less than one full shift)
+                $requestedHours = (float) $dto->leaveHours;
             } else {
-                $days = $dto->getDurationInDays();
-                $requestedHours = $days * 8.0; // 8 ساعات لليوم الواحد
+                // Standard leave: Calculate based on working days and shift hours
+                if ($actualWorkingDays <= 0) {
+                    Log::warning('LeaveService::createApplication - 0 working days calculated', [
+                        'employee_id' => $dto->employeeId,
+                        'from_date' => $dto->fromDate,
+                        'to_date' => $dto->toDate
+                    ]);
+                    throw new \Exception('التاريخ المختار يوافق عطلة رسمية أو يوم راحة للموظف، لا توجد أيام عمل لخصمها.');
+                }
+                $requestedHours = $actualWorkingDays * $hoursPerDay;
             }
 
 
@@ -240,15 +265,145 @@ class LeaveService
                 );
             }
 
-            $leave = $this->leaveRepository->createApplication($dto);
+            // Fetch leave type to get deduction status and system type
+            $leaveType = ErpConstant::find($dto->leaveTypeId);
+            $isDeducted = true; // Default
+            if ($leaveType && isset($leaveType->field_two)) {
+                $isDeducted = (bool) $leaveType->field_two;
+            }
+
+            // === Country-Based Policy Integration ===
+            $countryCode = $this->leavePolicyService->getCompanyCountryCode($dto->companyId);
+
+            // 1. Get system leave type (to know if this leave type is managed by policy like 'hajj', 'annual', 'sick')
+            $systemLeaveType = $this->leavePolicyService->getSystemLeaveType($dto->companyId, $dto->leaveTypeId);
+
+            // 2. Get applicable policy tier based on service years
+            $policy = $this->leavePolicyService->getApplicablePolicy(
+                $dto->employeeId,
+                $dto->leaveTypeId,
+                $dto->companyId,
+                $countryCode
+            );
+
+            // 3. If it's a known system leave type, validate strictly
+            if ($systemLeaveType) {
+                // Validate against policy rules
+                $validation = $this->leavePolicyService->validateLeaveRequest(
+                    $dto->employeeId,
+                    $systemLeaveType,
+                    (int) $dto->getDurationInDays(),
+                    $policy
+                );
+
+                if (!$validation['valid']) {
+                    $errors = implode(', ', $validation['errors']);
+                    throw new \Exception($errors);
+                }
+            }
+
+            // Calculate service years (Always do this for all employees)
+            $serviceYears = $this->leavePolicyService->calculateServiceYears($dto->employeeId);
+
+            // === Tiered Sick Leave Logic ===
+            $tierOrder = 1;
+            $paymentPercentage = 100;
+
+            if ($systemLeaveType === 'sick') {
+                // Get cumulative sick days used this year
+                $year = (int) date('Y', strtotime($dto->fromDate));
+                $cumulativeDays = $this->tieredLeaveService->getCumulativeSickDaysUsed(
+                    $dto->employeeId,
+                    $year,
+                    'sick'
+                );
+
+                // Calculate tier info
+                $tierInfo = $this->tieredLeaveService->getTieredPaymentInfo(
+                    $countryCode,
+                    'sick',
+                    $cumulativeDays,
+                    $dto->getDurationInDays()
+                );
+
+                $tierOrder = $tierInfo['tier_order'];
+                $paymentPercentage = $tierInfo['payment_percentage'];
+                $isDeducted = $paymentPercentage < 100; // Override if partial pay
+            }
+
+            // Create enhanced DTO with calculated policy data
+            $enhancedDto = new CreateLeaveApplicationDTO(
+                companyId: $dto->companyId,
+                employeeId: $dto->employeeId,
+                leaveTypeId: $dto->leaveTypeId,
+                fromDate: $dto->fromDate,
+                toDate: $dto->toDate,
+                particularDate: $dto->particularDate,
+                reason: $dto->reason,
+                dutyEmployeeId: $dto->dutyEmployeeId,
+                leaveHours: (!is_null($dto->leaveHours) && $dto->leaveHours > 0) ? (int)$dto->leaveHours : 0,
+                remarks: $dto->remarks,
+                leaveMonth: $dto->leaveMonth,
+                leaveYear: $dto->leaveYear,
+                status: $dto->status,
+                place: $dto->place,
+                isHalfDay: $dto->isHalfDay,
+                isDeducted: $isDeducted,
+                countryCode: $countryCode,
+                serviceYears: $serviceYears,
+                policyId: $policy?->policy_id,
+                tierOrder: $tierOrder,
+                paymentPercentage: $paymentPercentage,
+                createdBy: $dto->createdBy
+            );
+
+            // Create application with ALL data in one shot
+            $leave = $this->leaveRepository->createApplication($enhancedDto, $isDeducted);
+
+            // Update salary_deduction_applied and calculated_days
+            $leave->update([
+                'calculated_days' => $actualWorkingDays,
+                'documentation_provided' => 0,
+                'salary_deduction_applied' => $isDeducted ? 0 : 1,
+            ]);
+
+            // === One-Time Leave Logic (e.g., Hajj) ===
+            if ($policy && $policy->is_one_time && $leave->status == 1) {
+                // Only mark as used if approved immediately (rare case)
+                try {
+                    $this->leavePolicyService->markOneTimeLeaveUsed(
+                        $dto->employeeId,
+                        $systemLeaveType,
+                        $leave->leave_id,
+                        $dto->companyId
+                    );
+
+                    Log::info('LeaveService::createApplication - One-time leave marked as used', [
+                        'employee_id' => $dto->employeeId,
+                        'leave_type' => $systemLeaveType,
+                        'leave_id' => $leave->leave_id,
+                        'company_id' => $dto->companyId,
+                        'message' => 'تم استخدام اجازة واحدة'
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('LeaveService::createApplication - Failed to mark one-time leave', [
+                        'error' => $e->getMessage(),
+                        'leave_id' => $leave->leave_id,
+                        'employee_id' => $dto->employeeId,
+                        'leave_type' => $systemLeaveType,
+                        'company_id' => $dto->companyId,
+                        'message' => 'فشل في استخدام اجازة واحدة'
+                    ]);
+                }
+            }
 
             if (!$leave) {
                 Log::info('LeaveService::createApplication - Failed to create leave application', [
                     'employee_id' => $dto->employeeId,
                     'leave_type_id' => $dto->leaveTypeId,
-                    'message' => 'Failed to create leave application'
+                    'message' => 'فشل في انشاء اجازة'
                 ]);
-                throw new \Exception('Failed to create leave application');
+                throw new \Exception('فشل في انشاء اجازة');
             }
 
             // Update leave_hours with calculated requested hours
@@ -322,7 +477,10 @@ class LeaveService
 
         if (is_null($companyId) && is_null($userId)) {
             Log::info('LeaveService::getApplicationById - Invalid arguments', [
-                'message' => 'يجب توفير معرف الشركة أو معرف المستخدم'
+                'message' => 'يجب توفير معرف الشركة أو معرف المستخدم',
+                'application_id' => $id,
+                'company_id' => $companyId,
+                'user_id' => $userId
             ]);
             throw new \InvalidArgumentException('يجب توفير معرف الشركة أو معرف المستخدم');
         }
@@ -356,6 +514,8 @@ class LeaveService
                                 'application_id' => $id,
                                 'leave_type_id' => $application->leave_type_id,
                                 'restricted_types' => $restrictedTypes,
+                                'company_id' => $effectiveCompanyId,
+                                'user_id' => $userId
                             ]);
                             return null;
                         }
@@ -367,7 +527,8 @@ class LeaveService
                         'application_id' => $id,
                         'message' => 'Not user own request, checking hierarchy',
                         'error_message' => $e->getMessage(),
-                        'user_id' => $userId
+                        'user_id' => $userId,
+                        'company_id' => $companyId
                     ]);
                 }
             }
@@ -378,7 +539,7 @@ class LeaveService
 
             if ($application) {
                 // Check if user can view this employee's requests based on hierarchy
-                $employee = User::find($application->employee_id);
+                $employee = User::findOrFail($application->employee_id);
                 if ($employee) {
                     $canView = $this->permissionService->canViewEmployeeRequests($user, $employee);
 
@@ -414,6 +575,8 @@ class LeaveService
                                 'application_id' => $id,
                                 'leave_type_id' => $application->leave_type_id,
                                 'restricted_types' => $restrictedTypes,
+                                'company_id' => $effectiveCompanyId,
+                                'user_id' => $userId
                             ]);
                             return null;
                         }
@@ -442,7 +605,9 @@ class LeaveService
             if (!$application) {
                 Log::info('LeaveService::updateApplication - Application not found', [
                     'application_id' => $id,
-                    'message' => 'Application not found'
+                    'message' => 'Application not found',
+                    'company_id' => $effectiveCompanyId,
+                    'user_id' => $user->user_id
                 ]);
                 throw new \Exception('الطلب غير موجود');
             }
@@ -454,12 +619,13 @@ class LeaveService
             // صاحب الطلب يمكنه تعديله
             if (!$isOwner && !$isCompany) {
                 // التحقق من صلاحية رؤية طلبات الموظف (تشمل قيود القسم/الفرع/الهرمية)
-                $employee = User::find($application->employee_id);
+                $employee = User::findOrFail($application->employee_id);
                 if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::error('Unauthorized update attempt', [
                         'user_id' => $user->user_id,
                         'application_id' => $id,
                         'employee_id' => $application->employee_id,
+                        'company_id' => $effectiveCompanyId,
                         'message' => 'ليس لديك صلاحية لتعديل هذا الطلب'
                     ]);
                     throw new \Exception('ليس لديك صلاحية لتعديل هذا الطلب');
@@ -470,7 +636,9 @@ class LeaveService
             if ($application->status !== LeaveApplication::STATUS_PENDING) {
                 Log::error('Unauthorized update attempt', [
                     'application_id' => $id,
-                    'message' => 'Application not found'
+                    'message' => 'Application not found',
+                    'company_id' => $effectiveCompanyId,
+                    'user_id' => $user->user_id
                 ]);
                 throw new \Exception('لا يمكن تعديل الطلب بعد المراجعة');
             }
@@ -496,10 +664,49 @@ class LeaveService
                         'application_id' => $id,
                         'leave_type_id' => $application->leave_type_id,
                         'user_id' => $user->user_id,
+                        'company_id' => $effectiveCompanyId,
                         'message' => 'نوع الإجازة في هذا الطلب مقيد، لا يمكن تعديل الطلب.'
                     ]);
                     throw new \Exception('نوع الإجازة في هذا الطلب مقيد، لا يمكن تعديل الطلب.');
                 }
+            }
+
+            // Recalculate duration and hours if dates are changed
+            if ($dto->fromDate || $dto->toDate) {
+                $fromDate = $dto->fromDate ?? $application->from_date;
+                $toDate = $dto->toDate ?? $application->to_date;
+                $employeeId = $application->employee_id;
+
+                $actualWorkingDays = $this->calculateWorkingDaysInRange(
+                    $employeeId,
+                    $fromDate,
+                    $toDate,
+                    false // Consistent with createApplication fix
+                );
+
+                $userModel = User::find($employeeId);
+                $hoursPerDay = $userModel ? $userModel->getWorkHoursPerDay() : 8.0;
+
+                // Handle Half Day or Specific Hours logic (replicated from createApplication)
+                $isHalfDay = $dto->isHalfDay ?? $application->is_half_day;
+                $leaveHoursDto = $dto->leaveHours ?? $application->leave_hours;
+
+                if ($isHalfDay) {
+                    $requestedHours = $hoursPerDay / 2;
+                    $actualWorkingDays = 0.5;
+                } elseif (!is_null($leaveHoursDto) && $leaveHoursDto > 0 && $leaveHoursDto < $hoursPerDay) {
+                    $requestedHours = (float) $leaveHoursDto;
+                } else {
+                    $requestedHours = $actualWorkingDays * $hoursPerDay;
+                }
+
+                // Update application with new calculations
+                $application->update([
+                    'calculated_days' => $actualWorkingDays,
+                    'leave_hours' => $requestedHours,
+                    'from_date' => $fromDate,
+                    'to_date' => $toDate
+                ]);
             }
 
             $updatedApplication = $this->leaveRepository->update_Application($application, $dto);
@@ -543,6 +750,8 @@ class LeaveService
             if (!$application) {
                 Log::info('LeaveService::cancelApplication - Application not found', [
                     'id' => $id,
+                    'company_id' => $effectiveCompanyId,
+                    'user_id' => $user->user_id,
                     'message' => 'Application not found'
                 ]);
                 throw new \Exception('الطلب غير موجود');
@@ -552,6 +761,8 @@ class LeaveService
             if ($application->status !== LeaveApplication::STATUS_PENDING) {
                 Log::info('LeaveService::cancelApplication - Application not found', [
                     'id' => $id,
+                    'company_id' => $effectiveCompanyId,
+                    'user_id' => $user->user_id,
                     'message' => 'Application not found'
                 ]);
                 throw new \Exception('لا يمكن إلغاء الطلب بعد المراجعة (موافق عليه أو مرفوض)');
@@ -577,6 +788,7 @@ class LeaveService
                         'application_id' => $id,
                         'leave_type_id' => $application->leave_type_id,
                         'user_id' => $user->user_id,
+                        'company_id' => $effectiveCompanyId,
                         'message' => 'نوع الإجازة في هذا الطلب مقيد، لا يمكن إلغاء الطلب.'
                     ]);
                     throw new \Exception('نوع الإجازة في هذا الطلب مقيد، لا يمكن إلغاء الطلب.');
@@ -589,7 +801,7 @@ class LeaveService
             // Check hierarchy permission (is a manager of the employee)
             $isHierarchyManager = false;
             if (!$isOwner && !$isCompany) {
-                $employee = User::find($application->employee_id);
+                $employee = User::findOrFail($application->employee_id);
                 if ($employee && $this->permissionService->canViewEmployeeRequests($user, $employee)) {
                     $isHierarchyManager = true;
                 }
@@ -598,6 +810,8 @@ class LeaveService
             if (!$isOwner && !$isCompany && !$isHierarchyManager) {
                 Log::info('LeaveService::cancelApplication - Application not found', [
                     'id' => $id,
+                    'user_id' => $user->user_id,
+                    'company_id' => $effectiveCompanyId,
                     'message' => 'Application not found'
                 ]);
                 throw new \Exception('ليس لديك صلاحية لإلغاء هذا الطلب');
@@ -613,6 +827,8 @@ class LeaveService
 
             Log::info('LeaveService::cancelApplication - Transaction committed', [
                 'application_id' => $id,
+                'user_id' => $user->user_id,
+                'company_id' => $effectiveCompanyId,
                 'message' => 'Application cancelled'
             ]);
 
@@ -653,7 +869,9 @@ class LeaveService
             if (!$application) {
                 Log::info('LeaveService::approveApplication - Application not found', [
                     'id' => $id,
-                    'message' => 'Application not found'
+                    'message' => 'Application not found',
+                    'company_id' => $companyId,
+                    'user_id' => $user->user_id
                 ]);
                 throw new \Exception('الطلب غير موجود');
             }
@@ -662,14 +880,16 @@ class LeaveService
             if ($application->status !== LeaveApplication::STATUS_PENDING) {
                 Log::info('LeaveService::approveApplication - Application not found', [
                     'id' => $id,
-                    'message' => 'Application not found'
+                    'message' => 'Application not found',
+                    'company_id' => $companyId,
+                    'user_id' => $user->user_id
                 ]);
                 throw new \Exception('تم الموافقة على هذا الطلب مسبقاً أو تم رفضه');
             }
 
             // Check hierarchy permissions for staff users (strict: must be higher level)
             if ($user->user_type !== 'company') {
-                $employee = User::find($application->employee_id);
+                $employee = User::findOrFail($application->employee_id);
                 if (!$employee || !$this->permissionService->canApproveEmployeeRequests($user, $employee)) {
                     Log::warning('LeaveService::approveApplication - Hierarchy permission denied', [
                         'application_id' => $id,
@@ -686,9 +906,33 @@ class LeaveService
                 }
             }
 
-            // Get the remarks from the validated request
+            // Get the remarks and holiday options from the validated request
             $validated = $request->validated();
             $remarks = $validated['remarks'] ?? null;
+            $includeHolidays = $validated['include_holidays'] ?? false;
+            $isDeducted = $validated['is_deducted'] ?? false;
+
+            // Re-calculate durations if holiday option is provided
+            if (isset($validated['include_holidays'])) {
+                $actualDays = $this->calculateWorkingDaysInRange(
+                    $application->employee_id,
+                    $application->from_date,
+                    $application->to_date,
+                    $includeHolidays
+                );
+
+                $employee = User::findOrFail($application->employee_id);
+                $hoursPerDay = $employee->getWorkHoursPerDay();
+
+                $application->update([
+                    'include_holidays' => $includeHolidays,
+                    'calculated_days' => $actualDays,
+                    'is_deducted' => $isDeducted,
+                    'leave_hours' => $actualDays * $hoursPerDay,
+                ]);
+            }
+
+
 
             $userType = strtolower(trim($user->user_type ?? ''));
 
@@ -697,10 +941,16 @@ class LeaveService
                 $approvedApplication = $this->leaveRepository->approveApplication(
                     $application,
                     $user->user_id,
-                    $remarks
+                    $remarks,
                 );
 
                 if (!$approvedApplication) {
+                    Log::error('LeaveService::approveApplication - Failed to approve application', [
+                        'application_id' => $id,
+                        'user_id' => $user->user_id,
+                        'company_id' => $companyId,
+                        'message' => 'Failed to approve application'
+                    ]);
                     throw new \Exception('فشل في الموافقة على الطلب');
                 }
 
@@ -740,8 +990,15 @@ class LeaveService
                     1,
                     1,
                     'leave_settings',
-                    $companyId
+                    $companyId,
+                    $approvedApplication->employee_id
                 );
+
+                // Handle one-time leaves and payroll deductions
+                $this->handleFullyApprovedLeave($approvedApplication);
+
+                // Reload approvals to include the newly recorded one
+                $approvedApplication->load('approvals.staff');
 
                 return LeaveApplicationResponseDTO::fromModel($approvedApplication);
             }
@@ -764,7 +1021,8 @@ class LeaveService
                 Log::info('LeaveService::approveApplication - Multi-level approval denied', [
                     'user_id' => $user->user_id,
                     'leave_id' => $id,
-                    'message' => $denialInfo['message']
+                    'message' => $denialInfo['message'],
+                    'company_id' => $companyId
                 ]);
                 throw new \Exception($denialInfo['message']);
             }
@@ -784,6 +1042,12 @@ class LeaveService
                 );
 
                 if (!$approvedApplication) {
+                    Log::error('LeaveService::approveApplication - Failed to approve application', [
+                        'application_id' => $id,
+                        'user_id' => $user->user_id,
+                        'company_id' => $companyId,
+                        'message' => 'Failed to approve application'
+                    ]);
                     throw new \Exception('فشل في الموافقة على الطلب');
                 }
 
@@ -805,8 +1069,12 @@ class LeaveService
                     1,
                     1,
                     'leave_settings',
-                    $companyId
+                    $companyId,
+                    $approvedApplication->employee_id
                 );
+
+                // Handle one-time leaves and payroll deductions
+                $this->handleFullyApprovedLeave($approvedApplication);
 
                 // Send approval email
                 $employeeEmail = $approvedApplication->employee->email ?? null;
@@ -826,6 +1094,9 @@ class LeaveService
                     );
                 }
 
+                // Reload approvals to include the newly recorded one
+                $approvedApplication->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
+
                 return LeaveApplicationResponseDTO::fromModel($approvedApplication);
             } else {
                 // Intermediate approval - record and notify next level
@@ -835,7 +1106,8 @@ class LeaveService
                     1,
                     0,
                     'leave_settings',
-                    $companyId
+                    $companyId,
+                    $application->employee_id
                 );
 
                 // Send approval notification
@@ -850,7 +1122,7 @@ class LeaveService
                 );
 
                 $application->refresh();
-                $application->load(['employee', 'approvals.staff']);
+                $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
                 // Return current application state
                 return LeaveApplicationResponseDTO::fromModel($application);
             }
@@ -868,7 +1140,9 @@ class LeaveService
             if (!$application) {
                 Log::info('LeaveService::rejectApplication - Application not found', [
                     'id' => $id,
-                    'message' => 'الطلب غير موجود'
+                    'message' => 'الطلب غير موجود',
+                    'company_id' => $companyId,
+                    'user_id' => $rejectedBy
                 ]);
                 throw new \Exception('الطلب غير موجود');
             }
@@ -876,15 +1150,17 @@ class LeaveService
             if ($application->status !== LeaveApplication::STATUS_PENDING) {
                 Log::info('LeaveService::rejectApplication - Application not pending', [
                     'id' => $id,
-                    'message' => 'لا يمكن رفض طلب تم الموافقة عليه مسبقاً'
+                    'message' => 'لا يمكن رفض طلب تم الموافقة عليه مسبقاً',
+                    'company_id' => $companyId,
+                    'user_id' => $rejectedBy
                 ]);
                 throw new \Exception('لا يمكن رفض طلب تم الموافقة عليه مسبقاً');
             }
 
             // Check hierarchy permissions for staff users (strict: must be higher level)
-            $rejectingUser = User::find($rejectedBy);
+            $rejectingUser = User::findOrFail($rejectedBy);
             if ($rejectingUser && $rejectingUser->user_type !== 'company') {
-                $employee = User::find($application->employee_id);
+                $employee = User::findOrFail($application->employee_id);
                 if (!$employee || !$this->permissionService->canApproveEmployeeRequests($rejectingUser, $employee)) {
                     Log::warning('LeaveService::rejectApplication - Hierarchy permission denied', [
                         'application_id' => $id,
@@ -909,6 +1185,12 @@ class LeaveService
                 $rejectedApplication = $this->leaveRepository->rejectApplication($application, $rejectedBy, $reason);
 
                 if (!$rejectedApplication) {
+                    Log::error('LeaveService::rejectApplication - Failed to reject application', [
+                        'application_id' => $id,
+                        'user_id' => $rejectedBy,
+                        'company_id' => $companyId,
+                        'message' => 'Failed to reject application'
+                    ]);
                     throw new \Exception('فشل في رفض الطلب');
                 }
 
@@ -919,7 +1201,8 @@ class LeaveService
                     2, // rejected
                     2, // rejection level
                     'leave_settings',
-                    $companyId
+                    $companyId,
+                    $rejectedApplication->employee_id
                 );
 
                 // Send rejection notification
@@ -977,9 +1260,11 @@ class LeaveService
             $rejectedApplication = $this->leaveRepository->rejectApplication($application, $rejectedBy, $reason);
 
             if (!$rejectedApplication) {
-                Log::info('LeaveService::rejectApplication - Application not found', [
-                    'id' => $id,
-                    'message' => 'Application not found'
+                Log::error('LeaveService::rejectApplication - Failed to reject application', [
+                    'application_id' => $id,
+                    'user_id' => $rejectedBy,
+                    'company_id' => $companyId,
+                    'message' => 'Failed to reject application'
                 ]);
                 throw new \Exception('فشل في رفض الطلب');
             }
@@ -991,7 +1276,8 @@ class LeaveService
                 2, // rejected
                 2, // rejection level
                 'leave_settings',
-                $companyId
+                $companyId,
+                $rejectedApplication->employee_id
             );
 
             // Send rejection notification
@@ -1028,6 +1314,61 @@ class LeaveService
     }
 
     /**
+     * Handle fully approved leave (One-Time & Payroll Deduction)
+     */
+    private function handleFullyApprovedLeave(LeaveApplication $leave): void
+    {
+        try {
+            // 1. Check and mark One-Time Leave (e.g., Hajj)
+            if ($leave->country_code && $leave->policy_id) {
+                $policy = \App\Models\LeaveCountryPolicy::find($leave->policy_id);
+
+                if ($policy && $policy->is_one_time) {
+                    // Get system leave type
+                    $systemLeaveType = $policy->leave_type;
+
+                    // Check if not already marked
+                    if (!$this->leavePolicyService->hasUsedOneTimeLeave($leave->employee_id, $systemLeaveType)) {
+                        $this->leavePolicyService->markOneTimeLeaveUsed(
+                            $leave->employee_id,
+                            $systemLeaveType,
+                            $leave->leave_id,
+                            $leave->company_id
+                        );
+
+                        Log::info('Fully approved leave: One-time leave marked', [
+                            'leave_id' => $leave->leave_id,
+                            'employee_id' => $leave->employee_id,
+                            'leave_type' => $systemLeaveType,
+                            'company_id' => $leave->company_id,
+                            'user_id' => $leave->user_id
+                        ]);
+                    }
+                }
+            }
+
+            // 2. Create Salary Deductions for Sick Leave
+            if ($leave->payment_percentage < 100 && !$leave->salary_deduction_applied) {
+                $this->payrollDeductionService->createSickLeaveDeductions($leave->leave_id);
+
+                Log::info('Fully approved leave: Salary deductions created', [
+                    'leave_id' => $leave->leave_id,
+                    'payment_percentage' => $leave->payment_percentage,
+                    'tier_order' => $leave->tier_order,
+                    'company_id' => $leave->company_id,
+                    'user_id' => $leave->user_id
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Log but don't fail the approval
+            Log::error('Error in handleFullyApprovedLeave', [
+                'leave_id' => $leave->leave_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Get leave statistics
      */
     public function getLeaveStatistics(int $companyId): array
@@ -1048,7 +1389,7 @@ class LeaveService
     public function getAvailableLeaveBalance(int $employeeId, int $leaveTypeId, int $companyId): float
     {
         // التحقق من أن نوع الإجازة غير محظور
-        $user = User::find($employeeId);
+        $user = User::findOrFail($employeeId);
         if ($user) {
             $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
             if (in_array($leaveTypeId, $restrictedIds)) {
@@ -1084,7 +1425,8 @@ class LeaveService
      */
     public function getDetailedLeaveSummary(int $employeeId, int $companyId, ?int $leaveTypeId = null): array
     {
-        $hoursPerDay = 8.0;
+        $userModel = User::find($employeeId);
+        $hoursPerDay = $userModel ? $userModel->getWorkHoursPerDay() : 8.0;
 
         // Get active leave types for the company
         $leaveTypesData = $this->leaveTypeRepository->getActiveLeaveTypes($companyId);
@@ -1114,7 +1456,7 @@ class LeaveService
         })->filter()->values()->toArray();
 
         // Filter restricted leave types
-        $user = User::find($employeeId);
+        $user = User::findOrFail($employeeId);
         if ($user) {
             $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
             if (!empty($restrictedIds)) {
@@ -1158,7 +1500,7 @@ class LeaveService
 
             $entitled = $granted + $adjustments;
             $balance = $entitled - $used;
-            $remaining = $balance - $pending;
+            $remaining = $balance; // User requested not to subtract pending leaves from remaining balance
 
             $items[] = [
                 'leave_type_id' => $typeId,
@@ -1218,7 +1560,40 @@ class LeaveService
         ];
     }
 
+
     /**
+     * Calculate working days in range excluding weekends/holidays based on shift
+     */
+    private function calculateWorkingDaysInRange(int $employeeId, string $startDate, string $endDate, bool $includeHolidays = false): float
+    {
+        $start = \Carbon\Carbon::parse($startDate);
+        $end = \Carbon\Carbon::parse($endDate);
+
+        if ($includeHolidays) {
+            return (float) ($start->diffInDays($end) + 1);
+        }
+
+        $user = User::with('user_details.officeShift')->findOrFail($employeeId);
+        $shift = $user->user_details->officeShift ?? null;
+
+        $workingDays = 0;
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            if ($shift) {
+                if (!$shift->isDayOff($date->format('Y-m-d'))) {
+                    $workingDays++;
+                }
+            } else {
+                // Default fallback to Monday-Friday if no shift
+                if (!$date->isWeekend()) {
+                    $workingDays++;
+                }
+            }
+        }
+
+        return (float) $workingDays;
+    }
+
+     /**
      * Get monthly leave statistics for an employee
      * Returns detailed monthly breakdown for each leave type
      * 
@@ -1256,7 +1631,7 @@ class LeaveService
         })->filter()->values()->toArray();
 
         // فلترة أنواع الإجازات المحظورة للموظف
-        $user = User::find($employeeId);
+        $user = User::findOrFail($employeeId);
         if ($user) {
             $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $companyId);
             if (!empty($restrictedIds)) {
@@ -1276,6 +1651,10 @@ class LeaveService
                 $assignedHours = @unserialize($details->assigned_hours);
                 if (!is_array($assignedHours)) {
                     $assignedHours = [];
+
+
+
+
                 }
             }
         }

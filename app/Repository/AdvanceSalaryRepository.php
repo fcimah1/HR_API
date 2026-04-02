@@ -121,7 +121,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
      */
     public function findApprovedAdvanceInCompany(int $employeeId, int $companyId): ?AdvanceSalary
     {
-        return AdvanceSalary::with(['employee','approvals.staff'])
+        return AdvanceSalary::with(['employee', 'approvals.staff'])
             ->where('employee_id', $employeeId)
             ->where('company_id', $companyId)
             ->where('status', '=', 1) // Approved
@@ -131,7 +131,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
 
     public function findPendingAdvanceInCompany(int $employeeId, int $companyId): ?AdvanceSalary
     {
-        return AdvanceSalary::with(['employee','approvals.staff'])
+        return AdvanceSalary::with(['employee', 'approvals.staff'])
             ->where('employee_id', $employeeId)
             ->where('company_id', $companyId)
             ->where('status', '=', 0) // Pending
@@ -145,7 +145,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
      */
     public function findAdvanceForEmployee(int $id, int $employeeId): ?AdvanceSalary
     {
-        return AdvanceSalary::with(['employee','approvals.staff'])
+        return AdvanceSalary::with(['employee', 'approvals.staff'])
             ->where('advance_salary_id', $id)
             ->where('employee_id', $employeeId)
             ->first();
@@ -204,16 +204,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
             'status' => NumericalStatusEnum::APPROVED->value, // Approved
         ]);
 
-        // Create approval record
-        \App\Models\StaffApproval::create([
-            'company_id' => $advance->company_id,
-            'staff_id' => $approvedBy,
-            'module_option' => 'loan_request_settings',
-            'module_key_id' => $advance->advance_salary_id,
-            'status' => NumericalStatusEnum::APPROVED->value, // Approved
-            'approval_level' => '1',
-            'updated_at' => now(),
-        ]);
+        // Note: Approval recording is handled by ApprovalService to avoid duplicates
 
         $advance->refresh();
         $advance->load(['employee', 'approvals.staff']); // Load approvals too
@@ -241,16 +232,7 @@ class AdvanceSalaryRepository implements AdvanceSalaryRepositoryInterface
             'reason' => $advance->reason . "\n\nسبب الرفض: " . $reason,
         ]);
 
-        // Create rejection record
-        \App\Models\StaffApproval::create([
-            'company_id' => $advance->company_id,
-            'staff_id' => $rejectedBy,
-            'module_option' => 'loan_request_settings',
-            'module_key_id' => $advance->advance_salary_id,
-            'status' => NumericalStatusEnum::REJECTED->value, // Rejected
-            'approval_level' => '1',
-            'updated_at' => now(),
-        ]);
+        // Note: Rejection recording is handled by ApprovalService to avoid duplicates
 
         $advance->refresh();
         $advance->load(['employee', 'approvals.staff']);

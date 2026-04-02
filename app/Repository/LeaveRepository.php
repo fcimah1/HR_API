@@ -11,7 +11,6 @@ use App\DTOs\Leave\UpdateLeaveApplicationDTO;
 use App\Models\LeaveApplication;
 use App\Models\ErpConstant;
 use App\Models\LeaveAdjustment;
-use App\Models\StaffApproval;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 
@@ -26,10 +25,23 @@ class LeaveRepository implements LeaveRepositoryInterface
     public function getPaginatedApplications(LeaveApplicationFilterDTO $filters, User $user): array
     {
         $companyId = $filters->companyId;
-        $query = LeaveApplication::where('company_id', $companyId)
-            ->where('leave_hours', '>=', 8)
-            ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
 
+        $query = LeaveApplication::where('ci_leave_applications.company_id', $companyId)
+            // ربط جدول تفاصيل المستخدمين للوصول لرقم الشفت الخاص بكل موظف
+            ->join('ci_erp_users_details', 'ci_leave_applications.employee_id', '=', 'ci_erp_users_details.user_id')
+            // ربط جدول الشفتات للحصول على ساعات العمل اليومية لكل موظف
+            ->leftJoin('ci_office_shifts', 'ci_erp_users_details.office_shift_id', '=', 'ci_office_shifts.office_shift_id')
+            ->select('ci_leave_applications.*') // نختار بيانات الإجازة فقط لتجنب تداخل المعرفات
+            ->where(function ($q) {
+                $q->where(function ($sub) {
+                    // الشرط الأساسي: ساعات الإجازة >= ساعات شفت الموظف صاحب الطلب
+                    // نستخدم COALESCE(..., 8) لضمان وجود قيمة افتراضية 8 إذا لم يكن للموظف شفت
+                    $sub->whereRaw('CAST(ci_leave_applications.leave_hours AS UNSIGNED) >= COALESCE(ci_office_shifts.hours_per_day, 8)')
+                        ->orWhere('ci_leave_applications.calculated_days', '>', 0)
+                        ->orWhere('ci_leave_applications.status', 0);
+                });
+            })
+            ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
         // تطبيق فلتر البحث
         if ($filters->search !== null && trim($filters->search) !== '') {
             $searchTerm = '%' . $filters->search . '%';
@@ -75,43 +87,43 @@ class LeaveRepository implements LeaveRepositoryInterface
 
         // فلتر معرف الموظف
         if ($filters->employeeId !== null) {
-            $query->where('employee_id', $filters->employeeId);
+            $query->where('ci_leave_applications.employee_id', $filters->employeeId);
         }
 
         // فلتر معرفات الموظفين (للتبعية)
         if ($filters->employeeIds !== null && is_array($filters->employeeIds) && !empty($filters->employeeIds)) {
-            $query->whereIn('employee_id', $filters->employeeIds);
+            $query->whereIn('ci_leave_applications.employee_id', $filters->employeeIds);
         }
 
         // فلتر الحالة
         if ($filters->status !== null) {
-            $query->where('status', $filters->status);
+            $query->where('ci_leave_applications.status', $filters->status);
         }
 
         // فلتر نوع الإجازة
         if ($filters->leaveTypeId !== null) {
-            $query->where('leave_type_id', $filters->leaveTypeId);
+            $query->where('ci_leave_applications.leave_type_id', $filters->leaveTypeId);
         }
 
         // Exclude restricted leave types
         if ($filters->excludedLeaveTypeIds !== null && !empty($filters->excludedLeaveTypeIds)) {
-            $query->whereNotIn('leave_type_id', $filters->excludedLeaveTypeIds);
+            $query->whereNotIn('ci_leave_applications.leave_type_id', $filters->excludedLeaveTypeIds);
         }
 
         // فلتر تاريخ البداية
         if ($filters->fromDate !== null) {
-            $query->where('from_date', '>=', $filters->fromDate);
+            $query->where('ci_leave_applications.from_date', '>=', $filters->fromDate);
         }
 
         // فلتر تاريخ النهاية
         if ($filters->toDate !== null) {
-            $query->where('to_date', '<=', $filters->toDate);
+            $query->where('ci_leave_applications.to_date', '<=', $filters->toDate);
         }
 
         // تطبيق الفرز
         $sortBy = in_array($filters->sortBy, ['created_at', 'from_date', 'to_date', 'status'])
-            ? $filters->sortBy
-            : 'created_at';
+            ? 'ci_leave_applications.' . $filters->sortBy
+            : 'ci_leave_applications.created_at';
 
         $sortDirection = strtolower($filters->sortDirection) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortDirection);
@@ -133,9 +145,15 @@ class LeaveRepository implements LeaveRepositoryInterface
     /**
      * Create a new leave application from DTO
      */
-    public function createApplication(CreateLeaveApplicationDTO $dto): LeaveApplication
+    public function createApplication(CreateLeaveApplicationDTO $dto, bool $isDeducted = true): LeaveApplication
     {
-        $application = LeaveApplication::create($dto->toArray());
+        $data = $dto->toArray();
+        $data['is_deducted'] = $isDeducted;
+
+        $application = LeaveApplication::create($data);
+
+        // Refresh to ensure all DB defaults and results of creation are loaded
+        $application->refresh();
         $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
 
         return $application;
@@ -208,16 +226,7 @@ class LeaveRepository implements LeaveRepositoryInterface
             'remarks' => $remarks,
         ]);
 
-        // إنشاء سجل الموافقة في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $application->company_id,
-            'staff_id' => $approvedBy,
-            'module_option' => 'leave_settings',
-            'module_key_id' => $application->leave_id,
-            'status' => LeaveApplication::STATUS_APPROVED,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Approval recording is handled by ApprovalService to avoid duplicates
 
         $application->refresh();
         $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
@@ -235,16 +244,7 @@ class LeaveRepository implements LeaveRepositoryInterface
             'remarks' => $reason,
         ]);
 
-        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $application->company_id,
-            'staff_id' => $rejectedBy,
-            'module_option' => 'leave_settings',
-            'module_key_id' => $application->leave_id,
-            'status' => LeaveApplication::STATUS_REJECTED,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Rejection recording is handled by ApprovalService to avoid duplicates
 
         $application->refresh();
         $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
@@ -281,6 +281,22 @@ class LeaveRepository implements LeaveRepositoryInterface
     }
 
 
+    /**
+     * Get employee's work hours per day from their office shift
+     * @param int $employeeId
+     * @return float Default is 8.0 hours if no shift assigned
+     */
+    private function getEmployeeWorkHoursPerDay(int $employeeId): float
+    {
+        $user = User::with('user_details.officeShift')->find($employeeId);
+
+
+        if (!$user) {
+            return 8.0;
+        }
+
+        return $user->getWorkHoursPerDay();
+    }
 
     /**
      * Get total granted leave for an employee (in hours)
@@ -300,10 +316,12 @@ class LeaveRepository implements LeaveRepositoryInterface
         // محاولة قراءة إعدادات الإجازة من field_one (مخزن كـ serialize)
         $options = $leaveType->field_one ? @unserialize($leaveType->field_one) : null;
 
+
         // إذا لم تكن البيانات مُسلسَلة بشكل صحيح أو لا تحتوي على quota_assign، نرجع للمنطق البسيط (أيام ثابتة)
         if (!is_array($options) || !isset($options['quota_assign']) || ($options['is_quota'] ?? '0') != '1') {
             $days = (float) $leaveType->leave_days;
-            return $days * 8.0;
+            $hoursPerDay = $this->getEmployeeWorkHoursPerDay($employeeId);
+            return $days * $hoursPerDay;
         }
 
         // جلب بيانات الموظف والشركة لحساب سنوات الخدمة (fyear_quota)
@@ -311,27 +329,45 @@ class LeaveRepository implements LeaveRepositoryInterface
         $company  = User::find($companyId);
 
         if (!$employee || !$company) {
-            // في حال عدم توفر بيانات كافية نستخدم أول قيمة من quota_assign (المخزنة بالساعات) إن وجدت أو نعود للمنطق البسيط
+            // في حال عدم توفر بيانات كافية نستخدم أول قيمة من quota_assign (المخزنة بالأيام) إن وجدت أو نعود للمنطق البسيط
             $quotaAssign = $options['quota_assign'] ?? [];
+            $hoursPerDay = $this->getEmployeeWorkHoursPerDay($employeeId);
             if (is_array($quotaAssign) && isset($quotaAssign[0])) {
-                return (float) $quotaAssign[0];
+                return (float) $quotaAssign[0] * $hoursPerDay; // تحويل من أيام إلى ساعات
             }
 
             $days = (float) $leaveType->leave_days;
-            return $days * 8.0;
+            return $days * $hoursPerDay;
         }
 
         $details = $employee->user_details()->first();
 
+        // ========================================
+        // STEP 1: Check employee's assigned_hours first (legacy priority)
+        // ========================================
+        if ($details && !empty($details->assigned_hours)) {
+            $assignedHours = @unserialize($details->assigned_hours);
+            if (is_array($assignedHours) && isset($assignedHours[$leaveTypeId]) && $assignedHours[$leaveTypeId] > 0) {
+                // Employee has a specific quota assigned for this leave type (stored as days)
+                $hoursPerDay = $this->getEmployeeWorkHoursPerDay($employeeId);
+                return (float) $assignedHours[$leaveTypeId] * $hoursPerDay; // تحويل من أيام إلى ساعات
+            }
+        }
+
+        // ========================================
+        // STEP 2: Fall back to leave type quota_assign based on years of service
+        // ========================================
+
         // إذا لم يوجد تاريخ تعيين واضح نستخدم أول شريحة كافتراضي
         if (!$details || empty($details->date_of_joining)) {
             $quotaAssign = $options['quota_assign'] ?? [];
+            $hoursPerDay = $this->getEmployeeWorkHoursPerDay($employeeId);
             if (is_array($quotaAssign) && isset($quotaAssign[0])) {
-                return (float) $quotaAssign[0];
+                return (float) $quotaAssign[0] * $hoursPerDay; // تحويل من أيام إلى ساعات
             }
 
             $days = (float) $leaveType->leave_days;
-            return $days * 8.0;
+            return $days * $hoursPerDay;
         }
 
         // حساب سنة الملخّص (نفس منطق كود الويب: السنة الحالية)
@@ -346,12 +382,13 @@ class LeaveRepository implements LeaveRepositoryInterface
         } catch (\Exception $e) {
             // في حال وجود خطأ في التواريخ نستخدم أول شريحة
             $quotaAssign = $options['quota_assign'] ?? [];
+            $hoursPerDay = $this->getEmployeeWorkHoursPerDay($employeeId);
             if (is_array($quotaAssign) && isset($quotaAssign[0])) {
-                return (float) $quotaAssign[0] * 8.0;
+                return (float) $quotaAssign[0] * $hoursPerDay; // تحويل من أيام إلى ساعات
             }
 
             $days = (float) $leaveType->leave_days;
-            return $days * 8.0;
+            return $days * $hoursPerDay;
         }
 
         // فرق السنوات بين تاريخ التعيين وبداية السنة المالية الحالية
@@ -368,18 +405,21 @@ class LeaveRepository implements LeaveRepositoryInterface
 
         $quotaAssign = $options['quota_assign'] ?? [];
 
+
+        $hoursPerDay = $this->getEmployeeWorkHoursPerDay($employeeId);
+
         if (is_array($quotaAssign) && isset($quotaAssign[$fyearQuota])) {
-            // quota_assign مخزنة بالساعات مباشرة
-            return (float) $quotaAssign[$fyearQuota];
+            // Return the quota value for this year of service (may be 0) - stored as days
+            return (float) $quotaAssign[$fyearQuota] * $hoursPerDay; // تحويل من أيام إلى ساعات
         }
 
         // في حال عدم وجود قيمة لهذه السنة، نحاول استخدام الشريحة الأولى، وإلا نرجع للمنطق القديم
         if (is_array($quotaAssign) && isset($quotaAssign[0])) {
-            return (float) $quotaAssign[0];
+            return (float) $quotaAssign[0] * $hoursPerDay; // تحويل من أيام إلى ساعات
         }
 
         $days = (float) $leaveType->leave_days;
-        return $days * 8.0;
+        return $days * $hoursPerDay;
     }
 
     /**
@@ -396,14 +436,23 @@ class LeaveRepository implements LeaveRepositoryInterface
         $totalHours = 0.0;
 
         foreach ($applications as $application) {
-            if (!is_null($application->leave_hours)) {
+            // 1. If leave_hours is set and > 0, use it (Hourly Leave / Permission)
+            if (!is_null($application->leave_hours) && $application->leave_hours > 0) {
                 $totalHours += (float) $application->leave_hours;
-            } elseif ($application->from_date && $application->to_date) {
+            }
+            // 2. If calculated_days is set and > 0, use it (Day-based Leave)
+            elseif (!is_null($application->calculated_days) && $application->calculated_days > 0) {
+                $hoursPerDay = $this->getEmployeeWorkHoursPerDay($employeeId);
+                $totalHours += (float) $application->calculated_days * $hoursPerDay;
+            }
+            // 3. Fallback to date diff (Legacy or fallback)
+            elseif ($application->from_date && $application->to_date) {
                 try {
                     $from = new \DateTime($application->from_date);
                     $to = new \DateTime($application->to_date);
                     $days = $to->diff($from)->days + 1;
-                    $totalHours += $days * 8.0;
+                    $hoursPerDay = $this->getEmployeeWorkHoursPerDay($employeeId);
+                    $totalHours += $days * $hoursPerDay;
                 } catch (\Exception $e) {
                     continue;
                 }
@@ -427,14 +476,23 @@ class LeaveRepository implements LeaveRepositoryInterface
         $totalHours = 0.0;
 
         foreach ($applications as $application) {
-            if (!is_null($application->leave_hours)) {
+            // 1. If leave_hours is set and > 0, use it (Hourly Leave / Permission)
+            if (!is_null($application->leave_hours) && $application->leave_hours > 0) {
                 $totalHours += (float) $application->leave_hours;
-            } elseif ($application->from_date && $application->to_date) {
+            }
+            // 2. If calculated_days is set and > 0, use it (Day-based Leave)
+            elseif (!is_null($application->calculated_days) && $application->calculated_days > 0) {
+                $hoursPerDay = $this->getEmployeeWorkHoursPerDay($employeeId);
+                $totalHours += (float) $application->calculated_days * $hoursPerDay;
+            }
+            // 3. Fallback to date diff (Legacy or fallback)
+            elseif ($application->from_date && $application->to_date) {
                 try {
                     $from = new \DateTime($application->from_date);
                     $to = new \DateTime($application->to_date);
                     $days = $to->diff($from)->days + 1;
-                    $totalHours += $days * 8.0;
+                    $hoursPerDay = $this->getEmployeeWorkHoursPerDay($employeeId);
+                    $totalHours += $days * $hoursPerDay;
                 } catch (\Exception $e) {
                     continue;
                 }
@@ -542,7 +600,8 @@ class LeaveRepository implements LeaveRepositoryInterface
                 } elseif ($application->from_date && $application->to_date) {
                     $toDate = new \DateTime($application->to_date);
                     $days = $toDate->diff($fromDate)->days + 1;
-                    $hours = $days * 8.0;
+                    $hoursPerDay = $this->getEmployeeWorkHoursPerDay($employeeId);
+                    $hours = $days * $hoursPerDay;
                 }
 
                 $monthlyHours[$month] += $hours;
@@ -552,5 +611,130 @@ class LeaveRepository implements LeaveRepositoryInterface
         }
 
         return $monthlyHours;
+    }
+
+    // ==========================================
+    // Fiscal Year Aware Methods for Leave Report
+    // ==========================================
+
+    /**
+     * Get total used leave for an employee in a specific fiscal period (in hours)
+     */
+    public function getUsedLeaveInPeriod(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): float
+    {
+        $applications = LeaveApplication::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('status', LeaveApplication::STATUS_APPROVED)
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('from_date', [$startDate, $endDate])
+                    ->orWhere(function ($q) use ($startDate) {
+                        $q->where('from_date', '<=', $startDate)
+                            ->where('to_date', '>=', $startDate);
+                    });
+            })
+            ->get();
+
+        $totalHours = 0.0;
+        foreach ($applications as $application) {
+            $totalHours += (float) ($application->leave_hours ?? 0);
+        }
+
+        return $totalHours;
+    }
+
+    /**
+     * Get total pending leave for an employee in a specific fiscal period (in hours)
+     */
+    public function getPendingLeaveInPeriod(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): float
+    {
+        return (float) LeaveApplication::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('status', LeaveApplication::STATUS_PENDING)
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('from_date', [$startDate, $endDate])
+                    ->orWhere(function ($q) use ($startDate) {
+                        $q->where('from_date', '<=', $startDate)
+                            ->where('to_date', '>=', $startDate);
+                    });
+            })
+            ->sum('leave_hours');
+    }
+
+    /**
+     * Get total adjustments for an employee in a specific fiscal period (in hours)
+     */
+    public function getAdjustmentsInPeriod(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): float
+    {
+        return (float) LeaveAdjustment::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('status', LeaveAdjustment::STATUS_APPROVED)
+            ->whereBetween('adjustment_date', [$startDate, $endDate])
+            ->sum('adjust_hours');
+    }
+
+    /**
+     * Get list of approved leave dates for an employee in a specific period
+     * Returns comma-separated string of dates
+     */
+    public function getApprovedLeaveDates(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): string
+    {
+        $applications = LeaveApplication::where('employee_id', $employeeId)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('company_id', $companyId)
+            ->where('status', LeaveApplication::STATUS_APPROVED)
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('from_date', [$startDate, $endDate])
+                    ->orWhere(function ($q) use ($startDate) {
+                        $q->where('from_date', '<=', $startDate)
+                            ->where('to_date', '>=', $startDate);
+                    });
+            })
+            ->get(['from_date', 'to_date']);
+
+        $datesList = [];
+        foreach ($applications as $leave) {
+            try {
+                $period = new \DatePeriod(
+                    new \DateTime($leave->from_date),
+                    new \DateInterval('P1D'),
+                    (new \DateTime($leave->to_date))->modify('+1 day')
+                );
+                foreach ($period as $date) {
+                    $datesList[] = $date->format('Y-m-d');
+                }
+            } catch (\Exception $e) {
+                continue;
+            }
+        }
+
+        sort($datesList);
+        return implode(', ', array_unique($datesList));
+    }
+
+    /**
+     * Get cumulative days used by employee for a specific leave type in a year
+     * 
+     * @param int $employeeId
+     * @param int $year
+     * @param string $systemLeaveType System leave type (sick, annual, etc.)
+     * @return float
+     */
+    public function getCumulativeDaysUsed(int $employeeId, int $year, string $systemLeaveType): float
+    {
+        $startDate = \Carbon\Carbon::create($year, 1, 1)->startOfDay();
+        $endDate = \Carbon\Carbon::create($year, 12, 31)->endOfDay();
+
+        $totalDays = LeaveApplication::where('employee_id', $employeeId)
+            ->where('status', 1) // Approved only
+            ->whereBetween('from_date', [$startDate, $endDate])
+            ->whereHas('leaveType.policyMapping', function ($query) use ($systemLeaveType) {
+                $query->where('system_leave_type', $systemLeaveType);
+            })
+            ->sum('leave_days');
+
+        return (float) $totalDays;
     }
 }

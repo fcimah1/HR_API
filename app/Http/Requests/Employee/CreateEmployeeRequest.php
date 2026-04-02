@@ -2,27 +2,19 @@
 
 namespace App\Http\Requests\Employee;
 
-use Illuminate\Validation\Rule;
 use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rule;
 
-/**
- * @OA\Schema(
- *     title="Create Employee Request",
- *     description="Create Employee Request"
- * )
- */
-class CreateEmployeeRequest extends FormRequest
+class CreateEmployeeRequest extends BaseEmployeeRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return Auth::check();
+        return true; // Authorization handled by middleware
     }
 
     /**
@@ -31,133 +23,54 @@ class CreateEmployeeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Required fields
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('ci_erp_users', 'email')->where(function ($query) {
-                    return $query->where('company_id', $this->user()->company_id);
-                }),
-            ],
-            'username' => [
-                'required',
-                'string',
-                'max:255',
-                'regex:/^[a-zA-Z0-9._-]+$/',
-                Rule::unique('ci_erp_users', 'username')->where(function ($query) {
-                    return $query->where('company_id', $this->user()->company_id);
-                }),
-            ],
-            'password' => 'required|string|min:6|max:255',
-            
-            // Optional basic info
-            'user_type' => 'sometimes|string|in:admin,hr,manager,employee',
-            'user_role_id' => [
-                'sometimes',
-                'integer',
-                'min:1',
-                Rule::exists('ci_staff_roles', 'role_id')->where(function ($query) {
-                    $user = $this->user();
-                    $companyId = $user->company_id == 0 ? $user->user_id : $user->company_id;
-                    return $query->where('company_id', $companyId);
-                }),
-            ],
-            'contact_number' => 'sometimes|string|max:20|regex:/^[0-9+\-\s()]+$/',
-            'gender' => 'sometimes|string|in:male,female',
-            'address_1' => 'sometimes|string|max:500',
-            'address_2' => 'sometimes|string|max:500',
-            'city' => 'sometimes|string|max:255',
-            'state' => 'sometimes|string|max:255',
-            'zipcode' => 'sometimes|string|max:20',
-            'country' => 'sometimes|string|max:255',
-            'profile_picture' => 'sometimes|string|max:500',
-            
-            // Employee details
-            'employee_id' => [
-                'sometimes',
-                'string',
-                'max:255',
-                'regex:/^[a-zA-Z0-9\-_]+$/',
-                Rule::unique('ci_erp_users_details', 'employee_id')->where(function ($query) {
-                    return $query->where('company_id', $this->user()->company_id);
-                }),
-            ],
-            'reporting_manager' => 'sometimes|integer|exists:ci_erp_users,user_id',
-            'department_id' => 'sometimes|integer|exists:ci_departments,department_id',
-            'designation_id' => 'sometimes|integer|exists:ci_designations,designation_id',
-            'office_shift_id' => 'required|integer|exists:ci_office_shifts,office_shift_id',
-            'basic_salary' => 'sometimes|numeric|min:0|max:9999999.99',
-            'hourly_rate' => 'sometimes|numeric|min:0|max:9999.99',
-            'salary_type' => 'sometimes|integer|in:1,2,3', // 1=monthly, 2=hourly, 3=daily
-            'leave_categories' => 'sometimes|string|max:255',
-            'role_description' => 'sometimes|string|max:1000',
-            'date_of_joining' => 'sometimes|date_format:Y-m-d|before_or_equal:today',
-            'date_of_birth' => 'sometimes|date_format:Y-m-d|before:today|after:1900-01-01',
-            'marital_status' => 'sometimes|integer|in:1,2,3,4', // 1=single, 2=married, 3=divorced, 4=widowed
-            'blood_group' => 'sometimes|string|in:A+,A-,B+,B-,AB+,AB-,O+,O-',
-            'bio' => 'sometimes|string|max:1000',
-            'experience' => 'sometimes|integer|min:0|max:50',
-            
-            // Bank details
-            'account_title' => 'sometimes|string|max:255',
-            'account_number' => 'sometimes|string|max:50|regex:/^[0-9\-]+$/',
-            'bank_name' => 'sometimes|integer',
-            'iban' => 'sometimes|string|max:50|regex:/^[A-Z0-9]+$/',
-            'swift_code' => 'sometimes|string|max:20|regex:/^[A-Z0-9]+$/',
-            'bank_branch' => 'sometimes|string|max:255',
-            
-            // Emergency contact
-            'contact_full_name' => 'sometimes|string|max:255',
-            'contact_phone_no' => 'sometimes|string|max:20|regex:/^[0-9+\-\s()]+$/',
-            'contact_email' => 'sometimes|email|max:255',
-            'contact_address' => 'sometimes|string|max:500',
-            
-            // Job details
-            'job_type' => 'sometimes|integer|in:1,2,3', // 1=full-time, 2=part-time, 3=contract
-            'assigned_hours' => 'sometimes|string|max:20',
-            'is_work_from_home' => 'sometimes|boolean',
-            'is_eqama' => 'sometimes|boolean',
-            'branch_id' => 'sometimes|integer',
-            'employee_idnum' => 'sometimes|string|max:155',
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:ci_erp_users,email'],
+            'username' => ['required', 'string', 'max:255', 'unique:ci_erp_users,username'],
+            'password' => ['required', 'string', 'min:6'],
+            'contact_number' => ['nullable', 'string', 'max:20'],
+            'gender' => ['nullable', Rule::in(['Male', 'Female'])],
+            'department_id' => ['required', 'integer', 'exists:ci_departments,department_id'],
+            'designation_id' => ['required', 'integer', 'exists:ci_designations,designation_id'],
+            'office_shift_id' => ['required', 'integer', 'exists:ci_office_shifts,office_shift_id'],
+            'user_role_id' => ['required', 'integer', 'exists:ci_staff_roles,role_id'], 
+            'reporting_manager' => ['nullable', 'integer', 'exists:ci_erp_users,user_id'],
+            'basic_salary' => ['nullable', 'numeric', 'min:0'],
+            'currency_id' => ['nullable', 'integer', 'exists:ci_currencies,currency_id'],
         ];
     }
 
     /**
-     * Get custom error messages for validator errors.
+     * Get custom messages for validator errors.
      */
     public function messages(): array
     {
         return [
-            'first_name.required' => 'First name is required',
-            'last_name.required' => 'Last name is required',
-            'email.required' => 'Email is required',
-            'email.email' => 'Please provide a valid email address',
-            'email.unique' => 'This email is already registered in your company',
-            'username.required' => 'Username is required',
-            'username.regex' => 'Username can only contain letters, numbers, dots, underscores and hyphens',
-            'username.unique' => 'This username is already taken in your company',
-            'password.required' => 'Password is required',
-            'password.min' => 'Password must be at least 6 characters',
-            'contact_number.regex' => 'Please provide a valid phone number',
-            'employee_id.regex' => 'Employee ID can only contain letters, numbers, hyphens and underscores',
-            'employee_id.unique' => 'This employee ID is already used in your company',
-            'basic_salary.numeric' => 'Basic salary must be a valid number',
-            'basic_salary.min' => 'Basic salary cannot be negative',
-            'date_of_joining.date_format' => 'Date of joining must be in YYYY-MM-DD format',
-            'date_of_joining.before_or_equal' => 'Date of joining cannot be in the future',
-            'date_of_birth.date_format' => 'Date of birth must be in YYYY-MM-DD format',
-            'date_of_birth.before' => 'Date of birth must be before today',
-            'date_of_birth.after' => 'Date of birth must be after 1900',
-            'blood_group.in' => 'Please select a valid blood group',
-            'account_number.regex' => 'Account number can only contain numbers and hyphens',
-            'iban.regex' => 'IBAN can only contain uppercase letters and numbers',
-            'swift_code.regex' => 'SWIFT code can only contain uppercase letters and numbers',
-            'reporting_manager.exists' => 'Selected reporting manager does not exist',
-            'department_id.exists' => 'Selected department does not exist',
-            'designation_id.exists' => 'Selected designation does not exist',
+            'first_name.required' => 'الاسم الأول مطلوب',
+            'first_name.string' => 'الاسم الأول يجب أن يكون نص',
+            'first_name.max' => 'الاسم الأول لا يجب أن يتجاوز 255 حرف',
+            'last_name.required' => 'الاسم الأخير مطلوب',
+            'last_name.string' => 'الاسم الأخير يجب أن يكون نص',
+            'last_name.max' => 'الاسم الأخير لا يجب أن يتجاوز 255 حرف',
+            'email.required' => 'البريد الإلكتروني مطلوب',
+            'email.email' => 'البريد الإلكتروني غير صحيح',
+            'email.unique' => 'البريد الإلكتروني مستخدم بالفعل',
+            'username.required' => 'اسم المستخدم مطلوب',
+            'username.unique' => 'اسم المستخدم مستخدم بالفعل',
+            'password.required' => 'كلمة المرور مطلوبة',
+            'password.min' => 'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
+            'department_id.required' => 'القسم مطلوب',
+            'department_id.exists' => 'القسم المحدد غير موجود',
+            'designation_id.required' => 'المسمى الوظيفي مطلوب',
+            'designation_id.exists' => 'المسمى الوظيفي المحدد غير موجود',
+            'gender.in' => 'الجنس يجب أن يكون ذكر أو أنثى',
+            'basic_salary.numeric' => 'الراتب الأساسي يجب أن يكون رقم',
+            'basic_salary.min' => 'الراتب الأساسي لا يمكن أن يكون سالب',
+            'shift_id.required' => 'الوردية مطلوبة',
+            'shift_id.exists' => 'الوردية المحددة غير موجودة',
+            'role_id.required' => 'الدور مطلوب',
+            'role_id.exists' => 'الدور المحدد غير موجود',
+            'reporting_manager.exists' => 'المدير المباشر المحدد غير موجود',
         ];
     }
 
@@ -167,53 +80,34 @@ class CreateEmployeeRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'first_name' => 'first name',
-            'last_name' => 'last name',
-            'user_type' => 'user type',
-            'user_role_id' => 'user role',
-            'contact_number' => 'contact number',
-            'address_1' => 'address line 1',
-            'address_2' => 'address line 2',
-            'employee_id' => 'employee ID',
-            'reporting_manager' => 'reporting manager',
-            'department_id' => 'department',
-            'designation_id' => 'designation',
-            'office_shift_id' => 'office shift',
-            'basic_salary' => 'basic salary',
-            'hourly_rate' => 'hourly rate',
-            'salary_type' => 'salary type',
-            'leave_categories' => 'leave categories',
-            'role_description' => 'role description',
-            'date_of_joining' => 'date of joining',
-            'date_of_birth' => 'date of birth',
-            'marital_status' => 'marital status',
-            'blood_group' => 'blood group',
-            'account_title' => 'account title',
-            'account_number' => 'account number',
-            'bank_name' => 'bank name',
-            'bank_branch' => 'bank branch',
-            'contact_full_name' => 'emergency contact name',
-            'contact_phone_no' => 'emergency contact phone',
-            'contact_email' => 'emergency contact email',
-            'contact_address' => 'emergency contact address',
-            'job_type' => 'job type',
-            'assigned_hours' => 'assigned hours',
-            'is_work_from_home' => 'work from home',
-            'branch_id' => 'branch',
-            'employee_idnum' => 'employee ID number',
+            'first_name' => 'الاسم الأول',
+            'last_name' => 'الاسم الأخير',
+            'email' => 'البريد الإلكتروني',
+            'username' => 'اسم المستخدم',
+            'password' => 'كلمة المرور',
+            'contact_number' => 'رقم الهاتف',
+            'gender' => 'الجنس',
+            'department_id' => 'القسم',
+            'designation_id' => 'المسمى الوظيفي',
+            'basic_salary' => 'الراتب الأساسي',
+            'currency_id' => 'العملة',
+            'is_active' => 'الحالة',
         ];
     }
 
+    /**
+     * Handle a failed validation attempt.
+     *
+     * @param Validator $validator
+     * @return void
+     *
+     * @throws \Illuminate\Http\Exceptions\HttpResponseException
+     */
     protected function failedValidation(Validator $validator)
     {
-            Log::warning('فشل إضافة موظف', [
-            'errors' => $validator->errors()->toArray(),
-            'input' => $this->all()
-        ]);
-
         throw new HttpResponseException(response()->json([
             'success' => false,
-            'message' => 'فشل إضافة موظف',
+            'message' => 'بيانات غير صحيحة',
             'errors' => $validator->errors(),
         ], 422));
     }

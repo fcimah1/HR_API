@@ -13,10 +13,14 @@ use App\Enums\NumericalStatusEnum;
 use App\Models\LeaveApplication;
 use App\Models\User;
 use App\Repository\Interface\HourlyLeaveRepositoryInterface;
+use App\Repository\Interface\UserRepositoryInterface;
 use App\Services\SimplePermissionService;
 use App\Services\NotificationService;
 use App\Services\ApprovalWorkflowService;
 use App\Services\ApprovalService;
+use App\Services\LeavePolicyService;
+use App\Services\TieredLeaveService;
+use App\Services\PayrollDeductionService;
 use App\Enums\StringStatusEnum;
 use App\Jobs\SendEmailNotificationJob;
 use App\Mail\Leave\HourSubmitted;
@@ -35,6 +39,10 @@ class HourlyLeaveService
         protected ApprovalWorkflowService $approvalWorkflow,
         protected CacheService $cacheService,
         protected ApprovalService $approvalService,
+        protected LeavePolicyService $leavePolicyService,
+        protected TieredLeaveService $tieredLeaveService,
+        protected PayrollDeductionService $payrollDeductionService,
+        protected UserRepositoryInterface $userRepository,
     ) {}
 
     /**
@@ -195,24 +203,33 @@ class HourlyLeaveService
     {
         return DB::transaction(function () use ($dto) {
             // التحقق من قيود نوع الإجازة
-            $user = User::find($dto->employeeId);
+            $user = User::with(['user_details.designation'])->findOrFail($dto->employeeId);
 
-            // Check if requester can override restrictions
-            $canOverride = false;
+            // Check if requester is company owner or superior (can override restrictions)
+            $canOverrideRestrictions = false;
+
             if ($dto->createdBy) {
-                $requester = User::find($dto->createdBy);
+                $requester = User::findOrFail($dto->createdBy);
                 if ($requester && $user && $this->permissionService->canOverrideRestriction($requester, $user, 'leave_type_', (int)$dto->leaveTypeId)) {
-                    $canOverride = true;
+                    $canOverrideRestrictions = true;
+                    Log::info('HourlyLeaveService::createHourlyLeave - Restriction override allowed', [
+                        'requester_id' => $requester->user_id,
+                        'target_id' => $user->user_id
+                    ]);
                 }
             }
 
             if ($user) {
                 $restrictedIds = $this->getRestrictedLeaveTypeIds($user, $dto->companyId);
-                if (!$canOverride && in_array($dto->leaveTypeId, $restrictedIds)) {
+
+                // Only enforce restriction if not overriden
+                if (!$canOverrideRestrictions && in_array($dto->leaveTypeId, $restrictedIds)) {
                     Log::warning('HourlyLeaveService::createHourlyLeave - Restricted leave type selected', [
                         'employee_id' => $dto->employeeId,
                         'leave_type_id' => $dto->leaveTypeId,
-                        'company_id' => $dto->companyId
+                        'company_id' => $dto->companyId,
+                        'created_by' => $dto->createdBy,
+                        'message' => 'نوع الإجازة المختار غير متاح لهذا الموظف'
                     ]);
                     throw new \Exception('نوع الإجازة المختار غير متاح لهذا الموظف');
                 }
@@ -221,21 +238,25 @@ class HourlyLeaveService
             // حساب ساعات الإجازة
             $startTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockInM);
             $endTime = \Carbon\Carbon::parse($dto->date . ' ' . $dto->clockOutM);
-            $leaveHours = $endTime->diffInHours($startTime);
+            $leaveHours = abs($startTime->diffInMinutes($endTime)) / 60;
 
-            // التحقق من أن الساعات أقل من 8 (استئذان وليس إجازة كاملة)
-            if ($leaveHours >= 8) {
-                Log::info('HourlyLeaveService::createHourlyLeave - Leave hours must be less than 8', [
-                    'employee_id' => $dto->employeeId,
+            // جلب ساعات شفت الموظف
+            $shiftHours = $user ? $user->getWorkHoursPerDay() : 8.0;
+
+            // التحقق من أن الساعات أقل من ساعات يوم العمل (استئذان وليس إجازة كاملة)
+            if ($leaveHours >= $shiftHours) {
+                Log::info('HourlyLeaveService::createHourlyLeave - Leave hours must be less than shift hours', [
+                    'employee_id'  => $dto->employeeId,
                     'leave_type_id' => $dto->leaveTypeId,
-                    'date' => $dto->date,
-                    'clock_in_m' => $dto->clockInM,
-                    'clock_out_m' => $dto->clockOutM,
-                    'leave_hours' => $leaveHours,
-                    'message' => 'لا يمكن تسجيل استئذان لـ {$leaveHours} ساعة. الاستئذان يجب أن يكون أقل من 8 ساعات. للـ 8 ساعات أو أكثر، يرجى استخدام طلب إجازة عادية.'
+                    'date'         => $dto->date,
+                    'clock_in_m'   => $dto->clockInM,
+                    'clock_out_m'  => $dto->clockOutM,
+                    'leave_hours'  => $leaveHours,
+                    'shift_hours'  => $shiftHours,
+                    'message'      => "لا يمكن تسجيل استئذان لـ {$leaveHours} ساعة. الاستئذان يجب أن يكون أقل من {$shiftHours} ساعات."
                 ]);
                 throw new \Exception(
-                    "لا يمكن تسجيل استئذان لـ {$leaveHours} ساعة. الاستئذان يجب أن يكون أقل من 8 ساعات. للـ 8 ساعات أو أكثر، يرجى استخدام طلب إجازة عادية."
+                    "لا يمكن تسجيل استئذان لـ {$leaveHours} ساعة. الاستئذان يجب أن يكون أقل من {$shiftHours} ساعات. للـ {$shiftHours} ساعات أو أكثر، يرجى استخدام طلب إجازة عادية."
                 );
             }
 
@@ -263,7 +284,7 @@ class HourlyLeaveService
 
             // إذا كانت الإجازة المطلوبة أكبر من الرصيد المتاح نرفض الطلب
             if ($leaveHours > $availableBalance) {
-                Log::info('HourlyLeaveService::createHourlyLeave - Leave hours exceed available balance', [
+                Log::info('HourlyLeaveService::createHourlyLeave - Not enough balance', [
                     'employee_id' => $dto->employeeId,
                     'leave_type_id' => $dto->leaveTypeId,
                     'date' => $dto->date,
@@ -278,20 +299,125 @@ class HourlyLeaveService
                 );
             }
 
-            $leave = $this->hourlyLeaveRepository->createHourlyLeave($dto);
+            // Fetch leave type to get deduction status
+            $leaveType = \App\Models\ErpConstant::find($dto->leaveTypeId);
+            $isDeducted = true; // Default
+            if ($leaveType && isset($leaveType->field_two)) {
+                $isDeducted = (bool) $leaveType->field_two;
+            }
+
+            // === Country-Based Policy Integration ===
+            $countryCode = $this->leavePolicyService->getCompanyCountryCode($dto->companyId);
+
+            // 1. Get system leave type
+            $systemLeaveType = $this->leavePolicyService->getSystemLeaveType($dto->companyId, $dto->leaveTypeId);
+
+            // 2. Get applicable policy tier
+            $policy = $this->leavePolicyService->getApplicablePolicy(
+                $dto->employeeId,
+                $dto->leaveTypeId,
+                $dto->companyId,
+                $countryCode
+            );
+
+            // 3. If it's a known system leave type, validate strictly
+            if ($systemLeaveType) {
+                // For hourly leave, duration is always considered < 1 day for policy validation purposes in most cases
+                // but we pass 0 or a fraction if needed. Here we follow LeaveService pattern.
+                $validation = $this->leavePolicyService->validateLeaveRequest(
+                    $dto->employeeId,
+                    $systemLeaveType,
+                    0, // Hourly leave is 0 full days
+                    $policy
+                );
+
+                if (!$validation['valid']) {
+                    $errors = implode(', ', $validation['errors']);
+                    throw new \Exception($errors);
+                }
+            }
+
+            // Calculate service years
+            $serviceYears = $this->leavePolicyService->calculateServiceYears($dto->employeeId);
+
+            // === Tiered Sick Leave Logic ===
+            $tierOrder = 1;
+            $paymentPercentage = 100;
+
+            if ($systemLeaveType === 'sick') {
+                $year = (int) date('Y', strtotime($dto->date));
+                $cumulativeDays = $this->tieredLeaveService->getCumulativeSickDaysUsed(
+                    $dto->employeeId,
+                    $year,
+                    'sick'
+                );
+
+                // For hourly sick leave, it still contributes to cumulative usage, though it's < 1 day.
+                // we treat duration as 0 to see which tier we are currently in.
+                $tierInfo = $this->tieredLeaveService->getTieredPaymentInfo(
+                    $countryCode,
+                    'sick',
+                    $cumulativeDays,
+                    0
+                );
+
+                $tierOrder = $tierInfo['tier_order'];
+                $paymentPercentage = $tierInfo['payment_percentage'];
+                $isDeducted = $paymentPercentage < 100; // Override if partial pay
+            }
+
+            // Create enhanced DTO
+            $enhancedDto = new CreateHourlyLeaveDTO(
+                companyId: $dto->companyId,
+                employeeId: $dto->employeeId,
+                leaveTypeId: $dto->leaveTypeId,
+                date: $dto->date,
+                clockInM: $dto->clockInM,
+                clockOutM: $dto->clockOutM,
+                reason: $dto->reason,
+                dutyEmployeeId: $dto->dutyEmployeeId,
+                remarks: $dto->remarks,
+                leaveHours: $leaveHours,
+                status: $dto->status,
+                place: $dto->place,
+                countryCode: $countryCode,
+                serviceYears: $serviceYears,
+                policyId: $policy?->policy_id,
+                tierOrder: $tierOrder,
+                paymentPercentage: $paymentPercentage,
+                createdBy: $dto->createdBy
+            );
+
+            $leave = $this->hourlyLeaveRepository->createHourlyLeave($enhancedDto);
+
+            // Update flags matching LeaveService logic
+            $leave->update([
+                'calculated_days' => 0,
+                'documentation_provided' => 0,
+                'is_deducted' => $isDeducted ? 1 : 0,
+                'salary_deduction_applied' => $isDeducted ? 0 : 1,
+                'tier_order' => $tierOrder,
+                'payment_percentage' => $paymentPercentage
+            ]);
+
+            // === One-Time Leave Logic ===
+            if ($policy && $policy->is_one_time && $leave->status == 1) {
+                try {
+                    $this->leavePolicyService->markOneTimeLeaveUsed(
+                        $dto->employeeId,
+                        $systemLeaveType,
+                        $leave->leave_id,
+                        $dto->companyId
+                    );
+                } catch (\Exception $e) {
+                    Log::error('HourlyLeaveService::createHourlyLeave - Failed to mark one-time leave', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
 
             if (!$leave) {
-                Log::info('HourlyLeaveService::createHourlyLeave - Failed to create leave application', [
-                    'employee_id' => $dto->employeeId,
-                    'leave_type_id' => $dto->leaveTypeId,
-                    'date' => $dto->date,
-                    'clock_in_m' => $dto->clockInM,
-                    'clock_out_m' => $dto->clockOutM,
-                    'leave_hours' => $leaveHours,
-                    'available_balance' => $availableBalance,
-                    'message' => 'فشل في إنشاء طلب الإستئذان للإجازة بـ {$leaveHours} ساعة - الرصيد المتوفر: {$availableBalance} ساعة'
-                ]);
-                throw new \Exception("فشل في إنشاء طلب الإستئذان للإجازة بـ {$leaveHours} ساعة - الرصيد المتوفر: {$availableBalance} ساعة");
+                throw new \Exception("فشل في إنشاء طلب الإستئذان.");
             }
 
             // بدء سير عمل الموافقة
@@ -311,19 +437,18 @@ class HourlyLeaveService
                 $dto->employeeId
             );
 
-            // الحصول على بريد الموظف واسمه من العلاقات المحملة مسبقًا
+            // الحصول على بريد الموظف واسمه
             $employeeEmail = $leave->employee->email ?? null;
             $employeeName = $leave->employee->full_name ?? 'Employee';
             $leaveTypeName = $leave->leaveType->leave_type_name ?? 'Hourly Leave';
 
-            // إرسال إشعار بريد إلكتروني إذا كان بريد الموظف موجودًا (يتم إرساله كـ job)
             if ($employeeEmail) {
                 SendEmailNotificationJob::dispatch(
                     new HourSubmitted(
                         employeeName: $employeeName,
                         leaveType: $leaveTypeName,
                         date: $dto->date,
-                        hours: (int)($dto->leaveHours ?? 0),
+                        hours: (int)$leaveHours,
                     ),
                     $employeeEmail
                 );
@@ -508,7 +633,8 @@ class HourlyLeaveService
                         1, // approved
                         1, // final level
                         'hourly_leave_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $approvedApplication->employee_id
                     );
 
                     $this->notificationService->sendApprovalNotification(
@@ -560,7 +686,8 @@ class HourlyLeaveService
                         2, // rejected
                         2, // rejection level
                         'hourly_leave_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $processedApplication->employee_id
                     );
 
                     $this->notificationService->sendApprovalNotification(
@@ -653,7 +780,8 @@ class HourlyLeaveService
                         1,
                         1,
                         'hourly_leave_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $approvedApplication->employee_id
                     );
 
 
@@ -683,7 +811,8 @@ class HourlyLeaveService
                         1,
                         0,
                         'leave_settings',
-                        $effectiveCompanyId
+                        $effectiveCompanyId,
+                        $application->employee_id
                     );
 
                     // Send approval notification
@@ -742,7 +871,8 @@ class HourlyLeaveService
                     2, // rejected
                     2, // rejection level
                     'hourly_leave_settings',
-                    $effectiveCompanyId
+                    $effectiveCompanyId,
+                    $processedApplication->employee_id
                 );
 
                 // إرسال إشعار الرفض
@@ -872,24 +1002,30 @@ class HourlyLeaveService
 
                 $leaveHours = $endTime->diffInHours($startTime);
 
-                // التحقق من أن الساعات أقل من 8
-                if ($leaveHours >= 8) {
-                    Log::info('HourlyLeaveService::updateHourlyLeave - Leave hours must be less than 8', [
+                // جلب ساعات شفت الموظف ديناميكياً بدل القيمة الثابتة 8
+                $shiftHours = $application->employee
+                    ? $application->employee->getWorkHoursPerDay()
+                    : 8.0;
+
+                // التحقق من أن الساعات أقل من ساعات يوم العمل
+                if ($leaveHours >= $shiftHours) {
+                    Log::info('HourlyLeaveService::updateHourlyLeave - Leave hours must be less than shift hours', [
                         'application_id' => $id,
-                        'leave_hours' => $leaveHours,
-                        'message' => 'لا يمكن تسجيل استئذان لـ {$leaveHours} ساعة. الاستئذان يجب أن يكون أقل من 8 ساعات.'
+                        'leave_hours'    => $leaveHours,
+                        'shift_hours'    => $shiftHours,
+                        'message'        => "لا يمكن تسجيل استئذان لـ {$leaveHours} ساعة. الاستئذان يجب أن يكون أقل من {$shiftHours} ساعات."
                     ]);
                     throw new \Exception(
-                        "لا يمكن تسجيل استئذان لـ {$leaveHours} ساعة. الاستئذان يجب أن يكون أقل من 8 ساعات."
+                        "لا يمكن تسجيل استئذان لـ {$leaveHours} ساعة. الاستئذان يجب أن يكون أقل من {$shiftHours} ساعات."
                     );
                 }
 
                 // التحقق من عدم وجود استئذان آخر في نفس التاريخ (باستثناء الطلب الحالي)
                 $existingLeave = LeaveApplication::where('company_id', $effectiveCompanyId)
-                    ->where('employee_id', $user->user_id)
+                    ->where('employee_id', $application->employee_id)
                     ->where('particular_date', $dto->date)
                     ->where('leave_hours', '>', 0)
-                    ->where('leave_hours', '<', 8)
+                    ->where('leave_hours', '<', $shiftHours) // أقل من ساعات الشفت
                     ->whereIn('status', [1, 2])
                     ->where('leave_id', '!=', $id)
                     ->exists();

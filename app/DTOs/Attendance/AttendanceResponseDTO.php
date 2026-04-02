@@ -35,7 +35,9 @@ class AttendanceResponseDTO
             totalWork: $attendance->total_work ?? '00:00',
             totalRest: $attendance->total_rest,
             attendanceStatus: $attendance->attendance_status,
-            status: $attendance->status ?? 'Pending',
+            status: $attendance->status !== null
+                ? ucfirst(strtolower(\App\Enums\AttendenceStatus::tryFrom((int)$attendance->status)?->name ?? (string)$attendance->status))
+                : 'Pending',
             workFromHome: $attendance->work_from_home,
             lunchBreakIn: $attendance->lunch_breakin,
             lunchBreakOut: $attendance->lunch_breakout,

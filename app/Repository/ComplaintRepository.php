@@ -6,9 +6,7 @@ use App\DTOs\Complaint\CreateComplaintDTO;
 use App\DTOs\Complaint\ComplaintFilterDTO;
 use App\DTOs\Complaint\UpdateComplaintDTO;
 use App\Enums\NumericalStatusEnum;
-use App\Enums\StringStatusEnum;
 use App\Models\Complaint;
-use App\Models\StaffApproval;
 use App\Models\User;
 use App\Repository\Interface\ComplaintRepositoryInterface;
 use Illuminate\Support\Facades\Log;
@@ -142,16 +140,7 @@ class ComplaintRepository implements ComplaintRepositoryInterface
             'description' => "تم إلغاء الشكوى بواسطة " . User::getFullNameById($rejectedBy) . " بتاريخ " . now()->format('Y-m-d H:i:s') . ($description ? " | السبب: " . $description : ""),
         ]);
 
-        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $complaint->company_id,
-            'staff_id' => $rejectedBy,
-            'module_option' => 'complaint_settings',
-            'module_key_id' => $complaint->complaint_id,
-            'status' => NumericalStatusEnum::REJECTED->value,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Cancellation recording is handled by ApprovalService to avoid duplicates
 
         return true;
     }
@@ -166,16 +155,7 @@ class ComplaintRepository implements ComplaintRepositoryInterface
             'description' => $description . "__" . User::getFullNameById($resolvedBy) . " تم حل الشكوى بواسطة " . now()->format('Y-m-d H:i:s'),
         ]);
 
-        // إنشاء سجل الحل/الموافقة في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $complaint->company_id,
-            'staff_id' => $resolvedBy,
-            'module_option' => 'complaint_settings',
-            'module_key_id' => $complaint->complaint_id,
-            'status' => NumericalStatusEnum::APPROVED->value,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Approval recording is handled by ApprovalService to avoid duplicates
 
         $complaint->refresh();
         $complaint->load(['employee', 'approvals.staff']);
@@ -193,16 +173,7 @@ class ComplaintRepository implements ComplaintRepositoryInterface
             'description' => $description . "__" . User::getFullNameById($rejectedBy) . " تم رفض الشكوى بواسطة " . now()->format('Y-m-d H:i:s'),
         ]);
 
-        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $complaint->company_id,
-            'staff_id' => $rejectedBy,
-            'module_option' => 'complaint_settings',
-            'module_key_id' => $complaint->complaint_id,
-            'status' => NumericalStatusEnum::REJECTED->value,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Rejection recording is handled by ApprovalService to avoid duplicates
 
         $complaint->refresh();
         $complaint->load(['employee', 'approvals.staff']);

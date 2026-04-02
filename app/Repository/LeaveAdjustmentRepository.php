@@ -6,9 +6,7 @@ use App\DTOs\LeaveAdjustment\CreateLeaveAdjustmentDTO;
 use App\DTOs\LeaveAdjustment\UpdateLeaveAdjustmentDTO;
 use App\DTOs\LeaveAdjustment\LeaveAdjustmentFilterDTO;
 use App\Models\LeaveAdjustment;
-use App\Models\StaffApproval;
 use App\Repository\Interface\LeaveAdjustmentRepositoryInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
 {
@@ -138,16 +136,7 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
             'status' => LeaveAdjustment::STATUS_APPROVED,
         ]);
 
-        // تسجيل سجل الموافقة
-        StaffApproval::create([
-            'company_id' => $adjustment->company_id,
-            'staff_id' => $approvedBy,
-            'module_option' => 'leave_adjustment_settings',
-            'module_key_id' => $adjustment->adjustment_id,
-            'status' => 1, // موافق
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Approval recording is handled by ApprovalService to avoid duplicates
 
         $adjustment->refresh();
         $adjustment->load(['employee', 'leaveType', 'approvals.staff']);
@@ -163,17 +152,10 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
         $adjustment->update([
             'status' => LeaveAdjustment::STATUS_REJECTED,
         ]);
-        StaffApproval::create([
-            'company_id' => $adjustment->company_id,
-            'staff_id' => $rejectedBy,
-            'module_option' => 'leave_adjustment_settings',
-            'module_key_id' => $adjustment->adjustment_id,
-            'status' => 2, // رفض
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
-        $adjustment->refresh();
 
+        // Note: Rejection recording is handled by ApprovalService to avoid duplicates
+
+        $adjustment->refresh();
         $adjustment->load(['employee', 'leaveType', 'approvals.staff']);
 
         return $adjustment;
@@ -215,15 +197,7 @@ class LeaveAdjustmentRepository implements LeaveAdjustmentRepositoryInterface
             'reason_adjustment' => $reason,
         ]);
 
-        StaffApproval::create([
-            'company_id' => $adjustment->company_id,
-            'staff_id' => $cancelledBy,
-            'module_option' => 'leave_adjustment_settings',
-            'module_key_id' => $adjustment->adjustment_id,
-            'status' => LeaveAdjustment::STATUS_REJECTED,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Cancellation recording is handled by ApprovalService to avoid duplicates
 
         $adjustment->refresh();
         $adjustment->load(['employee', 'leaveType', 'approvals.staff']);

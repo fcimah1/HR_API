@@ -2,7 +2,8 @@
 
 namespace App\Http\Requests\Attendance;
 
-use App\Enums\NumericalStatusEnum;
+use App\Enums\AttendenceStatus;
+use App\Services\SimplePermissionService;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -18,12 +19,25 @@ class UpdateAttendanceRequest extends FormRequest
 
     public function rules(): array
     {
+        $permissionService = app(SimplePermissionService::class);
+        $companyId = $permissionService->getEffectiveCompanyId(Auth::user());
+
         return [
             'clock_in' => 'nullable|date_format:Y-m-d H:i:s',
             'clock_out' => 'nullable|date_format:Y-m-d H:i:s|after:clock_in',
-            'status' => ['nullable', 'string', Rule::in(NumericalStatusEnum::cases())],
-            'shift_id' => 'nullable|integer|exists:ci_office_shift,office_shift_id',
-            'attendance_status' => 'nullable|string|in:Present,Absent',
+            'status' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if (!AttendenceStatus::getValue($value)) {
+                        $fail('حالة السجل غير صحيحة');
+                    }
+                }
+            ],
+            'shift_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('ci_office_shifts', 'office_shift_id')->where('company_id', $companyId)
+            ],
         ];
     }
 
@@ -34,7 +48,9 @@ class UpdateAttendanceRequest extends FormRequest
             'clock_out.date_format' => 'صيغة وقت الانصراف غير صحيحة',
             'clock_out.after' => 'وقت الانصراف يجب أن يكون بعد وقت الحضور',
             'status.in' => 'حالة السجل غير صحيحة',
-            'attendance_status.in' => 'حالة الحضور غير صحيحة',
+            'shift_id.exists' => 'الفرع غير موجود',
+            'shift_id.integer' => 'الفرع يجب أن يكون رقمًا',
+
         ];
     }
 

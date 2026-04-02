@@ -6,7 +6,6 @@ use App\DTOs\Leave\CreateHourlyLeaveDTO;
 use App\DTOs\Leave\HourlyLeaveFilterDTO;
 use App\DTOs\Leave\UpdateHourlyLeaveDTO;
 use App\Models\LeaveApplication;
-use App\Models\StaffApproval;
 use App\Models\User;
 use App\Repository\Interface\HourlyLeaveRepositoryInterface;
 use Illuminate\Support\Facades\Log;
@@ -20,10 +19,16 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
     {
         $companyId = $filters->companyId;
 
-        // فلتر طلبات الإجازة (leave_hours > 0 & leave_hours < 8)
-        $query = LeaveApplication::where('company_id', $companyId)
-            ->where('leave_hours', '>', 0) // ساعات أكبر من صفر
-            ->where('leave_hours', '<', 8) // ساعات أقل من 8
+        // فلتر طلبات الإجازة بالساعات:
+        // leave_hours > 0  → استئذان وليس إجازة منعدمة
+        // leave_hours < hours_per_day للموظف → استئذان (أقل من يوم كامل)
+        // نستخدم JOIN مع شفت الموظف ونستعمل COALESCE للفول-باك على 8 إذا لم يوجد شفت
+        $query = LeaveApplication::where('ci_leave_applications.company_id', $companyId)
+            ->join('ci_erp_users_details', 'ci_leave_applications.employee_id', '=', 'ci_erp_users_details.user_id')
+            ->leftJoin('ci_office_shifts', 'ci_erp_users_details.office_shift_id', '=', 'ci_office_shifts.office_shift_id')
+            ->select('ci_leave_applications.*') // نختار بيانات الإجازة فقط لتجنب تداخل المعرفات
+            ->where('ci_leave_applications.leave_hours', '>', 0) // ساعات أكبر من صفر
+            ->whereRaw('CAST(ci_leave_applications.leave_hours AS DECIMAL(10,2)) < CASE WHEN (COALESCE(ci_office_shifts.hours_per_day, 0) > 0) THEN ci_office_shifts.hours_per_day ELSE 8 END')
             ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
 
         // تطبيق فلتر البحث
@@ -57,43 +62,43 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
 
         // تطبيق الفلاتر الأخرى
         if ($filters->employeeId !== null) {
-            $query->where('employee_id', $filters->employeeId);
+            $query->where('ci_leave_applications.employee_id', $filters->employeeId);
         }
 
         // فلتر معرفات الموظفين (للتبعية)
         if ($filters->employeeIds !== null && is_array($filters->employeeIds) && !empty($filters->employeeIds)) {
-            $query->whereIn('employee_id', $filters->employeeIds);
+            $query->whereIn('ci_leave_applications.employee_id', $filters->employeeIds);
         }
 
         // فلتر الحالة
         if ($filters->status !== null) {
-            $query->where('status', $filters->status);
+            $query->where('ci_leave_applications.status', $filters->status);
         }
 
         // فلتر نوع الإجازة
         if ($filters->leaveTypeId !== null) {
-            $query->where('leave_type_id', $filters->leaveTypeId);
+            $query->where('ci_leave_applications.leave_type_id', $filters->leaveTypeId);
         }
 
         // Exclude restricted leave types
         if ($filters->excludedLeaveTypeIds !== null && !empty($filters->excludedLeaveTypeIds)) {
-            $query->whereNotIn('leave_type_id', $filters->excludedLeaveTypeIds);
+            $query->whereNotIn('ci_leave_applications.leave_type_id', $filters->excludedLeaveTypeIds);
         }
 
         // فلتر تاريخ البداية
         if ($filters->fromDate !== null) {
-            $query->where('from_date', '>=', $filters->fromDate);
+            $query->where('ci_leave_applications.from_date', '>=', $filters->fromDate);
         }
 
         // فلتر تاريخ النهاية
         if ($filters->toDate !== null) {
-            $query->where('from_date', '<=', $filters->toDate);
+            $query->where('ci_leave_applications.from_date', '<=', $filters->toDate);
         }
 
         // تطبيق الفرز
         $sortBy = in_array($filters->sortBy, ['created_at', 'from_date', 'status'])
-            ? $filters->sortBy
-            : 'created_at';
+            ? 'ci_leave_applications.' . $filters->sortBy
+            : 'ci_leave_applications.created_at';
 
         $sortDirection = strtolower($filters->sortDirection) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortDirection);
@@ -117,9 +122,12 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
      */
     public function findHourlyLeaveById(int $id, int $companyId): ?LeaveApplication
     {
-        return LeaveApplication::where('company_id', $companyId)
-            ->where('leave_hours', '>', 0) // ساعات أكبر من صفر
-            ->where('leave_hours', '<', 8) // ساعات أقل من 8
+        return LeaveApplication::where('ci_leave_applications.company_id', $companyId)
+            ->join('ci_erp_users_details', 'ci_leave_applications.employee_id', '=', 'ci_erp_users_details.user_id')
+            ->leftJoin('ci_office_shifts', 'ci_erp_users_details.office_shift_id', '=', 'ci_office_shifts.office_shift_id')
+            ->select('ci_leave_applications.*')
+            ->where('ci_leave_applications.leave_hours', '>', 0)
+            ->whereRaw('CAST(ci_leave_applications.leave_hours AS UNSIGNED) < COALESCE(ci_office_shifts.hours_per_day, 8)')
             ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff'])
             ->find($id);
     }
@@ -129,9 +137,12 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
      */
     public function findHourlyLeaveForEmployee(int $id, int $employeeId): ?LeaveApplication
     {
-        return LeaveApplication::where('employee_id', $employeeId)
-            ->where('leave_hours', '>', 0)
-            ->where('leave_hours', '<', 8)
+        return LeaveApplication::where('ci_leave_applications.employee_id', $employeeId)
+            ->join('ci_erp_users_details', 'ci_leave_applications.employee_id', '=', 'ci_erp_users_details.user_id')
+            ->leftJoin('ci_office_shifts', 'ci_erp_users_details.office_shift_id', '=', 'ci_office_shifts.office_shift_id')
+            ->select('ci_leave_applications.*')
+            ->where('ci_leave_applications.leave_hours', '>', 0)
+            ->whereRaw('CAST(ci_leave_applications.leave_hours AS UNSIGNED) < COALESCE(ci_office_shifts.hours_per_day, 8)')
             ->with(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff'])
             ->find($id);
     }
@@ -156,15 +167,8 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
             'status' => LeaveApplication::STATUS_REJECTED,
             'remarks' => $reason,
         ]);
-        StaffApproval::create([
-            'company_id' => $application->company_id,
-            'staff_id' => $cancelledBy,
-            'module_option' => 'leave_settings',
-            'module_key_id' => $application->leave_id,
-            'status' => LeaveApplication::STATUS_REJECTED,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+
+        // Note: Cancellation recording is handled by ApprovalService to avoid duplicates
 
         $application->refresh();
         $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
@@ -182,16 +186,7 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
             'remarks' => $remarks,
         ]);
 
-        // إنشاء سجل الموافقة في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $application->company_id,
-            'staff_id' => $approvedBy,
-            'module_option' => 'leave_settings',
-            'module_key_id' => $application->leave_id,
-            'status' => LeaveApplication::STATUS_APPROVED,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Approval recording is handled by ApprovalService to avoid duplicates
 
         $application->refresh();
         $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
@@ -209,16 +204,7 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
             'remarks' => $reason,
         ]);
 
-        // إنشاء سجل الرفض في جدول ci_erp_notifications_approval
-        StaffApproval::create([
-            'company_id' => $application->company_id,
-            'staff_id' => $rejectedBy,
-            'module_option' => 'leave_settings',
-            'module_key_id' => $application->leave_id,
-            'status' => LeaveApplication::STATUS_REJECTED,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Rejection recording is handled by ApprovalService to avoid duplicates
 
         $application->refresh();
         $application->load(['employee', 'dutyEmployee', 'leaveType', 'approvals.staff']);
@@ -231,12 +217,20 @@ class HourlyLeaveRepository implements HourlyLeaveRepositoryInterface
      */
     public function hasHourlyLeaveOnDate(int $employeeId, string $date, int $companyId): bool
     {
+        // نجلب ساعات شفت الموظف مباشرةً ولا نستخدم رقماً ثابتاً
+        $employee = User::with('user_details.officeShift')->find($employeeId);
+        $shiftHours = $employee ? (float) ($employee->user_details?->first()?->officeShift?->hours_per_day ?? 8) : 8.0;
+
         return LeaveApplication::where('company_id', $companyId)
             ->where('employee_id', $employeeId)
-            ->where('particular_date', $date) // نفس التاريخ المطلوب
-            ->where('leave_hours', '>', 0) // ساعات أكبر من صفر
-            ->where('leave_hours', '<', 8) // ساعات أقل من 8
-            ->whereIn('status', [1, 2, 3]) // pending أو approved أو rejected 
+            ->where('particular_date', $date)
+            ->where('leave_hours', '>', 0)
+            ->where('leave_hours', '<', $shiftHours) // أقل من ساعات شفت الموظف
+            ->whereIn('status', [
+                LeaveApplication::STATUS_PENDING,
+                LeaveApplication::STATUS_APPROVED,
+                LeaveApplication::STATUS_REJECTED
+            ])
             ->exists();
     }
 

@@ -104,4 +104,39 @@ interface LeaveRepositoryInterface
      * @return array [1 => 8.0, 2 => 0.0, ...]
      */
     public function getMonthlyUsedHours(int $employeeId, int $leaveTypeId, int $companyId, int $year): array;
+
+    // ==========================================
+    // Fiscal Year Aware Methods for Leave Report
+    // ==========================================
+
+    /**
+     * Get total used leave for an employee in a specific fiscal period (in hours)
+     */
+    public function getUsedLeaveInPeriod(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): float;
+
+    /**
+     * Get total pending leave for an employee in a specific fiscal period (in hours)
+     */
+    public function getPendingLeaveInPeriod(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): float;
+
+    /**
+     * Get total adjustments for an employee in a specific fiscal period (in hours)
+     */
+    public function getAdjustmentsInPeriod(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): float;
+
+    /**
+     * Get list of approved leave dates for an employee in a specific period
+     */
+    public function getApprovedLeaveDates(int $employeeId, int $leaveTypeId, int $companyId, string $startDate, string $endDate): string;
+
+    /**
+     * Get cumulative days used by employee for a specific leave type in a year
+     * 
+     * @param int $employeeId
+     * @param int $year
+     * @param string $systemLeaveType System leave type (sick, annual, etc.)
+     * @return float
+     */
+    public function getCumulativeDaysUsed(int $employeeId, int $year, string $systemLeaveType): float;
+
 }

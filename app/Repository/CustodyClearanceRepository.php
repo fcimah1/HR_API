@@ -5,11 +5,9 @@ namespace App\Repository;
 use App\DTOs\CustodyClearance\CustodyFilterDTO;
 use App\DTOs\CustodyClearance\CustodyClearanceFilterDTO;
 use App\DTOs\CustodyClearance\CreateCustodyClearanceDTO;
-use App\Enums\NumericalStatusEnum;
 use App\Models\Asset;
 use App\Models\CustodyClearance;
 use App\Models\CustodyClearanceItem;
-use App\Models\StaffApproval;
 use App\Models\User;
 use App\Repository\Interface\CustodyClearanceRepositoryInterface;
 use Illuminate\Support\Facades\Log;
@@ -19,7 +17,7 @@ class CustodyClearanceRepository implements CustodyClearanceRepositoryInterface
     /**
      * الحصول على العهد/الأصول للموظف
      */
-    public function getCustodiesForEmployee(CustodyFilterDTO $filters): array
+    public function getCustodiesForEmployee(CustodyFilterDTO $filters): mixed
     {
         $query = Asset::with(['employee', 'brand', 'category']);
 
@@ -63,24 +61,18 @@ class CustodyClearanceRepository implements CustodyClearanceRepositoryInterface
         }
 
         // Pagination
-        $paginator = $query->orderBy('name')
-            ->paginate($filters->perPage, ['*'], 'page', $filters->page);
+        if ($filters->paginate) {
+            return $query->orderBy('name')
+                ->paginate($filters->perPage, ['*'], 'page', $filters->page);
+        }
 
-        return [
-            'data' => $paginator->items(),
-            'pagination' => [
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-            ],
-        ];
+        return $query->orderBy('name')->get();
     }
 
     /**
      * الحصول على قائمة طلبات الإخلاء مع التصفية والترقيم
      */
-    public function getPaginatedClearances(CustodyClearanceFilterDTO $filters, User $user): array
+    public function getPaginatedClearances(CustodyClearanceFilterDTO $filters, User $user): mixed
     {
         $query = CustodyClearance::with(['employee', 'approver', 'creator', 'items.asset', 'approvals.staff']);
 
@@ -134,17 +126,11 @@ class CustodyClearanceRepository implements CustodyClearanceRepositoryInterface
         $query->orderBy('created_at', 'desc');
 
         // Pagination
-        $paginator = $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
+        if ($filters->paginate) {
+            return $query->paginate($filters->perPage, ['*'], 'page', $filters->page);
+        }
 
-        return [
-            'data' => $paginator->items(),
-            'pagination' => [
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-            ],
-        ];
+        return $query->get();
     }
 
     /**
@@ -206,16 +192,7 @@ class CustodyClearanceRepository implements CustodyClearanceRepositoryInterface
             'approved_date' => now(),
         ]);
 
-        // Create approval record
-        StaffApproval::create([
-            'company_id' => $clearance->company_id,
-            'staff_id' => $approvedBy,
-            'module_option' => 'custody_clearance_settings',
-            'module_key_id' => $clearance->clearance_id,
-            'status' => NumericalStatusEnum::APPROVED->value,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Approval recording is handled by ApprovalService to avoid duplicates
 
         $clearance->refresh();
         $clearance->load(['employee', 'approver', 'creator', 'items.asset', 'approvals.staff']);
@@ -237,16 +214,7 @@ class CustodyClearanceRepository implements CustodyClearanceRepositoryInterface
             'status' => 'rejected',
         ]);
 
-        // Create rejection record
-        StaffApproval::create([
-            'company_id' => $clearance->company_id,
-            'staff_id' => $rejectedBy,
-            'module_option' => 'custody_clearance_settings',
-            'module_key_id' => $clearance->clearance_id,
-            'status' => NumericalStatusEnum::REJECTED->value,
-            'approval_level' => 1,
-            'updated_at' => now(),
-        ]);
+        // Note: Rejection recording is handled by ApprovalService to avoid duplicates
 
         $clearance->refresh();
         $clearance->load(['employee', 'approver', 'creator', 'items.asset', 'approvals.staff']);

@@ -13,6 +13,7 @@ class CustodyClearanceFilterDTO
         public readonly ?string $fromDate = null,
         public readonly ?string $toDate = null,
         public readonly ?string $search = null,
+        public readonly bool $paginate = true,
         public readonly int $page = 1,
         public readonly int $perPage = 15,
     ) {}
@@ -28,6 +29,7 @@ class CustodyClearanceFilterDTO
             fromDate: $data['from_date'] ?? null,
             toDate: $data['to_date'] ?? null,
             search: $data['search'] ?? null,
+            paginate: filter_var($data['paginate'] ?? true, FILTER_VALIDATE_BOOLEAN),
             page: isset($data['page']) ? (int) $data['page'] : 1,
             perPage: isset($data['per_page']) ? (int) $data['per_page'] : 15,
         );

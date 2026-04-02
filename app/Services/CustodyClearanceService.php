@@ -9,13 +9,11 @@ use App\DTOs\CustodyClearance\ApproveCustodyClearanceDTO;
 use App\DTOs\CustodyClearance\CustodyResponseDTO;
 use App\DTOs\CustodyClearance\CustodyClearanceResponseDTO;
 use App\Enums\StringStatusEnum;
-use App\Models\CustodyClearance;
 use App\Models\User;
 use App\Repository\Interface\CustodyClearanceRepositoryInterface;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 
 class CustodyClearanceService
 {
@@ -29,7 +27,7 @@ class CustodyClearanceService
     /**
      * الحصول على العهد للموظف أو تابعيه
      */
-    public function getCustodiesForEmployee(User $user, CustodyFilterDTO $filters): array
+    public function getCustodiesForEmployee(User $user, CustodyFilterDTO $filters): mixed
     {
         $userType = strtolower(trim($user->user_type ?? ''));
         $companyId = $user->company_id;
@@ -84,17 +82,21 @@ class CustodyClearanceService
             CustodyFilterDTO::fromRequest($filterData)
         );
 
-        $result['data'] = array_map(function ($asset) {
-            return CustodyResponseDTO::fromModel($asset)->toArray();
-        }, $result['data']);
+        if ($result instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+            return $result->through(function ($asset) {
+                return CustodyResponseDTO::fromModel($asset)->toArray();
+            });
+        }
 
-        return $result;
+        return $result->map(function ($asset) {
+            return CustodyResponseDTO::fromModel($asset)->toArray();
+        });
     }
 
     /**
      * الحصول على قائمة طلبات الإخلاء
      */
-    public function getPaginatedClearances(CustodyClearanceFilterDTO $filters, User $user): array
+    public function getPaginatedClearances(CustodyClearanceFilterDTO $filters, User $user): mixed
     {
         $companyId = $user->company_id;
         $userType = strtolower(trim($user->user_type ?? ''));
@@ -128,11 +130,15 @@ class CustodyClearanceService
             $user
         );
 
-        $result['data'] = array_map(function ($clearance) {
-            return CustodyClearanceResponseDTO::fromModel($clearance)->toArray();
-        }, $result['data']);
+        if ($result instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+            return $result->through(function ($clearance) {
+                return CustodyClearanceResponseDTO::fromModel($clearance)->toArray();
+            });
+        }
 
-        return $result;
+        return $result->map(function ($clearance) {
+            return CustodyClearanceResponseDTO::fromModel($clearance)->toArray();
+        });
     }
 
     /**
@@ -320,7 +326,8 @@ class CustodyClearanceService
                         1,
                         1,
                         'custody_clearance_settings',
-                        $companyId
+                        $companyId,
+                        $clearance->employee_id
                     );
 
                     // Send approval notification
@@ -351,7 +358,8 @@ class CustodyClearanceService
                         2,
                         2,
                         'custody_clearance_settings',
-                        $companyId
+                        $companyId,
+                        $clearance->employee_id
                     );
 
                     // Send rejection notification
@@ -416,7 +424,8 @@ class CustodyClearanceService
                         1,
                         1,
                         'custody_clearance_settings',
-                        $companyId
+                        $companyId,
+                        $clearance->employee_id
                     );
 
                     // Send approval notification
@@ -447,7 +456,8 @@ class CustodyClearanceService
                         1,
                         0,
                         'custody_clearance_settings',
-                        $companyId
+                        $companyId,
+                        $clearance->employee_id
                     );
 
                     // Send intermediate notification
@@ -485,7 +495,8 @@ class CustodyClearanceService
                     2,
                     2,
                     'custody_clearance_settings',
-                    $companyId
+                    $companyId,
+                    $clearance->employee_id
                 );
 
                 // Send rejection notification

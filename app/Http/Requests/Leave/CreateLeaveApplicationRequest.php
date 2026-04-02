@@ -66,10 +66,7 @@ class CreateLeaveApplicationRequest extends FormRequest
                     // التحقق من وجود نوع الإجازة
                     $leaveType =  ErpConstant::where('constants_id', $value)
                         ->where('type',  ErpConstant::TYPE_LEAVE_TYPE)
-                        ->where(function ($query) use ($companyId) {
-                            $query->where('company_id', $companyId)
-                                ->orWhere('company_id', 0); // الأنواع العامة
-                        })
+                        ->where('company_id', $companyId)
                         ->first();
                     // Intentionally not logging here to avoid noise in logs
                     $leaveModel = new LeaveApplication();
@@ -90,14 +87,12 @@ class CreateLeaveApplicationRequest extends FormRequest
             'to_date' => 'required|date_format:Y-m-d|after_or_equal:from_date',
             'reason' => 'required|string|max:1000',
             'duty_employee_id' => [
-                'nullable',
+                'required',
                 'integer',
                 new \App\Rules\ValidDutyEmployee($this->employee_id ?? $user->user_id),
             ],
-            'is_half_day' => 'nullable|boolean',
             'remarks' => 'nullable|string|max:1000',
-            'is_deducted' => ['nullable', 'boolean', Rule::in(DeductedStatus::cases())],
-            'place' => ['nullable', 'boolean', Rule::in(LeavePlaceEnum::cases())],
+            'place' => ['required', 'boolean', Rule::in(LeavePlaceEnum::cases())],
         ];
     }
     /**
@@ -116,7 +111,7 @@ class CreateLeaveApplicationRequest extends FormRequest
             'to_date.after_or_equal' => 'تاريخ نهاية الإجازة يجب أن يكون بعد أو يساوي تاريخ البداية',
             'reason.required' => 'سبب الإجازة مطلوب',
             'reason.max' => 'سبب الإجازة لا يجب أن يتجاوز 1000 حرف',
-            'is_deducted.in' => 'يجب أن يكون إجابة Deducted من القيم: ' . implode(',', array_map(fn($c) => $c->value, DeductedStatus::cases())),
+            'duty_employee_id.required' => 'الموظف البديل مطلوب',
             'place.in' => 'يجب أن يكون إجابة Place من القيم: ' . implode(',', array_map(fn($c) => $c->value, LeavePlaceEnum::cases())),
         ];
     }
@@ -132,9 +127,7 @@ class CreateLeaveApplicationRequest extends FormRequest
             'to_date' => 'تاريخ النهاية',
             'reason' => 'سبب الإجازة',
             'duty_employee_id' => 'الموظف البديل',
-            'is_half_day' => 'نصف يوم',
             'remarks' => 'ملاحظات',
-            'is_deducted' => 'حالة الإجازة',
             'place' => 'مكان الإجازة',
         ];
     }
@@ -185,7 +178,7 @@ class CreateLeaveApplicationRequest extends FormRequest
     {
         throw new HttpResponseException(response()->json([
             'success' => false,
-            'message' => 'فشل إنشاء طلب إجازة',
+            'message' => 'فشل التحقق من البيانات',
             'errors' => $validator->errors(),
         ], 422));
     }
